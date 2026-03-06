@@ -57,24 +57,24 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LEARN-01 | TBD | Pending |
-| LEARN-02 | TBD | Pending |
-| LEARN-03 | TBD | Pending |
-| LEARN-04 | TBD | Pending |
-| PHER-01 | TBD | Pending |
-| PHER-02 | TBD | Pending |
-| PHER-03 | TBD | Pending |
-| QUEEN-01 | TBD | Pending |
-| QUEEN-02 | TBD | Pending |
-| QUEEN-03 | TBD | Pending |
-| CTX-01 | TBD | Pending |
-| CTX-02 | TBD | Pending |
+| LEARN-01 | Phase 2 | Pending |
+| LEARN-02 | Phase 1 | Pending |
+| LEARN-03 | Phase 1 | Pending |
+| LEARN-04 | Phase 2 | Pending |
+| PHER-01 | Phase 4 | Pending |
+| PHER-02 | Phase 4 | Pending |
+| PHER-03 | Phase 4 | Pending |
+| QUEEN-01 | Phase 5 | Pending |
+| QUEEN-02 | Phase 5 | Pending |
+| QUEEN-03 | Phase 5 | Pending |
+| CTX-01 | Phase 3 | Pending |
+| CTX-02 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 12 total
-- Mapped to phases: 0
-- Unmapped: 12
+- Mapped to phases: 12
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-06 after initial definition*
+*Last updated: 2026-03-06 after roadmap creation*
