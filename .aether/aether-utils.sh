@@ -7743,6 +7743,58 @@ $updated_meta
     fi
     # === END CONTEXT.md decision injection ===
 
+    # === Blocker flag injection (CTX-02) ===
+    # Extract unresolved blocker flags for the current phase from flags.json
+    # and inject as REDIRECT-priority warnings distinct from user pheromones
+    cp_flags_file="$DATA_DIR/flags.json"
+    cp_blocker_count=0
+
+    cp_blockers=""
+    if [[ -f "$cp_flags_file" ]]; then
+      cp_blockers=$(jq -r \
+        --argjson phase "$cp_current_phase" \
+        '
+        .flags
+        | map(select(
+            .type == "blocker"
+            and .resolved_at == null
+            and (.phase == $phase or .phase == null)
+          ))
+        | map("[source: " + (.source // "unknown") + "] " + .title + "\n  " + (.description // ""))
+        | .[]
+        ' "$cp_flags_file" 2>/dev/null || echo "")
+    fi
+
+    cp_max_blockers=3
+    if [[ "$cp_compact" == "true" ]]; then
+      cp_max_blockers=2
+    fi
+
+    if [[ -n "$cp_blockers" ]]; then
+      cp_blocker_count=$(echo "$cp_blockers" | grep -c '^\[source:' || echo "0")
+
+      if [[ "$cp_blocker_count" -gt 0 ]]; then
+        cp_blocker_section="--- BLOCKER WARNINGS (Unresolved Build Blockers) ---"$'\n'
+        cp_blocker_section+="These are critical issues that MUST be addressed. Treat as REDIRECT-priority."$'\n'
+
+        cp_blocker_idx=0
+        while IFS= read -r cp_blk_line; do
+          if [[ "$cp_blocker_idx" -ge "$cp_max_blockers" ]]; then break; fi
+          if [[ "$cp_blk_line" == \[source:* ]]; then
+            ((cp_blocker_idx++)) || true
+            if [[ "$cp_blocker_idx" -gt "$cp_max_blockers" ]]; then break; fi
+          fi
+          [[ -n "$cp_blk_line" ]] && cp_blocker_section+="$cp_blk_line"$'\n'
+        done <<< "$cp_blockers"
+
+        cp_blocker_section+="--- END BLOCKER WARNINGS ---"
+
+        cp_final_prompt+=$'\n'"$cp_blocker_section"$'\n'
+        cp_log_line="$cp_log_line, $cp_blocker_count blockers"
+      fi
+    fi
+    # === END blocker flag injection ===
+
     # Add pheromone signals section
     if [[ -n "$cp_prompt_section" && "$cp_prompt_section" != "null" ]]; then
       cp_final_prompt+=$'\n'"$cp_prompt_section"
