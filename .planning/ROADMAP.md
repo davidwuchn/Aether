@@ -76,13 +76,11 @@ Plans:
   3. Success criteria patterns that recur across phases auto-emit FEEDBACK pheromones on recurrence
   4. Auto-emitted pheromones are marked with their source (decision/error/success) so users can distinguish them from manual pheromones
   5. Auto-emitted pheromones appear in the next /ant:build via the existing pheromone-prime pipeline
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Wire decision-to-FEEDBACK emission in continue-advance
-- [ ] 04-02: Wire recurring error pattern detection and REDIRECT emission in continue-advance
-- [ ] 04-03: Wire success criteria pattern detection and FEEDBACK emission in continue-advance
-- [ ] 04-04: Add tests for pheromone auto-emission from all three sources
+- [ ] 04-01-PLAN.md — Wire all three auto-emission blocks (decision, error, success) into continue-advance and continue-full playbooks
+- [ ] 04-02-PLAN.md — Integration tests for pheromone auto-emission from all three sources
 
 ### Phase 5: Wisdom Promotion
 **Goal**: Learning observations that cross promotion thresholds automatically graduate to QUEEN.md wisdom, and that wisdom reaches builders -- completing the full learning lifecycle
@@ -111,5 +109,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Instinct Pipeline | 3/3 | Complete    | 2026-03-06 |
 | 2. Learnings Injection | 0/2 | Complete    | 2026-03-06 |
 | 3. Context Expansion | 0/2 | Complete    | 2026-03-06 |
-| 4. Pheromone Auto-Emission | 0/4 | Not started | - |
+| 4. Pheromone Auto-Emission | 0/2 | Not started | - |
 | 5. Wisdom Promotion | 0/4 | Not started | - |
