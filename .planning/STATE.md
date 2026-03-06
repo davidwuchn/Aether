@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Workers automatically receive all relevant context -- the colony improves itself.
-**Current focus:** Phase 2: Learnings Injection
+**Current focus:** Phase 2: Learnings Injection (COMPLETE)
 
 ## Current Position
 
 Phase: 2 of 5 (Learnings Injection)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-06 -- Completed 02-01 (phase learnings extraction and formatting)
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase Complete
+Last activity: 2026-03-06 -- Completed 02-02 (learnings injection integration tests)
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 2min
-- Total execution time: 0.15 hours
+- Total execution time: 0.18 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-instinct-pipeline | 3 | 6min | 2min |
-| 02-learnings-injection | 1 | 3min | 3min |
+| 02-learnings-injection | 2 | 5min | 2.5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (1min), 01-02 (2min), 01-03 (3min), 02-01 (3min)
+- Last 5 plans: 01-02 (2min), 01-03 (3min), 02-01 (3min), 02-02 (2min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -54,6 +54,7 @@ Recent decisions affecting current work:
 - [02-01]: Learnings placed between context-capsule and pheromone signals in prompt assembly order
 - [02-01]: Inherited learnings sorted first (before numeric phases) for foundational visibility
 - [02-01]: Compact mode: 5 claims max; non-compact: 15 claims max
+- [02-02]: Extended setupTestColony helper with phaseLearnings and currentPhase rather than shared module
 
 ### Pending Todos
 
@@ -66,5 +67,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 02-01-PLAN.md
-Resume file: .planning/phases/02-learnings-injection/02-01-SUMMARY.md
+Stopped at: Completed 02-02-PLAN.md (Phase 2 complete)
+Resume file: .planning/phases/02-learnings-injection/02-02-SUMMARY.md
