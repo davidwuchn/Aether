@@ -7691,6 +7691,58 @@ $updated_meta
     fi
     # === End phase learnings injection ===
 
+    # === CONTEXT.md decision injection (CTX-01) ===
+    # Extract key decisions from CONTEXT.md "Recent Decisions" table
+    # and inject as actionable context for builders
+    cp_ctx_file="$AETHER_ROOT/.aether/CONTEXT.md"
+    cp_decision_count=0
+
+    cp_decisions=""
+    if [[ -f "$cp_ctx_file" ]]; then
+      cp_decisions=$(awk '
+        /^## .*Recent Decisions/ { in_section=1; next }
+        in_section && /^\| Date / { next }
+        in_section && /^\|[-]+/ { next }
+        in_section && /^---/ { exit }
+        in_section && /^\| [0-9]{4}-[0-9]{2}/ {
+          split($0, fields, "|")
+          decision = fields[3]
+          rationale = fields[4]
+          gsub(/^[[:space:]]+|[[:space:]]+$/, "", decision)
+          gsub(/^[[:space:]]+|[[:space:]]+$/, "", rationale)
+          if (decision != "") {
+            if (rationale != "" && rationale != "-") {
+              print decision " (" rationale ")"
+            } else {
+              print decision
+            }
+          }
+        }
+      ' "$cp_ctx_file" 2>/dev/null || echo "")
+    fi
+
+    cp_max_decisions=5
+    if [[ "$cp_compact" == "true" ]]; then
+      cp_max_decisions=3
+    fi
+
+    if [[ -n "$cp_decisions" ]]; then
+      cp_trimmed_decisions=$(echo "$cp_decisions" | tail -n "$cp_max_decisions")
+      cp_decision_count=$(echo "$cp_trimmed_decisions" | grep -c '.' || echo "0")
+
+      if [[ "$cp_decision_count" -gt 0 ]]; then
+        cp_decision_section="--- KEY DECISIONS (Active Decisions) ---"$'\n'
+        while IFS= read -r cp_dec_line; do
+          [[ -n "$cp_dec_line" ]] && cp_decision_section+="- $cp_dec_line"$'\n'
+        done <<< "$cp_trimmed_decisions"
+        cp_decision_section+="--- END KEY DECISIONS ---"
+
+        cp_final_prompt+=$'\n'"$cp_decision_section"$'\n'
+        cp_log_line="$cp_log_line, $cp_decision_count decisions"
+      fi
+    fi
+    # === END CONTEXT.md decision injection ===
+
     # Add pheromone signals section
     if [[ -n "$cp_prompt_section" && "$cp_prompt_section" != "null" ]]; then
       cp_final_prompt+=$'\n'"$cp_prompt_section"
