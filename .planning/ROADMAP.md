@@ -29,12 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Running /ant:build after instincts exist shows instinct guidance in the builder's prompt context
   3. Instincts created during continue include the source pattern, confidence score, and actionable guidance text
   4. colony-prime output includes an "Instincts" section when instincts exist, and omits it when none exist
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Wire instinct-create into continue-advance for high-confidence patterns
-- [ ] 01-02: Wire instinct-read into colony-prime prompt_section output
-- [ ] 01-03: Add tests for instinct pipeline end-to-end
+- [ ] 01-01-PLAN.md — Fix instinct-read bug, tighten confidence thresholds, add midden/success pattern sourcing
+- [ ] 01-02-PLAN.md — Add domain-grouped instinct formatting to pheromone-prime, verify build visibility
+- [ ] 01-03-PLAN.md — Integration tests for instinct pipeline end-to-end
 
 ### Phase 2: Learnings Injection
 **Goal**: Builders automatically see what was learned in previous phases, so the colony doesn't repeat mistakes or rediscover solutions
@@ -110,7 +110,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Instinct Pipeline | 0/3 | Not started | - |
+| 1. Instinct Pipeline | 0/3 | Planning complete | - |
 | 2. Learnings Injection | 0/3 | Not started | - |
 | 3. Context Expansion | 0/3 | Not started | - |
 | 4. Pheromone Auto-Emission | 0/4 | Not started | - |
