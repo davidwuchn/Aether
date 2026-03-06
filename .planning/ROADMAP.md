@@ -32,9 +32,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Fix instinct-read bug, tighten confidence thresholds, add midden/success pattern sourcing
-- [ ] 01-02-PLAN.md — Add domain-grouped instinct formatting to pheromone-prime, verify build visibility
-- [ ] 01-03-PLAN.md — Integration tests for instinct pipeline end-to-end
+- [x] 01-01-PLAN.md — Fix instinct-read bug, tighten confidence thresholds, add midden/success pattern sourcing
+- [x] 01-02-PLAN.md — Add domain-grouped instinct formatting to pheromone-prime, verify build visibility
+- [x] 01-03-PLAN.md — Integration tests for instinct pipeline end-to-end
 
 ### Phase 2: Learnings Injection
 **Goal**: Builders automatically see what was learned in previous phases, so the colony doesn't repeat mistakes or rediscover solutions
@@ -45,12 +45,11 @@ Plans:
   2. Learnings appear as actionable guidance (not raw JSON) in the builder prompt
   3. Only validated learnings (not rejected or pending) are injected
   4. colony-prime output includes a "Phase Learnings" section when previous phase learnings exist
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Wire phase learning extraction into colony-prime from COLONY_STATE.json
-- [ ] 02-02: Format learnings as actionable builder guidance in prompt_section
-- [ ] 02-03: Add tests for learnings injection across phases
+- [ ] 02-01-PLAN.md — Wire phase learnings extraction and formatting into colony-prime
+- [ ] 02-02-PLAN.md — Integration tests for learnings injection end-to-end
 
 ### Phase 3: Context Expansion
 **Goal**: Key decisions recorded in CONTEXT.md and escalated blocker flags automatically reach builders, closing the last context gaps
@@ -110,8 +109,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Instinct Pipeline | 0/3 | Complete    | 2026-03-06 |
-| 2. Learnings Injection | 0/3 | Not started | - |
+| 1. Instinct Pipeline | 3/3 | Complete    | 2026-03-06 |
+| 2. Learnings Injection | 0/2 | Not started | - |
 | 3. Context Expansion | 0/3 | Not started | - |
 | 4. Pheromone Auto-Emission | 0/4 | Not started | - |
 | 5. Wisdom Promotion | 0/4 | Not started | - |
