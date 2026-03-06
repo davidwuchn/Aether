@@ -1167,39 +1167,148 @@ bash .aether/aether-utils.sh pheromone-write FEEDBACK "$phase_feedback" \
 
 The strength is 0.6 (auto-emitted = lower than user-emitted 0.7). Source is "worker:continue" to distinguish from user-emitted feedback. TTL is 30d so it survives phase transitions and can guide subsequent work.
 
-#### 2.1b: Auto-emit REDIRECT for recurring error patterns
+#### 2.1b: Auto-emit FEEDBACK for phase decisions (PHER-01)
 
-Check `errors.flagged_patterns[]` in COLONY_STATE.json for patterns that have appeared in 2+ phases:
-
-```bash
-flagged_patterns=$(jq -r '.errors.flagged_patterns[]? | select(.count >= 2) | .pattern' .aether/data/COLONY_STATE.json 2>/dev/null || true)
-```
-
-For each pattern returned by the above query, emit a REDIRECT signal:
+Extract recent decisions from CONTEXT.md "Recent Decisions" table and emit FEEDBACK pheromones for each. This ensures key decisions propagate as signals to guide future phases.
 
 ```bash
-bash .aether/aether-utils.sh pheromone-write REDIRECT "$pattern_text" \
-  --strength 0.7 \
-  --source "system" \
-  --reason "Auto-emitted: error pattern recurred across 2+ phases" \
-  --ttl "30d" 2>/dev/null || true
+decisions=$(awk '
+  /^## .*Recent Decisions/ { in_section=1; next }
+  in_section && /^\| Date / { next }
+  in_section && /^\|[-]+/ { next }
+  in_section && /^---/ { exit }
+  in_section && /^\| [0-9]{4}-[0-9]{2}/ {
+    split($0, fields, "|")
+    decision = fields[3]
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", decision)
+    if (decision != "") print decision
+  }
+' .aether/CONTEXT.md 2>/dev/null || echo "")
+
+if [[ -n "$decisions" ]]; then
+  emit_count=0
+  while IFS= read -r dec && [[ $emit_count -lt 3 ]]; do
+    [[ -z "$dec" ]] && continue
+    # Deduplication: check if auto:decision or system:decision pheromone with this text already exists
+    existing=$(jq -r --arg text "$dec" '
+      [.signals[] | select(.active == true and (.source == "auto:decision" or .source == "system:decision") and (.content.text | contains($text)))] | length
+    ' .aether/data/pheromones.json 2>/dev/null || echo "0")
+    if [[ "$existing" == "0" ]]; then
+      bash .aether/aether-utils.sh pheromone-write FEEDBACK \
+        "[decision] $dec" \
+        --strength 0.6 \
+        --source "auto:decision" \
+        --reason "Auto-emitted from phase decision during continue" \
+        --ttl "30d" 2>/dev/null || true
+      emit_count=$((emit_count + 1))
+    fi
+  done <<< "$decisions"
+fi
 ```
 
-REDIRECT strength is 0.7 (higher than auto FEEDBACK 0.6 — anti-patterns produce stronger signals than successes). TTL is 30d (not phase_end) because recurring errors should persist across multiple phases.
+Strength is 0.6 (auto-emitted = lower than user-emitted). Source is `"auto:decision"` to distinguish from manual and system-emitted signals. Cap: max 3 decision pheromones per continue run. Deduplication checks both `auto:decision` and `system:decision` sources to avoid duplicating signals already emitted by `context-update decision`.
 
-Also capture each recurring pattern as a resolution candidate so the colony can promote "finally fixed" lessons over time:
+#### 2.1c: Auto-emit REDIRECT for midden error patterns (PHER-02)
+
+Query the actual failure store (`midden.json`) for recurring error categories. Categories with 3+ occurrences indicate persistent issues that should steer workers away from known failure modes.
 
 ```bash
-bash .aether/aether-utils.sh memory-capture \
-  "resolution" \
-  "$pattern_text" \
-  "pattern" \
-  "worker:continue" 2>/dev/null || true
+midden_result=$(bash .aether/aether-utils.sh midden-recent-failures 50 2>/dev/null || echo '{"count":0,"failures":[]}')
+midden_count=$(echo "$midden_result" | jq '.count // 0')
+
+if [[ "$midden_count" -gt 0 ]]; then
+  # Group by category, find categories with 3+ occurrences
+  recurring_categories=$(echo "$midden_result" | jq -r '
+    [.failures[] | .category]
+    | group_by(.)
+    | map(select(length >= 3))
+    | map({category: .[0], count: length})
+    | .[]
+    | @base64
+  ' 2>/dev/null || echo "")
+
+  emit_count=0
+  for encoded in $recurring_categories; do
+    [[ $emit_count -ge 3 ]] && break
+    [[ -z "$encoded" ]] && continue
+    category=$(echo "$encoded" | base64 -d | jq -r '.category')
+    count=$(echo "$encoded" | base64 -d | jq -r '.count')
+
+    # Deduplication check
+    existing=$(jq -r --arg cat "$category" '
+      [.signals[] | select(.active == true and .source == "auto:error" and (.content.text | contains($cat)))] | length
+    ' .aether/data/pheromones.json 2>/dev/null || echo "0")
+
+    if [[ "$existing" == "0" ]]; then
+      bash .aether/aether-utils.sh pheromone-write REDIRECT \
+        "[error-pattern] Category \"$category\" recurring ($count occurrences)" \
+        --strength 0.7 \
+        --source "auto:error" \
+        --reason "Auto-emitted: midden error pattern recurred 3+ times" \
+        --ttl "30d" 2>/dev/null || true
+      emit_count=$((emit_count + 1))
+
+      # Capture as resolution candidate for promotion tracking
+      bash .aether/aether-utils.sh memory-capture \
+        "resolution" \
+        "Recurring error pattern: $category ($count occurrences)" \
+        "pattern" \
+        "worker:continue" 2>/dev/null || true
+    fi
+  done
+fi
 ```
 
-If `errors.flagged_patterns` doesn't exist or is empty, skip silently.
+REDIRECT strength is 0.7 (higher than auto FEEDBACK 0.6 — anti-patterns produce stronger signals). Source is `"auto:error"`. Cap: max 3 error pattern pheromones per continue run. Uses `midden-recent-failures` subcommand (actual failure store) instead of `errors.flagged_patterns` (which may be empty). Threshold is 3+ occurrences for high confidence in recurrence.
 
-#### 2.1c: Expire phase_end signals and archive to midden
+#### 2.1d: Auto-emit FEEDBACK for recurring success criteria (PHER-03)
+
+Compare success criteria text across all completed phases. Criteria appearing in 2+ completed phases indicate recurring quality patterns worth reinforcing as signals.
+
+```bash
+recurring_criteria=$(jq -r '
+  [.plan.phases[]
+   | select(.status == "completed")
+   | .id as $phase_id
+   | (
+       (.success_criteria // [])[] ,
+       (.tasks // [] | .[].success_criteria // [])[]
+     )
+   | {phase: $phase_id, text: (. | ascii_downcase | gsub("^\\s+|\\s+$"; ""))}
+  ]
+  | group_by(.text)
+  | map(select(length >= 2))
+  | map({text: .[0].text, phases: [.[].phase] | unique, count: length})
+  | .[:2]
+  | .[]
+  | @base64
+' .aether/data/COLONY_STATE.json 2>/dev/null || echo "")
+
+for encoded in $recurring_criteria; do
+  [[ -z "$encoded" ]] && continue
+  text=$(echo "$encoded" | base64 -d | jq -r '.text')
+  count=$(echo "$encoded" | base64 -d | jq -r '.count')
+  phases=$(echo "$encoded" | base64 -d | jq -r '.phases | join(", ")')
+
+  # Deduplication check
+  existing=$(jq -r --arg text "$text" '
+    [.signals[] | select(.active == true and .source == "auto:success" and (.content.text | ascii_downcase | contains($text)))] | length
+  ' .aether/data/pheromones.json 2>/dev/null || echo "0")
+
+  if [[ "$existing" == "0" ]]; then
+    bash .aether/aether-utils.sh pheromone-write FEEDBACK \
+      "[success-pattern] \"$text\" recurs across phases $phases" \
+      --strength 0.6 \
+      --source "auto:success" \
+      --reason "Auto-emitted: success criteria pattern recurred across $count phases" \
+      --ttl "30d" 2>/dev/null || true
+  fi
+done
+```
+
+Strength is 0.6 (auto-emitted). Source is `"auto:success"`. Cap: max 2 success criteria pheromones per continue run (enforced by `.[:2]` in the jq query). Extracts from both phase-level `.success_criteria` and task-level `.tasks[].success_criteria` across all completed phases. Normalizes text with `ascii_downcase` and whitespace trimming for reliable matching.
+
+#### 2.1e: Expire phase_end signals and archive to midden
 
 After auto-emission, expire all signals with `expires_at == "phase_end"`. The FEEDBACK from 2.1a uses a 30d TTL and is not affected by this step.
 
