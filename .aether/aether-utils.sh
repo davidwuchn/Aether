@@ -7630,6 +7630,67 @@ $updated_meta
       cp_final_prompt+=$'\n'"$cp_capsule_prompt"$'\n'
     fi
 
+    # === Phase learnings injection ===
+    # Extract validated learnings from previous phases in COLONY_STATE.json
+    # and format as actionable guidance for builders
+    cp_current_phase=$(jq -r '.current_phase // 0' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null || echo "0")
+
+    cp_max_learnings=15
+    if [[ "$cp_compact" == "true" ]]; then
+      cp_max_learnings=5
+    fi
+
+    cp_learning_claims=$(jq -r \
+      --argjson current "$cp_current_phase" \
+      --argjson max "$cp_max_learnings" \
+      '
+      [
+        (.memory.phase_learnings // [])[]
+        | select((.phase | type) == "string" or ((.phase | tonumber) < $current))
+        | .phase as $p | .phase_name as $pn
+        | .learnings[]
+        | select(.status == "validated")
+        | {phase: $p, phase_name: $pn, claim: .claim}
+      ]
+      | unique_by(.claim)
+      | .[:$max]
+      ' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null || echo "[]")
+
+    cp_learning_count=$(echo "$cp_learning_claims" | jq 'length' 2>/dev/null || echo "0")
+
+    if [[ "$cp_learning_count" -gt 0 ]]; then
+      cp_learning_section="--- PHASE LEARNINGS (Previous Phase Insights) ---"
+
+      cp_learning_lines=$(echo "$cp_learning_claims" | jq -r '
+        group_by(.phase)
+        | map({
+            phase: .[0].phase,
+            phase_name: .[0].phase_name,
+            claims: [.[].claim]
+          })
+        | sort_by(if .phase == "inherited" then -1 else (.phase | tonumber) end)
+        | .[]
+        | "\n"
+          + (if .phase == "inherited" then "Inherited"
+             elif .phase_name != "" then "Phase " + (.phase | tostring) + " (" + .phase_name + ")"
+             else "Phase " + (.phase | tostring)
+             end)
+          + ":"
+          + "\n" + (.claims | map("  - " + .) | join("\n"))
+      ' 2>/dev/null || echo "")
+
+      if [[ -n "$cp_learning_lines" ]]; then
+        cp_learning_section+="$cp_learning_lines"$'\n'
+      fi
+
+      cp_learning_section+=$'\n'"--- END PHASE LEARNINGS ---"
+
+      cp_final_prompt+=$'\n'"$cp_learning_section"$'\n'
+
+      cp_log_line="$cp_log_line, $cp_learning_count learnings"
+    fi
+    # === End phase learnings injection ===
+
     # Add pheromone signals section
     if [[ -n "$cp_prompt_section" && "$cp_prompt_section" != "null" ]]; then
       cp_final_prompt+=$'\n'"$cp_prompt_section"
