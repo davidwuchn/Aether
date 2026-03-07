@@ -226,6 +226,34 @@ Skip silently (no output) — proceed directly to Step 3.6.
 Before sealing, review wisdom proposals accumulated during this colony's lifecycle.
 
 ```bash
+# --- Batch auto-promotion for auto-threshold observations (QUEEN-02) ---
+# Auto-promote observations meeting higher recurrence thresholds
+# before presenting the interactive review for lower-threshold proposals.
+
+obs_file=".aether/data/learning-observations.json"
+auto_promoted_count=0
+
+if [[ -f "$obs_file" ]]; then
+  for encoded in $(jq -r '.observations[] | @base64' "$obs_file" 2>/dev/null); do
+    content=$(echo "$encoded" | base64 -d | jq -r '.content // empty')
+    wisdom_type=$(echo "$encoded" | base64 -d | jq -r '.wisdom_type // "pattern"')
+    colony=$(echo "$encoded" | base64 -d | jq -r '.colonies[0] // "unknown"')
+    [[ -z "$content" ]] && continue
+
+    result=$(bash .aether/aether-utils.sh learning-promote-auto "$wisdom_type" "$content" "$colony" "learning" 2>/dev/null || echo '{}')
+    was_promoted=$(echo "$result" | jq -r '.result.promoted // false' 2>/dev/null || echo "false")
+    if [[ "$was_promoted" == "true" ]]; then
+      auto_promoted_count=$((auto_promoted_count + 1))
+    fi
+  done
+fi
+
+if [[ "$auto_promoted_count" -gt 0 ]]; then
+  echo "Auto-promoted $auto_promoted_count observation(s) to QUEEN.md (met recurrence thresholds)"
+  echo ""
+fi
+# --- END Batch auto-promotion ---
+
 # Check for pending proposals
 proposals=$(bash .aether/aether-utils.sh learning-check-promotion 2>/dev/null || echo '{"proposals":[]}')
 proposal_count=$(echo "$proposals" | jq '.proposals | length')
