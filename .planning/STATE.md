@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Workers automatically receive all relevant context -- the colony improves itself.
-**Current focus:** Phase 4: Pheromone Auto-Emission (COMPLETE)
+**Current focus:** Phase 5: Wisdom Promotion (IN PROGRESS)
 
 ## Current Position
 
-Phase: 4 of 5 (Pheromone Auto-Emission)
-Plan: 2 of 2 in current phase (COMPLETE)
-Status: Phase complete
-Last activity: 2026-03-07 -- Completed 04-02 (auto-emission integration tests)
+Phase: 5 of 5 (Wisdom Promotion)
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-03-07 -- Completed 05-01 (wisdom promotion wiring)
 
-Progress: [█████████░] 90%
+Progress: [█████████░] 91%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 2.5min
-- Total execution time: 0.40 hours
+- Total plans completed: 10
+- Average duration: 2.4min
+- Total execution time: 0.43 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [█████████░] 90%
 | 02-learnings-injection | 2 | 5min | 2.5min |
 | 03-context-expansion | 2 | 7min | 3.5min |
 | 04-pheromone-auto-emission | 2 | 6min | 3min |
+| 05-wisdom-promotion | 1 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (3min), 03-02 (4min), 04-01 (3min), 04-02 (3min)
+- Last 5 plans: 03-02 (4min), 04-01 (3min), 04-02 (3min), 05-01 (2min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -69,6 +70,8 @@ Recent decisions affecting current work:
 - [04-02]: Deduplication is caller responsibility -- pheromone-write always appends
 - [04-02]: Midden test data uses entries[] key format matching midden-recent-failures subcommand
 - [04-02]: Success criteria recurrence verified via JS grouping mirroring jq approach
+- [05-01]: Step 2.1.6 inserted between Step 2.1.5 (proposals) and Step 2.2 (handoff) for natural position after learnings extraction
+- [05-01]: Batch auto-promotion in seal runs BEFORE interactive review so auto-threshold observations skip manual approval UX
 
 ### Pending Todos
 
@@ -81,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
-Resume file: .planning/phases/04-pheromone-auto-emission/04-02-SUMMARY.md
+Stopped at: Completed 05-01-PLAN.md
+Resume file: .planning/phases/05-wisdom-promotion/05-01-SUMMARY.md
