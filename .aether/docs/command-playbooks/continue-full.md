@@ -1364,6 +1364,39 @@ fi
 - No proposals to review (silent skip - no output)
 - QUEEN.md does not exist
 
+### Step 2.1.6: Batch Wisdom Auto-Promotion (QUEEN-01)
+
+After learnings extraction and auto-emission, sweep all recorded observations and auto-promote any that meet the higher recurrence thresholds (pattern=2, philosophy=3, etc.) to QUEEN.md. The learning-promote-auto subcommand has an internal grep guard that skips content already in QUEEN.md, so this is safe to run even after memory-capture in Step 2.5 already attempted promotion.
+
+```bash
+# === Batch Wisdom Auto-Promotion (QUEEN-01) ===
+# Sweep all observations and auto-promote any that crossed auto thresholds.
+# The grep guard inside learning-promote-auto prevents double-promotion
+# for observations already promoted by memory-capture in Step 2.5.
+
+obs_file=".aether/data/learning-observations.json"
+if [[ -f "$obs_file" ]]; then
+  obs_count=$(jq '.observations | length' "$obs_file" 2>/dev/null || echo "0")
+  promoted_count=0
+
+  if [[ "$obs_count" -gt 0 ]]; then
+    for encoded in $(jq -r '.observations[] | @base64' "$obs_file" 2>/dev/null); do
+      content=$(echo "$encoded" | base64 -d | jq -r '.content // empty')
+      wisdom_type=$(echo "$encoded" | base64 -d | jq -r '.wisdom_type // "pattern"')
+      colony=$(echo "$encoded" | base64 -d | jq -r '.colonies[0] // "unknown"')
+      [[ -z "$content" ]] && continue
+
+      result=$(bash .aether/aether-utils.sh learning-promote-auto "$wisdom_type" "$content" "$colony" "learning" 2>/dev/null || echo '{}')
+      was_promoted=$(echo "$result" | jq -r '.result.promoted // false' 2>/dev/null || echo "false")
+      if [[ "$was_promoted" == "true" ]]; then
+        promoted_count=$((promoted_count + 1))
+      fi
+    done
+  fi
+fi
+# === END Batch Wisdom Auto-Promotion ===
+```
+
 ### Step 2.2: Update Handoff Document
 
 After advancing the phase, update the handoff document with the new current state:
