@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 5 of 5 (Wisdom Promotion)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-07 -- Completed 05-01 (wisdom promotion wiring)
+Plan: 2 of 2 in current phase
+Status: Complete
+Last activity: 2026-03-07 -- Completed 05-02 (wisdom promotion integration tests)
 
-Progress: [█████████░] 91%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 2.4min
-- Total execution time: 0.43 hours
+- Total plans completed: 11
+- Average duration: 3.3min
+- Total execution time: 0.61 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [█████████░] 91%
 | 02-learnings-injection | 2 | 5min | 2.5min |
 | 03-context-expansion | 2 | 7min | 3.5min |
 | 04-pheromone-auto-emission | 2 | 6min | 3min |
-| 05-wisdom-promotion | 1 | 2min | 2min |
+| 05-wisdom-promotion | 2 | 13min | 6.5min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (4min), 04-01 (3min), 04-02 (3min), 05-01 (2min)
-- Trend: stable
+- Last 5 plans: 03-02 (4min), 04-01 (3min), 04-02 (3min), 05-01 (2min), 05-02 (11min)
+- Trend: stable (05-02 longer due to bug investigation and fix)
 
 *Updated after each plan completion*
 
@@ -72,6 +72,9 @@ Recent decisions affecting current work:
 - [04-02]: Success criteria recurrence verified via JS grouping mirroring jq approach
 - [05-01]: Step 2.1.6 inserted between Step 2.1.5 (proposals) and Step 2.2 (handoff) for natural position after learnings extraction
 - [05-01]: Batch auto-promotion in seal runs BEFORE interactive review so auto-threshold observations skip manual approval UX
+- [05-02]: parseLastJson helper handles multi-line subcommand output from learning-promote-auto (instinct-create also writes to stdout)
+- [05-02]: Fixed memory-capture tail -1 bug: multi-line learning-promote-auto output was corrupting auto_promoted and promotion_reason JSON fields
+- [05-02]: QUEEN.md content assertions scoped to specific sections (not whole file) because queen-promote writes both section entry AND Evolution Log entry
 
 ### Pending Todos
 
@@ -84,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-wisdom-promotion/05-01-SUMMARY.md
+Stopped at: Completed 05-02-PLAN.md (Phase 5 complete, all phases done)
+Resume file: .planning/phases/05-wisdom-promotion/05-02-SUMMARY.md
