@@ -1,677 +1,316 @@
 # Pitfalls Research
 
-**Domain:** Wisdom Accumulation & Pheromone Evolution for Agent Colony Systems
-**Researched:** 2026-02-20
-**Confidence:** HIGH
-
----
+**Domain:** Autonomous AI Deep Research Loops (iterative deepening with stateless LLM instances)
+**Researched:** 2026-03-13
+**Confidence:** HIGH (verified against Anthropic engineering blog, Karpathy's autoresearch, OpenAI deep research system card, LangChain context management research, and Aether's own oracle archive)
 
 ## Critical Pitfalls
 
-### Pitfall 1: Silent Wisdom Drift from Auto-Promotion
+### Pitfall 1: Append-Only Progress File Becomes Unreadable
 
 **What goes wrong:**
-Automatically promoting learnings to wisdom without user approval causes the QUEEN.md file to accumulate content that doesn't match user priorities. Over time, the wisdom becomes noise rather than signal.
+The progress file grows unboundedly across iterations. Each stateless instance reads the full file, but as it exceeds thousands of lines, later instances cannot effectively process it. The LLM's attention degrades over long contexts ("context rot"), and critical early findings get buried under layers of later, potentially redundant content. In Aether's archived oracle run, 50 iterations produced 258 lines with repetitive section headers ("Iteration 1-5", "Iteration 6-10") where later iterations restated earlier findings rather than building on them.
 
 **Why it happens:**
-The system sees a pattern repeated 3 times and automatically promotes it. But the user may not consider that pattern valuable or may disagree with its classification.
+The oracle.md instruction says "APPEND to progress.md (never replace, always append)." This is a reasonable safety measure (prevents data loss), but without any compaction or restructuring mechanism, the file becomes an append-only log rather than an evolving knowledge base. Anthropic's own engineering blog identifies this pattern: "overly aggressive compression can result in the loss of subtle but critical context whose importance only becomes apparent later," but the opposite -- no compression at all -- causes context rot where everything gets diluted.
 
 **How to avoid:**
-- Always require user approval for promotion
-- Display proposed wisdom with clear type labels
-- Let user select which items to promote (tick-to-approve UX)
-- Never auto-promote, even when threshold is met
+Separate the accumulation file from the handoff file. Maintain a raw `findings.md` append-only log for safety, but produce a structured `state.json` (or equivalent) that each iteration reads as its primary input. The state file should contain: (1) answered questions with confidence levels, (2) unanswered questions ranked by priority, (3) a compact summary of key findings, and (4) explicit "do NOT re-investigate" markers. Each iteration rewrites the state file entirely -- it is the iteration's primary output, not an append.
+
+Karpathy's autoresearch solves this elegantly: the agent reads `train.py` (current state) and `results.tsv` (compact log of all attempts), not a growing narrative. The state IS the code; the log is structured data.
 
 **Warning signs:**
-- QUEEN.md grows without user interaction
-- Wisdom entries contradict each other
-- Workers receive guidance user didn't approve
+- Progress file exceeds 200 lines (roughly 4K tokens) by iteration 10
+- Later iterations repeat findings from earlier iterations verbatim
+- Confidence score plateaus but iterations keep running
+- Each iteration's "new findings" section shrinks relative to its "reading previous findings" overhead
 
-**Phase to address:** Continue command enhancement — build approval UX before any promotion happens
+**Phase to address:**
+Phase 1 (State Architecture) -- this is the foundational design decision. Getting the state format wrong poisons every subsequent feature.
 
 ---
 
-### Pitfall 2: Pheromone Noise from Over-Signaling
+### Pitfall 2: Circular Research (Covering the Same Ground Repeatedly)
 
 **What goes wrong:**
-Too many pheromone signals (FOCUS, REDIRECT, FEEDBACK) dilute their effectiveness. Workers can't distinguish important signals from noise.
+Stateless instances have no memory of what they already investigated. Each reads the progress file, picks what seems most important, and often gravitates toward the same subtopic. The oracle runs 50 iterations but only covers 3-4 distinct research threads because each fresh instance independently concludes the same area is most promising. Anthropic's multi-agent research system documented this exact failure: "three agents investigating the same 2025 semiconductor supply chains separately."
 
 **Why it happens:**
-Every small preference gets encoded as a signal. Without decay or cleanup, signals accumulate.
+The current oracle.md gives no guidance on which questions to prioritize or how to avoid re-covering ground. It says "Work on ONE focused area per iteration" but does not track which areas have been covered. Without an explicit "what has been explored" manifest, each stateless instance makes the same priority judgment from scratch. LLMs exhibit strong recency and salience biases -- they will repeatedly investigate whatever is most prominently described in the progress file.
 
 **How to avoid:**
-- Use signal decay (already implemented: effective_strength calculation)
-- Reserve REDIRECT for hard constraints only
-- Use FEEDBACK for preferences, not rules
-- Expire old signals regularly
+Implement an explicit exploration tracker in the state file. Structure it as a research tree where each node tracks: question, status (unexplored/in-progress/answered/blocked), confidence, and iteration last touched. Each iteration's instructions should say: "Pick the highest-priority UNEXPLORED or lowest-confidence IN-PROGRESS question. Do NOT re-investigate questions marked ANSWERED unless you have specific contradicting evidence."
+
+Autoresearch prevents this via the ratcheting mechanism (monotonic improvement on a metric). For research (which lacks a numeric metric), use question-answering coverage as the ratchet: once a question is marked answered at 90%+ confidence, it stays answered unless explicitly challenged.
 
 **Warning signs:**
-- pheromone-count returns high numbers
-- Worker prompts include conflicting signals
-- Signals reference outdated patterns
+- Multiple iterations produce findings about the same subtopic
+- The progress file has near-duplicate paragraphs across iteration blocks
+- Confidence score oscillates rather than monotonically increasing
+- New iterations do not reference or build upon specific prior findings
 
-**Phase to address:** Ongoing — pheromone-expire should run periodically
+**Phase to address:**
+Phase 1 (State Architecture) for the exploration tracker design. Phase 2 (Iteration Protocol) for the instructions that enforce exploration discipline.
 
 ---
 
-### Pitfall 3: Threshold Mismatch Causes Premature or Delayed Promotion
+### Pitfall 3: Self-Assessed Confidence Is Unreliable
 
 **What goes wrong:**
-Setting thresholds too low causes premature promotion (noise enters wisdom). Setting them too high delays valuable wisdom (user waits forever for patterns to be recognized).
+The oracle asks each iteration to "Rate your overall confidence (0-100%) that the research is complete" and terminates at a target threshold (e.g., 95%). LLMs are systematically overconfident in self-assessment. Research shows models say "I'm 100% sure" when they are wrong, and self-reported confidence is a poor proxy for actual completeness. The oracle may terminate early (claiming 95% confidence after 5 shallow iterations) or never terminate (unable to honestly claim 99% on subjective questions).
 
 **Why it happens:**
-The thresholds (philosophy:5, pattern:3, redirect:2, stack:1, decree:0) are defaults that may not match the user's confidence level or project complexity.
+Confidence self-assessment requires metacognition that current LLMs lack. The model is essentially asking "how much do I know about what I don't know?" -- a fundamentally ill-posed question for a system without ground truth. Additionally, confidence calibration varies wildly by domain: factual questions can be verified, but open-ended research questions ("What gaps exist between X and best practices?") have no objective completeness measure.
 
 **How to avoid:**
-- Document thresholds clearly in QUEEN.md metadata
-- Allow user to adjust thresholds per project
-- Provide rationale for each threshold level
-- Monitor: if proposals are too frequent, raise thresholds; if never, lower them
+Replace subjective confidence with objective coverage metrics. Track: (1) what percentage of research questions have answers, (2) what percentage of answers cite verifiable sources, (3) whether new iterations are producing novel findings or just restating known ones (novelty rate). Terminate when the novelty rate drops below a threshold (e.g., less than 10% new information in 3 consecutive iterations) AND all research questions have at least one answer. This is a "diminishing returns" detector, not a confidence score.
+
+OpenAI's Deep Research uses a trained model (o3) specifically optimized for multi-step research trajectories. Without that training, generic Claude instances will not produce well-calibrated confidence. Use structural completion metrics instead.
 
 **Warning signs:**
-- Promotion proposals appear on first occurrence
-- Patterns that seem obvious never get proposed
-- User manually promotes everything (system not helping)
+- Confidence jumps from 40% to 90% in a single iteration
+- Confidence score reaches target but obvious questions remain unanswered
+- Different iterations rate the same state of knowledge at wildly different confidence levels
+- Research terminates but the output is clearly shallow
 
-**Phase to address:** Requirements definition — make thresholds configurable
+**Phase to address:**
+Phase 2 (Iteration Protocol) for the completion criteria redesign. Phase 4 (Quality/Verification) for testing that the new criteria actually produce good stopping behavior.
 
 ---
 
-### Pitfall 4: Learning Observation Tracking Becomes Stale
+### Pitfall 4: Iterative Appending Without Iterative Deepening
 
 **What goes wrong:**
-Observation counts become outdated. A pattern observed 5 times in one colony sits at count=5 forever, even though it should accumulate across colonies.
+The system produces a series of surface-level passes rather than progressively deeper investigation. Iteration 1 covers the topic broadly. Iteration 2 covers it broadly again from a slightly different angle. By iteration 50, you have 50 broad summaries rather than one deep analysis. This is the core problem stated in the project context: "it's iterative appending not iterative deepening."
 
 **Why it happens:**
-Observations are tracked per-colony but wisdom is meant to be cross-colony. The tracking doesn't follow the wisdom.
+The oracle.md prompt treats every iteration identically. There is no concept of research phases (broad survey, then focused investigation, then synthesis, then verification). Each fresh instance reads the same "You are an Oracle Ant -- a deep research agent" prompt with no indication of where in the research lifecycle it is. Without phase-awareness, each instance defaults to the same behavior: read the topic, do a broad scan, append findings.
 
 **How to avoid:**
-- Track observations with colony identifiers
-- Accumulate observations across colonies
-- Reset observation counts when wisdom is promoted (starts fresh)
-- Handle colony name collisions gracefully
+Define explicit research phases that the state file tracks:
+
+1. **Survey** (iterations 1-N): Broad exploration, identify subtopics, map the landscape. Goal: populate the research tree with questions.
+2. **Investigate** (iterations N-M): Deep dive into specific questions one at a time. Goal: answer individual questions with evidence and sources.
+3. **Synthesize** (iterations M-P): Cross-reference findings, identify contradictions, build coherent narrative. Goal: produce structured output.
+4. **Verify** (iterations P-Q): Fact-check key claims, seek disconfirming evidence, validate sources. Goal: confidence in accuracy.
+
+The state file should track current phase. The iteration prompt should change based on phase. This is how Anthropic's multi-agent system works: the lead agent plans distinct research phases, and subagents execute specific focused tasks rather than repeating the broad scan.
 
 **Warning signs:**
-- Same learning proposed in every colony
-- Observation counts never increase beyond 1-2
-- Wisdom doesn't seem to "learn" from experience
+- Each iteration's output reads like a standalone research report rather than a continuation
+- Findings stay at the same depth (paragraph-level summaries) across all iterations
+- No iteration ever says "Building on iteration X's finding that..."
+- The word count per iteration stays roughly constant instead of decreasing as the space narrows
 
-**Phase to address:** Observation tracking implementation — design for cross-colony accumulation
+**Phase to address:**
+Phase 2 (Iteration Protocol) for phase-aware prompting. Phase 1 (State Architecture) for tracking research lifecycle phase in state.
 
 ---
 
-## Moderate Pitfalls
-
-### Pitfall 5: QUEEN.md Missing Breaks Worker Priming
+### Pitfall 5: Hallucination Accumulation Across Iterations
 
 **What goes wrong:**
-If QUEEN.md is deleted or corrupted, `queen-read` fails. Workers don't receive wisdom. No explicit error — just degraded behavior.
+An early iteration introduces an inaccurate claim (hallucination). Subsequent iterations read it from the progress file, treat it as established fact, and build upon it. Over many iterations, the hallucination becomes deeply embedded in the research -- cited, cross-referenced, and relied upon for conclusions. Research on multi-agent hallucination identifies this as "full-chain error propagation across multiple interdependent components" -- minor initial errors compound into systemic inaccuracies.
 
 **Why it happens:**
-QUEEN.md is a file that can be accidentally deleted or corrupted by other tools.
+Stateless instances have no way to distinguish between verified findings and unverified assertions in the progress file. Everything written by a previous iteration looks equally authoritative. The current oracle.md has no source citation requirement, no verification step, and no mechanism to flag or challenge prior findings. Each iteration implicitly trusts all prior iterations' output.
 
 **How to avoid:**
-- Graceful degradation: `queen-read` returns `{}` if file missing
-- Log warning when QUEEN.md not found
-- `/ant:status` checks QUEEN.md health
-- init.md creates QUEEN.md if missing
+Require structured source tracking for every factual claim. The state file should track, for each finding: the claim, the source (URL, file path, or "inference"), a verification status (unverified/single-source/multi-source/contradicted), and which iteration produced it. Include a "Verify" research phase where iterations specifically attempt to disprove or find counter-evidence for key claims. Flag any finding that relies solely on LLM inference (no external source) as LOW confidence.
+
+Anthropic's research system treats citations as "first-class data" where each chunk carries provenance metadata. Implement a simpler version: each finding gets a source field, and the synthesis phase specifically targets unverified claims for validation.
 
 **Warning signs:**
-- Workers ignore accumulated wisdom
-- No error messages but behavior regresses
-- `queen-read` returns empty JSON
+- Findings appear with no source attribution
+- Later iterations cite earlier iteration findings as authoritative (circular citation)
+- Contradictory claims exist in different sections without acknowledgment
+- "Phantom sources" -- URLs or references that were hallucinated and never verified
 
-**Phase to address:** init.md and build.md integration — add graceful fallbacks
+**Phase to address:**
+Phase 2 (Iteration Protocol) for source citation requirements. Phase 4 (Quality/Verification) for the verification phase and hallucination detection.
 
 ---
 
-### Pitfall 6: Evolution Log Becomes Unusable
+### Pitfall 6: Stateless Instance Cannot Understand Context of Prior Failures
 
 **What goes wrong:**
-The evolution log in QUEEN.md grows without bound. Eventually it dominates the file, making it hard to read and slow to parse.
+An iteration tries a research approach (e.g., searching for a specific resource, attempting to access a URL that 404s, looking for a codebase pattern that does not exist) and fails. It logs the failure in the progress file as a finding. The next iteration reads this but may attempt the same approach because the progress file captures WHAT was found, not WHY an approach failed or WHAT was tried and abandoned. The state file lacks negative knowledge -- "we tried X and it didn't work, don't try X again."
 
 **Why it happens:**
-Every promotion adds a log entry. No cleanup mechanism.
+Append-only logs naturally capture results, not process. "URL X returned 404" is recorded, but "I searched for documentation on Y and found none exists" is often omitted because the agent focuses on what it found, not what it tried and failed to find. Karpathy's autoresearch explicitly tracks failed experiments in results.tsv (recording "crash" and "discard" outcomes alongside successes) -- most research loop implementations only record successes.
 
 **How to avoid:**
-- Cap evolution log to last N entries (e.g., 50)
-- Older entries summarized or archived
-- Log only promotions, not observations
-- Consider separate log file for audit purposes
+Add a "dead ends" or "attempted approaches" section to the state file. Each iteration should log: what it tried, what worked, what failed, and what it explicitly chose NOT to do (with reasoning). This is negative knowledge -- equally valuable as positive findings. The state file schema should include a `dead_ends` array alongside `findings`.
 
 **Warning signs:**
-- QUEEN.md is mostly evolution log
-- File takes noticeable time to parse
-- Users stop reading the log
+- Error messages or "not found" notes repeat across iterations
+- Iterations attempt to access the same broken URLs
+- The same unsuccessful search queries appear in multiple iterations' tool use
+- Research stalls because every iteration re-discovers the same dead ends
 
-**Phase to address:** queen-promote implementation — add log rotation
+**Phase to address:**
+Phase 1 (State Architecture) for the dead-ends tracking structure. Phase 2 (Iteration Protocol) for instructing iterations to record negative findings.
 
 ---
 
-### Pitfall 7: Wisdom Categories Overlap
+### Pitfall 7: Prompt Overloading Degrades Per-Iteration Quality
 
 **What goes wrong:**
-A learning could fit in multiple categories (e.g., "Always use transactions" could be Pattern or Philosophy). Users pick inconsistently, making wisdom harder to search.
+As the system matures, the iteration prompt grows to include: research questions, current phase, exploration tracker, source citation requirements, dead-end avoidance, output format specifications, and behavioral constraints. The prompt becomes so long and instruction-dense that the LLM's adherence to any individual instruction degrades. Each new requirement added to the prompt slightly reduces compliance with all existing requirements.
 
 **Why it happens:**
-Categories are conceptual, not strictly defined. Without guidance, users classify based on mood.
+This is "attention budget depletion" -- Anthropic's context engineering guide identifies that each token "depletes the LLM's limited attention budget by some amount." Complex prompts with many concurrent requirements produce worse results than focused prompts with fewer requirements. The oracle currently has a single oracle.md prompt that handles all iteration types identically, and adding more instructions to it will hit diminishing returns.
 
 **How to avoid:**
-- Provide clear category definitions:
-  - **Philosophy:** Core belief, rarely changes
-  - **Pattern:** Best practice, applies often
-  - **Redirect:** Anti-pattern, avoid this
-  - **Stack Wisdom:** Tech-specific, may become obsolete
-  - **Decree:** User mandate, always applies
-- Ask clarifying questions during promotion
-- Allow reclassification after promotion
+Use phase-specific prompts rather than one monolithic prompt. The survey phase gets a survey-focused prompt (short, emphasizing breadth). The investigate phase gets an investigate-focused prompt (emphasizing depth and source citation). The verify phase gets a verification-focused prompt (emphasizing skepticism and counter-evidence). The bash script selects the appropriate prompt based on the current phase from the state file. This keeps each prompt focused and within the model's effective attention budget.
+
+This mirrors Aether's existing "split playbooks" pattern (build-prep.md, build-context.md, etc.) -- apply the same principle to oracle prompts.
 
 **Warning signs:**
-- Same type of learning in different categories
-- User asks "which category should this go in?"
-- Categories feel arbitrary
+- The oracle.md prompt exceeds 2,000 tokens
+- Iterations ignore specific instructions (e.g., source citation) while following others (e.g., append format)
+- Adding a new instruction causes previously-followed instructions to be dropped
+- Per-iteration output quality decreases as the prompt grows
 
-**Phase to address:** Promotion UX — include category guidance
+**Phase to address:**
+Phase 2 (Iteration Protocol) for designing phase-specific prompts. Phase 3 (Prompt Engineering) for testing and tuning individual phase prompts.
+
+---
+
+### Pitfall 8: No Mechanism to Correct Course (Autonomy Without Steering)
+
+**What goes wrong:**
+The oracle runs autonomously for hours. The user cannot steer it mid-run except by creating a `.stop` file. If the research goes in an unproductive direction (e.g., investigating tangential subtopics, fixating on one question while ignoring others), there is no mechanism to redirect without stopping and restarting the entire run. The existing pheromone system (FOCUS/REDIRECT/FEEDBACK) is not integrated with the oracle loop.
+
+**Why it happens:**
+The oracle was designed as a "fire and forget" system -- launch it, let it run, read results. This is appropriate for short runs (5 iterations) but dangerous for long runs (50 iterations). Without mid-flight steering, small trajectory errors compound over many iterations. Anthropic's system explicitly includes "scaling rules" and task decomposition to prevent individual agents from going off-track, but Aether's oracle has no equivalent.
+
+**How to avoid:**
+Integrate Aether's existing pheromone system with the oracle loop. Between iterations, the bash script should check for pheromone signals: FOCUS signals reprioritize remaining questions, REDIRECT signals mark approaches as dead ends, FEEDBACK signals adjust research depth or direction. This gives the user steering capability without requiring a full stop-and-restart. Additionally, generate a brief "iteration summary" output after each iteration (visible in tmux) so the user can monitor trajectory and intervene if needed.
+
+**Warning signs:**
+- Research output diverges from the original topic by iteration 15+
+- User discovers poor trajectory only after the full run completes
+- No way to tell mid-run whether the research is productive
+- Oracle spends many iterations on low-priority subtopics while skipping high-priority ones
+
+**Phase to address:**
+Phase 3 (Integration) for wiring pheromones into the oracle loop. Phase 2 (Iteration Protocol) for mid-run visibility and status reporting.
 
 ---
 
 ## Technical Debt Patterns
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Skip observation tracking | Faster implementation | Can't enforce thresholds | Never for P1 features |
-| Auto-promote without approval | Simpler UX | Wisdom drift | Never |
-| Hardcode thresholds | No configuration needed | Doesn't adapt to project needs | Prototype only |
-| Ignore missing QUEEN.md | No error handling | Silent degradation | Never |
-| Unlimited evolution log | No cleanup code | File bloat | Never |
-
----
-
-## Recovery Strategies
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Wisdom drift | HIGH | Manually review QUEEN.md, remove unwanted entries, update evolution log |
-| Pheromone noise | MEDIUM | Run pheromone-expire, manually clean pheromones.json |
-| Wrong threshold | LOW | Update QUEEN.md metadata, re-run promotion check |
-| Stale observations | MEDIUM | Reset observation counts, rebuild from colony history |
-| Missing QUEEN.md | LOW | Run queen-init, manually restore from backup if needed |
-| Log bloat | LOW | Archive old log entries, keep last 50 |
-
----
-
-## Sources
-
-- Existing pheromone system behavior analysis
-- QUEEN.md template inspection
-- User-provided v3.0 vision and requirements
-- Cross-session learning patterns from other agent systems
-
----
-*Pitfalls research for: v3.0 Wisdom & Pheromone Evolution*
-*Researched: 2026-02-20*
-
----
-
-# Appendix: Context Restoration Pitfalls
-
-**Domain:** Adding instant session restoration to existing Aether colony system
-**Researched:** 2026-02-21
-**Confidence:** HIGH
-
----
-
-## Critical Pitfalls
-
-### Pitfall A1: State Schema Migration Hell
-
-**What goes wrong:**
-Adding new context fields to `COLONY_STATE.json` breaks existing colonies. Old state files lack new required fields, causing `jq` parsing failures, null reference errors, or silent corruption. Users lose work or must manually migrate.
-
-**Why it happens:**
-- Commands assume new fields exist without validation
-- No version checking before accessing nested properties (e.g., `.memory.decisions` when `memory` key missing)
-- Migration commands (`/ant:migrate-state`) are separate/optional, not automatic
-- Template-based initialization writes new schema, but existing files never updated
-
-**How to avoid:**
-1. **Additive-only changes** — never remove or rename fields in minor versions
-2. **Default value injection** — on read, use `jq '.new_field // default'` pattern
-3. **Auto-migration on access** — `session-read` and `load-state` should silently upgrade old schemas
-4. **Version gating** — check `.version` before accessing v3.0+ fields; branch logic accordingly
-5. **Graceful degradation** — if field missing, function with reduced capability, not crash
-
-**Warning signs:**
-- `jq: error: null has no keys` errors in logs
-- Commands fail only on older colonies
-- `memory.decisions` is always empty (field exists but never populated)
-- Migration command exists but users don't know to run it
-
-**Phase to address:** Phase 1 (Core Infrastructure) — schema validation and auto-migration must be in place before any new fields added
-
-**Affected functions:**
-- `session-read` in `.aether/aether-utils.sh:6914`
-- `load-state` (sources `state-loader.sh`)
-- `validate-state colony` (already has migration logic — extend it)
-
----
-
-### Pitfall A2: Session Stale vs. Fresh Confusion
-
-**What goes wrong:**
-The system cannot distinguish between "user cleared context intentionally" vs. "session crashed/ended unexpectedly." This leads to:
-- Offering resume when user started fresh intentionally
-- Not offering resume when user wants to continue
-- `context_cleared` flag ignored or misinterpreted
-
-**Why it happens:**
-- `session.json` persists across `/clear` in Claude Code
-- `context_cleared` flag exists but not checked consistently
-- Stale detection (>24 hours) is time-based, not intent-based
-- Multiple session files (`session.json`, `COLONY_STATE.json`, `HANDOFF.md`) can disagree
-
-**How to avoid:**
-1. **Intent tracking** — record *why* session ended: `user_cleared`, `completed`, `crashed`, `unknown`
-2. **Unified freshness check** — single source of truth function used by ALL commands
-3. **Explicit resume required** — never auto-resume; always ask "Resume previous session?" with preview
-4. **Session lineage** — link sessions with parent_session_id to detect gaps
-
-**Warning signs:**
-- `/ant:resume` shows stale data after user ran `/ant:init` fresh
-- `session-verify-fresh` returns different results than `session-is-stale`
-- Users report "it keeps going back to old work"
-
-**Phase to address:** Phase 1 (Core Infrastructure) — fix freshness detection before building on it
-
-**Affected functions:**
-- `session-verify-fresh` in `.aether/aether-utils.sh:3181`
-- `session-is-stale` in `.aether/aether-utils.sh:6942`
-- `session-mark-resumed` in `.aether/aether-utils.sh:6989`
-
----
-
-### Pitfall A3: Context Overload — Too Much Information
-
-**What goes wrong:**
-Context restoration dumps everything (all events, all decisions, full plan) into the session, overwhelming the user and exceeding context windows. The "continue here" marker is lost in noise.
-
-**Why it happens:**
-- No prioritization of what matters now vs. what mattered then
-- `memory.decisions[]` grows unbounded (no cap enforcement in read path)
-- Events array includes every minor state change
-- No "summary vs. detail" tiering
-
-**How to avoid:**
-1. **Recency-weighted pruning** — only last 5 decisions, last 10 events, current phase only
-2. **Hierarchical context** — brief summary first, details on request
-3. **Compression** — condense multiple related events into summary sentences
-4. **Explicit "you are here" marker** — single line stating current position, always visible
-
-**Warning signs:**
-- `/ant:resume` output exceeds 100 lines
-- Users scroll past context to find the command prompt
-- Claude context window warnings during resume
-
-**Phase to address:** Phase 2 (Context Aggregation) — implement caps and summarization before adding more context sources
-
-**Current caps (from `continue.md`):**
-- Max 20 phase_learnings
-- Max 30 decisions
-- Max 30 instincts
-- Max 100 events
-
-These caps exist for *write* but not consistently for *read/display*.
-
----
-
-### Pitfall A4: Template Explosion
-
-**What goes wrong:**
-Adding context restoration spawns new templates for every scenario: resume, handoff, seal, entomb, pause. Templates diverge, contain conflicting placeholders, and maintenance burden explodes.
-
-**Why it happens:**
-- Each command creates its own template instead of composing from shared parts
-- Placeholder naming inconsistent (`{{GOAL}}` vs `__GOAL__` vs `{goal}`)
-- Template inheritance/composition not supported
-- No template validation (placeholders left unfilled)
-
-**How to avoid:**
-1. **Template composition** — shared header/footer, command-specific body only
-2. **Strict naming convention** — all caps with underscores: `{{COLONY_GOAL}}`
-3. **Validation layer** — warn if any `{{.*}}` remains after substitution
-4. **Minimal templates** — prefer code-generated content over templates for dynamic data
-
-**Warning signs:**
-- `.aether/templates/` has 10+ files with similar content
-- Same placeholder defined differently in different templates
-- Unfilled placeholders appearing in output
-
-**Phase to address:** Phase 1 (Core Infrastructure) — establish template patterns before adding more
-
-**Existing templates:**
-- `handoff.template.md`
-- `handoff-build-error.template.md`
-- `handoff-build-success.template.md`
-- `crowned-anthill.template.md`
-
-All use `{{PLACEHOLDER}}` format — maintain this convention.
-
----
-
-### Pitfall A5: Backwards Compatibility Break in Commands
-
-**What goes wrong:**
-Modifying existing commands (`/ant:init`, `/ant:status`) to support context restoration breaks behavior users rely on. Scripts or muscle memory that worked before now fail or act differently.
-
-**Why it happens:**
-- Adding required parameters to existing commands
-- Changing output format (JSON structure, field names)
-- New interactive prompts block non-interactive usage
-- Default behavior changes (e.g., auto-resume vs. start fresh)
-
-**How to avoid:**
-1. **New commands for new behavior** — `/ant:resume` exists; don't change `/ant:init` to auto-resume
-2. **Opt-in flags** — new features behind `--restore-context` or similar
-3. **Output format versioning** — if JSON structure changes, provide `--format v2` option
-4. **Deprecation cycle** — warn before changing, maintain old behavior as fallback
-
-**Warning signs:**
-- Users report "my script broke"
-- Documentation examples no longer work
-- Different behavior in CI vs. interactive
-
-**Phase to address:** All phases — maintain compatibility discipline throughout
-
-**At-risk commands:**
-- `/ant:init` — must not auto-resume; preserve overwrite warning behavior
-- `/ant:status` — output format consumed by scripts; maintain JSON structure
-- `/ant:build` — must not change phase execution logic
-
----
-
-### Pitfall A6: Data Loss During Migration
-
-**What goes wrong:**
-Migrating state to add context restoration fields loses user data: decisions, learnings, or pheromone signals disappear. User trusts system, continues work, later discovers context is gone.
-
-**Why it happens:**
-- Migration script only handles "happy path" fields, misses edge case data
-- Arrays overwritten instead of merged
-- Timestamps or IDs regenerated, breaking continuity
-- No verification that migration preserved all data
-
-**How to avoid:**
-1. **Backup before migrate** — always create `.aether/data/backup-{timestamp}/`
-2. **Field inventory** — list every field in old state, ensure each has destination
-3. **Verification step** — post-migration, confirm decision count, learning count match
-4. **Rollback capability** — single command to restore from backup
-
-**Warning signs:**
-- Decision count drops after migration
-- `memory.phase_learnings` empty after upgrade
-- Users say "it feels like it forgot what we were doing"
-
-**Phase to address:** Phase 1 (Core Infrastructure) — migration safety is foundational
-
-**Existing migration (from `migrate-state.md`):**
-- Already backs up to `backup-v1/`
-- Consolidates 6 files into 1
-- Pattern exists — extend for context restoration
-
----
-
-### Pitfall A7: Lock Contention on Context Files
-
-**What goes wrong:**
-Multiple commands try to read/write context simultaneously (e.g., `/ant:build` updating progress while `/ant:status` reading), causing:
-- JSON corruption (partial writes)
-- Lock timeouts (commands hang)
-- Deadlocks (circular lock acquisition)
-
-**Why it happens:**
-- Context update added to long-running commands without lock strategy
-- File-level locks held too long (duration of entire build)
-- Different lock files for different resources (state vs. context vs. session)
-
-**How to avoid:**
-1. **Single lock hierarchy** — always acquire locks in same order: state → context → session
-2. **Short lock windows** — read data, release lock, process, reacquire only to write
-3. **Lock timeouts** — fail fast if lock held >5 seconds, don't hang indefinitely
-4. **Atomic writes** — use `atomic_write` utility already in `.aether/utils/atomic-write.sh`
-
-**Warning signs:**
-- Commands hang intermittently
-- `COLONY_STATE.json` contains malformed JSON
-- `.aether/locks/` has stale lock files
-
-**Phase to address:** Phase 1 (Core Infrastructure) — locking strategy must be solid before adding concurrent context updates
-
-**Existing lock infrastructure:**
-- `acquire_lock` / `release_lock` in `file-lock.sh`
-- `atomic_write` in `atomic-write.sh`
-- Already used by `context-update` (GAP-009 fixed in Phase 16)
-
----
-
-### Pitfall A8: Naming Conflicts with User Data
-
-**What goes wrong:**
-New context restoration fields conflict with user-created fields or conventions. User has `session_id` in their own data, or `context` means something different in their domain.
-
-**Why it happens:**
-- Generic field names (`context`, `session`, `state`) likely to collide
-- No namespacing convention for system vs. user fields
-- User data (`.aether/dreams/`, `TO-DOs.md`) not formally separated
-
-**How to avoid:**
-1. **Namespace system fields** — `aether_` prefix or `_system` nested object
-2. **Reserved field list** — document which field names are system-owned
-3. **User data isolation** — never write to user files (dreams, TO-DOs.md)
-4. **Migration path for conflicts** — if field exists, rename user's version
-
-**Warning signs:**
-- User reports "my session_id got overwritten"
-- Unexpected values appearing in system fields
-- User data corruption in `dreams/` or `TO-DOs.md`
-
-**Phase to address:** Phase 1 (Core Infrastructure) — establish naming conventions early
-
-**Protected paths (from `known-issues.md`):**
-- `.aether/data/` — system state
-- `.aether/dreams/` — user notes (NEVER touch)
-- `TO-DOs.md` — user notes (NEVER touch)
-
----
-
-### Pitfall A9: The "Continue Here" Marker Ambiguity
-
-**What goes wrong:**
-Multiple competing markers for "where to resume":
-- `current_phase` in COLONY_STATE.json
-- `suggested_next` in session.json
-- Last event in events array
-- `HANDOFF.md` narrative
-
-They disagree, and the system picks wrong one or shows conflicting guidance.
-
-**Why it happens:**
-- Each feature added its own marker without unifying
-- No single source of truth for "current position"
-- Markers updated at different times (async drift)
-
-**How to avoid:**
-1. **Single position tracker** — `COLONY_STATE.json` is source of truth
-2. **Derived, not stored** — `suggested_next` computed from state, not cached
-3. **Consistency check** — on resume, verify all markers agree; warn if not
-4. **User override** — allow explicit "continue from phase X" to bypass markers
-
-**Warning signs:**
-- `/ant:resume` suggests phase 3, but `current_phase` is 2
-- `HANDOFF.md` describes different work than status shows
-- Users confused about "what should I do next"
-
-**Phase to address:** Phase 2 (Context Aggregation) — unify position tracking before adding more markers
-
-**Current markers:**
-- `COLONY_STATE.json:current_phase` — authoritative
-- `session.json:suggested_next` — cached recommendation (can be stale)
-- `events[]` — audit trail (not position)
-
----
-
-### Pitfall A10: Context Restoration Without Validation
-
-**What goes wrong:**
-Restored context is corrupt, outdated, or wrong project, but system proceeds anyway. User works on wrong assumptions, makes bad decisions based on stale context.
-
-**Why it happens:**
-- No checksum/hash validation of context files
-- No verification that restored context matches current repo state
-- No sanity checks (e.g., phase count reasonable, dates not in future)
-
-**How to avoid:**
-1. **Integrity checks** — hash of critical files, verify on restore
-2. **Repo matching** — store git remote/branch, warn if restored context from different repo
-3. **Sanity bounds** — reject context with impossible values (negative phases, future dates)
-4. **Preview before apply** — show what will be restored, ask confirmation
-
-**Warning signs:**
-- Context from different project appears
-- Timestamps in future or far past
-- Phase numbers don't match plan
-
-**Phase to address:** Phase 3 (Validation & Safety) — validation layer before trusting restored context
-
----
-
-## Context Restoration: Technical Debt Patterns
+Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Store context in session.json only | Simpler, one file | Lost on `/clear`, not persistent | Never — use COLONY_STATE.json |
-| Skip migration for "unlikely" edge cases | Less code | Data loss for those users | Never — handle all cases |
-| Cache `suggested_next` in session.json | Faster resume | Stale recommendations | Only with timestamp + recompute fallback |
-| Use sed/awk for JSON updates | No jq dependency | Corruption risk, no validation | Only for non-critical display updates |
-| Hardcode field names in commands | Faster to write | Breaks on schema changes | Never — use shared constants |
+| Unstructured markdown as sole state format | Simple to read/write, human-friendly | Cannot be programmatically queried, grows unbounded, no schema validation | Never for inter-iteration state. OK for final human-readable output |
+| Single prompt for all iteration types | One file to maintain, simple architecture | Per-iteration quality degrades as prompt grows, cannot optimize per phase | MVP/prototype only. Must split before production use |
+| Self-assessed confidence as termination criterion | Easy to implement (one number comparison) | Unreliable, causes premature termination or infinite loops | Never as sole criterion. OK as supplementary signal alongside structural metrics |
+| Trusting all prior iteration output equally | Simpler state model, no provenance tracking | Hallucinations accumulate, no way to distinguish verified from inferred | Never for factual research. Acceptable for brainstorming/ideation modes |
+| Append-only with no compaction | Zero risk of data loss | Context rot, repeated findings, growing token costs | First 5-10 iterations only. Must introduce structured state before iteration 15 |
 
----
+## Integration Gotchas
 
-## Context Restoration: Integration Gotchas
+Common mistakes when connecting the oracle loop to external systems.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Claude Code `/clear` | Assuming session.json survives | Store in `.aether/data/` not `/tmp/`, check on every command |
-| Git state | Not tracking baseline commit | Store `baseline_commit`, detect drift on resume |
-| jq parsing | Using `.field` without `// default` | Always provide defaults: `.field // "unknown"` |
-| File locking | Holding lock during long operations | Release lock before external calls (git, npm) |
-| Template rendering | Not escaping user content | Escape `{{` in user strings to prevent injection |
+| Claude CLI (`--print` mode) | Assuming output is clean text; it may include tool call formatting, error messages, or partial responses | Parse output for completion signal only; let the iteration write to files directly rather than capturing stdout |
+| WebSearch/WebFetch tools | Feeding full web page content into progress file, blowing up token count | Instruct iterations to extract and summarize relevant findings only; never paste raw HTML or full page content |
+| Pheromone system | Checking pheromones inside the Claude instance (which is stateless and may not have access to latest state) | Check pheromones in the bash loop BETWEEN iterations, before launching the next instance; inject relevant signals as context |
+| tmux session | Assuming tmux is always available; no fallback | The current oracle.sh already handles this correctly with a TMUX_FAIL fallback. Maintain this pattern |
+| Git state (for code research) | Research iterations making git commits or modifying working tree | The current "Non-Invasive Guarantee" is correct. Enforce read-only access to everything outside `.aether/oracle/` |
 
----
+## Performance Traps
 
-## Context Restoration: Performance Traps
+Patterns that work at small scale but fail as iteration count grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Loading full event history | Slow resume, large memory | Cap events at 100, archive older | >1000 events |
-| Unbounded decisions array | JSON parsing slows down | Enforce 30 decision cap | >100 decisions |
-| Recomputing context on every command | Lag in interactive use | Cache with invalidation | Every command feels slow |
-| Reading multiple large files | I/O bottleneck | Single consolidated state file | Slow disks, network drives |
+| Reading full progress.md every iteration | Iterations slow down; later iterations spend more time reading than researching | Switch to structured state file; keep raw log separate | 15+ iterations (~5K+ tokens in progress file) |
+| No deduplication of findings | Same facts restated in slightly different words across iterations | Hash-based or keyword-based dedup in state file; mark findings with unique IDs | 10+ iterations |
+| Spawning Claude CLI per iteration without cleanup | Zombie processes, orphaned tool connections, temp file accumulation | Add cleanup step in bash loop between iterations (existing `sleep 2` could become a cleanup phase) | 30+ iterations in long runs |
+| Web search for same queries across iterations | Rate limiting, wasted API calls, identical results | Track searched queries in state file; skip if already searched within N iterations | 20+ iterations with web scope |
 
----
+## Security Mistakes
 
-## Context Restoration: "Looks Done But Isn't" Checklist
+Domain-specific security issues for autonomous research loops.
 
-- [ ] **Schema migration:** Old colonies (v2.0, v1.0) can use new features without manual migration
-- [ ] **Field defaults:** All new fields have sensible defaults when missing from old state
-- [ ] **Lock safety:** No deadlocks possible even with concurrent context updates
-- [ ] **Data preservation:** Migration never loses user decisions, learnings, or signals
-- [ ] **Backwards compatibility:** `/ant:init`, `/ant:status`, `/ant:build` work exactly as before
-- [ ] **Template validation:** No unfilled placeholders in generated output
-- [ ] **Position consistency:** `current_phase`, `suggested_next`, and events all agree
-- [ ] **Context caps:** Resume output bounded (decisions, events, learnings limited)
-- [ ] **Freshness detection:** Correctly identifies stale vs. fresh sessions
-- [ ] **User confirmation:** Preview before restoring context, especially after long gaps
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| `--dangerously-skip-permissions` with web research scope | AI instance can fetch arbitrary URLs, potentially triggering SSRF or leaking local network info | Acceptable tradeoff for oracle (needed for autonomy), but document the risk; never run oracle on untrusted networks |
+| Progress file contains hallucinated "findings" presented as authoritative | User trusts and acts on inaccurate information (e.g., "Library X has vulnerability Y") | Source attribution and verification status on every factual claim; clearly label unverified findings |
+| Oracle writing to files outside `.aether/oracle/` | Could corrupt colony state, modify code, or overwrite user files | The existing "Non-Invasive Guarantee" is correct. Test and enforce this boundary |
+| Sensitive information in research.json (API keys, credentials) | Exposed in archive directory, potentially committed to git | Validate research.json contents; warn if it contains patterns matching secrets |
 
----
+## UX Pitfalls
 
-## Context Restoration: Recovery Strategies
+Common user experience mistakes in this domain.
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| No visibility into what oracle is doing mid-run | User waits hours, checks progress.md, finds it went sideways | Emit a one-line status per iteration: "Iteration 5/30: Investigating [question]. 3/5 questions answered." Visible in tmux |
+| Progress.md is the only output (no structured summary) | User must read through 50 iterations of raw notes to extract conclusions | Produce a structured `report.md` during synthesis phase with executive summary, key findings, and confidence levels |
+| "Marathon (50 iterations)" sounds productive but wastes resources | User selects max depth thinking more = better; gets diminishing returns after 15 | Recommend depth based on topic complexity; show diminishing returns warning in wizard |
+| Confidence percentage without context | "85% confidence" means nothing without knowing what is missing | Show: "85% complete -- 4/5 questions answered, 1 question unresolved: [specific question]" |
+
+## "Looks Done But Isn't" Checklist
+
+Things that appear complete but are missing critical pieces.
+
+- [ ] **Research output:** Has findings but no source attribution -- verify every factual claim has a source
+- [ ] **Structured state:** State file exists but does not track exploration coverage -- verify all research questions have entries
+- [ ] **Completion criteria:** Confidence target reached but novelty rate was not checked -- verify last 3 iterations produced new findings
+- [ ] **Phase transitions:** Survey phase "complete" but investigation phase starts without an explicit question queue -- verify the research tree is populated before transitioning
+- [ ] **Verification phase:** Claims are "verified" but only by re-reading the same source -- verify counter-evidence was sought
+- [ ] **Dead ends:** No dead ends recorded (suspicious) -- verify iterations actually attempted diverse approaches
+- [ ] **Final report:** Report exists but was generated from raw progress file, not synthesized -- verify it has a coherent narrative, not a list of iteration summaries
+
+## Recovery Strategies
+
+When pitfalls occur despite prevention, how to recover.
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Schema mismatch | LOW | Auto-migrate on access, user sees no interruption |
-| Corrupt COLONY_STATE.json | MEDIUM | Restore from `.aether/data/backup-*/`, re-apply recent changes manually |
-| Lost session.json | LOW | Reconstruct from COLONY_STATE.json + git log, may lose `suggested_next` |
-| Lock deadlock | LOW | `aether force-unlock` command releases stuck locks |
-| Wrong context restored | MEDIUM | `/ant:init` fresh start, manually re-apply decisions from memory |
-| Template explosion | MEDIUM | Refactor to composition pattern, migrate existing templates |
+| Progress file bloated beyond usefulness | LOW | Pause oracle. Manually summarize progress.md into a structured state file. Resume from structured state |
+| Circular research (same ground covered 5+ times) | LOW | Pause oracle. Mark covered questions as ANSWERED in state file. Add explicit "investigate NEXT: [specific question]" directive. Resume |
+| Hallucination embedded in findings | MEDIUM | Pause oracle. Manually review findings for source attribution. Remove or flag unsourced claims. Add verification pass to remaining iterations |
+| Confidence-based termination fired too early | LOW | Re-run with structural completion criteria instead. Previous findings are not lost -- they seed the new run |
+| Oracle went off-topic for 30+ iterations | MEDIUM | Archive the off-topic run. Extract any relevant findings manually. Create a new research.json with more specific questions. Start fresh |
+| Prompt overloading causing instruction non-compliance | MEDIUM | Split into phase-specific prompts. Test each prompt independently before integration. Reduce instruction count per prompt to under 10 directives |
 
----
+## Pitfall-to-Phase Mapping
 
-## Context Restoration: Phase-to-Pitfall Mapping
+How roadmap phases should address these pitfalls.
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| State Schema Migration Hell | Phase 1: Core Infrastructure | Test with v1.0 and v2.0 state files; verify auto-migration |
-| Session Stale vs. Fresh Confusion | Phase 1: Core Infrastructure | Unit tests for `session-verify-fresh` with various timestamps |
-| Context Overload | Phase 2: Context Aggregation | Resume output < 50 lines; decisions/events capped |
-| Template Explosion | Phase 1: Core Infrastructure | Count templates; verify shared components |
-| Backwards Compatibility Break | All phases | Run existing test colonies through new code |
-| Data Loss During Migration | Phase 1: Core Infrastructure | Pre/post field count comparison; backup verification |
-| Lock Contention | Phase 1: Core Infrastructure | Concurrent command stress test |
-| Naming Conflicts | Phase 1: Core Infrastructure | Audit field names against common user terms |
-| Continue Here Marker Ambiguity | Phase 2: Context Aggregation | All markers agree in test scenarios |
-| Context Restoration Without Validation | Phase 3: Validation & Safety | Corrupt state file handling test |
-
----
-
-## Aether-Specific Risks
-
-### The `memory.decisions[]` Gap
-
-Current state (from `COLONY_STATE.json` sample):
-```json
-"memory": {
-  "phase_learnings": [...],
-  "decisions": [],
-  "instincts": []
-}
-```
-
-`decisions` is always empty. Adding context restoration without populating this field creates a "zombie feature" — users expect decisions to be restored, but none exist to restore.
-
-**Mitigation:** Before enabling context restoration, ensure `/ant:continue` and other commands actually populate `memory.decisions`.
-
-### The Sparse `plan.phases[]` Problem
-
-Current `plan.phases` is often empty or minimally populated. Context restoration that depends on rich phase documentation will fail.
-
-**Mitigation:** Phase 2 should include "plan enrichment" — backfilling phase descriptions even for existing colonies.
-
-### HANDOFF.md vs. CONTEXT.md Duality
-
-Two context documents with overlapping purposes:
-- `HANDOFF.md` — created by `/ant:pause-colony`, read by `/ant:resume-colony`
-- `CONTEXT.md` — updated by `context-update`, read by `/ant:resume`
-
-Risk of divergence or one becoming stale.
-
-**Mitigation:** Consolidate or establish clear ownership boundaries. Prefer `CONTEXT.md` as primary (already has update infrastructure).
-
----
+| Append-only progress file bloat | Phase 1 (State Architecture) | State file under 2K tokens at iteration 20; raw log separated from handoff state |
+| Circular research | Phase 1 (State Architecture) + Phase 2 (Iteration Protocol) | Exploration tracker shows unique questions covered per iteration; no duplicates across 10+ iterations |
+| Unreliable self-assessed confidence | Phase 2 (Iteration Protocol) | Structural completion criteria (coverage %, novelty rate) used instead of or alongside self-assessed confidence |
+| Iterative appending not deepening | Phase 2 (Iteration Protocol) | Phase transitions visible in state; later iterations demonstrably deeper than earlier ones |
+| Hallucination accumulation | Phase 2 (Iteration Protocol) + Phase 4 (Quality) | Every factual claim in final report has source attribution; verification phase explicitly seeks counter-evidence |
+| Lost negative knowledge | Phase 1 (State Architecture) | Dead-ends tracked in state file; no iteration repeats a known-failed approach |
+| Prompt overloading | Phase 2 (Iteration Protocol) + Phase 3 (Prompt Engineering) | Phase-specific prompts each under 1,500 tokens; measurable instruction compliance rate |
+| No mid-run steering | Phase 3 (Integration) | Pheromone signals checked between iterations; user can FOCUS/REDIRECT without stopping |
 
 ## Sources
 
-- Aether codebase analysis:
-  - `.aether/data/COLONY_STATE.json` — current state schema
-  - `.aether/data/session.json` — session tracking
-  - `.aether/aether-utils.sh` — utility functions (session-read, load-state, context-update)
-  - `.claude/commands/ant/resume.md` — resume command implementation
-  - `.claude/commands/ant/migrate-state.md` — migration patterns
-  - `.aether/docs/known-issues.md` — historical bugs and fixes
-- CLI tool best practices (general domain knowledge)
-- State management anti-patterns (general domain knowledge)
+- [Anthropic: How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system) -- pitfalls in multi-agent coordination, duplication, source bias, cascading failures (HIGH confidence)
+- [Anthropic: Effective context engineering for AI agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) -- context rot, attention budget depletion, prompt overloading, dead-end chasing (HIGH confidence)
+- [LangChain: Context Management for Deep Agents](https://blog.langchain.com/context-management-for-deepagents/) -- context rot, goal drift after summarization, trajectory loss (MEDIUM confidence)
+- [Karpathy autoresearch: DeepWiki analysis](https://deepwiki.com/karpathy/autoresearch/4-agent-operation) -- ratcheting mechanism, results.tsv tracking, monotonic improvement (HIGH confidence)
+- [OpenAI Deep Research System Card](https://cdn.openai.com/deep-research-system-card.pdf) -- multi-step research trajectory optimization, backtracking (MEDIUM confidence)
+- [Galileo: Why Multi-Agent LLM Systems Fail](https://galileo.ai/blog/multi-agent-llm-systems-fail) -- circular exchanges, context loss, coordination breakdowns (MEDIUM confidence)
+- [Solving LLM Repetition Problem in Production](https://arxiv.org/html/2512.04419v1) -- self-reinforcement effect, repetition probability enhancement (MEDIUM confidence)
+- [Ralph Wiggum / Fresh Context Pattern](https://deepwiki.com/FlorianBruniaux/claude-code-ultimate-guide/7.3-fresh-context-pattern-(ralph-loop)) -- progress.txt growth, context window exhaustion (HIGH confidence)
+- [11 Tips For AI Coding With Ralph Wiggum](https://www.aihero.dev/tips-for-ai-coding-with-ralph-wiggum) -- progress file management, truncation, local minimum traps (MEDIUM confidence)
+- [LLM-based Agents Suffer from Hallucinations survey](https://arxiv.org/html/2509.18970v1) -- multi-step hallucination accumulation, chain error propagation (MEDIUM confidence)
+- [CEA: Context Engineering Agent for Enhanced Reliability](https://openreview.net/forum?id=6QUNblHtto) -- structured context management, token efficiency vs memory integrity tradeoff (MEDIUM confidence)
+- Aether oracle archive (`.aether/oracle/archive/2026-02-16-191250-progress.md`) -- first-hand evidence of iterative appending without deepening, repetitive iteration blocks (HIGH confidence, direct observation)
 
 ---
-
-*Appendix for: Colony Context Enhancement milestone*
-*Focus: Adding instant session restoration to existing working system*
+*Pitfalls research for: Autonomous AI Deep Research Loops*
+*Researched: 2026-03-13*
