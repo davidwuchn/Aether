@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 Milestone: v1.1 Oracle Deep Research
 Phase: 6 of 11 (State Architecture Foundation)
-Plan: 0 of 2 in current phase
-Status: Planned (2 plans, 2 waves, verified)
-Last activity: 2026-03-13 -- Phase 6 planned and verified
+Plan: 1 of 2 in current phase
+Status: Executing (plan 01 complete)
+Last activity: 2026-03-13 -- Completed 06-01 State Architecture Foundation
 
-Progress: [          ] 0%
+Progress: [#####     ] 50%
 
 ## Performance Metrics
 
@@ -25,9 +25,9 @@ Progress: [          ] 0%
 - Total execution time: 0.61 hours
 
 **v1.1:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0
+- Total plans completed: 1
+- Average duration: 4min
+- Total execution time: 0.07 hours
 
 *Updated after each plan completion*
 
@@ -40,6 +40,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Research recommends: state schema first, then iteration prompts, then orchestrator -- strict dependency chain
 - Phase 9 (Trust) and Phase 10 (Steering) can be parallel -- both depend on Phase 8, not each other
 - Colony integration (Phase 11) deferred last -- requires all other systems stable
+- Enum validation in validate-oracle-state uses jq array membership check pattern
+- research-plan.md regenerated after every iteration (negligible cost, always-current user view)
+- Topic change detection reads state.json directly, wizard passes new topic via ORACLE_NEW_TOPIC env var
 
 ### Pending Todos
 
@@ -54,5 +57,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Phase 6 planned and verified
-Resume file: .planning/phases/06-state-architecture-foundation/06-01-PLAN.md
+Stopped at: Completed 06-01-PLAN.md
+Resume file: .planning/phases/06-state-architecture-foundation/06-02-PLAN.md
