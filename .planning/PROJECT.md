@@ -8,12 +8,22 @@ Aether is a self-managing development assistant that uses ant colony metaphor to
 
 The oracle produces research you can act on — verified against official sources, iteratively deepened, and structured for the specific topic. It runs autonomously for as long as needed, drilling deeper each iteration rather than just covering more surface area.
 
+## Current Milestone: v1.2 Integration Gaps
+
+**Goal:** Make the colony's learning loops actually produce visible output — decisions, instincts, midden entries, and auto-pheromones should accumulate naturally during build/continue cycles.
+
+**Target features:**
+- Decisions logged during builds auto-convert to pheromones
+- Learnings extracted during continue auto-create instincts
+- Midden failure tracking captures all failure points with lower thresholds
+- Memory-capture wired into key decision and failure points
+
 ## Current State
 
 **Shipped:** v1.1 Oracle Deep Research (2026-03-13)
 **Oracle core:** 1,188 LOC (oracle.sh + oracle.md)
 **Oracle tests:** 168 tests (87 Ava + 81 bash)
-**Total tests:** 512+ passing
+**Total tests:** 530+ passing
 **Architecture:** v4.0 (runtime/ eliminated, direct packaging)
 
 ## Requirements
@@ -62,7 +72,10 @@ The oracle produces research you can act on — verified against official source
 
 ### Active
 
-(None — define next milestone with `/gsd:new-milestone`)
+- Decisions → pheromones pipeline produces output during continue
+- Learnings → instincts pipeline creates instincts during continue
+- Midden captures failures from all failure points with lower thresholds
+- Memory-capture called at key decision and failure points
 
 ### Out of Scope
 
@@ -80,7 +93,7 @@ The oracle produces research you can act on — verified against official source
 
 ## Context
 
-Aether v1.1.0 with oracle deep research shipped. 512+ tests passing. The oracle is a complete RALF-loop research engine with structured state, gap-driven iteration, convergence detection, source verification, steering integration, and colony knowledge promotion. 5 research templates (tech-eval, architecture-review, bug-investigation, best-practices, custom) produce topic-appropriate output.
+Aether v1.1.0 with oracle deep research shipped. 530+ tests passing. The colony has all the features — pheromones, instincts, midden, memory-capture, decisions — but the integration loops aren't producing output. The memory system is nearly empty: decisions [], instincts [], only 1 phase_learning. The features exist but the wiring between them has gaps that prevent natural accumulation during build/continue cycles.
 
 ## Constraints
 
@@ -109,4 +122,4 @@ Aether v1.1.0 with oracle deep research shipped. 512+ tests passing. The oracle 
 | Templates drive both questions and output | Same template shapes decomposition and synthesis | Good -- v1.1 |
 
 ---
-*Last updated: 2026-03-13 after v1.1 milestone*
+*Last updated: 2026-03-14 after v1.2 milestone start*

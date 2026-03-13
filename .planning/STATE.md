@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-13)
+See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** The oracle produces research you can act on -- verified, iteratively deepened, structured for the topic.
-**Current focus:** Planning next milestone
+**Current focus:** v1.2 Integration Gaps
 
 ## Current Position
 
-Milestone: v1.1 Oracle Deep Research -- SHIPPED
-Phase: All complete (6 phases, 13 plans, 28 tasks)
-Status: Milestone archived
-Last activity: 2026-03-13 -- v1.1 milestone completed and archived
+Milestone: v1.2 Integration Gaps
+Phase: Not started (defining requirements)
+Status: Defining requirements
+Last activity: 2026-03-14 -- Milestone v1.2 started
 
-Progress: [##########] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -40,10 +40,10 @@ None.
 
 ### Blockers/Concerns
 
-None -- all v1.1 blockers resolved.
+None.
 
 ## Session Continuity
 
-Last session: 2026-03-13
-Stopped at: v1.1 milestone archived
-Next step: /gsd:new-milestone
+Last session: 2026-03-14
+Stopped at: Defining v1.2 requirements
+Next step: Complete requirements and roadmap
