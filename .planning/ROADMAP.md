@@ -58,7 +58,11 @@ Plans:
   3. After each iteration, gaps.md reflects updated unknowns and contradictions -- remaining gaps shrink or refine over successive iterations
   4. Per-question confidence scoring (0-100%) drives which areas get researched next -- lowest-confidence open questions are prioritized
   5. Running 3+ iterations on a real topic produces measurably deeper findings (not restatements of earlier iterations)
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md -- Phase-aware prompt engineering: oracle.sh phase transitions, iteration counter, prompt construction; oracle.md rewrite with confidence rubric and depth enforcement
+- [ ] 07-02-PLAN.md -- Phase transition and iteration tests: ava unit tests for determine_phase and build_oracle_prompt, bash integration tests for iteration counter and transitions
 
 ### Phase 8: Orchestrator Upgrade
 **Goal**: oracle.sh uses structural convergence metrics to decide when research is complete, and produces useful partial results on interruption
@@ -116,7 +120,7 @@ Note: Phase 10 depends on Phase 8 (not Phase 9), so Phases 9 and 10 could execut
 | 4. Pheromone Auto-Emission | v1.0 | 2/2 | Complete | 2026-03-06 |
 | 5. Wisdom Promotion | v1.0 | 2/2 | Complete | 2026-03-07 |
 | 6. State Architecture Foundation | v1.1 | 0/2 | Not started | - |
-| 7. Iteration Prompt Engineering | v1.1 | 0/TBD | Not started | - |
+| 7. Iteration Prompt Engineering | v1.1 | 0/2 | Not started | - |
 | 8. Orchestrator Upgrade | v1.1 | 0/TBD | Not started | - |
 | 9. Source Tracking and Trust Layer | v1.1 | 0/TBD | Not started | - |
 | 10. Steering Integration | v1.1 | 0/TBD | Not started | - |
