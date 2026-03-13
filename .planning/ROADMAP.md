@@ -25,7 +25,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Rebuild the oracle as a proper Ralph-loop-based deep research engine that produces thorough, source-verified, actionable research -- rebranded for the Aether colony.
 
 - [ ] **Phase 6: State Architecture Foundation** - Structured JSON state files that bridge context between stateless oracle iterations
-- [ ] **Phase 7: Iteration Prompt Engineering** - Phase-aware prompts that drive gap-targeted, deepening research across iterations
+- [x] **Phase 7: Iteration Prompt Engineering** - Phase-aware prompts that drive gap-targeted, deepening research across iterations (completed 2026-03-13)
 - [ ] **Phase 8: Orchestrator Upgrade** - Multi-signal convergence detection and intelligent loop control in oracle.sh
 - [ ] **Phase 9: Source Tracking and Trust Layer** - Citation tracking and multi-source verification for every factual claim
 - [ ] **Phase 10: Steering Integration** - Mid-session research control via pheromone signals and configurable strategy
@@ -58,7 +58,7 @@ Plans:
   3. After each iteration, gaps.md reflects updated unknowns and contradictions -- remaining gaps shrink or refine over successive iterations
   4. Per-question confidence scoring (0-100%) drives which areas get researched next -- lowest-confidence open questions are prioritized
   5. Running 3+ iterations on a real topic produces measurably deeper findings (not restatements of earlier iterations)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 07-01-PLAN.md -- Phase-aware prompt engineering: oracle.sh phase transitions, iteration counter, prompt construction; oracle.md rewrite with confidence rubric and depth enforcement
@@ -120,7 +120,7 @@ Note: Phase 10 depends on Phase 8 (not Phase 9), so Phases 9 and 10 could execut
 | 4. Pheromone Auto-Emission | v1.0 | 2/2 | Complete | 2026-03-06 |
 | 5. Wisdom Promotion | v1.0 | 2/2 | Complete | 2026-03-07 |
 | 6. State Architecture Foundation | v1.1 | 0/2 | Not started | - |
-| 7. Iteration Prompt Engineering | v1.1 | 0/2 | Not started | - |
+| 7. Iteration Prompt Engineering | v1.1 | Complete    | 2026-03-13 | - |
 | 8. Orchestrator Upgrade | v1.1 | 0/TBD | Not started | - |
 | 9. Source Tracking and Trust Layer | v1.1 | 0/TBD | Not started | - |
 | 10. Steering Integration | v1.1 | 0/TBD | Not started | - |
