@@ -65,35 +65,31 @@ Stop here. Do not proceed.
 
 ### Step 0c: Show Status
 
-Check if `.aether/oracle/progress.md` exists using the Read tool.
+Check if `.aether/oracle/research-plan.md` exists using the Read tool.
 
 **If it does NOT exist**, output:
 
 ```
 🔮🐜 Oracle Status: No Research In Progress
 
-   No progress.md found. Start a research session:
+   No active research session. Start one:
    /ant:oracle
 ```
 
 Stop here.
 
-**If it exists**, read `.aether/oracle/progress.md` and `.aether/oracle/research.json` (if present).
-
-Count the number of `## Iteration` headings in progress.md to determine iterations completed.
+**If it exists**, read `.aether/oracle/research-plan.md` and `.aether/oracle/state.json` (if present).
 
 Output:
 
 ```
 🔮🐜 Oracle Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Topic:       {topic from research.json, or "unknown"}
-Confidence:  {target_confidence}%
-Iterations:  {completed} / {max_iterations}
-Started:     {started_at}
+Topic:       {topic from state.json, or "unknown"}
+Iteration:   {iteration} of {max_iterations}
+Status:      {status}
 
-Progress:
-{last 50 lines of progress.md}
+{contents of research-plan.md}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   /ant:oracle stop     Halt the loop
@@ -228,66 +224,124 @@ Generate an ISO-8601 UTC timestamp.
 
 **Archive previous research if it exists:**
 
-Check if `.aether/oracle/progress.md` exists. If it does, run using the Bash tool with description "Archiving previous research...":
+Check if `.aether/oracle/state.json` exists. If it does, run using the Bash tool with description "Archiving previous research...":
 
 ```bash
-DATE=$(date +%Y-%m-%d)
-TIMESTAMP=$(date +%H%M%S)
-mkdir -p .aether/oracle/archive
-cp .aether/oracle/progress.md ".aether/oracle/archive/${DATE}-${TIMESTAMP}-progress.md" 2>/dev/null || true
-cp .aether/oracle/research.json ".aether/oracle/archive/${DATE}-${TIMESTAMP}-research.json" 2>/dev/null || true
+ARCHIVE_TS=$(date +%Y-%m-%d-%H%M%S)
+mkdir -p .aether/oracle/archive/$ARCHIVE_TS
+for f in state.json plan.json gaps.md synthesis.md research-plan.md; do
+  [ -f ".aether/oracle/$f" ] && cp ".aether/oracle/$f" ".aether/oracle/archive/$ARCHIVE_TS/"
+done
 ```
 
-**Write research.json:**
+**Write state.json** (replaces research.json):
 
-Use the Write tool to write `.aether/oracle/research.json`:
+Use the Write tool to create `.aether/oracle/state.json`:
 
 ```json
 {
+  "version": "1.0",
   "topic": "<the research topic>",
   "scope": "<codebase|web|both>",
-  "questions": [
-    "<break the topic into 3-5 specific research questions>"
-  ],
+  "phase": "survey",
+  "iteration": 0,
   "max_iterations": <number from depth choice>,
   "target_confidence": <number from confidence choice>,
-  "started_at": "<ISO-8601 UTC timestamp>"
+  "overall_confidence": 0,
+  "started_at": "<ISO-8601 UTC timestamp>",
+  "last_updated": "<ISO-8601 UTC timestamp>",
+  "status": "active"
 }
 ```
 
-The `questions` array is important — break the user's topic into 3-5 concrete, specific questions that the Oracle should answer. These guide each iteration.
+**Write plan.json:**
 
-**Write progress.md:**
+Break the topic into 3-8 sub-questions (adapt to topic complexity — broader topics get more questions, focused topics fewer). Use the Write tool to create `.aether/oracle/plan.json`:
 
-Use the Write tool to write `.aether/oracle/progress.md`:
+```json
+{
+  "version": "1.0",
+  "questions": [
+    {
+      "id": "q1",
+      "text": "<specific research question>",
+      "status": "open",
+      "confidence": 0,
+      "key_findings": [],
+      "iterations_touched": []
+    }
+  ],
+  "created_at": "<ISO-8601 UTC timestamp>",
+  "last_updated": "<ISO-8601 UTC timestamp>"
+}
+```
+
+**Write gaps.md** (initial empty structure):
+
+Use the Write tool to create `.aether/oracle/gaps.md`:
 
 ```markdown
-# Oracle Research Progress
+# Knowledge Gaps
 
-**Topic:** <the research topic>
-**Started:** <ISO-8601 UTC timestamp>
-**Target Confidence:** <N>%
-**Max Iterations:** <N>
-**Scope:** <codebase|web|both>
+## Open Questions
+(No research conducted yet)
 
-## Research Questions
-1. <question 1>
-2. <question 2>
-3. <question 3>
-...
+## Contradictions
+(None identified)
+
+## Last Updated
+Iteration 0 -- <ISO-8601 UTC timestamp>
+```
+
+**Write synthesis.md** (initial empty structure):
+
+Use the Write tool to create `.aether/oracle/synthesis.md`:
+
+```markdown
+# Research Synthesis
+
+## Topic
+<the research topic>
+
+## Findings by Question
+(No findings yet -- research has not started)
+
+## Last Updated
+Iteration 0 -- <ISO-8601 UTC timestamp>
+```
+
+**Generate research-plan.md:**
+
+After writing plan.json, generate research-plan.md as the executive summary. Use the Write tool to create `.aether/oracle/research-plan.md`:
+
+```markdown
+# Research Plan
+
+**Topic:** <topic>
+**Status:** active | **Iteration:** 0 of <max>
+**Overall Confidence:** 0%
+
+## Questions
+| # | Question | Status | Confidence |
+|---|----------|--------|------------|
+| q1 | <question text> | open | 0% |
+| q2 | ... | open | 0% |
+
+## Next Steps
+Next investigation: <text of q1, the first question>
 
 ---
-
+*Generated from plan.json -- do not edit directly*
 ```
 
 #### Step 2.5: Verify Oracle Files Are Fresh
 
-Verify that progress.md and research.json were created successfully by running using the Bash tool with description "Verifying oracle files...":
+Verify that state.json, plan.json, gaps.md, synthesis.md, and research-plan.md were created successfully by running using the Bash tool with description "Verifying oracle files...":
 ```bash
 verify_result=$(bash .aether/aether-utils.sh session-verify-fresh --command oracle "" "$ORACLE_START")
 fresh_count=$(echo "$verify_result" | jq -r '.fresh | length')
 
-if [[ "$fresh_count" -lt 2 ]]; then
+if [[ "$fresh_count" -lt 5 ]]; then
   echo "Warning: Oracle files not properly initialized"
 fi
 ```
@@ -298,7 +352,7 @@ Proceed to Step 3.
 
 ### Step 3: Launch
 
-Output the research configuration summary:
+Output the research configuration summary, showing the sub-questions from plan.json:
 
 ```
 🔮 Research Configured
@@ -309,10 +363,10 @@ Output the research configuration summary:
 🎯 Confidence:  <target_confidence>%
 🔍 Scope:       <scope>
 
-📋 Research Questions:
-   1. <question>
-   2. <question>
-   3. <question>
+📋 Sub-Questions:
+   q1. <question text from plan.json>
+   q2. <question text from plan.json>
+   q3. <question text from plan.json>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -337,7 +391,7 @@ tmux new-session -d -s oracle "cd $(pwd) && bash .aether/oracle/oracle.sh; echo 
    📊 Check status:   /ant:oracle status
    🛑 Stop early:     /ant:oracle stop
 
-   Results will accumulate in .aether/oracle/progress.md
+   Research progress visible at .aether/oracle/research-plan.md
    The Oracle will stop when it reaches {target_confidence}% confidence
    or completes {max_iterations} iterations.
 
