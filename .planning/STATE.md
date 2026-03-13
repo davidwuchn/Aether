@@ -60,5 +60,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Phase 6 complete, ready for Phase 7
-Resume file: .planning/ROADMAP.md
+Stopped at: Phase 7 context gathered
+Resume file: .planning/phases/07-iteration-prompt-engineering/07-CONTEXT.md
