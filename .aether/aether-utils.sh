@@ -1254,6 +1254,21 @@ HELP_EOF
             if (.questions | all(.confidence >= 0 and .confidence <= 100))
               then "pass"
               else "fail: confidence out of 0-100 range"
+            end,
+            if (.sources // null) != null then
+              if (.sources | type) == "object" then
+                if (.sources | to_entries | length == 0) or (.sources | to_entries | all(.value | has("url","title","date_accessed"))) then "pass"
+                else "fail: sources entries missing required fields (url, title, date_accessed)"
+                end
+              else "fail: sources must be an object"
+              end
+            else "pass"
+            end,
+            if ([.questions[].key_findings[] | type] | any(. == "object")) then
+              if ([.questions[].key_findings[] | select(type == "object") | has("text","source_ids")] | all) then "pass"
+              else "fail: structured findings missing required fields (text, source_ids)"
+              end
+            else "pass"
             end
           ]} | . + {pass: (([.checks[] | select(. == "pass")] | length) == (.checks | length))}
         ' "$ORACLE_DIR/plan.json")"

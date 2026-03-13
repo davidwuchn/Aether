@@ -231,7 +231,8 @@ Break the topic into 3-8 sub-questions (adapt to topic complexity — broader to
 
 ```json
 {
-  "version": "1.0",
+  "version": "1.1",
+  "sources": {},
   "questions": [
     {
       "id": "q1",
