@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 Milestone: v1.1 Oracle Deep Research
 Phase: 11 of 11 (Colony Knowledge Integration)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-13 -- Plan 11-01 complete (colony knowledge promotion)
+Last activity: 2026-03-13 -- Plan 11-02 complete (research strategy templates)
 
-Progress: [##########] 93%
+Progress: [##########] 96%
 
 ## Performance Metrics
 
@@ -73,6 +73,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Wizard calls colony APIs directly instead of sourcing oracle.sh (avoids main-loop execution on source)
 - Process substitution (< <(...)) used to avoid subshell variable loss in while-read promotion loop
 - Template field is optional with enum validation -- backward compatible with existing state.json files
+- Template question placed as Q2 after Topic, before Depth -- template type informs depth recommendation
+- Custom/default template preserves exact pre-Phase-11 output structure for backward compatibility
+- Confidence grouping applied to ALL templates as common directive after template-specific sections
 
 ### Pending Todos
 
@@ -87,5 +90,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 11-01-PLAN.md
-Resume file: .planning/phases/11-colony-knowledge-integration/11-01-SUMMARY.md
+Stopped at: Completed 11-02-PLAN.md
+Resume file: .planning/phases/11-colony-knowledge-integration/11-02-SUMMARY.md
