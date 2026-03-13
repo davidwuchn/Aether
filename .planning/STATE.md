@@ -2,35 +2,26 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-07)
+See: .planning/PROJECT.md (updated 2026-03-13)
 
-**Core value:** Workers automatically receive all relevant context -- the colony improves itself.
-**Current focus:** v1.0 milestone complete. Planning next milestone.
+**Core value:** The oracle produces research you can act on — verified, iteratively deepened, structured for the topic.
+**Current focus:** v1.1 Oracle Deep Research — rebuild oracle as proper Ralph-loop research engine.
 
 ## Current Position
 
-Milestone: v1.0 Aether Colony Wiring (SHIPPED 2026-03-07)
-Status: Milestone complete
-Last activity: 2026-03-07 -- Completed v1.0 milestone audit and archival
+Milestone: v1.1 Oracle Deep Research
+Phase: Not started (defining requirements)
+Status: Defining requirements
+Last activity: 2026-03-13 -- Milestone v1.1 started
 
-Progress: [##########] 100%
+Progress: [          ] 0%
 
 ## Performance Metrics
 
-**Velocity:**
+**v1.0 Velocity (reference):**
 - Total plans completed: 11
 - Average duration: 3.3min
 - Total execution time: 0.61 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-instinct-pipeline | 3 | 6min | 2min |
-| 02-learnings-injection | 2 | 5min | 2.5min |
-| 03-context-expansion | 2 | 7min | 3.5min |
-| 04-pheromone-auto-emission | 2 | 6min | 3min |
-| 05-wisdom-promotion | 2 | 13min | 6.5min |
 
 *Updated after each plan completion*
 
@@ -50,6 +41,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07
-Stopped at: Milestone v1.0 complete
-Resume file: .planning/MILESTONES.md
+Last session: 2026-03-13
+Stopped at: Milestone v1.1 initialization
+Resume file: .planning/PROJECT.md
