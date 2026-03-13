@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 Milestone: v1.1 Oracle Deep Research
 Phase: 7 of 11 (Iteration Prompt Engineering)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-03-13 -- Plan 07-01 complete (phase-aware prompts + iteration lifecycle)
+Plan: 2 of 2 in current phase
+Status: Phase Complete
+Last activity: 2026-03-13 -- Plan 07-02 complete (phase transition tests + iteration counter tests)
 
-Progress: [#####     ] 50%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
@@ -25,9 +25,9 @@ Progress: [#####     ] 50%
 - Total execution time: 0.61 hours
 
 **v1.1:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Average duration: 4.3min
-- Total execution time: 0.22 hours
+- Total execution time: 0.29 hours
 
 *Updated after each plan completion*
 
@@ -50,6 +50,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - build_oracle_prompt prepends phase heredoc directives to oracle.md content
 - Confidence rubric anchored to evidence quality with anti-inflation rule (one blog post = 30% not 70%)
 - Iteration and phase managed exclusively by oracle.sh, not the AI prompt
+- Test oracle.sh functions by extracting via sed and sourcing in isolation -- avoids set -e and main-loop side effects
+- Edge case tests include zero questions, boundary confidence values (exactly 25%), and all-answered scenarios
 
 ### Pending Todos
 
@@ -64,5 +66,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 07-01-PLAN.md
-Resume file: .planning/phases/07-iteration-prompt-engineering/07-01-SUMMARY.md
+Stopped at: Completed 07-02-PLAN.md (Phase 07 complete)
+Resume file: .planning/phases/07-iteration-prompt-engineering/07-02-SUMMARY.md
