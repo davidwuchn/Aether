@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 Milestone: v1.1 Oracle Deep Research
 Phase: 10 of 11 (Steering Integration)
-Plan: 1 of 2 in current phase
-Status: In Progress
-Last activity: 2026-03-13 -- Plan 10-01 complete (steering signal reading, strategy handling, wizard extensions)
+Plan: 2 of 2 in current phase (COMPLETE)
+Status: Phase Complete
+Last activity: 2026-03-13 -- Plan 10-02 complete (steering integration tests)
 
-Progress: [########--] 80%
+Progress: [#########-] 90%
 
 ## Performance Metrics
 
@@ -25,9 +25,9 @@ Progress: [########--] 80%
 - Total execution time: 0.61 hours
 
 **v1.1:**
-- Total plans completed: 9
-- Average duration: 3.9min
-- Total execution time: 0.59 hours
+- Total plans completed: 10
+- Average duration: 3.8min
+- Total execution time: 0.64 hours
 
 *Updated after each plan completion*
 
@@ -68,6 +68,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Wizard focus areas emitted as FOCUS pheromones with --source oracle:wizard and --ttl 24h
 - read_steering_signals degrades gracefully if pheromone system unavailable
 - state.json version bumped to 1.1 matching Phase 9 plan.json pattern
+- Mock aether-utils.sh approach for isolated pheromone-read testing in steering tests
+- Negative assertions (run_test_not helper) for verifying signal limits and adaptive strategy behavior
 
 ### Pending Todos
 
@@ -82,5 +84,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 10-01-PLAN.md
-Resume file: .planning/phases/10-steering-integration/10-01-SUMMARY.md
+Stopped at: Completed 10-02-PLAN.md (Phase 10 complete)
+Resume file: .planning/phases/10-steering-integration/10-02-SUMMARY.md
