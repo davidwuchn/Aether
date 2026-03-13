@@ -6988,7 +6988,7 @@ $updated_meta
 
     pd_file="$DATA_DIR/pheromones.json"
     pd_type="${1:-all}"
-    pd_now=$(date +%s)
+    pd_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     if [[ ! -f "$pd_file" ]]; then
       echo "No pheromones active. Colony has no signals."
@@ -7002,7 +7002,7 @@ $updated_meta
 
     # Get signals with decay calculation (same as pheromone-read)
     pd_signals=$(jq -c \
-      --argjson now "$pd_now" \
+      --arg now_iso "$pd_now_iso" \
       --arg type_filter "$pd_type" \
       '
       def to_epoch(ts):
@@ -7025,6 +7025,7 @@ $updated_meta
         else 90
         end;
 
+      (to_epoch($now_iso)) as $now |
       .signals | map(
         (to_epoch(.created_at)) as $created_epoch |
         (if $created_epoch != null then ($now - $created_epoch) / 86400 else 0 end) as $elapsed_days |
@@ -7109,8 +7110,8 @@ $updated_meta
       json_err "$E_FILE_NOT_FOUND" "Pheromones file not found. Run /ant:colonize first to initialize the colony."
     fi
 
-    # Get current epoch for decay calculation
-    pher_now=$(date +%s)
+    # Get current time as ISO for consistent epoch conversion
+    pher_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     # Apply decay and expiry at read time
     # Decay rates: FOCUS=30d, REDIRECT=60d, FEEDBACK/PATTERN=90d
@@ -7120,7 +7121,7 @@ $updated_meta
     pher_type_upper=$(echo "$pher_type" | tr '[:lower:]' '[:upper:]')
 
     pher_result=$(jq -c \
-      --argjson now "$pher_now" \
+      --arg now_iso "$pher_now_iso" \
       --arg type_filter "$pher_type_upper" \
       '
       # Rough ISO-8601 to epoch: accumulate years*365d + month*30d + days + time
@@ -7144,6 +7145,7 @@ $updated_meta
         else 90
         end;
 
+      (to_epoch($now_iso)) as $now |
       .signals | map(
         (to_epoch(.created_at)) as $created_epoch |
         (if $created_epoch != null then ($now - $created_epoch) / 86400 else 0 end) as $elapsed_days |
@@ -7387,13 +7389,13 @@ $updated_meta
 
     pp_pher_file="$DATA_DIR/pheromones.json"
     pp_state_file="$DATA_DIR/COLONY_STATE.json"
-    pp_now=$(date +%s)
+    pp_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     # Read active signals (same decay logic as pheromone-read)
     pp_signals="[]"
     if [[ -f "$pp_pher_file" ]]; then
       pp_signals=$(jq -c \
-        --argjson now "$pp_now" \
+        --arg now_iso "$pp_now_iso" \
         '
         def to_epoch(ts):
           if ts == null or ts == "" or ts == "phase_end" then null
@@ -7415,6 +7417,7 @@ $updated_meta
           else 90
           end;
 
+        (to_epoch($now_iso)) as $now |
         .signals | map(
           (to_epoch(.created_at)) as $created_epoch |
           (if $created_epoch != null then ($now - $created_epoch) / 86400 else 0 end) as $elapsed_days |
@@ -7962,8 +7965,8 @@ $updated_meta
       printf '%s\n' '{"version":"1.0.0","archived_at_count":0,"signals":[]}' > "$phe_midden_file"
     fi
 
-    phe_now_epoch=$(date +%s)
-    phe_archived_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    phe_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    phe_archived_at="$phe_now_iso"
 
     # Compute pause_duration from COLONY_STATE.json (pause-aware TTL)
     phe_pause_duration=0
@@ -7986,29 +7989,24 @@ $updated_meta
       phe_expired_ids=$(jq -r '.signals[] | select(.active == true and .expires_at == "phase_end") | .id' "$phe_pheromones_file" 2>/dev/null || true)
     else
       # Expire time-based expired signals (pause-aware) AND decay-expired signals
-      phe_expired_ids=$(jq -r --argjson now "$phe_now_epoch" --argjson pause_secs "$phe_pause_duration" '
+      phe_expired_ids=$(jq -r --arg now_iso "$phe_now_iso" --argjson pause_secs "$phe_pause_duration" '
+        def approx_epoch(ts):
+          (ts | split("T")[0] | split("-")) as $d |
+          (ts | split("T")[1] | split(":")) as $t |
+          ($d[0] | tonumber) as $y |
+          ($d[1] | tonumber) as $mo |
+          ($d[2] | tonumber) as $day |
+          ($t[0] | tonumber) as $h |
+          ($t[1] | tonumber) as $m |
+          (($t[2] // "0") | gsub("[^0-9]";"") | if . == "" then 0 else tonumber end) as $s |
+          (($y - 1970) * 31557600) + (($mo - 1) * 2629800) + (($day - 1) * 86400) + ($h * 3600) + ($m * 60) + $s;
+        (approx_epoch($now_iso)) as $now |
         .signals[] |
         select(.active == true) |
         select(
           (.expires_at != "phase_end" and .expires_at != null and .expires_at != "") and
           (
-            # ISO-8601 timestamp expiry (pause-aware: add pause_duration to expires_at before comparing)
-            (
-              .expires_at |
-              # Convert ISO-8601 to approximate epoch via string parsing
-              (
-                (split("T")[0] | split("-")) as $d |
-                (split("T")[1] | split(":")) as $t |
-                ($d[0] | tonumber) as $y |
-                ($d[1] | tonumber) as $mo |
-                ($d[2] | tonumber) as $day |
-                ($t[0] | tonumber) as $h |
-                ($t[1] | tonumber) as $m |
-                (($t[2] // "0") | gsub("[^0-9]";"") | if . == "" then 0 else tonumber end) as $s |
-                # Rough epoch: years*365.25*86400 + months*30.44*86400 + day*86400 + time
-                (($y - 1970) * 31557600) + (($mo - 1) * 2629800) + (($day - 1) * 86400) + ($h * 3600) + ($m * 60) + $s
-              )
-            ) + $pause_secs <= $now
+            (approx_epoch(.expires_at)) + $pause_secs <= $now
           )
         ) |
         .id
@@ -8798,7 +8796,7 @@ $updated_meta
     cc_flags_file="$DATA_DIR/flags.json"
     cc_pher_file="$DATA_DIR/pheromones.json"
     cc_roll_file="$DATA_DIR/rolling-summary.log"
-    cc_now=$(date +%s)
+    cc_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     if [[ ! -f "$cc_state_file" ]]; then
       json_ok '{"exists":false,"prompt_section":"","word_count":0}'
@@ -8854,7 +8852,7 @@ $updated_meta
 
     cc_signals=""
     if [[ -f "$cc_pher_file" ]]; then
-      cc_signals=$(jq -r --argjson now "$cc_now" --argjson max "$cc_max_signals" '
+      cc_signals=$(jq -r --arg now_iso "$cc_now_iso" --argjson max "$cc_max_signals" '
         def to_epoch(ts):
           if ts == null or ts == "" or ts == "phase_end" then null
           else
@@ -8870,6 +8868,7 @@ $updated_meta
           end;
         def decay_days(t):
           if t == "FOCUS" then 30 elif t == "REDIRECT" then 60 else 90 end;
+        (to_epoch($now_iso)) as $now |
         .signals
         | map(
             (to_epoch(.created_at)) as $created_epoch |
