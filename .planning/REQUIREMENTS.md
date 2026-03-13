@@ -1,7 +1,7 @@
 # Requirements: Oracle Deep Research Engine
 
 **Defined:** 2026-03-13
-**Core Value:** The oracle produces research you can act on — verified, iteratively deepened, structured for the topic.
+**Core Value:** The oracle produces research you can act on -- verified, iteratively deepened, structured for the topic.
 
 ## v1.1 Requirements
 
@@ -9,10 +9,10 @@ Requirements for the oracle deep research upgrade. Each maps to roadmap phases.
 
 ### Core Loop (Ralph Pattern)
 
-- [ ] **LOOP-01**: Oracle uses structured state files (state.json, plan.json, gaps.md, synthesis.md) to bridge context between stateless iterations — not flat progress.md append
-- [ ] **LOOP-02**: Each iteration reads structured state first, then targets the highest-priority knowledge gap — gap-driven iteration, not topic-based
-- [ ] **LOOP-03**: Oracle uses phase-aware prompts (survey → investigate → synthesize → verify) that change behavior based on research lifecycle stage
-- [ ] **LOOP-04**: Convergence detection uses structural metrics (gap resolution rate, novelty rate, coverage completeness) — not self-assessed confidence alone
+- [ ] **LOOP-01**: Oracle uses structured state files (state.json, plan.json, gaps.md, synthesis.md) to bridge context between stateless iterations -- not flat progress.md append
+- [ ] **LOOP-02**: Each iteration reads structured state first, then targets the highest-priority knowledge gap -- gap-driven iteration, not topic-based
+- [ ] **LOOP-03**: Oracle uses phase-aware prompts (survey -> investigate -> synthesize -> verify) that change behavior based on research lifecycle stage
+- [ ] **LOOP-04**: Convergence detection uses structural metrics (gap resolution rate, novelty rate, coverage completeness) -- not self-assessed confidence alone
 
 ### Research Intelligence
 
@@ -70,32 +70,32 @@ Requirements for the oracle deep research upgrade. Each maps to roadmap phases.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LOOP-01 | TBD | Pending |
-| LOOP-02 | TBD | Pending |
-| LOOP-03 | TBD | Pending |
-| LOOP-04 | TBD | Pending |
-| INTL-01 | TBD | Pending |
-| INTL-02 | TBD | Pending |
-| INTL-03 | TBD | Pending |
-| INTL-04 | TBD | Pending |
-| INTL-05 | TBD | Pending |
-| OUTP-01 | TBD | Pending |
-| OUTP-02 | TBD | Pending |
-| OUTP-03 | TBD | Pending |
-| TRST-01 | TBD | Pending |
-| TRST-02 | TBD | Pending |
-| TRST-03 | TBD | Pending |
-| STRC-01 | TBD | Pending |
-| STRC-02 | TBD | Pending |
-| STRC-03 | TBD | Pending |
-| COLN-01 | TBD | Pending |
-| COLN-02 | TBD | Pending |
+| LOOP-01 | Phase 6 | Pending |
+| LOOP-02 | Phase 7 | Pending |
+| LOOP-03 | Phase 7 | Pending |
+| LOOP-04 | Phase 8 | Pending |
+| INTL-01 | Phase 6 | Pending |
+| INTL-02 | Phase 7 | Pending |
+| INTL-03 | Phase 7 | Pending |
+| INTL-04 | Phase 6 | Pending |
+| INTL-05 | Phase 8 | Pending |
+| OUTP-01 | Phase 11 | Pending |
+| OUTP-02 | Phase 8 | Pending |
+| OUTP-03 | Phase 11 | Pending |
+| TRST-01 | Phase 9 | Pending |
+| TRST-02 | Phase 9 | Pending |
+| TRST-03 | Phase 9 | Pending |
+| STRC-01 | Phase 10 | Pending |
+| STRC-02 | Phase 10 | Pending |
+| STRC-03 | Phase 10 | Pending |
+| COLN-01 | Phase 11 | Pending |
+| COLN-02 | Phase 11 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20 (awaiting roadmap)
+- Mapped to phases: 20
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initial definition*
+*Last updated: 2026-03-13 after roadmap creation*

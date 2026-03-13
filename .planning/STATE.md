@@ -4,15 +4,16 @@
 
 See: .planning/PROJECT.md (updated 2026-03-13)
 
-**Core value:** The oracle produces research you can act on — verified, iteratively deepened, structured for the topic.
-**Current focus:** v1.1 Oracle Deep Research — rebuild oracle as proper Ralph-loop research engine.
+**Core value:** The oracle produces research you can act on -- verified, iteratively deepened, structured for the topic.
+**Current focus:** Phase 6 -- State Architecture Foundation
 
 ## Current Position
 
 Milestone: v1.1 Oracle Deep Research
-Phase: Not started (defining requirements)
-Status: Defining requirements
-Last activity: 2026-03-13 -- Milestone v1.1 started
+Phase: 6 of 11 (State Architecture Foundation)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-03-13 -- Roadmap created for v1.1 milestone (6 phases, 20 requirements mapped)
 
 Progress: [          ] 0%
 
@@ -23,6 +24,11 @@ Progress: [          ] 0%
 - Average duration: 3.3min
 - Total execution time: 0.61 hours
 
+**v1.1:**
+- Total plans completed: 0
+- Average duration: -
+- Total execution time: 0
+
 *Updated after each plan completion*
 
 ## Accumulated Context
@@ -31,16 +37,22 @@ Progress: [          ] 0%
 
 Decisions are logged in PROJECT.md Key Decisions table.
 
+- Research recommends: state schema first, then iteration prompts, then orchestrator -- strict dependency chain
+- Phase 9 (Trust) and Phase 10 (Steering) can be parallel -- both depend on Phase 8, not each other
+- Colony integration (Phase 11) deferred last -- requires all other systems stable
+
 ### Pending Todos
 
 None.
 
 ### Blockers/Concerns
 
-None.
+- Verify `--json-schema` Claude CLI flag availability early in Phase 7 -- fallback to prompt-based JSON enforcement if unavailable
+- Convergence threshold numbers need empirical tuning in Phase 8 -- start with research recommendations, iterate
+- Colony integration API (Phase 11) needs deliberate design session before implementation
 
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Milestone v1.1 initialization
-Resume file: .planning/PROJECT.md
+Stopped at: Roadmap created for v1.1 milestone
+Resume file: .planning/ROADMAP.md
