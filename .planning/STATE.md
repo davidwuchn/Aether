@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** The oracle produces research you can act on -- verified, iteratively deepened, structured for the topic.
-**Current focus:** Phase 11 in progress -- Colony Knowledge Integration
+**Current focus:** Phase 11 complete -- Colony Knowledge Integration
 
 ## Current Position
 
 Milestone: v1.1 Oracle Deep Research
 Phase: 11 of 11 (Colony Knowledge Integration)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-03-13 -- Plan 11-02 complete (research strategy templates)
+Plan: 3 of 3 in current phase
+Status: Complete
+Last activity: 2026-03-13 -- Plan 11-03 complete (colony knowledge integration tests)
 
-Progress: [##########] 96%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
@@ -25,9 +25,9 @@ Progress: [##########] 96%
 - Total execution time: 0.61 hours
 
 **v1.1:**
-- Total plans completed: 11
-- Average duration: 3.8min
-- Total execution time: 0.71 hours
+- Total plans completed: 12
+- Average duration: 3.7min
+- Total execution time: 0.74 hours
 
 *Updated after each plan completion*
 
@@ -76,6 +76,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Template question placed as Q2 after Topic, before Depth -- template type informs depth recommendation
 - Custom/default template preserves exact pre-Phase-11 output structure for backward compatibility
 - Confidence grouping applied to ALL templates as common directive after template-specific sections
+- Mock aether-utils.sh logs all calls to promotion-log.txt for assertion verification in colony tests
+- build_synthesis_prompt extracted with STATE_FILE and SCRIPT_DIR set explicitly for isolated testing
 
 ### Pending Todos
 
@@ -90,5 +92,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Completed 11-02-PLAN.md
-Resume file: .planning/phases/11-colony-knowledge-integration/11-02-SUMMARY.md
+Stopped at: Completed 11-03-PLAN.md (Phase 11 complete, v1.1 milestone complete)
+Resume file: .planning/phases/11-colony-knowledge-integration/11-03-SUMMARY.md
