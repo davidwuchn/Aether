@@ -56,6 +56,24 @@ Use available tools:
 - **Codebase:** Glob, Grep, Read for local files and source code
 - **Web:** WebSearch, WebFetch for external sources and documentation
 
+**Source Tracking (MANDATORY):**
+For every new finding, you MUST record:
+- The source URL (or file path for codebase research)
+- The source title/description
+- The date you accessed it
+
+Register sources in plan.json under the `sources` object using sequential IDs
+(S1, S2, S3...). Reuse existing source IDs if citing the same URL again.
+
+Source types: "documentation", "blog", "github", "academic", "codebase", "forum", "official"
+
+For codebase research, use file paths as URLs with type "codebase":
+```json
+"url": "src/components/Button.tsx",
+"title": "Button component source",
+"type": "codebase"
+```
+
 ### Step 4: Update State Files
 
 After researching, update these files:
@@ -63,7 +81,10 @@ After researching, update these files:
 **plan.json:** Update the target question:
 - Set `status` to "partial" (useful info but gaps remain) or "answered" (thoroughly addressed)
 - Update `confidence` (0-100) based on evidence quality -- see Confidence Scoring Rubric below
-- Add ONLY genuinely new findings to `key_findings` array (not restatements)
+- Add findings as OBJECTS (not strings): `{"text": "finding text", "source_ids": ["S1", "S2"], "iteration": <current>}`
+- Every finding MUST have at least one source_id
+- Add new sources to the top-level `sources` registry
+- Reuse existing source IDs for the same URL
 - Add current iteration number to `iterations_touched` array
 - If a question is IRRELEVANT to the topic, REMOVE it from the questions array entirely
 - Do NOT add new questions -- work through the original plan
@@ -114,6 +135,12 @@ without corroboration caps at 50% regardless of detail level.
 **Do NOT deflate confidence to keep research going.** Score honestly based on
 the evidence you have. If the question is well-answered, say so.
 
+**Source-backed confidence rules:**
+- 0 sources: Finding is UNSUPPORTED -- do not record it
+- 1 source: Single-source claim, capped at 50% contribution to question confidence
+- 2+ sources: Multi-source claim, full confidence contribution
+- The overall question confidence should reflect the source backing of its findings
+
 ## Important Rules
 
 - Target ONE question per iteration
@@ -124,3 +151,4 @@ the evidence you have. If the question is well-answered, say so.
 - Do NOT modify any code files or colony state
 - Only write to `.aether/oracle/` directory
 - If this iteration is labeled "SYNTHESIS PASS" in the directive above, follow those instructions instead of the normal research flow -- consolidate and organize existing findings rather than researching new information
+- In synthesis passes, use inline citations [S1], [S2] linking findings to sources. Include a ## Sources section listing all sources with IDs, URLs, titles, and access dates.

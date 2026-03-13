@@ -151,6 +151,8 @@ Do NOT go deep on any single question yet. Breadth over depth in this phase.
 Your goal is to ensure every question has at least some initial findings before
 the research moves to the investigation phase.
 
+Source tracking is MANDATORY -- register sources and link every finding to source_ids.
+
 ---
 
 DIRECTIVE
@@ -166,6 +168,8 @@ Aim to push confidence above 70% for your target question.
 Update gaps.md with specific remaining unknowns. If you find contradictions with
 existing findings, document them explicitly. One thoroughly investigated question
 per iteration is better than shallow passes on many.
+
+Source tracking is MANDATORY this iteration. Every new finding must have at least one source_id.
 
 ---
 
@@ -183,6 +187,8 @@ Your job is NOT to find new information -- it is to make sense of what has alrea
 been found. Cross-reference answers between questions. Strengthen weak claims
 with evidence from other questions. Remove speculation that lacks support.
 
+Verify source attribution is complete. Flag any findings missing source_ids.
+
 ---
 
 DIRECTIVE
@@ -198,6 +204,8 @@ questions as answered with 90%+ confidence.
 Final gaps.md should contain only genuinely unresolvable unknowns. If a contradiction
 cannot be resolved, document both positions with evidence quality assessment.
 This is the final quality pass before research completion.
+
+Cross-reference source coverage. Ensure all key findings have 2+ independent sources.
 
 ---
 
