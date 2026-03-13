@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-13)
 
 **Core value:** The oracle produces research you can act on -- verified, iteratively deepened, structured for the topic.
-**Current focus:** Phase 7 -- Iteration Prompt Engineering
+**Current focus:** Phase 8 -- Orchestrator Upgrade
 
 ## Current Position
 
 Milestone: v1.1 Oracle Deep Research
-Phase: 7 of 11 (Iteration Prompt Engineering)
-Plan: 2 of 2 in current phase
-Status: Phase Complete
-Last activity: 2026-03-13 -- Plan 07-02 complete (phase transition tests + iteration counter tests)
+Phase: 8 of 11 (Orchestrator Upgrade)
+Plan: 1 of 2 in current phase
+Status: In Progress
+Last activity: 2026-03-13 -- Plan 08-01 complete (convergence detection, synthesis-on-exit, signal handling, JSON recovery)
 
-Progress: [##########] 100%
+Progress: [#####-----] 50%
 
 ## Performance Metrics
 
@@ -25,9 +25,9 @@ Progress: [##########] 100%
 - Total execution time: 0.61 hours
 
 **v1.1:**
-- Total plans completed: 4
-- Average duration: 4.3min
-- Total execution time: 0.29 hours
+- Total plans completed: 5
+- Average duration: 4.0min
+- Total execution time: 0.34 hours
 
 *Updated after each plan completion*
 
@@ -52,6 +52,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Iteration and phase managed exclusively by oracle.sh, not the AI prompt
 - Test oracle.sh functions by extracting via sed and sourcing in isolation -- avoids set -e and main-loop side effects
 - Edge case tests include zero questions, boundary confidence values (exactly 25%), and all-answered scenarios
+- Convergence composite score: gap_resolution*40% + coverage*30% + (low_novelty?100:0)*30% with integer arithmetic
+- Convergence requires composite >= 85 AND 2 consecutive low-novelty iterations
+- Diminishing returns uses 3-iteration rolling window with phase-adjusted thresholds (investigate: 0, others: 1)
+- Every exit path triggers synthesis pass -- max-iter changed from exit 1 to synthesis + exit 0
+- ORACLE_CONVERGENCE_THRESHOLD and ORACLE_DR_WINDOW env vars for empirical tuning
 
 ### Pending Todos
 
@@ -66,5 +71,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-13
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-orchestrator-upgrade/08-CONTEXT.md
+Stopped at: Completed 08-01-PLAN.md
+Resume file: .planning/phases/08-orchestrator-upgrade/08-01-SUMMARY.md
