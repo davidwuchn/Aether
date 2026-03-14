@@ -45,6 +45,26 @@ Run using the Bash tool with description "Recording failure grave...": `bash .ae
   Then display a user-visible confirmation line:
   `⚰️ Grave recorded: {file} — {ant_name} failed ({summary})`
 
+**Success capture: pattern synthesis (MEM-01):**
+
+If `learning.patterns_observed` array in the synthesis JSON is non-empty, capture up to 2 patterns as success events:
+
+Initialize a counter: `success_capture_count=0`
+
+For each pattern in `learning.patterns_observed`:
+- If `success_capture_count >= 2`, stop (cap reached)
+- Run using the Bash tool with description "Capturing synthesis pattern success...":
+```bash
+bash .aether/aether-utils.sh memory-capture \
+  "success" \
+  "${pattern.trigger}: ${pattern.action} (evidence: ${pattern.evidence})" \
+  "pattern" \
+  "worker:builder" 2>/dev/null || true
+```
+- Increment `success_capture_count`
+
+The cap of 2 prevents observation count inflation when builds produce many patterns. Each captured pattern enters learning-observations.json with a content hash for deduplication across builds.
+
 **Error Handoff Update:**
 If workers failed, update handoff with error context for recovery:
 
