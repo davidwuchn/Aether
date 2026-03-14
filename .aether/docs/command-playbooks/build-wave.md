@@ -354,6 +354,16 @@ cat >> .aether/midden/approach-changes.md << EOF
   why_it_failed: "reason it didn't work"
   switched_to: "new approach that worked"
 EOF
+
+# Write to structured midden for threshold detection (MID-02)
+bash .aether/aether-utils.sh midden-write "abandoned-approach" "Tried: initial approach that failed. Switched to: new approach. Reason: reason it didn't work" "builder" 2>/dev/null || true
+
+# Enter memory pipeline for learning observation tracking (MID-02)
+bash .aether/aether-utils.sh memory-capture \
+  "failure" \
+  "Approach abandoned: initial approach that failed -> new approach (reason it didn't work)" \
+  "failure" \
+  "worker:builder" 2>/dev/null || true
 ```
 
 Spawn sub-workers ONLY if 3x complexity:
