@@ -72,8 +72,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 13-01-PLAN.md -- Wire midden-write at all failure points and add approach-change capture
-- [ ] 13-02-PLAN.md -- Add intra-phase midden threshold check for mid-build REDIRECT emission
+- [x] 13-01-PLAN.md -- Wire midden-write at all failure points and add approach-change capture
+- [x] 13-02-PLAN.md -- Add intra-phase midden threshold check for mid-build REDIRECT emission
 
 ### Phase 14: Decision-Pheromone and Learning-Instinct Verification
 **Goal**: Decision pheromones emit reliably after continue, and instinct confidence reflects actual recurrence evidence
@@ -84,11 +84,11 @@ Plans:
   2. When an instinct is created from a learning observed multiple times, its confidence score is higher than one observed only once (recurrence-calibrated, not fixed 0.7)
   3. Instinct confidence for a learning with observation_count=1 starts at 0.7, and increases with each additional observation up to a cap of 0.9
   4. The deduplication format alignment in continue-advance Step 2.1b correctly prevents duplicate pheromones for already-emitted decisions
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: TBD
-- [ ] 14-02: TBD
+- [ ] 14-01-PLAN.md -- Align decision pheromone format between context-update and Step 2.1b for reliable dedup
+- [ ] 14-02-PLAN.md -- Add recurrence-calibrated instinct confidence to learning-promote-auto
 
 ## Progress
 
@@ -109,5 +109,5 @@ Phases 13 and 14 can be parallelized after Phase 12 completes (they edit differe
 | 10. Steering Integration | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 11. Colony Knowledge Integration | v1.1 | 3/3 | Complete | 2026-03-13 |
 | 12. Success Capture and Colony-Prime Enrichment | v1.2 | 2/2 | Complete | 2026-03-14 |
-| 13. Midden Write Path Expansion | v1.2 | Complete    | 2026-03-14 | - |
-| 14. Decision-Pheromone and Learning-Instinct Verification | v1.2 | 0/? | Not started | - |
+| 13. Midden Write Path Expansion | v1.2 | 2/2 | Complete | 2026-03-14 |
+| 14. Decision-Pheromone and Learning-Instinct Verification | v1.2 | 0/2 | Not started | - |
