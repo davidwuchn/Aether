@@ -505,9 +505,9 @@ EOF
       mv "$ctx_tmp" "$ctx_file"
 
       # Auto-emit FEEDBACK pheromone for the decision so builders see it
-      bash "$0" pheromone-write FEEDBACK "Decision: $decision — $rationale" \
-        --strength 0.65 \
-        --source "system:decision" \
+      bash "$0" pheromone-write FEEDBACK "[decision] $decision" \
+        --strength 0.6 \
+        --source "auto:decision" \
         --reason "Auto-emitted from architectural decision" \
         --ttl "30d" 2>/dev/null || true
 

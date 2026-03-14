@@ -229,7 +229,7 @@ if [[ -n "$decisions" ]]; then
 fi
 ```
 
-Strength is 0.6 (auto-emitted = lower than user-emitted). Source is `"auto:decision"` to distinguish from manual and system-emitted signals. Cap: max 3 decision pheromones per continue run. Deduplication checks both `auto:decision` and `system:decision` sources to avoid duplicating signals already emitted by `context-update decision`.
+Strength is 0.6 (auto-emitted = lower than user-emitted). Source is `"auto:decision"` to distinguish from manual pheromones. Cap: max 3 decision pheromones per continue run. Both `context-update decision` and Step 2.1b now use the same format (`[decision] ...`, source `auto:decision`, strength 0.6), so the dedup `contains()` check reliably catches signals emitted by either path. The dedup query also checks `system:decision` for backward compatibility with any pre-existing signals from before the format alignment.
 
 #### 2.1c: Auto-emit REDIRECT for midden error patterns (PHER-02)
 
