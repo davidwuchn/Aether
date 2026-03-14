@@ -46,19 +46,19 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MID-01 | — | Pending |
-| MID-02 | — | Pending |
-| MID-03 | — | Pending |
-| DEC-01 | — | Pending |
-| LRN-01 | — | Pending |
-| MEM-01 | — | Pending |
-| MEM-02 | — | Pending |
+| MEM-01 | Phase 12 | Pending |
+| MEM-02 | Phase 12 | Pending |
+| MID-01 | Phase 13 | Pending |
+| MID-02 | Phase 13 | Pending |
+| MID-03 | Phase 13 | Pending |
+| DEC-01 | Phase 14 | Pending |
+| LRN-01 | Phase 14 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 7 total
-- Mapped to phases: 0
-- Unmapped: 7 ⚠️
+- Mapped to phases: 7
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-14*
-*Last updated: 2026-03-14 after initial definition*
+*Last updated: 2026-03-14 after roadmap creation*

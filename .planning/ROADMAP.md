@@ -4,6 +4,7 @@
 
 - v1.0 **Aether Colony Wiring** -- Phases 1-5 (shipped 2026-03-07)
 - v1.1 **Oracle Deep Research** -- Phases 6-11 (shipped 2026-03-13)
+- v1.2 **Integration Gaps** -- Phases 12-14 (in progress)
 
 ## Phases
 
@@ -34,7 +35,65 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 
 </details>
 
+### v1.2 Integration Gaps (In Progress)
+
+**Milestone Goal:** Colony learning loops produce visible output -- decisions, instincts, midden entries, and auto-pheromones accumulate naturally during build/continue cycles.
+
+- [ ] **Phase 12: Success Capture and Colony-Prime Enrichment** - Wire memory-capture success events and rolling-summary into the colony knowledge pipeline
+- [ ] **Phase 13: Midden Write Path Expansion** - All failure types write to midden with intra-phase threshold checks
+- [ ] **Phase 14: Decision-Pheromone and Learning-Instinct Verification** - Verify and fix the decision-to-pheromone dedup and recurrence-calibrated instinct confidence
+
+## Phase Details
+
+### Phase 12: Success Capture and Colony-Prime Enrichment
+**Goal**: Workers gain awareness of recent colony activity, and success events enter the memory pipeline for the first time
+**Depends on**: Nothing (first v1.2 phase -- purely additive, cannot break existing behavior)
+**Requirements**: MEM-01, MEM-02
+**Success Criteria** (what must be TRUE):
+  1. After a build where chaos reports strong resilience, learning-observations.json contains a new success-type entry from build-verify
+  2. After a build completes with pattern synthesis, learning-observations.json contains a new success-type entry from build-complete
+  3. Colony-prime output includes the last 5 rolling-summary entries so builders see recent colony activity in their prompt
+  4. Existing failure-path memory-capture calls still fire unchanged (no regression)
+**Plans**: TBD
+
+Plans:
+- [ ] 12-01: TBD
+- [ ] 12-02: TBD
+
+### Phase 13: Midden Write Path Expansion
+**Goal**: Midden data reflects actual colony failure patterns across all agent types, not just builder failures
+**Depends on**: Nothing (can run in parallel with Phase 14 -- edits different playbook files)
+**Requirements**: MID-01, MID-02, MID-03
+**Success Criteria** (what must be TRUE):
+  1. Watcher failures, Chaos failures, verification failures, Gatekeeper findings, and Auditor findings all produce entries in midden.json via midden-write
+  2. When a builder abandons an approach during a build, the approach change is captured in both midden.json and learning-observations.json
+  3. During a build wave, if 3+ midden entries share the same error category, a REDIRECT pheromone is emitted mid-build (not deferred to continue)
+  4. Existing builder failure midden-write calls in build-wave.md still fire unchanged (no regression)
+**Plans**: TBD
+
+Plans:
+- [ ] 13-01: TBD
+- [ ] 13-02: TBD
+
+### Phase 14: Decision-Pheromone and Learning-Instinct Verification
+**Goal**: Decision pheromones emit reliably after continue, and instinct confidence reflects actual recurrence evidence
+**Depends on**: Nothing (can run in parallel with Phase 13 -- edits different playbook files)
+**Requirements**: DEC-01, LRN-01
+**Success Criteria** (what must be TRUE):
+  1. After a continue run that logged decisions, pheromones.json contains new FEEDBACK pheromones corresponding to those decisions (deduplication works correctly)
+  2. When an instinct is created from a learning observed multiple times, its confidence score is higher than one observed only once (recurrence-calibrated, not fixed 0.7)
+  3. Instinct confidence for a learning with observation_count=1 starts at 0.7, and increases with each additional observation up to a cap of 0.9
+  4. The deduplication format alignment in continue-advance Step 2.1b correctly prevents duplicate pheromones for already-emitted decisions
+**Plans**: TBD
+
+Plans:
+- [ ] 14-01: TBD
+- [ ] 14-02: TBD
+
 ## Progress
+
+**Execution Order:**
+Phases 13 and 14 can be parallelized after Phase 12 completes (they edit different playbook files with no shared call sites).
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -49,3 +108,6 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 | 9. Source Tracking and Trust Layer | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 10. Steering Integration | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 11. Colony Knowledge Integration | v1.1 | 3/3 | Complete | 2026-03-13 |
+| 12. Success Capture and Colony-Prime Enrichment | v1.2 | 0/? | Not started | - |
+| 13. Midden Write Path Expansion | v1.2 | 0/? | Not started | - |
+| 14. Decision-Pheromone and Learning-Instinct Verification | v1.2 | 0/? | Not started | - |
