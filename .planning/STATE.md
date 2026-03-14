@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** Colony learning loops produce visible output -- decisions, instincts, midden entries, and auto-pheromones accumulate naturally during build/continue cycles.
-**Current focus:** Phase 12 -- Success Capture and Colony-Prime Enrichment
+**Current focus:** Phase 13 -- Midden Write Path Expansion
 
 ## Current Position
 
 Milestone: v1.2 Integration Gaps
-Phase: 12 of 14 (Success Capture and Colony-Prime Enrichment)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-03-14 -- Completed 12-02 (colony-prime rolling-summary injection)
+Phase: 13 of 14 (Midden Write Path Expansion)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-03-14 -- Completed 13-01 (midden-write path expansion)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 50%
 
 ## Performance Metrics
 
@@ -30,9 +30,9 @@ Progress: [██████████] 100%
 - Total execution time: 0.74 hours
 
 **v1.2:**
-- Total plans completed: 2
-- Average duration: 2min
-- Total execution time: 0.07 hours
+- Total plans completed: 3
+- Average duration: 2.3min
+- Total execution time: 0.12 hours
 
 ## Accumulated Context
 
@@ -48,6 +48,8 @@ Recent decisions affecting current work:
 - [12-01]: Pattern synthesis cap set at 2 per build to prevent observation inflation
 - [12-02]: Accept minor duplication with context-capsule's rolling-summary entries -- dedicated section guarantees visibility
 - [12-02]: Read entries directly from rolling-summary.log with tail/awk, not via context-capsule subcommand
+- [13-01]: midden-write inserted AFTER heredoc and BEFORE memory-capture to preserve existing flow
+- [13-01]: Category names standardized: worker_failure, resilience, verification, abandoned-approach
 
 ### Pending Todos
 
@@ -60,5 +62,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 12-02-PLAN.md (Phase 12 complete)
-Next step: Execute Phase 13
+Stopped at: Completed 13-01-PLAN.md
+Next step: Execute 13-02-PLAN.md (intra-phase threshold detection)
