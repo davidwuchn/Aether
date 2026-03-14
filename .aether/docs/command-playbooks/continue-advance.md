@@ -95,9 +95,10 @@ Update COLONY_STATE.json:
    ```
 
    Confidence guidelines:
-   - 0.7: success pattern (worked and verified in practice)
-   - 0.8: error_resolution (fixed a recurring problem)
-   - 0.9: user_feedback (explicit user guidance)
+   - Base 0.7 for observation_count=1, increasing by 0.05 per additional observation, cap 0.9
+   - 0.8: error_resolution (fixed a recurring problem, or observation_count=3)
+   - 0.9: user_feedback (explicit user guidance, or observation_count=5+)
+   - When observation count is available from learning-observations.json, use formula: min(0.7 + (count-1)*0.05, 0.9)
 
    If pattern matches existing instinct, confidence will be boosted automatically.
    Cap: max 30 instincts enforced by `instinct-create` (lowest confidence evicted).
@@ -137,13 +138,13 @@ Update COLONY_STATE.json:
    bash .aether/aether-utils.sh instinct-create \
      --trigger "<when this type of task arises>" \
      --action "<the approach that worked well>" \
-     --confidence 0.7 \
+     --confidence 0.7 \  # Base value; increase if observation_count > 1 per formula
      --domain "<testing|architecture|code-style|workflow>" \
      --source "success-phase-{id}" \
      --evidence "<what succeeded and why>" 2>/dev/null || true
    ```
 
-   Success pattern confidence is 0.7 (minimum threshold). Only create success instincts for genuinely noteworthy approaches, not routine completions.
+   Success pattern confidence is 0.7 (base; calibrate with observation count if available). Only create success instincts for genuinely noteworthy approaches, not routine completions.
    Cap: limit to 2 success instincts per phase to avoid noise.
 
 4. **Advance state:**

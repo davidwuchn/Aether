@@ -5359,6 +5359,15 @@ $updated_meta
       [[ -z "$colony_count" ]] && colony_count=0
     fi
 
+    # LRN-01: Recurrence-calibrated confidence
+    # Formula: min(0.7 + (observation_count - 1) * 0.05, 0.9)
+    lp_confidence=$(awk -v c="${observation_count:-1}" 'BEGIN {
+      v = 0.7 + (c - 1) * 0.05
+      if (v > 0.9) v = 0.9
+      if (v < 0.7) v = 0.7
+      printf "%.2f", v
+    }')
+
     if [[ "$policy_threshold" -gt 0 && "$observation_count" -lt "$policy_threshold" ]]; then
       json_ok "{\"promoted\":false,\"reason\":\"threshold_not_met\",\"policy_threshold\":$policy_threshold,\"observation_count\":$observation_count,\"colony_count\":$colony_count,\"event_type\":\"$event_type\"}"
       exit 0
@@ -5381,10 +5390,10 @@ $updated_meta
       bash "$0" instinct-create \
         --trigger "When working on $wisdom_type patterns" \
         --action "$content" \
-        --confidence 0.6 \
+        --confidence "$lp_confidence" \
         --domain "$wisdom_type" \
         --source "promoted_from_learning" \
-        --evidence "Auto-promoted after $observation_count observations" 2>/dev/null || true
+        --evidence "Auto-promoted after $observation_count observations (confidence: $lp_confidence)" 2>/dev/null || true
       json_ok "{\"promoted\":true,\"mode\":\"auto\",\"policy_threshold\":$policy_threshold,\"observation_count\":$observation_count,\"colony_count\":$colony_count,\"event_type\":\"$event_type\"}"
     else
       promote_msg=$(echo "$promote_result" | jq -r '.error.message // "promotion_failed"' 2>/dev/null || echo "promotion_failed")

@@ -1091,9 +1091,10 @@ Update COLONY_STATE.json:
 
    **If new pattern:**
    - Create new instinct with initial confidence:
-     - success: 0.4
-     - error_resolution: 0.5
-     - user_feedback: 0.7
+     - success: 0.7 (base; calibrate with observation count)
+     - error_resolution: 0.8
+     - user_feedback: 0.9
+   - When a learning has observation_count data in learning-observations.json, use formula: min(0.7 + (count-1)*0.05, 0.9) to override the base value.
 
    Append to `memory.instincts`:
    ```json
