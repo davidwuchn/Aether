@@ -57,8 +57,8 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 **Plans**: 2 plans
 
 Plans:
-- [ ] 12-01-PLAN.md -- Wire success capture at build-verify (chaos resilience) and build-complete (pattern synthesis)
-- [ ] 12-02-PLAN.md -- Add rolling-summary section to colony-prime output
+- [x] 12-01-PLAN.md -- Wire success capture at build-verify (chaos resilience) and build-complete (pattern synthesis)
+- [x] 12-02-PLAN.md -- Add rolling-summary section to colony-prime output
 
 ### Phase 13: Midden Write Path Expansion
 **Goal**: Midden data reflects actual colony failure patterns across all agent types, not just builder failures
@@ -69,11 +69,11 @@ Plans:
   2. When a builder abandons an approach during a build, the approach change is captured in both midden.json and learning-observations.json
   3. During a build wave, if 3+ midden entries share the same error category, a REDIRECT pheromone is emitted mid-build (not deferred to continue)
   4. Existing builder failure midden-write calls in build-wave.md still fire unchanged (no regression)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 13-01: TBD
-- [ ] 13-02: TBD
+- [ ] 13-01-PLAN.md -- Wire midden-write at all failure points and add approach-change capture
+- [ ] 13-02-PLAN.md -- Add intra-phase midden threshold check for mid-build REDIRECT emission
 
 ### Phase 14: Decision-Pheromone and Learning-Instinct Verification
 **Goal**: Decision pheromones emit reliably after continue, and instinct confidence reflects actual recurrence evidence
@@ -108,6 +108,6 @@ Phases 13 and 14 can be parallelized after Phase 12 completes (they edit differe
 | 9. Source Tracking and Trust Layer | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 10. Steering Integration | v1.1 | 2/2 | Complete | 2026-03-13 |
 | 11. Colony Knowledge Integration | v1.1 | 3/3 | Complete | 2026-03-13 |
-| 12. Success Capture and Colony-Prime Enrichment | v1.2 | Complete    | 2026-03-14 | - |
-| 13. Midden Write Path Expansion | v1.2 | 0/? | Not started | - |
+| 12. Success Capture and Colony-Prime Enrichment | v1.2 | 2/2 | Complete | 2026-03-14 |
+| 13. Midden Write Path Expansion | v1.2 | 0/2 | Not started | - |
 | 14. Decision-Pheromone and Learning-Instinct Verification | v1.2 | 0/? | Not started | - |
