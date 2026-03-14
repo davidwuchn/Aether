@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** Colony learning loops produce visible output -- decisions, instincts, midden entries, and auto-pheromones accumulate naturally during build/continue cycles.
-**Current focus:** Phase 13 -- Midden Write Path Expansion
+**Current focus:** Phase 14 -- Decision Pheromone and Learning-Instinct Verification
 
 ## Current Position
 
 Milestone: v1.2 Integration Gaps
-Phase: 13 of 14 (Midden Write Path Expansion)
-Plan: 2 of 2 in current phase (complete)
-Status: Phase 13 complete
-Last activity: 2026-03-14 -- Completed 13-02 (intra-phase threshold detection)
+Phase: 14 of 14 (Decision Pheromone and Learning-Instinct Verification)
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-03-14 -- Completed 14-01 (decision pheromone format alignment)
 
-Progress: [██████████] 100%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -30,9 +30,9 @@ Progress: [██████████] 100%
 - Total execution time: 0.74 hours
 
 **v1.2:**
-- Total plans completed: 4
-- Average duration: 2.3min
-- Total execution time: 0.15 hours
+- Total plans completed: 5
+- Average duration: 2.4min
+- Total execution time: 0.20 hours
 
 ## Accumulated Context
 
@@ -52,6 +52,7 @@ Recent decisions affecting current work:
 - [13-01]: Category names standardized: worker_failure, resilience, verification, abandoned-approach
 - [13-02]: Threshold block placed between Step 5.2 and Step 5.3 -- runs once per wave after all worker results processed
 - [13-02]: REDIRECT emission cap of 3 per build prevents signal flooding; dedup via auto:error source
+- [14-01]: Dropped rationale from decision pheromone content to match Step 2.1b format for reliable contains() dedup
 
 ### Pending Todos
 
@@ -64,5 +65,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-03-14
-Stopped at: Completed 13-02-PLAN.md (Phase 13 complete)
-Next step: Execute Phase 14
+Stopped at: Completed 14-01-PLAN.md
+Next step: Execute 14-02-PLAN.md
