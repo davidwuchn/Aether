@@ -911,6 +911,58 @@ If at least one worker succeeded, continue normally to the next wave.
 
 **Parse each worker's validated JSON output to collect:** status, files_created, files_modified, blockers
 
+**Intra-phase midden threshold check (MID-03):**
+
+After processing all wave results, check if any midden error category has reached 3+ occurrences. If so, emit a REDIRECT pheromone mid-build to alert the colony.
+
+Run using the Bash tool with description "Checking midden thresholds...":
+```bash
+midden_result=$(bash .aether/aether-utils.sh midden-recent-failures 50 2>/dev/null || echo '{"count":0,"failures":[]}')
+midden_count=$(echo "$midden_result" | jq '.count // 0')
+
+if [[ "$midden_count" -gt 0 ]]; then
+  recurring_categories=$(echo "$midden_result" | jq -r '
+    [.failures[] | .category]
+    | group_by(.)
+    | map(select(length >= 3))
+    | map({category: .[0], count: length})
+    | .[]
+    | @base64
+  ' 2>/dev/null || echo "")
+
+  redirect_emit_count=0
+  for encoded in $recurring_categories; do
+    [[ $redirect_emit_count -ge 3 ]] && break
+    [[ -z "$encoded" ]] && continue
+    category=$(echo "$encoded" | base64 -d | jq -r '.category')
+    count=$(echo "$encoded" | base64 -d | jq -r '.count')
+
+    existing=$(jq -r --arg cat "$category" '
+      [.signals[] | select(.active == true and .source == "auto:error" and (.content.text | contains($cat)))] | length
+    ' .aether/data/pheromones.json 2>/dev/null || echo "0")
+
+    if [[ "$existing" == "0" ]]; then
+      bash .aether/aether-utils.sh pheromone-write REDIRECT \
+        "[error-pattern] Category \"$category\" recurring ($count occurrences)" \
+        --strength 0.7 \
+        --source "auto:error" \
+        --reason "Auto-emitted: midden error pattern recurred 3+ times mid-build" \
+        --ttl "30d" 2>/dev/null || true
+      redirect_emit_count=$((redirect_emit_count + 1))
+    fi
+  done
+
+  if [[ $redirect_emit_count -gt 0 ]]; then
+    echo "Warning: Midden threshold triggered -- $redirect_emit_count REDIRECT pheromone(s) emitted mid-build"
+  fi
+fi
+```
+
+Display if any REDIRECT was emitted:
+```
+Warning: Midden threshold: "{category}" recurring ({count}x) -- REDIRECT emitted mid-build
+```
+
 Chat users see the structured completion lines above.
 
 ### Step 5.3: Spawn Wave 2+ Workers (Sequential Waves)
