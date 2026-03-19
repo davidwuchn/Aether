@@ -47,6 +47,8 @@ Recent decisions affecting current work:
 - [Roadmap]: constraints.json is a legacy parallel store; eventual deprecation in favor of pheromones.json
 - [01-02]: Force-added gitignored data files to commit purge changes for traceability
 - [01-02]: Kept all 16 real worker spawn records in spawn-tree.txt
+- [Phase 01]: Kept sig_feedback_001 despite 'Test coverage' text matching broad regex -- it is a real signal from worker_builder, not test data
+- [Phase 01]: pheromones.json and constraints.json are gitignored -- cleaned locally but not committable to git
 
 ### Pending Todos
 
@@ -60,5 +62,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: Completed 01-02-PLAN.md (secondary data files purge)
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None
