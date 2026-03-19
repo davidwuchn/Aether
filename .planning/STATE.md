@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The pheromone system should be a living system -- auto-emitting signals during builds, carrying context across sessions, and actually changing worker behavior -- not just a storage format that nobody reads.
-**Current focus:** Phase 4: Pheromone Worker Integration
+**Current focus:** Phase 5 (next phase)
 
 ## Current Position
 
-Phase: 4 of 8 (Pheromone Worker Integration)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-03-19 -- Completed 04-01-PLAN.md
+Phase: 4 of 8 (Pheromone Worker Integration) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-03-19 -- Completed 04-02-PLAN.md
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 56%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 5min
-- Total execution time: 0.43 hours
+- Total execution time: 0.50 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [█████░░░░░] 50%
 | 01-data-purge | 1 | 3min | 3min |
 | 02-command-audit-data-tooling | 2 | 12min | 6min |
 | 03-pheromone-signal-plumbing | 2 | 8min | 4min |
-| 04-pheromone-worker-integration | 1 | 3min | 3min |
+| 04-pheromone-worker-integration | 2 | 7min | 3.5min |
 
 **Recent Trend:**
-- Last 5 plans: 7min, 5min, 4min, 4min, 3min
+- Last 5 plans: 5min, 4min, 4min, 3min, 4min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -63,6 +63,8 @@ Recent decisions affecting current work:
 - [04-01]: Placed pheromone_protocol after critical_rules, before return_format -- signals are critical but secondary to core rules like TDD
 - [04-01]: Kept protocols under 35 lines using principle-based instructions (workers are LLMs, understand intent)
 - [04-01]: Pre-existing lint:sync command count mismatch (38 vs 37) logged to deferred-items, not fixed (out of scope)
+- [04-02]: Defined 'influence' as signal in prompt_section + agent has pheromone_protocol -- maximum verifiable without live LLM builds
+- [04-02]: Reproduced build-wave.md Step 5.2 threshold logic in JS tests for isolation
 
 ### Pending Todos
 
@@ -76,5 +78,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: Completed 04-01-PLAN.md
+Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
 Resume file: None
