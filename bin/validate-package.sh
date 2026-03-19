@@ -84,4 +84,39 @@ for dir in "${PRIVATE_DIRS[@]}"; do
   fi
 done
 
-echo "Package validation passed."
+# Content-aware checks: verify specific files are excluded from the package
+cd "$REPO_ROOT"
+PACK_LIST=$(npm pack --dry-run 2>&1)
+
+# Check 1: QUEEN.md must not be in the package (template and docs versions are fine)
+if echo "$PACK_LIST" | grep -qE '\.aether/QUEEN\.md$'; then
+  echo "ERROR: .aether/QUEEN.md would be included in package" >&2
+  echo "  QUEEN.md should be created from template during install, not shipped." >&2
+  echo "  Add 'QUEEN.md' to .aether/.npmignore" >&2
+  exit 1
+fi
+
+# Check 2: No temp files in .aether/
+if echo "$PACK_LIST" | grep -qE '\.aether/.*\.tmp'; then
+  echo "ERROR: Temp files would be included in package:" >&2
+  echo "$PACK_LIST" | grep -E '\.aether/.*\.tmp' >&2
+  echo "  Delete temp files or add '*.tmp*' to .aether/.npmignore" >&2
+  exit 1
+fi
+
+# Check 3: CONTEXT.md must not be in the package
+if echo "$PACK_LIST" | grep -qE '\.aether/CONTEXT\.md'; then
+  echo "ERROR: .aether/CONTEXT.md would be included in package" >&2
+  echo "  CONTEXT.md is per-colony. Add 'CONTEXT.md' to .aether/.npmignore" >&2
+  exit 1
+fi
+
+# Check 4: No .aether/data/ files in the package (covers pheromones.json, constraints.json, midden/, etc.)
+if echo "$PACK_LIST" | grep -qE '\.aether/data/'; then
+  echo "ERROR: .aether/data/ files would be included in package:" >&2
+  echo "$PACK_LIST" | grep -E '\.aether/data/' >&2
+  echo "  data/ is local-only. Ensure 'data/' is in .aether/.npmignore" >&2
+  exit 1
+fi
+
+echo "Package validation passed (files + content checks)."
