@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0",
+  "archived_at_count": 0,
+  "signals": [],
+  "entries": [
+    {
+      "id": "midden_1771717833_19573",
+      "timestamp": "2026-02-21T23:50:33Z",
+      "category": "security",
+      "source": "gatekeeper",
+      "message": "High CVEs found: 3",
+      "reviewed": false
+    }
+  ],
+  "entry_count": 1
+}
