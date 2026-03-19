@@ -23,3 +23,12 @@ RESEARCH-SHARED-DATA.md
 diagnose-self-reference.md
 pheromone_system.py
 semantic_layer.py
+
+# Generated files (created from templates, never ship pre-populated)
+QUEEN.md
+
+# Temp files from atomic writes
+*.tmp*
+
+# Per-colony files (excluded from hub sync, must also be excluded from tarball)
+CONTEXT.md

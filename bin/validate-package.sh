@@ -28,7 +28,6 @@ fi
 REQUIRED_FILES=(
   "aether-utils.sh"
   "workers.md"
-  "CONTEXT.md"
   "model-profiles.yaml"
   "docs/README.md"
   "utils/atomic-write.sh"
