@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The pheromone system should be a living system -- auto-emitting signals during builds, carrying context across sessions, and actually changing worker behavior -- not just a storage format that nobody reads.
-**Current focus:** Phase 5 (next phase)
+**Current focus:** Phase 5 (Learning Pipeline Validation)
 
 ## Current Position
 
-Phase: 4 of 8 (Pheromone Worker Integration) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-03-19 -- Completed 04-02-PLAN.md
+Phase: 5 of 8 (Learning Pipeline Validation)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-03-19 -- Completed 05-01-PLAN.md
 
-Progress: [██████░░░░] 56%
+Progress: [██████░░░░] 62%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 5min
-- Total execution time: 0.50 hours
+- Total execution time: 0.55 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [██████░░░░] 56%
 | 02-command-audit-data-tooling | 2 | 12min | 6min |
 | 03-pheromone-signal-plumbing | 2 | 8min | 4min |
 | 04-pheromone-worker-integration | 2 | 7min | 3.5min |
+| 05-learning-pipeline-validation | 1 | 3min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 4min, 4min, 3min, 4min
+- Last 5 plans: 4min, 4min, 3min, 4min, 3min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - [04-01]: Pre-existing lint:sync command count mismatch (38 vs 37) logged to deferred-items, not fixed (out of scope)
 - [04-02]: Defined 'influence' as signal in prompt_section + agent has pheromone_protocol -- maximum verifiable without live LLM builds
 - [04-02]: Reproduced build-wave.md Step 5.2 threshold logic in JS tests for isolation
+- [05-01]: Third memory-capture returns already_promoted without re-invoking instinct-create -- confidence stays at 0.75 (correct idempotent behavior)
+- [05-01]: Used 4 realistic content strings from actual Aether development phases as non-synthetic test data
 
 ### Pending Todos
 
@@ -78,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None

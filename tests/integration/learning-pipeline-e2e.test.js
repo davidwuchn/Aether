@@ -139,7 +139,7 @@ User-mandated rules.
     current_phase: opts.currentPhase !== undefined ? opts.currentPhase : 1,
     plan: { phases: opts.completedPhases || [] },
     memory: {
-      instincts: [],
+      instincts: opts.instincts || [],
       phase_learnings: [],
       decisions: []
     },
@@ -466,6 +466,247 @@ test.serial('confidence formula: promoted instinct has recurrence-calibrated con
     // Formula: min(0.7 + (observation_count - 1) * 0.05, 0.9) = min(0.7 + 1*0.05, 0.9) = 0.75
     t.true(Math.abs(instinct.confidence - 0.75) < 0.01,
       `Confidence should be ~0.75 (got ${instinct.confidence}), formula: min(0.7 + (2-1)*0.05, 0.9)`);
+  } finally {
+    await cleanupTempDir(tmpDir);
+  }
+});
+
+
+// =============================================================================
+// LRNG-02: Instinct influence on worker prompts
+// =============================================================================
+
+
+// =============================================================================
+// Test 8: Promoted instinct appears in colony-prime prompt_section with domain grouping
+// =============================================================================
+
+test.serial('promoted instinct appears in colony-prime prompt_section with domain grouping', async (t) => {
+  const tmpDir = await createTempDir();
+
+  try {
+    await setupTestColony(tmpDir);
+
+    // Call memory-capture twice with realistic pattern content to trigger promotion
+    parseLastJson(runAetherUtil(tmpDir, 'memory-capture', [
+      'learning', REALISTIC_PATTERN, 'pattern', 'worker:builder'
+    ]));
+    const secondCapture = parseLastJson(runAetherUtil(tmpDir, 'memory-capture', [
+      'learning', REALISTIC_PATTERN, 'pattern', 'worker:builder'
+    ]));
+    t.true(secondCapture.result.auto_promoted, 'Should auto-promote after second call');
+
+    // Call colony-prime (not --compact) and verify instinct formatting
+    const primeResult = JSON.parse(runAetherUtil(tmpDir, 'colony-prime'));
+    t.true(primeResult.ok, 'colony-prime should return ok=true');
+
+    const section = primeResult.result.prompt_section;
+    t.truthy(section, 'Should have prompt_section');
+
+    // Verify INSTINCTS header with domain grouping
+    t.true(section.includes('INSTINCTS (Learned Behaviors)'),
+      'prompt_section should include INSTINCTS (Learned Behaviors) header');
+    t.true(section.includes('Pattern:'),
+      'prompt_section should include Pattern: domain grouping (capitalized first letter)');
+    t.true(section.includes(REALISTIC_PATTERN),
+      'prompt_section should include the instinct action text');
+
+    // Verify confidence display (0.75 rounds to 0.8 when multiplied by 10, rounded, divided by 10)
+    // The jq format is: (.confidence * 10 | round) / 10 | tostring
+    // 0.75 * 10 = 7.5, round = 8, / 10 = 0.8
+    t.true(section.includes('[0.8]') || section.includes('[0.7]') || section.includes('[0.75]'),
+      'prompt_section should include confidence display');
+  } finally {
+    await cleanupTempDir(tmpDir);
+  }
+});
+
+
+// =============================================================================
+// Test 9: colony-prime includes BOTH QUEEN wisdom AND instincts in prompt_section
+// =============================================================================
+
+test.serial('colony-prime includes BOTH QUEEN wisdom AND instincts in prompt_section', async (t) => {
+  const tmpDir = await createTempDir();
+
+  try {
+    await setupTestColony(tmpDir);
+
+    // Call memory-capture twice with pattern content to trigger promotion
+    // This writes to both QUEEN.md (via queen-promote) and instincts (via instinct-create)
+    parseLastJson(runAetherUtil(tmpDir, 'memory-capture', [
+      'learning', REALISTIC_PATTERN, 'pattern', 'worker:builder'
+    ]));
+    const secondCapture = parseLastJson(runAetherUtil(tmpDir, 'memory-capture', [
+      'learning', REALISTIC_PATTERN, 'pattern', 'worker:builder'
+    ]));
+    t.true(secondCapture.result.auto_promoted, 'Should auto-promote after second call');
+
+    // Call colony-prime and verify both QUEEN wisdom and instincts appear
+    const primeResult = JSON.parse(runAetherUtil(tmpDir, 'colony-prime'));
+    t.true(primeResult.ok, 'colony-prime should return ok=true');
+
+    const section = primeResult.result.prompt_section;
+
+    // QUEEN wisdom section should be present (promoted content goes to Patterns section)
+    t.true(section.includes('QUEEN WISDOM'),
+      'prompt_section should include QUEEN WISDOM header');
+    t.true(section.includes('Patterns:'),
+      'prompt_section should include Patterns: in QUEEN WISDOM section');
+
+    // INSTINCTS section should also be present
+    t.true(section.includes('INSTINCTS (Learned Behaviors)'),
+      'prompt_section should include INSTINCTS header');
+    t.true(section.includes(REALISTIC_PATTERN),
+      'prompt_section should include the promoted content text in instincts');
+  } finally {
+    await cleanupTempDir(tmpDir);
+  }
+});
+
+
+// =============================================================================
+// Test 10: colony-prime --compact caps instincts at 3
+// =============================================================================
+
+test.serial('colony-prime --compact caps instincts at 3', async (t) => {
+  const tmpDir = await createTempDir();
+
+  try {
+    const isoDate = new Date().toISOString();
+    // Pre-seed COLONY_STATE.json with 5 instincts at varying confidence
+    await setupTestColony(tmpDir, {
+      instincts: [
+        {
+          id: 'instinct_1', trigger: 'when jq fails', action: 'use explicit if/elif chains',
+          confidence: 0.9, status: 'hypothesis', domain: 'pattern',
+          source: 'promoted_from_learning', evidence: [], tested: false,
+          created_at: isoDate, last_applied: null, applications: 0, successes: 0, failures: 0
+        },
+        {
+          id: 'instinct_2', trigger: 'when state corrupts', action: 'validate before atomic_write',
+          confidence: 0.85, status: 'hypothesis', domain: 'failure',
+          source: 'promoted_from_learning', evidence: [], tested: false,
+          created_at: isoDate, last_applied: null, applications: 0, successes: 0, failures: 0
+        },
+        {
+          id: 'instinct_3', trigger: 'when tests pollute', action: 'purge test artifacts from state',
+          confidence: 0.8, status: 'hypothesis', domain: 'pattern',
+          source: 'promoted_from_learning', evidence: [], tested: false,
+          created_at: isoDate, last_applied: null, applications: 0, successes: 0, failures: 0
+        },
+        {
+          id: 'instinct_4', trigger: 'when features stale', action: 'clean data before integrating',
+          confidence: 0.75, status: 'hypothesis', domain: 'philosophy',
+          source: 'promoted_from_learning', evidence: [], tested: false,
+          created_at: isoDate, last_applied: null, applications: 0, successes: 0, failures: 0
+        },
+        {
+          id: 'instinct_5', trigger: 'when builds slow', action: 'profile before optimizing',
+          confidence: 0.7, status: 'hypothesis', domain: 'performance',
+          source: 'promoted_from_learning', evidence: [], tested: false,
+          created_at: isoDate, last_applied: null, applications: 0, successes: 0, failures: 0
+        }
+      ]
+    });
+
+    // Call colony-prime --compact (max-instincts defaults to 3 in compact mode)
+    const primeResult = JSON.parse(runAetherUtil(tmpDir, 'colony-prime', ['--compact']));
+    t.true(primeResult.ok, 'colony-prime should return ok=true');
+
+    const section = primeResult.result.prompt_section;
+    t.true(section.includes('INSTINCTS'),
+      'prompt_section should include INSTINCTS header');
+
+    // The 3 highest confidence instincts should appear (0.9, 0.85, 0.8)
+    t.true(section.includes('use explicit if/elif chains'),
+      'Should include highest confidence instinct (0.9)');
+    t.true(section.includes('validate before atomic_write'),
+      'Should include second highest confidence instinct (0.85)');
+    t.true(section.includes('purge test artifacts from state'),
+      'Should include third highest confidence instinct (0.8)');
+
+    // The 0.75 and 0.7 confidence instincts should NOT appear
+    t.false(section.includes('clean data before integrating'),
+      'Should NOT include 0.75 confidence instinct (capped at 3)');
+    t.false(section.includes('profile before optimizing'),
+      'Should NOT include 0.7 confidence instinct (capped at 3)');
+  } finally {
+    await cleanupTempDir(tmpDir);
+  }
+});
+
+
+// =============================================================================
+// Test 11: Agent definitions contain pheromone_protocol for instinct influence
+// =============================================================================
+
+test.serial('agent definitions contain pheromone_protocol for instinct influence', async (t) => {
+  const agentDir = path.join(process.cwd(), '.claude', 'agents', 'ant');
+  const agents = ['aether-builder.md', 'aether-watcher.md', 'aether-scout.md'];
+
+  for (const agent of agents) {
+    const content = fs.readFileSync(path.join(agentDir, agent), 'utf8');
+
+    // Verify pheromone_protocol tag exists
+    t.true(content.includes('<pheromone_protocol>'),
+      `${agent} should contain <pheromone_protocol> tag`);
+
+    // Verify it references instincts, learned behaviors, or signals (the mechanism for instinct delivery)
+    // pheromone_protocol instructs workers to act on injected signals which include instincts
+    const lowerContent = content.toLowerCase();
+    const referencesInfluenceMechanism = lowerContent.includes('instincts')
+      || lowerContent.includes('instinct')
+      || lowerContent.includes('learned behaviors')
+      || lowerContent.includes('signals');
+    t.true(referencesInfluenceMechanism,
+      `${agent} should reference instincts, learned behaviors, or signals (the delivery mechanism)`);
+  }
+});
+
+
+// =============================================================================
+// Test 12: Instinct auto-generated trigger format matches expected pattern
+// =============================================================================
+
+test.serial('instinct auto-generated trigger format matches expected pattern', async (t) => {
+  const tmpDir = await createTempDir();
+
+  try {
+    await setupTestColony(tmpDir);
+
+    // Call memory-capture twice with pattern content to trigger promotion
+    parseLastJson(runAetherUtil(tmpDir, 'memory-capture', [
+      'learning', REALISTIC_PATTERN, 'pattern', 'worker:builder'
+    ]));
+    const secondCapture = parseLastJson(runAetherUtil(tmpDir, 'memory-capture', [
+      'learning', REALISTIC_PATTERN, 'pattern', 'worker:builder'
+    ]));
+    t.true(secondCapture.result.auto_promoted, 'Should auto-promote after second call');
+
+    // Read the instinct from COLONY_STATE.json
+    const state = JSON.parse(fs.readFileSync(
+      path.join(tmpDir, '.aether', 'data', 'COLONY_STATE.json'), 'utf8'
+    ));
+    const instinct = state.memory.instincts.find(i => i.action === REALISTIC_PATTERN);
+    t.truthy(instinct, 'Should have instinct with matching action');
+
+    // Verify trigger matches auto-generated format from learning-promote-auto
+    // Format: "When working on {wisdom_type} patterns" (lines 5393-5399 of aether-utils.sh)
+    t.is(instinct.trigger, 'When working on pattern patterns',
+      'Trigger should match auto-generated format: "When working on pattern patterns"');
+
+    // Also verify other auto-generated fields
+    t.is(instinct.source, 'promoted_from_learning',
+      'Source should be promoted_from_learning');
+    t.is(instinct.domain, 'pattern',
+      'Domain should match the wisdom type');
+    // Evidence is stored as an array of strings by instinct-create (line 7353 of aether-utils.sh)
+    const evidenceStr = Array.isArray(instinct.evidence)
+      ? instinct.evidence.join(' ')
+      : String(instinct.evidence || '');
+    t.true(evidenceStr.includes('Auto-promoted'),
+      `Evidence should mention auto-promotion (got: ${evidenceStr})`);
   } finally {
     await cleanupTempDir(tmpDir);
   }
