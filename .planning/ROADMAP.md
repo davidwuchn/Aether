@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Command Audit & Data Tooling** - Audit all 37 slash commands, fix broken ones, and build the data-clean utility (completed 2026-03-19)
 - [x] **Phase 3: Pheromone Signal Plumbing** - Verify the injection chain end-to-end, fix signal lifecycle and decay, ensure session persistence (completed 2026-03-19)
 - [x] **Phase 4: Pheromone Worker Integration** - Update agent definitions to act on signals, verify auto-emit influences builds, wire midden threshold (completed 2026-03-19)
-- [ ] **Phase 5: Learning Pipeline Validation** - Validate the observation-to-instinct pipeline end-to-end with real data
+- [x] **Phase 5: Learning Pipeline Validation** - Validate the observation-to-instinct pipeline end-to-end with real data (completed 2026-03-19)
 - [ ] **Phase 6: XML Exchange Activation** - Wire the existing XML exchange system into commands and lifecycle hooks
 - [ ] **Phase 7: Fresh Install Hardening** - Smoke test the full install-to-build flow and validate pre-publish artifact rejection
 - [ ] **Phase 8: Documentation Update** - Update all documentation to match verified behavior
@@ -91,7 +91,7 @@ Plans:
   1. A real observation entered via memory-capture flows through learning-observe, meets the promotion threshold, triggers learning-promote-auto, and creates an instinct
   2. Promoted instincts appear in colony-prime output and are present in worker prompt context
   3. An integration test covers the full pipeline path: memory-capture through to instinct-create, using non-synthetic data
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md -- End-to-end pipeline validation tests with realistic data (LRNG-01, LRNG-03)
@@ -105,11 +105,11 @@ Plans:
   1. Slash commands exist for exporting and importing signals (e.g., `/ant:export-signals` and `/ant:import-signals` or equivalent)
   2. Exporting signals from one colony and importing them into another produces working signals in the receiving colony
   3. Sealing a colony automatically exports its pheromone signals as part of the seal lifecycle
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- Create /ant:export-signals and /ant:import-signals slash commands with OpenCode parity
+- [ ] 06-02-PLAN.md -- Wire standalone pheromone export into seal lifecycle and cross-colony integration tests
 
 ### Phase 7: Fresh Install Hardening
 **Goal**: A new user can install Aether and run a full colony lifecycle without hitting errors or receiving test artifacts
@@ -152,7 +152,7 @@ Note: Phases 2 and 3 both depend only on Phase 1 and could execute in parallel. 
 | 2. Command Audit & Data Tooling | 2/2 | Complete    | 2026-03-19 |
 | 3. Pheromone Signal Plumbing | 0/3 | Complete    | 2026-03-19 |
 | 4. Pheromone Worker Integration | 0/2 | Complete    | 2026-03-19 |
-| 5. Learning Pipeline Validation | 0/2 | Not started | - |
+| 5. Learning Pipeline Validation | 0/2 | Complete    | 2026-03-19 |
 | 6. XML Exchange Activation | 0/2 | Not started | - |
 | 7. Fresh Install Hardening | 0/2 | Not started | - |
 | 8. Documentation Update | 0/2 | Not started | - |
