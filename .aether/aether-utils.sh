@@ -8021,23 +8021,26 @@ $updated_meta
     else
       # Expire time-based expired signals (pause-aware) AND decay-expired signals
       phe_expired_ids=$(jq -r --arg now_iso "$phe_now_iso" --argjson pause_secs "$phe_pause_duration" '
-        def approx_epoch(ts):
-          (ts | split("T")[0] | split("-")) as $d |
-          (ts | split("T")[1] | split(":")) as $t |
-          ($d[0] | tonumber) as $y |
-          ($d[1] | tonumber) as $mo |
-          ($d[2] | tonumber) as $day |
-          ($t[0] | tonumber) as $h |
-          ($t[1] | tonumber) as $m |
-          (($t[2] // "0") | gsub("[^0-9]";"") | if . == "" then 0 else tonumber end) as $s |
-          (($y - 1970) * 31557600) + (($mo - 1) * 2629800) + (($day - 1) * 86400) + ($h * 3600) + ($m * 60) + $s;
-        (approx_epoch($now_iso)) as $now |
+        def to_epoch(ts):
+          if ts == null or ts == "" or ts == "phase_end" then null
+          else
+            (ts | split("T")) as $parts |
+            ($parts[0] | split("-")) as $d |
+            ($parts[1] | rtrimstr("Z") | split(":")) as $t |
+            (($d[0] | tonumber) - 1970) * 365 * 86400 +
+            (($d[1] | tonumber) - 1) * 30 * 86400 +
+            (($d[2] | tonumber) - 1) * 86400 +
+            ($t[0] | tonumber) * 3600 +
+            ($t[1] | tonumber) * 60 +
+            ($t[2] | rtrimstr("Z") | tonumber)
+          end;
+        (to_epoch($now_iso)) as $now |
         .signals[] |
         select(.active == true) |
         select(
           (.expires_at != "phase_end" and .expires_at != null and .expires_at != "") and
           (
-            (approx_epoch(.expires_at)) + $pause_secs <= $now
+            (to_epoch(.expires_at)) + $pause_secs <= $now
           )
         ) |
         .id
