@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-19)
 
 **Core value:** The pheromone system should be a living system -- auto-emitting signals during builds, carrying context across sessions, and actually changing worker behavior -- not just a storage format that nobody reads.
-**Current focus:** Phase 7 (next phase)
+**Current focus:** Phase 7 (Fresh Install Hardening)
 
 ## Current Position
 
-Phase: 6 of 8 (XML Exchange Activation) -- COMPLETE
+Phase: 7 of 8 (Fresh Install Hardening)
 Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-03-19 -- Completed 06-02-PLAN.md
+Status: Plan 07-02 complete
+Last activity: 2026-03-19 -- Completed 07-02-PLAN.md
 
-Progress: [████████░░] 81%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 4min
-- Total execution time: 0.70 hours
+- Total execution time: 0.75 hours
 
 **By Phase:**
 
@@ -33,9 +33,10 @@ Progress: [████████░░] 81%
 | 04-pheromone-worker-integration | 2 | 7min | 3.5min |
 | 05-learning-pipeline-validation | 2 | 7min | 3.5min |
 | 06-xml-exchange-activation | 2 | 5min | 2.5min |
+| 07-fresh-install-hardening | 2 | 7min | 3.5min |
 
 **Recent Trend:**
-- Last 5 plans: 4min, 3min, 4min, 2min, 3min
+- Last 5 plans: 3min, 4min, 2min, 3min, 3min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -74,6 +75,8 @@ Recent decisions affecting current work:
 - [06-01]: Pure wiring -- no new subcommands created, only slash command wrappers around existing pheromone-export-xml and pheromone-import-xml
 - [06-01]: OpenCode versions use normalize-args pattern for argument compatibility
 - [06-02]: Export result uses known source count because pheromone-export-xml returns {path, validated} not signal_count
+- [07-02]: Used HOME override pattern from test-install.sh for true environment isolation
+- [07-02]: Handled queen-init nested JSON response (.result.created) which wraps output in {ok:true, result:{...}}
 
 ### Pending Todos
 
@@ -87,5 +90,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-19
-Stopped at: Completed 06-02-PLAN.md (Phase 6 complete)
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
