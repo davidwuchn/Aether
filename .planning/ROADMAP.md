@@ -13,8 +13,8 @@ This milestone takes Aether from a system where pheromone signals are stored but
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Data Purge** - Remove all test artifacts from colony state files to establish a clean baseline (completed 2026-03-19)
-- [ ] **Phase 2: Command Audit & Data Tooling** - Audit all 37 slash commands, fix broken ones, and build the data-clean utility
-- [ ] **Phase 3: Pheromone Signal Plumbing** - Verify the injection chain end-to-end, fix signal lifecycle and decay, ensure session persistence
+- [x] **Phase 2: Command Audit & Data Tooling** - Audit all 37 slash commands, fix broken ones, and build the data-clean utility (completed 2026-03-19)
+- [x] **Phase 3: Pheromone Signal Plumbing** - Verify the injection chain end-to-end, fix signal lifecycle and decay, ensure session persistence (completed 2026-03-19)
 - [ ] **Phase 4: Pheromone Worker Integration** - Update agent definitions to act on signals, verify auto-emit influences builds, wire midden threshold
 - [ ] **Phase 5: Learning Pipeline Validation** - Validate the observation-to-instinct pipeline end-to-end with real data
 - [ ] **Phase 6: XML Exchange Activation** - Wire the existing XML exchange system into commands and lifecycle hooks
@@ -47,7 +47,7 @@ Plans:
   1. All 37 slash commands have been audited for reference correctness and their status documented (pass/fail/warning)
   2. Every command with broken references or structural issues has been fixed
   3. Running `/ant:data-clean` shows artifacts found, prompts for confirmation, and safely removes them
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md -- Audit all 37 slash commands for reference correctness and fix broken ones
@@ -62,12 +62,12 @@ Plans:
   2. Signals expire correctly at phase_end events, time-based decay reduces signal strength over time, and expired signals are garbage collected
   3. Pheromone decay math produces correct results for known timestamps and edge cases (zero time elapsed, exactly at expiry, past expiry)
   4. Pheromones survive `/clear` and are available when the user runs `/ant:resume` in a new session
-**Plans**: TBD
+**Plans:** 2/3 plans complete
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
-- [ ] 03-03: TBD
+- [ ] 03-01-PLAN.md -- Unify dual epoch conversion functions and write decay math edge case tests
+- [ ] 03-02-PLAN.md -- Fix /ant:resume to read pheromones.json instead of constraints.json
+- [ ] 03-03-PLAN.md -- End-to-end injection chain and signal lifecycle integration tests
 
 ### Phase 4: Pheromone Worker Integration
 **Goal**: Workers actually read and respond to pheromone signals -- signals change what workers do, not just what gets stored
@@ -77,11 +77,11 @@ Plans:
   1. Agent definitions for builder, watcher, and scout contain explicit instructions to acknowledge and act on injected pheromone context
   2. A signal auto-emitted during one build phase demonstrably influences worker behavior in a subsequent build phase
   3. When midden failure count exceeds threshold for a pattern, an auto-REDIRECT signal is created and workers avoid that pattern in subsequent work
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- Add pheromone_protocol section to builder, watcher, and scout agent definitions
+- [ ] 04-02-PLAN.md -- Cross-phase signal influence and midden threshold auto-REDIRECT integration tests
 
 ### Phase 5: Learning Pipeline Validation
 **Goal**: The observation-to-instinct learning pipeline works end-to-end with real data, and promoted instincts actually influence worker behavior
@@ -149,8 +149,8 @@ Note: Phases 2 and 3 both depend only on Phase 1 and could execute in parallel. 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Purge | 2/2 | Complete    | 2026-03-19 |
-| 2. Command Audit & Data Tooling | 0/2 | Planning complete | - |
-| 3. Pheromone Signal Plumbing | 0/3 | Not started | - |
+| 2. Command Audit & Data Tooling | 2/2 | Complete    | 2026-03-19 |
+| 3. Pheromone Signal Plumbing | 0/3 | Complete    | 2026-03-19 |
 | 4. Pheromone Worker Integration | 0/2 | Not started | - |
 | 5. Learning Pipeline Validation | 0/2 | Not started | - |
 | 6. XML Exchange Activation | 0/2 | Not started | - |
