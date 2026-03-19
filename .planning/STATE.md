@@ -19,19 +19,19 @@ Progress: [██░░░░░░░░] 25%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 4min
-- Total execution time: 0.13 hours
+- Total plans completed: 3
+- Average duration: 5min
+- Total execution time: 0.25 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-data-purge | 1 | 3min | 3min |
-| 02-command-audit-data-tooling | 1 | 5min | 5min |
+| 02-command-audit-data-tooling | 2 | 12min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 5min
+- Last 5 plans: 3min, 7min, 5min
 - Trend: -
 
 *Updated after each plan completion*
@@ -52,6 +52,8 @@ Recent decisions affecting current work:
 - [Phase 01]: pheromones.json and constraints.json are gitignored -- cleaned locally but not committable to git
 - [02-02]: Placed data-clean subcommand at end of case statement for minimal diff and clear separation
 - [02-02]: Used atomic_write for file modifications when available, with direct write fallback
+- [Phase 02-01]: Naming inconsistencies (help.md, memory-details.md, resume.md) documented as warnings not fixes -- frontmatter name does not affect slash command invocation
+- [Phase 02-01]: Removed broken .aether/planning.md reference from plan.md -- inline rules already provided
 
 ### Pending Todos
 
