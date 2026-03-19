@@ -12,8 +12,8 @@ This milestone takes Aether from a system where pheromone signals are stored but
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Data Purge** - Remove all test artifacts from colony state files to establish a clean baseline
-- [ ] **Phase 2: Command Audit & Data Tooling** - Audit all 36 slash commands, fix broken ones, and build the data-clean utility
+- [x] **Phase 1: Data Purge** - Remove all test artifacts from colony state files to establish a clean baseline (completed 2026-03-19)
+- [ ] **Phase 2: Command Audit & Data Tooling** - Audit all 37 slash commands, fix broken ones, and build the data-clean utility
 - [ ] **Phase 3: Pheromone Signal Plumbing** - Verify the injection chain end-to-end, fix signal lifecycle and decay, ensure session persistence
 - [ ] **Phase 4: Pheromone Worker Integration** - Update agent definitions to act on signals, verify auto-emit influences builds, wire midden threshold
 - [ ] **Phase 5: Learning Pipeline Validation** - Validate the observation-to-instinct pipeline end-to-end with real data
@@ -33,25 +33,25 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. constraints.json focus array contains no test entries
   4. COLONY_STATE.json has no stale goal from a different project
   5. learning-observations.json contains zero synthetic test data entries; spawn-tree.txt and midden.json are clean
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 01-01-PLAN.md -- Purge test data from QUEEN.md, pheromones.json, constraints.json, and COLONY_STATE.json
-- [ ] 01-02-PLAN.md -- Purge test data from learning-observations.json, spawn-tree.txt, and midden.json
+- [x] 01-01-PLAN.md -- Purge test data from QUEEN.md, pheromones.json, constraints.json, and COLONY_STATE.json
+- [x] 01-02-PLAN.md -- Purge test data from learning-observations.json, spawn-tree.txt, and midden.json
 
 ### Phase 2: Command Audit & Data Tooling
-**Goal**: Every slash command runs without errors on valid input, and a data-clean command exists for ongoing artifact removal
+**Goal**: Every slash command is verified correct and a data-clean command exists for ongoing artifact removal
 **Depends on**: Phase 1
 **Requirements**: DATA-07, INST-02, INST-03
 **Success Criteria** (what must be TRUE):
-  1. All 36 slash commands have been run with minimal args and their behavior documented (pass/fail/warning)
-  2. Every command that errored on valid input during the audit has been fixed
-  3. Running `/ant:data-clean` (or equivalent) shows artifacts found, prompts for confirmation, and safely removes them
-**Plans**: TBD
+  1. All 37 slash commands have been audited for reference correctness and their status documented (pass/fail/warning)
+  2. Every command with broken references or structural issues has been fixed
+  3. Running `/ant:data-clean` shows artifacts found, prompts for confirmation, and safely removes them
+**Plans:** 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Audit all 37 slash commands for reference correctness and fix broken ones
+- [ ] 02-02-PLAN.md -- Build the /ant:data-clean command (subcommand + slash command + help listing)
 
 ### Phase 3: Pheromone Signal Plumbing
 **Goal**: Pheromone signals flow correctly from user input through colony-prime to worker spawn context, with working lifecycle management
@@ -148,8 +148,8 @@ Note: Phases 2 and 3 both depend only on Phase 1 and could execute in parallel. 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Data Purge | 0/2 | Not started | - |
-| 2. Command Audit & Data Tooling | 0/2 | Not started | - |
+| 1. Data Purge | 2/2 | Complete    | 2026-03-19 |
+| 2. Command Audit & Data Tooling | 0/2 | Planning complete | - |
 | 3. Pheromone Signal Plumbing | 0/3 | Not started | - |
 | 4. Pheromone Worker Integration | 0/2 | Not started | - |
 | 5. Learning Pipeline Validation | 0/2 | Not started | - |
