@@ -70,6 +70,7 @@ ADVANCED
 
 MAINTENANCE
 
+  /ant:data-clean        Scan and remove test artifacts from colony data files
   /ant:migrate-state     One-time state migration from v1 to v2.0 format
   /ant:verify-castes     Verify colony caste assignments and system status
 
