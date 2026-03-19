@@ -19,9 +19,9 @@ Progress: [█████████░] 87%
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 4min
-- Total execution time: 0.75 hours
+- Total execution time: 0.82 hours
 
 **By Phase:**
 
@@ -75,6 +75,8 @@ Recent decisions affecting current work:
 - [06-01]: Pure wiring -- no new subcommands created, only slash command wrappers around existing pheromone-export-xml and pheromone-import-xml
 - [06-01]: OpenCode versions use normalize-args pattern for argument compatibility
 - [06-02]: Export result uses known source count because pheromone-export-xml returns {path, validated} not signal_count
+- [07-01]: QUEEN.md excluded from npm package entirely -- always created from template during install, never shipped pre-populated
+- [07-01]: Removed CONTEXT.md from REQUIRED_FILES since it is now excluded from the package
 - [07-02]: Used HOME override pattern from test-install.sh for true environment isolation
 - [07-02]: Handled queen-init nested JSON response (.result.created) which wraps output in {ok:true, result:{...}}
 
