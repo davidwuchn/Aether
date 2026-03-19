@@ -1,0 +1,16 @@
+2026-02-16T11:43:10Z|Queen|surveyor|Toiler-47|Mapping provisions and trails|default|spawned
+2026-02-16T11:43:10Z|Queen|surveyor|Worker-72|Mapping nest structure|default|spawned
+2026-02-16T11:43:10Z|Queen|surveyor|Toiler-72|Mapping disciplines and sentinels|default|spawned
+2026-02-16T11:43:10Z|Queen|surveyor|Ant-56|Identifying pathogens|default|spawned
+2026-02-16T14:48:36Z|Scout-AI|scout|Roam-64|Research JSON vs XML technical comparisons - schema validation, query languages, namespaces, mixed content, document composition, streaming|default|spawned
+2026-02-16T14:48:37Z|Scout-AI|scout|Quest-14|Research real-world hybrid JSON/XML use cases - configuration systems, build tools, data exchange, registries|default|spawned
+2026-02-16T14:48:38Z|Scout-AI|scout|Path-75|Research shell integration - XML tools vs jq, cross-platform, performance, scripting|default|spawned
+2026-02-16T14:48:39Z|Scout-AI|scout|Roam-88|Research industry trends - why XML fell from APIs, where XML still dominates, modern tooling|default|spawned
+2026-02-16T16:03:48Z|Bolt-48|completed|Created pheromone.xsd and example XML
+2026-02-16T16:03:49Z|Anvil-71|completed|Created queen-wisdom.xsd and example XML
+2026-02-16T16:03:50Z|Chip-43|completed|Created colony-registry.xsd and example XML
+2026-02-16T16:03:51Z|Weld-66|completed|Created xml-utils.sh with 14 passing tests
+2026-02-16T16:10:19Z|Sharp-33|completed|Verification found 2 issues
+2026-02-16T16:10:20Z|Snap-27|completed|Resilience testing found 5 findings
+2026-02-16T16:31:47Z|Mason-16|completed|Created pheromone export function with XSD validation
+2026-02-16T16:44:12Z|Queen|watcher|Sharp-33|Verify Phase 2 XML implementation|default|spawned
