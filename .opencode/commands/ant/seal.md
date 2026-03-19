@@ -185,7 +185,7 @@ This handoff serves as the final record of the completed colony.
 
 ### Step 5.75: Export XML Archive (best-effort)
 
-Export colony data as a combined XML archive. This is best-effort — seal proceeds even if XML export fails.
+Export colony data as a combined XML archive and a standalone pheromones.xml. Both are best-effort — seal proceeds even if XML export fails.
 
 ```bash
 # Check if xmllint is available
@@ -198,8 +198,19 @@ if command -v xmllint >/dev/null 2>&1; then
   else
     xml_export_line="XML Archive: export failed (non-blocking)"
   fi
+
+  # Also export standalone pheromones.xml for cross-colony sharing
+  pher_result=$(bash .aether/aether-utils.sh pheromone-export-xml ".aether/exchange/pheromones.xml" 2>&1)
+  pher_ok=$(echo "$pher_result" | jq -r '.ok // false' 2>/dev/null)
+  if [[ "$pher_ok" == "true" ]]; then
+    pher_signal_count=$(echo "$pher_result" | jq -r '.result.signal_count // 0' 2>/dev/null)
+    pher_export_line="Signal Export: pheromones.xml (${pher_signal_count} signals, importable by other colonies)"
+  else
+    pher_export_line="Signal Export: failed (non-blocking)"
+  fi
 else
   xml_export_line="XML Archive: skipped (xmllint not available)"
+  pher_export_line="Signal Export: skipped (xmllint not available)"
 fi
 ```
 
@@ -224,6 +235,7 @@ Output:
    - flags.json (if existed)
    - constraints.json (if existed)
 {xml_export_line}
+{pher_export_line}
 
 🐜 The colony has reached its final form.
    The anthill stands crowned and sealed.
