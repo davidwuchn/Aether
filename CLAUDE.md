@@ -1,8 +1,8 @@
 # CLAUDE.md — Aether Development Guide
 
-> **Current Version:** v1.1.0
+> **Current Version:** v1.3.0
 > **Architecture:** v4.0 (runtime/ eliminated, direct packaging)
-> **Last Updated:** 2026-02-22 (pheromone-display merged, rules consolidated)
+> **Last Updated:** 2026-03-19 (v1.3 documentation update, integration complete)
 
 ---
 
@@ -10,11 +10,11 @@
 
 | What | Count/Status |
 |------|--------------|
-| Version | v1.1.0 |
-| Slash commands | 36 (Claude + OpenCode) |
+| Version | v1.3.0 |
+| Slash commands | 40 (Claude) + 39 (OpenCode) |
 | Agent definitions | 22 |
-| aether-utils.sh | ~9,808 lines, 150 subcommands |
-| Tests | 490+ passing |
+| aether-utils.sh | 10,000+ lines, 110 subcommands |
+| Tests | 530+ passing |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
 ---
@@ -27,7 +27,7 @@
 │                                                                  │
 │   .aether/             ← SOURCE OF TRUTH (packaged directly)    │
 │   ├── workers.md       (edit here)                              │
-│   ├── aether-utils.sh  (9,808 lines, 150 subcommands)           │
+│   ├── aether-utils.sh  (10,000+ lines, 110 subcommands)          │
 │   ├── utils/           (18 utility scripts)                     │
 │   ├── docs/            (distributed documentation)              │
 │   └── templates/       (12 templates)                           │
@@ -35,9 +35,9 @@
 │   .aether/data/        ← LOCAL ONLY (excluded by .npmignore)    │
 │   .aether/dreams/      ← LOCAL ONLY (excluded by .npmignore)    │
 │                                                                  │
-│   .claude/commands/ant/ ← 36 slash commands (Claude Code)       │
+│   .claude/commands/ant/ ← 40 slash commands (Claude Code)       │
 │   .claude/agents/ant/   ← 22 agent definitions                  │
-│   .opencode/commands/ant/ ← 36 slash commands (OpenCode)        │
+│   .opencode/commands/ant/ ← 39 slash commands (OpenCode)        │
 │   .opencode/agents/     ← Agent definitions (OpenCode)          │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
@@ -91,7 +91,7 @@ aether update      # or /ant:update
 ```
 .aether/
 ├── workers.md           # Worker definitions, spawn protocol
-├── aether-utils.sh      # 150 subcommands for state management
+├── aether-utils.sh      # 110 subcommands for state management
 ├── utils/               # 18 utility scripts
 │   ├── file-lock.sh     # Locking primitives
 │   ├── atomic-write.sh  # Safe file writes
@@ -115,7 +115,7 @@ aether update      # or /ant:update
 
 ```
 .claude/
-├── commands/ant/        # 36 slash commands
+├── commands/ant/        # 40 slash commands
 │   ├── init.md          # Colony initialization
 │   ├── plan.md          # Phase planning
 │   ├── build.md         # Build orchestrator (loads split playbooks)
@@ -211,6 +211,15 @@ User-colony communication via signals:
 - `/ant:pheromones` — Full table of all active signals
 - `pheromone-display` subcommand — Formatted output with strength % and decay
 
+**Signal Injection (v1.3):**
+- Colony-prime injects active signals into worker prompts via `prompt_section`
+- Builder, Watcher, and Scout agents have `pheromone_protocol` sections (added Phase 4) that instruct them how to act on injected signals
+- Signals are grouped by type (FOCUS, REDIRECT, FEEDBACK) in the injected prompt section
+
+**Exchange:**
+- `/ant:export-signals` — Export pheromone signals to XML for cross-colony sharing
+- `/ant:import-signals` — Import pheromone signals from XML
+
 **Automatic Suggestions:**
 - `suggest-analyze` — Analyzes codebase for patterns worth capturing as pheromones
 - `suggest-approve` — Tick-to-approve UI for reviewing suggestions
@@ -218,12 +227,12 @@ User-colony communication via signals:
 
 **Files:**
 - `.aether/data/pheromones.json` — Active signals
-- `.aether/data/constraints.json` — Focus areas and constraints
+- `.aether/data/constraints.json` — Focus areas and constraints (legacy, eventual deprecation)
 - `.aether/docs/pheromones.md` — Full guide
 
 ---
 
-## Quality Gates (v1.1.0)
+## Quality Gates
 
 New agents integrated into continue.md:
 
@@ -260,6 +269,9 @@ The midden tracks failures for colony learning:
 Failures are logged during:
 - Build failures (build.md)
 - Approach changes (tracked for wisdom)
+
+**Data Maintenance:**
+- `/ant:data-clean` — Remove test artifacts from colony data files (pheromones, constraints, midden)
 
 ---
 
@@ -357,23 +369,14 @@ On the first message of a new conversation, check if `.aether/data/session.json`
 
 ## The Core Insight
 
-The system has **all the pieces**:
-- Pheromones ✅
-- State management ✅
-- Worker spawning ✅
-- Reliability (file locking, transactions) ✅
-- Agents ✅
-- Context ✅
-- Quality gates ✅
-- Failure tracking ✅
+The system's pieces are now **connected**:
+- Pheromones update context (colony-prime injects signals into worker prompts)
+- Decisions become pheromones (auto-emit during builds)
+- Learnings become instincts (observation to promotion pipeline)
+- Midden affects behavior (threshold auto-REDIRECT)
 
-**The challenge is integration** — features exist but need to be wired together:
-- Pheromones don't update context
-- Decisions don't become pheromones
-- Learnings don't become instincts
-- Midden doesn't affect behavior
-
-**The fix isn't more features — it's connecting what exists.**
+**The ongoing challenge is maintenance** -- keeping documentation accurate,
+data files clean, and test coverage comprehensive as features evolve.
 
 ---
 
@@ -383,4 +386,4 @@ For OpenCode-specific rules and agents, see `.opencode/OPENCODE.md`
 
 ---
 
-*Updated for Aether v1.1.0 — 2026-02-22 (worktrees merged, docs updated)*
+*Updated for Aether v1.3.0 — 2026-03-19 (v1.3 integration complete, documentation updated)*
