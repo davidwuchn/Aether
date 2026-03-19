@@ -7441,7 +7441,7 @@ $updated_meta
           ($eff < 0.1 or $expired) as $deactivate |
           . + {
             effective_strength: (($eff * 100 | round) / 100),
-            active: (if $deactivate then false else (.active // true) end)
+            active: (if $deactivate then false elif .active == false then false else true end)
           }
         ) |
         map(select(.active == true))
@@ -8915,7 +8915,7 @@ $updated_meta
               priority: (if .type == "REDIRECT" then 1 elif .type == "FOCUS" then 2 elif .type == "FEEDBACK" then 3 elif .type == "POSITION" then 4 else 5 end)
             }
           )
-        | map(select((.active // true) == true and (.effective_strength // 0) >= 0.1))
+        | map(select((if .active == false then false else true end) == true and (.effective_strength // 0) >= 0.1))
         | sort_by(.priority, -(.effective_strength // 0))
         | .[:$max]
         | map((.type // "UNKNOWN") + ": " + (.content.text // (if (.content | type) == "string" then .content else "" end)))
