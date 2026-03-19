@@ -1,209 +1,126 @@
-# Feature Research: Integration Gap Fixes
+# Feature Research: Aether v1.3 Maintenance Milestone
 
-**Domain:** Self-improving multi-agent colony system — integration loop wiring
-**Researched:** 2026-03-14
-**Confidence:** HIGH
-
-## Context: What Is Already Built
-
-This milestone fixes integration gaps in an existing system. Before mapping the feature landscape, here is the baseline — what is already implemented and tested:
-
-| Feature | Built State | Gap |
-|---------|------------|-----|
-| Pheromone emit (pheromone-write) | Complete | Not called at all decision points |
-| Pheromone read (pheromone-read) | Complete | Workers don't poll mid-task |
-| Pheromone display/decay/expire | Complete | No gaps |
-| Instinct create (instinct-create) | Complete | Not called when confidence threshold is crossed |
-| Instinct read (colony-prime) | Complete | Instincts are primed into context but not always fresh |
-| Midden failure write (midden-write) | Complete | Not called at all failure points |
-| Midden failure query (midden-recent-failures) | Complete | Query results not always injected into worker context |
-| Memory capture (memory-capture) | Complete | Called after learnings but not at decision or failure points inline |
-| Learning observe (learning-observe) | Complete | Only called via memory-capture |
-| Learning promote (learning-check-promotion) | Complete | User-review proposals shown but auto-path underused |
-| Colony prime (colony-prime) | Complete | Called pre-build but not refreshed between waves |
-
-The problem is connectivity: each subsystem works independently, but the wiring between them has gaps. The playbook instructions (continue-advance.md, build-wave.md, build-verify.md) need explicit wiring at the four integration points.
+**Domain:** Multi-agent AI orchestration system maintenance (pheromone integration, cleanup, fresh-install polish)
+**Researched:** 2026-03-19
+**Confidence:** HIGH (based on deep codebase analysis + ecosystem research)
 
 ---
 
-## The Four Integration Loops
+## Context
 
-These are the four specific wiring problems to solve:
-
-### Loop 1: Decision → Pheromone
-
-**Current state:** Decisions recorded in CONTEXT.md "Recent Decisions" table. continue-advance.md Step 2.1b reads this table and emits FEEDBACK pheromones — but only at phase-end during continue. Decisions made mid-phase (during build-wave execution) do not emit pheromones. Workers making approach changes during a task do not emit pheromones.
-
-**What the research says:** Reflexion (NeurIPS 2023) established verbal reinforcement: converting sparse execution outcomes into natural language signals stored as episodic memory. Meta-Policy Reflexion (2025) extends this to predicate-style rules with confidence scores. The key finding: signal emission must happen at the decision point itself, not in a batch post-phase sweep, or the signal arrives too late to steer the workers who produced it. Voyager's skill library captures successful trajectories immediately on success — the same temporal principle.
-
-**What is already wired:** Post-phase batch in continue-advance.md Step 2.1b (cap: 3 per run, dedup against existing signals).
-
-**What is missing:** Inline emission at the moment of decision — specifically when (a) context-update decision is called during build, and (b) workers log approach changes to approach-changes.md.
-
-### Loop 2: Learnings → Instincts with Confidence
-
-**Current state:** continue-advance.md Steps 3, 3a, 3b extract instincts from phase patterns, midden error patterns, and success patterns. Confidence values are assigned manually by the AI: 0.7 for success patterns, 0.8 for error resolutions, 0.9 for user feedback. instinct-create handles deduplication and confidence boosting if an instinct already exists. The 30-instinct cap evicts lowest-confidence instincts.
-
-**What the research says:** The 2025 hierarchical procedural memory literature (Learning Hierarchical Procedural Memory for LLM Agents) describes Bayesian selection: patterns promoted to instinct status when they demonstrate recurrence across multiple instances AND success metrics. High-confidence instincts get priority activation; low-confidence candidates remain dormant until more evidence arrives. Confidence scoring in AI agents (SparkCo, 2025) establishes the 0.8 execution threshold — below this, the system requests more information rather than acting. LangMem's multi-factor ranking uses recency, frequency, and importance together.
-
-**What is missing:** The confidence scoring in continue-advance.md is pure AI judgment, not evidence-based. The learning-observations.json file tracks observation count and threshold_met, but this count is not used to gate or calibrate instinct-create confidence. An instinct created from a single observation gets the same base confidence (0.7) as one from an observation seen 5 times. The recurrence signal is being tracked but not consumed.
-
-### Loop 3: Midden Failures → Behavioral Change
-
-**Current state:** Failures are written to midden.json via midden-write at: worker failures (build-wave.md Step 5.2), chaos findings (build-wave.md Step 5.7), watcher failures (build-verify.md Step 5.8), Gatekeeper high-severity CVEs (continue-gates.md Step 1.8), Auditor high-severity quality issues (continue-gates.md Step 1.9). midden-recent-failures is queried per wave and injected into builder context as midden_context.
-
-**What the research says:** Partnership on AI (2025) identifies that multi-agent behavioral change from failure tracking requires three components: (1) threshold detection (not all failures warrant behavioral change — recurrence matters), (2) behavioral modification at the right scope (individual worker context vs colony-wide redirect), and (3) explicit behavioral signal (logging failures is not the same as preventing recurrence). The 17x error trap analysis shows that without recurrence-gated behavioral change, failures in complex pipelines compound exponentially. The midden injection into worker context is the right pattern, but it only covers individual workers within a wave — colony-wide behavioral change (REDIRECT pheromone) only happens after continue, at threshold 3+ occurrences.
-
-**What is missing:** The threshold for midden-to-REDIRECT emission in continue-advance.md Step 2.1c is correctly set at 3+ occurrences, but this only runs at phase-end. Within a single phase, a failure that occurs 3 times in different waves does not trigger a REDIRECT until continue runs. Also, the midden_context injection in build-wave.md is capped at last 5 failures — sufficient for individual worker context but not for pattern detection across a phase.
-
-### Loop 4: Memory Capture at Decision and Failure Points
-
-**Current state:** memory-capture is called: (a) in continue-advance.md Step 2.5 for each phase learning, (b) in build-wave.md Step 5.2 for worker failures, (c) in build-wave.md Step 5.7 for chaos resilience findings, (d) in build-verify.md Step 5.8 for watcher verification failures. This covers post-phase learnings and failure events.
-
-**What the research says:** LangMem's memory management documentation shows two pathway architectures: active/conscious (captures during the event, adds latency) and background/subconscious (captures asynchronously after, no latency impact). For a multi-agent system running parallel workers, the background pathway is strongly preferred — the capture call should not block the worker. The memory survey (Memory in the Age of AI Agents, 2025) identifies the key integration pattern: memory capture must be wired to both success trajectories AND failure trajectories at the moment of the event, not in a post-hoc sweep.
-
-**What is missing:** memory-capture is not called when context-update decision is executed (approach changes are logged to approach-changes.md markdown but not through the memory pipeline). The rolling-summary is updated by memory-capture but the rolling-summary content is not fed back into colony-prime for worker priming. Decision memory and failure memory are captured at different fidelity levels — failures get full memory-capture pipeline (pheromone + promotion check), decisions get only the CONTEXT.md table and a post-phase pheromone batch.
+This is a **maintenance milestone** for an existing, mature system. The goal is not new capabilities -- it is wiring together what exists, cleaning up debris from development, and making the system solid for new users. The codebase has 150 shell subcommands, 22 agents, 36 slash commands, and 490+ tests. It works, but has accumulated integration gaps and test pollution.
 
 ---
 
 ## Feature Landscape
 
-### Table Stakes (Integration Loops Require These)
+### Table Stakes (Users Expect These)
 
-Features that are non-negotiable for the integration loops to function correctly. These are the direct wiring fixes.
+Features users assume exist. Missing these = product feels broken or untrustworthy.
 
-| # | Feature | Why Expected | Complexity | Dependencies |
-|---|---------|--------------|------------|-------------|
-| T1 | **Decision-to-pheromone inline emission** | context-update decision already exists as an aether-utils.sh subcommand but does not call pheromone-write after writing the decision. Every call to `context-update decision` should emit a FEEDBACK pheromone. This is the same pattern already used in continue-advance.md Step 2.1b — it just needs to move from batch-post-phase to inline. | LOW | context-update subcommand, pheromone-write |
-| T2 | **Approach-change memory capture** | Workers log approach changes to approach-changes.md (documented in build-wave.md Builder prompt). These represent valuable failure signals — an approach tried and abandoned. Currently the approach-changes.md file is never read or processed. The midden-write call should be added at approach-change log time. | LOW | midden-write, memory-capture, approach-changes.md |
-| T3 | **Recurrence-calibrated instinct confidence** | learning-observe already tracks observation_count per content_hash. instinct-create should receive a confidence value derived from this count: base 0.7 for first observation, +0.05 per additional observation, capped at 0.9. This consumes the recurrence signal that is already being tracked but currently ignored in the confidence calculation. | LOW | learning-observe observation_count, instinct-create --confidence parameter |
-| T4 | **Intra-phase midden threshold check** | continue-advance.md Step 2.1c correctly emits REDIRECT for categories with 3+ midden occurrences, but only runs at phase-end. Build-wave.md needs a midden threshold check after each wave's failures are logged. If any category reaches 3+ occurrences during the phase, emit REDIRECT immediately rather than waiting for continue. | MEDIUM | midden-recent-failures, pheromone-write REDIRECT, build-wave.md wave completion |
-| T5 | **Failure-to-memory-capture at all failure points** | memory-capture is correctly called for worker failures and chaos findings. It needs to be called equally for: (a) Gatekeeper CRITICAL security findings (currently writes to midden but not memory pipeline), (b) Auditor CRITICAL quality findings (currently writes to midden but not memory pipeline), (c) approach changes (currently written to markdown file only). | LOW | memory-capture subcommand, continue-gates.md, build-wave.md |
-| T6 | **Rolling-summary fed into colony-prime** | memory-capture calls `rolling-summary add` on every event. rolling-summary is a condensed activity log. colony-prime assembles the worker priming payload but does not include rolling-summary content. The priming payload should include the last N lines of rolling-summary to give workers awareness of recent activity. | LOW | rolling-summary, colony-prime subcommand |
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| **Clean data files on install** | Test artifacts ("TestAnt6", "test signal", "test area") in COLONY_STATE.json, pheromones.json, learning-observations.json, constraints.json make the system look broken | LOW | 6+ files contain test pollution. `learning-observations.json` is entirely test data (11 observations, all from "test-colony"). Constraints.json has 3 test focus areas. Must ship clean templates OR add a data-reset command. |
+| **Pheromones actually affect worker behavior** | The docs say "Workers read FOCUS signals and weight this area higher" but no agent definition reads pheromones | HIGH | `colony-prime` injects signals into `prompt_section`, but this is only referenced in build-wave.md builder prompts. The 22 agent definitions themselves contain zero references to `pheromone-read`, `pheromone-prime`, or `colony-prime`. Signal propagation depends entirely on the orchestrator injecting `{ prompt_section }` -- workers cannot self-check signals at "natural breakpoints" as the worker prompt instructs because no agent has this wired. |
+| **Working fresh install flow** | `npm install -g aether-colony` -> `/ant:lay-eggs` -> `/ant:init` should work without errors or confusion | MEDIUM | The flow exists and is well-documented, but: (1) no smoke test validates it end-to-end, (2) templates ship with test data, (3) QUEEN.md init can fail silently, (4) version.json copy can fail silently. Users hitting any silent failure get a degraded experience with no warning. |
+| **All documented commands actually work** | 36 slash commands are listed in help/docs -- all should function | MEDIUM | Some commands reference features that may have drifted. The `tunnels` command, `verify-castes` command, and `migrate-state` command need validation. Commands referencing `session.json` must verify that file exists in current state format. |
+| **Stale state detection and cleanup** | Colony state from a different project (goal: "Ensure the electron version...") should not persist across projects | LOW | COLONY_STATE.json currently has a stale goal from a previous project. The init command warns but does not auto-archive. The `session-verify-fresh` mechanism exists but only checks timestamps, not goal relevance. |
+| **Documentation matches reality** | Docs describe features that exist, not aspirational features | MEDIUM | CLAUDE.md references "runtime/" which was eliminated. Pheromone docs claim workers "read FOCUS signals" which is architecturally true (via injection) but not operationally true (workers cannot read them independently). Known-issues.md has FIXED items still listed as unfixed in some sections. |
 
-### Differentiators (Meaningful Improvements Beyond Gap-Fill)
+### Differentiators (Competitive Advantage)
 
-Features that go beyond closing the gaps to actively improve the intelligence of the integration loops.
+Features that set Aether apart from other multi-agent orchestration systems. Not required for basic function, but provide real value.
 
-| # | Feature | Value Proposition | Complexity | Notes |
-|---|---------|-------------------|------------|-------|
-| D1 | **Confidence decay for unverified instincts** | Instincts created from hypothesis-status learnings (status: "hypothesis" not "validated") should decay toward 0.5 over time. Currently instinct confidence is set once and only increases via reinforcement. A hypothesis that is never re-observed should lose confidence, not maintain it. This makes the instinct store self-correcting. | MEDIUM | instinct-create --confidence, learning-observe status field, requires scheduled decay logic |
-| D2 | **Cross-phase midden pattern surfacing** | midden-recent-failures queries by recency (last N failures) not by recurrence. A failure category that appears once per phase across 5 phases would not trigger the 3-occurrence threshold within any single query window. Adding a cross-phase recurrence view that groups by category across all time surfaces patterns the current windowed query misses. | MEDIUM | midden.json schema, new midden-pattern-summary subcommand |
-| D3 | **Instinct-to-pheromone echo at build start** | When colony-prime assembles the priming payload at build start, high-confidence instincts (>=0.85) relevant to the phase domain should echo as FOCUS pheromones. This converts durable learned knowledge into current-phase signals. Currently instincts are read via colony-prime but are not echoed as pheromones — the two subsystems operate in parallel rather than reinforcing each other. | MEDIUM | instinct-read --min-confidence, pheromone-write FOCUS, colony-prime, build-wave.md Step 5 |
-| D4 | **User-feedback loop: FEEDBACK pheromone → instinct** | When a user emits a FEEDBACK pheromone via `/ant:feedback`, this is the highest-confidence learning signal (0.9 per the confidence guidelines). Currently FEEDBACK pheromones steer workers but do not automatically create instincts. A FEEDBACK pheromone with sufficient strength (>0.7) should create an instinct with confidence 0.9 and source "user:feedback". This closes the user → instinct loop. | LOW | pheromone-write FEEDBACK source tracking, instinct-create, feedback command playbook |
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Signal-aware worker behavior** | Workers that actually respond to pheromone signals at runtime (not just at spawn) make the colony feel alive and responsive to user steering | HIGH | Currently workers get a static `prompt_section` at spawn time. The build-wave.md instructs builders to "check for new signals at natural breakpoints" but provides no mechanism. True signal-awareness would mean workers call `pheromone-read` mid-execution -- but Claude Code subagents cannot spawn other subagents and running bash commands mid-task for signal checks is expensive. The realistic differentiator is high-quality signal injection at spawn. |
+| **Closed-loop learning pipeline** | Observations become learnings become instincts become pheromones -- a full feedback loop that improves colony behavior over time | MEDIUM | The pipeline components exist: `memory-capture` -> `learning-observe` -> `learning-promote-auto` -> `instinct-create`. But the loop is not closed: (1) instincts are created but never verified to change behavior, (2) pheromone auto-emission from midden works but is not tested in real scenarios, (3) test data pollution prevents seeing real learning in action. Cleaning the pipeline data and validating the full loop is the differentiator. |
+| **Data hygiene tooling** | A `data-reset` or `data-clean` command that purges test artifacts while preserving real colony state | LOW | No multi-agent framework offers this because most do not persist state across sessions. Aether's persistence model makes this uniquely necessary and valuable. |
+| **XML exchange system for cross-colony communication** | Pheromone/wisdom XML export/import for sharing signals between colonies | LOW (exists) | The exchange system (`pheromone-xml.sh`, `wisdom-xml.sh`, `registry-xml.sh`) is fully built with 5 XML utility scripts, but zero commands or playbooks reference it. It is dead code. The value is there -- cross-colony signal sharing is a differentiator no competitor has -- but it needs a surface (command or automatic trigger) to be useful. |
+| **Graveyard caution system** | Files with troubled history get flagged for workers with "proceed carefully" warnings | LOW (exists) | Already implemented via `grave-check` in build-wave.md. This is a genuine differentiator -- no other multi-agent system uses git history to inform worker behavior. Needs validation that it works in practice. |
+| **Midden threshold auto-REDIRECT** | Recurring failures automatically emit REDIRECT pheromones to steer the colony away from problematic patterns | LOW (exists) | Implemented in build-wave.md Step 5.2. Needs real-world validation -- has only been tested with synthetic data. |
 
-### Anti-Features (Do Not Build These)
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that appear related but would create problems.
+Features that seem good but create problems in this maintenance context.
 
-| # | Feature | Why Requested | Why Problematic | Alternative |
-|---|---------|---------------|-----------------|-------------|
-| A1 | **Automatic pheromone emission from every decision** | "Every decision should become a pheromone to maximize signal density." | Pheromone saturation degrades signal quality. If every minor micro-decision emits a pheromone, the pheromone store fills with low-value signals and the meaningful ones (user REDIRECT, midden error patterns) get buried. The current cap of 3 auto-pheromones per continue run exists for this reason. | Emit pheromones only from meaningful decision categories: architectural decisions, approach changes after failure, phase-level decisions. Not routine implementation choices. |
-| A2 | **Real-time instinct updates during build** | "Builders should update instincts as they discover things." | Instincts are colony-level state (30-cap enforced). Workers updating instincts during build create concurrent write conflicts and would overflow the cap during a multi-worker parallel wave. The instinct store is designed for phase-boundary updates, not intra-phase mutation. | Workers capture learnings in their JSON output. Queen extracts instincts at continue time with proper deduplication and cap enforcement. |
-| A3 | **Midden as blocking gate for every failure** | "If the midden shows 3+ failures of a type, block phase advancement automatically." | Midden failures include noise — chaos findings at medium/low severity, performance baselines, integration plans, refactoring notes. Blocking on midden count would create false gates. The midden is a record system, not a quality gate. | Block only on critical/security failures (already done via Gatekeeper and Auditor gates). Use midden for REDIRECT pheromone generation (already done at 3+ recurrences), not for blocking. |
-| A4 | **Confidence score visible to users as a metric** | "Show average instinct confidence score on the /ant:status dashboard." | Confidence is an internal calibration mechanism. Exposing it as a user-facing metric encourages gaming it (artificially boosting confidence by recording the same observation repeatedly). The value is in behavioral influence, not in the number itself. | Status dashboard shows instinct count and domain distribution. Internal confidence drives colony-prime weighting without surfacing the number. |
-| A5 | **Pheromone-to-instinct auto-conversion** | "Strong pheromones should automatically become instincts." | Pheromones and instincts are different abstractions: pheromones decay and are time-scoped; instincts are durable patterns. Auto-converting pheromones to instincts would persist what should expire. A FOCUS pheromone for "current security audit" is not a durable instinct about security. | The user-feedback loop (D4) handles the one case where a pheromone should become an instinct: high-strength user FEEDBACK signals a durable preference, not a temporary focus. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **New agent types** | "Add a Debugger agent, a Deployer agent" | 22 agents already strain context windows. Adding more increases the surface area to maintain without solving integration gaps. | Fix the integration between existing 22 agents first. The current agents cover all needed castes. |
+| **Real-time inter-worker messaging** | "Workers should talk to each other during execution" | Claude Code Task tool subagents cannot communicate with each other mid-execution. The Agent Teams feature (Feb 2026) enables this, but migrating to it is a v2 concern, not a maintenance fix. | Keep using the Queen-as-coordinator pattern with `prompt_section` injection at spawn time. |
+| **Complex pheromone decay algorithms** | "Signals should decay based on relevance, not just time" | Over-engineering. The current linear decay with configurable half-lives (15/30/45 days) is sufficient. Relevance-based decay requires understanding intent, which is an unsolved problem. | Keep current decay model. Add a manual `pheromone-clear-expired` command for housekeeping. |
+| **Automatic XML migration** | "Convert all JSON state to XML" | The XML system was built for cross-colony exchange, not as a replacement for JSON state management. Migrating internal state to XML adds complexity without user-facing value. | Keep JSON for internal state, XML for exchange/export. Document this boundary clearly. |
+| **Dashboard web UI** | "Visualize colony state in a browser" | Massive scope increase. Aether runs in terminal/CLI context. A web UI requires a server, frontend framework, state synchronization -- all orthogonal to the core value. | Keep the ASCII-art dashboards (`pheromone-display`, `swarm-display`, `/ant:status`). They work well in the terminal context. |
+| **Per-worker model routing** | "Different models for different castes" | Was built, tested, and archived because Claude Code Task tool does not support per-subagent environment variables. The architecture cannot support this until the platform changes. | Use session-level model selection as documented. Preserve the archive for future platform evolution. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[T1] Decision-to-pheromone inline emission
-    +--extends--> context-update decision subcommand
-    +--calls---> pheromone-write FEEDBACK (already implemented)
-    +--enables-> [D3] Instinct-to-pheromone echo (same infrastructure)
+[Test data cleanup]
+    └──enables──> [Learning pipeline validation]
+                       └──enables──> [Closed-loop verification]
 
-[T2] Approach-change memory capture
-    +--reads---> approach-changes.md (Builder worker output)
-    +--calls---> midden-write (already implemented)
-    +--calls---> memory-capture "failure" (already implemented)
-    +--feeds---> [T4] Intra-phase midden threshold (adds to midden count)
+[Pheromone signal injection audit]
+    └──enables──> [Worker signal-awareness validation]
+    └──enables──> [Auto-emission verification]
 
-[T3] Recurrence-calibrated instinct confidence
-    +--reads---> learning-observe observation_count (already tracked)
-    +--modifies-> instinct-create --confidence value (already a parameter)
-    +--required-by-> [D1] Confidence decay (decay from evidence-based baseline)
+[Fresh install flow validation]
+    └──requires──> [Clean templates]
+    └──requires──> [Working command chain]
 
-[T4] Intra-phase midden threshold check
-    +--reads---> midden-recent-failures (already implemented)
-    +--calls---> pheromone-write REDIRECT (already implemented)
-    +--placed-in-> build-wave.md wave completion (post-Step 5.2, 5.7)
-    +--requires-> [T2] and [T5] to maximize signal quality
+[XML exchange activation]
+    └──requires──> [Pheromone system working correctly]
+    └──requires──> [Command surface for XML operations]
 
-[T5] Failure-to-memory-capture at all failure points
-    +--calls---> memory-capture "failure" (already implemented)
-    +--placed-in-> continue-gates.md Steps 1.8, 1.9 (Gatekeeper, Auditor)
-    +--placed-in-> build-wave.md approach-change logging
-    +--feeds---> [T4] (more failure data = better threshold detection)
+[Documentation update]
+    └──requires──> [All other fixes complete]
+    └──requires──> [Feature audit complete]
 
-[T6] Rolling-summary fed into colony-prime
-    +--reads---> rolling-summary (already maintained by memory-capture)
-    +--extends-> colony-prime --compact output (already called at build start)
-    +--required-by-> [D3] (prime payload must include recent context)
-
-[D1] Confidence decay for unverified instincts
-    +--requires-> [T3] (evidence-based baseline makes decay meaningful)
-    +--modifies-> instinct-read (needs to apply decay on read)
-
-[D2] Cross-phase midden pattern surfacing
-    +--requires-> midden.json having sufficient history
-    +--enables---> more accurate [T4] intra-phase threshold detection
-
-[D3] Instinct-to-pheromone echo at build start
-    +--requires-> [T6] (prime payload enrichment)
-    +--requires-> [T1] (same pattern: read → emit → inform)
-    +--reads---> instinct-read --min-confidence 0.85
-    +--calls---> pheromone-write FOCUS
-
-[D4] User-feedback → instinct auto-create
-    +--reads---> pheromones.json for user:feedback signals
-    +--calls---> instinct-create --confidence 0.9
-    +--placed-in-> /ant:feedback command (or post-feedback hook)
+[Stale state cleanup]
+    └──enhances──> [Fresh install flow]
+    └──conflicts──> [Running during active colony] (must not clobber active work)
 ```
 
 ### Dependency Notes
 
-**T1 through T5 are independent of each other.** Each is a targeted wiring addition to an existing call site. They can be built in any order and shipped incrementally. No dependency chain gates them.
-
-**T6 is a prerequisite for D3.** Colony-prime must include rolling-summary content before instinct echoing to the priming payload is meaningful.
-
-**T3 is a prerequisite for D1.** Confidence decay from a non-evidence-based fixed value (0.7) would be arbitrary. Evidence-based confidence (recurrence count calibrated) gives decay a meaningful starting point.
-
-**D2 (cross-phase midden patterns) enhances T4 but is not required for it.** T4 works with the windowed query; D2 makes it more comprehensive.
+- **Test data cleanup enables learning pipeline validation:** Cannot verify the learning pipeline works correctly when all observation data is synthetic test entries. Clean first, then validate.
+- **Pheromone injection audit enables worker awareness:** Must understand exactly how `prompt_section` flows through the system before claiming signals affect behavior. The audit may reveal that injection is working fine and the gap is only in documentation -- or it may reveal real wiring issues.
+- **Documentation update requires all other fixes:** Docs should be updated last because they describe the system as it is, not as it was. Updating docs before fixing things creates a second round of doc updates.
+- **XML exchange activation requires working pheromones:** Cannot export/import signals that are not correctly read. Fix the core system before extending it.
+- **Stale state cleanup conflicts with active colony:** A `data-reset` command must check for active colony state and warn/abort if a colony is mid-execution. Cleaning data during a build would corrupt state.
 
 ---
 
 ## MVP Definition
 
-### Build First (This Milestone — Close the Core Gaps)
+### Launch With (Maintenance Milestone v1)
 
-The minimum set to close the four integration loops. All are LOW complexity, all wire existing subcommands to existing call sites.
+Minimum viable deliverables for this milestone -- what is needed to call the maintenance work complete.
 
-- [ ] **T1: Decision-to-pheromone inline emission** — Modify context-update decision to call pheromone-write FEEDBACK immediately. One bash call added to the subcommand or to the playbook instructions where context-update decision is called.
-- [ ] **T2: Approach-change memory capture** — Add midden-write + memory-capture calls in the approach-change logging block of build-wave.md Builder prompt. Currently this block writes only to a markdown file.
-- [ ] **T3: Recurrence-calibrated instinct confidence** — Add a learning-observations.json read before each instinct-create call in continue-advance.md Steps 3, 3a, 3b. Compute confidence as `min(0.9, 0.7 + (obs_count - 1) * 0.05)`.
-- [ ] **T4: Intra-phase midden threshold check** — Add midden threshold check after each wave's failure processing (after Step 5.2 and Step 5.7 in build-wave.md). Emit REDIRECT if category reaches 3+ within the phase.
-- [ ] **T5: Failure-to-memory-capture at all failure points** — Add memory-capture "failure" calls in continue-gates.md Steps 1.8 (Gatekeeper CRITICAL) and 1.9 (Auditor CRITICAL). Match the pattern already used in build-wave.md Step 5.2.
-- [ ] **T6: Rolling-summary fed into colony-prime** — Modify colony-prime --compact to include the last 5 entries from rolling-summary in the prompt_section output.
+- [x] **Test data purge** -- Remove all synthetic test data from `.aether/data/` files (pheromones.json, constraints.json, learning-observations.json, COLONY_STATE.json, spawn-tree.txt, midden). Either clean the committed files or ensure templates are clean and add a reset command.
+- [ ] **Pheromone injection audit** -- Trace the full path from user running `/ant:focus "X"` through to a builder worker receiving that signal in its prompt. Document exactly where signals flow, identify gaps, fix any broken links.
+- [ ] **Fresh install smoke test** -- Create an automated test that validates `lay-eggs` -> `init` -> `plan` -> `build` on a clean repo. This prevents regressions in the onboarding experience.
+- [ ] **Broken command audit** -- Run every slash command with `--help` or minimal args. Document which ones error. Fix critical ones, log non-critical ones as known issues.
+- [ ] **Documentation accuracy pass** -- Update CLAUDE.md, pheromones.md, known-issues.md to reflect current reality. Remove references to eliminated features (runtime/), update FIXED statuses, correct pheromone behavior descriptions.
 
-**Why this set:** These six features collectively close all four integration loops. T1 closes Loop 1 (decision → pheromone). T2 + T5 close Loop 4 (memory capture at all failure points). T3 closes Loop 2 (recurrence calibration for instinct confidence). T4 closes Loop 3 (intra-phase midden threshold). T6 closes the feedback loop from memory capture back into worker context.
+### Add After Validation (v1.x)
 
-### Add After Validation (After Core Gaps Are Closed)
+Features to add once the core cleanup is validated working.
 
-Features that enhance the integration once the core loops are verified working.
+- [ ] **`data-clean` command** -- Dedicated utility to purge test artifacts, expired pheromones, and stale signals. Safe to run anytime with confirmation prompt. Trigger: users report confusion from old data.
+- [ ] **XML exchange command surface** -- Create `/ant:export-signals` and `/ant:import-signals` commands that use the existing `pheromone-xml.sh` exchange module. Trigger: users with multiple colonies want to share signals.
+- [ ] **Learning pipeline end-to-end test** -- Integration test that follows an observation through the full pipeline: `memory-capture` -> `learning-observe` -> threshold met -> `learning-promote-auto` -> `instinct-create` -> instinct appears in `colony-prime` output. Trigger: pipeline components are clean and individually tested.
+- [ ] **Error code standardization** -- Address BUG-004, BUG-007, BUG-008, BUG-009, BUG-010, BUG-012: replace all hardcoded error strings with `E_*` constants. Trigger: when touching aether-utils.sh for other fixes.
 
-- [ ] **D4: User-feedback → instinct auto-create** — Wire the /ant:feedback command to call instinct-create with confidence 0.9 when the pheromone is FEEDBACK type and source is user. Completes the user → colony knowledge loop.
-- [ ] **D3: Instinct-to-pheromone echo at build start** — After T6 is proven to work (rolling-summary in colony-prime), add instinct-read --min-confidence 0.85 before each build wave and emit matching high-confidence instincts as FOCUS pheromones.
+### Future Consideration (v2+)
 
-**Trigger for adding:** When core gaps are closed and verified, and tests confirm the loops are functioning end-to-end.
+Features to defer until the maintenance milestone is complete and system is stable.
 
-### Future Consideration (After v1.2 Milestone)
-
-Features that require more infrastructure work or empirical data.
-
-- [ ] **D1: Confidence decay for unverified instincts** — Requires a scheduled decay pass or on-read decay calculation. Needs T3 first. Adds maintenance overhead. Defer until instinct store quality is measurable.
-- [ ] **D2: Cross-phase midden pattern surfacing** — Needs schema extension and a new midden-pattern-summary subcommand. Valuable but not blocking the core loops.
+- [ ] **Agent Teams migration** -- Claude Code Agent Teams (released Feb 2026) enables inter-worker communication. Migrating from Task tool subagents to teammates would unlock real-time signal propagation. Defer because: requires significant architecture changes and the current system works.
+- [ ] **Cross-colony wisdom sync** -- Use the XML exchange to automatically sync wisdom across colonies in the same registry. Defer because: requires the exchange system to be activated and tested first.
+- [ ] **Pheromone visualization improvements** -- Enhanced ASCII/terminal UI for signal display with time-series decay visualization. Defer because: current `pheromone-display` works, this is polish.
 
 ---
 
@@ -211,59 +128,111 @@ Features that require more infrastructure work or empirical data.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| T1: Decision-to-pheromone inline | HIGH | LOW | **P1** |
-| T2: Approach-change memory capture | HIGH | LOW | **P1** |
-| T3: Recurrence-calibrated confidence | HIGH | LOW | **P1** |
-| T4: Intra-phase midden threshold | HIGH | MEDIUM | **P1** |
-| T5: Failure capture at all points | MEDIUM | LOW | **P1** |
-| T6: Rolling-summary in colony-prime | MEDIUM | LOW | **P1** |
-| D4: User-feedback → instinct | HIGH | LOW | **P2** |
-| D3: Instinct-to-pheromone echo | MEDIUM | MEDIUM | **P2** |
-| D1: Confidence decay | LOW | MEDIUM | **P3** |
-| D2: Cross-phase midden patterns | LOW | MEDIUM | **P3** |
+| Test data purge | HIGH | LOW | P1 |
+| Pheromone injection audit | HIGH | MEDIUM | P1 |
+| Fresh install smoke test | HIGH | MEDIUM | P1 |
+| Documentation accuracy pass | HIGH | LOW | P1 |
+| Broken command audit | MEDIUM | MEDIUM | P1 |
+| `data-clean` command | MEDIUM | LOW | P2 |
+| Learning pipeline e2e test | MEDIUM | MEDIUM | P2 |
+| XML exchange commands | LOW | LOW | P2 |
+| Error code standardization | LOW | MEDIUM | P2 |
+| Agent Teams migration | HIGH | HIGH | P3 |
+| Cross-colony wisdom sync | MEDIUM | HIGH | P3 |
+| Pheromone visualization | LOW | MEDIUM | P3 |
 
 **Priority key:**
-- P1: Required for this milestone — closes the four integration loops
-- P2: Enhances loops after core gaps are closed
-- P3: Future milestone — needs empirical data or more infrastructure
+- P1: Must have for this milestone -- fixes broken or misleading behavior
+- P2: Should have -- improves reliability and developer experience
+- P3: Future work -- requires architecture changes or depends on P2 completion
 
 ---
 
-## Comparison: What Comparable Systems Do
+## Competitor Feature Analysis
 
-This is an integration milestone, not a net-new feature milestone. No direct competitor analysis applies. But the research patterns inform the correct approach:
+| Feature | CrewAI | AutoGen | LangGraph | OpenAI Swarm | Aether |
+|---------|--------|---------|-----------|--------------|--------|
+| Signal/pheromone system | None | None | State channels (basic) | Handoff only | Full pheromone system with FOCUS/REDIRECT/FEEDBACK, decay, TTL |
+| Cross-session memory | None (stateless) | None | Checkpointing | None (stateless) | COLONY_STATE.json + session.json + QUEEN.md wisdom |
+| Learning pipeline | None | None | None | None | Observation -> learning -> instinct pipeline (unique) |
+| Worker specialization | Role-based agents | Conversational agents | Graph nodes | Function-based | 22 typed agents with caste system |
+| Failure tracking | Basic logging | Conversation history | State persistence | None | Midden system with threshold-based auto-REDIRECT |
+| Fresh install experience | pip install + API key | pip install + API key | pip install + API key | pip install | npm install + lay-eggs + init (multi-step) |
+| XML exchange | None | None | None | None | Built but unactivated |
+| State cleanup | Not needed (stateless) | Not needed | Manual | Not needed | Needed but missing |
 
-| Integration Mechanism | Reflexion (NeurIPS 2023) | Voyager (2023) | Hierarchical Procedural Memory (2025) | LangMem (2025) | Aether Target |
-|----------------------|--------------------------|----------------|--------------------------------------|----------------|---------------|
-| Decision → Signal | Verbal reflection at episode end | Skill stored on success | Procedure promoted after recurrence | Active or background path | **T1: Inline at decision point** |
-| Confidence calibration | Binary success/fail | Not explicit | Bayesian with recurrence + success metrics | Multi-factor: recency + frequency + importance | **T3: obs_count-based confidence** |
-| Failure → Behavior change | Sliding window of reflections (1-3) | N/A | Contrastive refinement on failure | History-based deletion by utility | **T4: Threshold REDIRECT at 3+ occurrences** |
-| Memory capture timing | Episode boundary | Immediate on success | Contrastive at failure, accumulate on success | Both: active (immediate) and background (async) | **T5+T6: Capture at event + feed forward** |
+**Key observation:** Aether's persistent state model is its biggest differentiator AND its biggest maintenance burden. Competitors avoid this problem by being stateless -- but that means they cannot learn across sessions. The maintenance milestone should lean into persistence as a strength while fixing the hygiene issues it creates.
 
-**Key finding from comparison:** Every system that works captures signals at the event, not in a batch post-hoc sweep. Aether already has batch capture (continue-advance.md). The gap is inline capture at the moment of occurrence.
+---
+
+## Current State Evidence
+
+### Test Data Pollution (confirmed via codebase analysis)
+
+| File | Test Artifacts Found |
+|------|---------------------|
+| `COLONY_STATE.json` | "TestAnt6" in memory.phase_learnings, "test error" in errors.records |
+| `pheromones.json` | 3 signals with "test" content: "test area for pheromone unification", "test area", "test signal" |
+| `constraints.json` | 3 focus entries: "test area for pheromone unification", "test area", "test signal" |
+| `learning-observations.json` | **Entire file is test data** (11 observations, all from "test-colony", "alpha-colony", "beta-colony", etc.) |
+| `spawn-tree.txt` | "TestAnt6" entry |
+
+### Pheromone Flow Gap (confirmed via grep analysis)
+
+| Component | Pheromone Awareness | Status |
+|-----------|-------------------|--------|
+| `pheromone-write` (aether-utils.sh) | Writes signals | WORKING |
+| `pheromone-read` (aether-utils.sh) | Reads signals with decay | WORKING |
+| `pheromone-prime` (aether-utils.sh) | Compiles signals for injection | WORKING |
+| `colony-prime` (aether-utils.sh) | Combines wisdom + signals + instincts | WORKING |
+| `build-context.md` (playbook) | Calls colony-prime, stores prompt_section | WORKING |
+| `build-wave.md` (playbook) | Injects `{ prompt_section }` into builder prompts | WORKING |
+| Agent definitions (22 files) | **None read pheromones independently** | GAP -- by design (injection model) |
+| Worker self-check ("At natural breakpoints: Check for new signals") | Instruction in worker prompt but no mechanism provided | GAP -- aspiration vs reality |
+
+**Assessment:** The injection model (Queen reads signals, injects into worker prompts) is architecturally sound. The gap is documentation claiming workers "read signals" when they receive injected context. Fix the docs, not the architecture.
+
+### XML Exchange System (confirmed via file analysis)
+
+| Component | Status |
+|-----------|--------|
+| `pheromone-xml.sh` | Built, tested (test-pheromone-xml.sh exists) |
+| `wisdom-xml.sh` | Built |
+| `registry-xml.sh` | Built |
+| `xml-core.sh` | Built |
+| `xml-convert.sh`, `xml-query.sh`, `xml-compose.sh`, `xml-utils.sh` | Built |
+| Commands referencing XML | **None** -- zero slash commands use the exchange system |
+| Playbooks referencing XML | **None** -- zero playbooks call exchange functions |
+
+**Assessment:** The XML exchange is complete, tested infrastructure with zero activation surface. Either create commands to use it or explicitly document it as "infrastructure for future use."
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence — official documentation and peer-reviewed research)
-- [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) — verbal memory accumulation pattern, sliding window memory (Ω = 1-3), failure-to-signal at episode boundary
-- [Meta-Policy Reflexion](https://arxiv.org/abs/2509.03990) — predicate-style rules with confidence scores, episodic-to-policy-level memory promotion
-- [LangMem Conceptual Guide](https://langchain-ai.github.io/langmem/concepts/conceptual_guide/) — active vs background memory paths, multi-factor ranking (recency + frequency + importance), episodic schema
-- [Learning Hierarchical Procedural Memory for LLM Agents](https://arxiv.org/pdf/2512.18950) — Bayesian recurrence threshold for procedure promotion, contrastive refinement on failure, confidence-gated activation
-- Aether codebase (`.aether/aether-utils.sh`, `.aether/docs/command-playbooks/`) — baseline state of all existing subcommands and playbook wiring points
+- Codebase analysis (HIGH confidence):
+  - `.aether/data/pheromones.json` -- confirmed test pollution
+  - `.aether/data/COLONY_STATE.json` -- confirmed stale state and test data
+  - `.aether/data/learning-observations.json` -- confirmed entirely test data
+  - `.aether/data/constraints.json` -- confirmed test focus entries
+  - `.claude/agents/ant/*.md` -- confirmed no agent reads pheromones independently
+  - `.aether/docs/command-playbooks/build-wave.md` -- confirmed prompt_section injection model
+  - `.aether/docs/command-playbooks/build-context.md` -- confirmed colony-prime integration
+  - `.aether/exchange/*.sh` -- confirmed XML system built but unused
+  - `.claude/commands/ant/lay-eggs.md` -- confirmed fresh install flow
+  - `.aether/docs/known-issues.md` -- confirmed documentation staleness
 
-### Secondary (MEDIUM confidence — practice and empirical analysis)
-- [How Memory Management Impacts LLM Agents](https://arxiv.org/html/2505.16067v2) — experience-following property, error propagation from stored noise, history-based deletion pattern
-- [Better Ways to Build Self-Improving AI Agents](https://yoheinakajima.com/better-ways-to-build-self-improving-ai-agents/) — self-generated in-context examples, verification-gated adaptation (SICA pattern), Voyager skill persistence
-- [Mastering Confidence Scoring in AI Agents](https://sparkco.ai/blog/mastering-confidence-scoring-in-ai-agents) — 0.8 execution threshold, RL-based dynamic confidence, calibration requirement
-- [Multi-Agent System Failure Analysis (MAST)](https://arxiv.org/pdf/2503.13657) — 41-86.7% failure rates in production MAS, topology-over-agents principle
-- [Why Your Multi-Agent System is Failing](https://towardsdatascience.com/why-your-multi-agent-system-is-failing-escaping-the-17x-error-trap-of-the-bag-of-agents/) — error amplification topology, closed-loop suppression
-
-### Tertiary (LOW confidence — patterns only)
-- [Memory in the Age of AI Agents survey](https://arxiv.org/abs/2512.13564) — memory type taxonomy (episodic → semantic → procedural), consolidation pathways
-- [Mastering Memory Consistency in AI Agents](https://sparkco.ai/blog/mastering-memory-consistency-in-ai-agents-2025-insights) — intelligent decay and consolidation, recency + relevance pruning
+- External research (MEDIUM confidence):
+  - [Multi-Agent Systems & AI Orchestration Guide 2026](https://www.codebridge.tech/articles/mastering-multi-agent-orchestration-coordination-is-the-new-scale-frontier) -- orchestration patterns
+  - [Multi-Agent Orchestration Patterns](https://www.ai-agentsplus.com/blog/multi-agent-orchestration-patterns-2026) -- signal propagation patterns
+  - [Memory for AI Agents: A New Paradigm of Context Engineering](https://thenewstack.io/memory-for-ai-agents-a-new-paradigm-of-context-engineering/) -- persistence patterns
+  - [The 6 Best AI Agent Memory Frameworks 2026](https://machinelearningmastery.com/the-6-best-ai-agent-memory-frameworks-you-should-try-in-2026/) -- memory management
+  - [Create custom subagents - Claude Code Docs](https://code.claude.com/docs/en/sub-agents) -- Claude Code subagent patterns
+  - [Claude Code Agent Teams](https://code.visualstudio.com/blogs/2026/02/05/multi-agent-development) -- future multi-agent patterns
+  - [Anthropic: Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) -- agent design best practices
+  - [OpenTelemetry AI Agent Observability](https://opentelemetry.io/blog/2025/ai-agent-observability/) -- observability standards
 
 ---
-*Feature research for: Aether v1.2 Integration Gap Fixes*
-*Researched: 2026-03-14*
+
+*Feature research for: Aether v1.3 Maintenance Milestone*
+*Researched: 2026-03-19*

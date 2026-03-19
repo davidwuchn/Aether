@@ -1,419 +1,371 @@
-# Architecture Research: Colony Integration Gap Fixes
+# Architecture Research: Signal/Event Propagation in Aether's Multi-Agent Colony
 
-**Domain:** Multi-agent colony system — wiring existing components together
-**Researched:** 2026-03-14
-**Confidence:** HIGH (based on direct reading of all relevant source files)
+**Domain:** Multi-agent CLI orchestration system with stigmergic coordination
+**Researched:** 2026-03-19
+**Confidence:** HIGH (primary source is the codebase itself; patterns verified against multi-agent literature)
 
-## What This Milestone Is
-
-This is not a feature build. It is an integration wiring milestone. The four integration gaps are:
-
-1. **Decisions -> Pheromones (PHER-01):** Key architectural decisions captured in CONTEXT.md never become pheromone signals. Future phases miss them.
-2. **Learnings -> Instincts (promotion path):** Phase learnings are extracted and passed through `memory-capture`, but the promotion-proposal UI (`learning-check-promotion` / `learning-approve-proposals`) doesn't run at the right moments or is skipped silently when it should be surfaced.
-3. **Midden -> Behavior (PHER-02):** Recurring error categories in `midden.json` are read for context but never converted to REDIRECT signals that steer workers away from known failure modes.
-4. **Memory capture consistency:** `memory-capture` is called from some playbook steps but missing in others where failures and successes are recorded.
-
-**All four fixes involve calling existing `aether-utils.sh` subcommands from existing playbook steps.** No new subcommands are required. The implementation surface is playbook markdown files and one or two shell functions.
-
-## System Overview
+## Current System Overview
 
 ```
-+-------------------------------------------------------------------+
-|                    COMMAND LAYER (orchestrators)                   |
-|   build.md  continue.md  (load split playbooks by reference)      |
-+-------------------------------------------------------------------+
-                              |
-          +-------------------+-------------------+
-          |                                       |
-          v                                       v
-+-----------------------+             +---------------------------+
-|    BUILD PLAYBOOKS    |             |    CONTINUE PLAYBOOKS     |
-|                       |             |                           |
-|  build-prep.md        |             |  continue-verify.md       |
-|  build-context.md     |             |  continue-gates.md        |
-|  build-wave.md        |             |  continue-advance.md      |
-|  build-verify.md      |             |  continue-finalize.md     |
-|  build-complete.md    |             |                           |
-+-----------+-----------+             +-------------+-------------+
-            |                                       |
-            |   calls                               |   calls
-            v                                       v
-+-------------------------------------------------------------------+
-|                      aether-utils.sh (150 subcommands)            |
-|                                                                   |
-|  MEMORY PIPELINE:                                                 |
-|    memory-capture -> learning-observe -> pheromone-write          |
-|                   -> learning-promote-auto -> instinct-create     |
-|                                                                   |
-|  PROMOTION PIPELINE:                                              |
-|    learning-check-promotion -> learning-approve-proposals         |
-|    learning-promote-auto -> queen-promote -> QUEEN.md             |
-|                                                                   |
-|  PHEROMONE PIPELINE:                                              |
-|    pheromone-write -> pheromones.json                             |
-|    colony-prime -> prompt_section (injected into worker prompts)  |
-|                                                                   |
-|  MIDDEN PIPELINE:                                                 |
-|    midden-write -> midden.json                                    |
-|    midden-recent-failures -> failure context for workers          |
-|                                                                   |
-|  INSTINCT PIPELINE:                                               |
-|    instinct-create -> COLONY_STATE.json .memory.instincts[]       |
-|    instinct-read -> included in colony-prime prompt_section       |
-+-------------------------------------------------------------------+
-                              |
-          +-------------------+-------------------+
-          |                                       |
-          v                                       v
-+---------------------------+         +---------------------------+
-|   DATA LAYER (local only)  |         |   KNOWLEDGE LAYER         |
-|                            |         |                           |
-|  .aether/data/             |         |  .aether/CONTEXT.md       |
-|    COLONY_STATE.json       |         |  .aether/QUEEN.md         |
-|    pheromones.json         |         |  .aether/HANDOFF.md       |
-|    learning-obs.json       |         |                           |
-|    midden/midden.json      |         |                           |
-|    midden/build-failures.md|         |                           |
-|    midden/test-failures.md |         |                           |
-+---------------------------+         +---------------------------+
+ USER COMMANDS                          STATE STORES
+ (/ant:focus, /ant:redirect,           (pheromones.json, COLONY_STATE.json,
+  /ant:feedback, /ant:build N)           learning-observations.json, midden.json)
+        |                                       ^       |
+        v                                       |       |
+ +--------------+                               |       |
+ | COMMAND      |--- pheromone-write ---------->+       |
+ | LAYER        |                                       |
+ | (slash cmds) |                                       |
+ +------+-------+                                       |
+        |                                               |
+        v                                               |
+ +--------------+                                       |
+ | PLAYBOOK     |--- colony-prime ---> prompt_section   |
+ | ORCHESTRATOR |                          |            |
+ | (build-*.md, |<--- pheromone-display ---+            |
+ |  continue-*) |                                       |
+ +------+-------+                                       |
+        |                                               |
+        | prompt_section injected                       |
+        | into worker prompts                           |
+        v                                               |
+ +--------------------+                                 |
+ | WORKER AGENTS      |--- memory-capture ------------->+
+ | (Builder, Watcher,  |--- midden-write -------------->+
+ |  Chaos, Ambassador, |--- pheromone-write (auto) ---->+
+ |  Measurer, etc.)    |                                |
+ +--------------------+                                 |
+                                                        |
+ +--------------------+                                 |
+ | UTILITY LAYER      |<-------------------------------+
+ | (aether-utils.sh)  |
+ | 150 subcommands    |
+ | File locking       |
+ | Atomic writes      |
+ +--------------------+
 ```
 
-## Component Responsibilities (Integration-Relevant)
+### How Signals Flow Today (The Working Path)
 
-| Component | Responsibility | Current Gap |
-|-----------|----------------|-------------|
-| `continue-advance.md` Step 2.1b | Emit FEEDBACK pheromone per CONTEXT.md decision | GAP-1: Already present in playbook but must be verified to fire every continue run |
-| `continue-advance.md` Step 2.1c | Emit REDIRECT per midden category with 3+ occurrences | GAP-3: Step exists but threshold logic must match actual midden data format |
-| `continue-advance.md` Step 2.5 | memory-capture for each extracted learning | GAP-2: Currently calls memory-capture but promotion-check step (2.1.5) may silently skip |
-| `continue-advance.md` Step 3a | instinct-create from midden error patterns | GAP-3/4: Uses midden-recent-failures but only creates instincts, doesn't emit REDIRECT |
-| `build-wave.md` Step 5.2 | memory-capture on builder failure | GAP-4: Present in MEM-02 block but needs consistent source tagging |
-| `build-verify.md` Step 5.7 | memory-capture on chaos findings | GAP-4: Present in MEM-02 block, pattern needs to be confirmed complete |
-| `build-verify.md` Step 5.8 | memory-capture on watcher failures | GAP-4: Present in MEM-02 block, same confirmation needed |
-| `build-complete.md` Step 5.10 | learning-check-promotion after build | GAP-2: Present but runs after every build; must handle no-proposals case silently |
-| `context-update decision` | auto-emit FEEDBACK pheromone on decision record | GAP-1: `context-update` already calls pheromone-write for decisions at line 508 of aether-utils.sh |
+1. **User emits signal** via `/ant:focus`, `/ant:redirect`, `/ant:feedback`
+2. **pheromone-write** appends signal to `pheromones.json` (with locking, atomic write, decay metadata)
+3. **colony-prime --compact** reads `pheromones.json`, extracts active signals, formats them into `prompt_section` markdown
+4. **build-context.md** (Step 4) calls `colony-prime --compact` and stores the result as `prompt_section`
+5. **build-wave.md** (Step 5.1) injects `prompt_section` into each Builder worker's prompt text
+6. **Workers execute** with signals as inline context -- they see the signals as text in their prompt
+7. **Workers also told** to periodically check `pheromone-read` at "natural breakpoints" (instruction in prompt, not enforced)
 
-## Integration Points: Where Each Gap Is Wired
+### The Gap: Where Integration Breaks Down
 
-### Gap 1: Decisions → Pheromones (PHER-01)
+The signal propagation chain has clear weak points:
 
-**Current state:** `context-update decision` (aether-utils.sh line ~508) already emits a FEEDBACK pheromone with `source: "system:decision"` when a decision is recorded. The continue-advance.md Step 2.1b reads the CONTEXT.md "Recent Decisions" table and emits FEEDBACK pheromones with `source: "auto:decision"`.
+| Integration Point | Status | Issue |
+|-------------------|--------|-------|
+| User -> pheromones.json | WORKING | pheromone-write handles locking, validation, decay |
+| pheromones.json -> colony-prime | WORKING | colony-prime reads, filters expired, formats |
+| colony-prime -> prompt_section | WORKING | build-context.md stores result |
+| prompt_section -> worker prompts | PARTIAL | Injected into Builder prompts but workers don't enforce reading |
+| Auto-emitted signals (memory-capture) | WORKING | Writes to pheromones.json, but only consumed next build cycle |
+| Midden -> REDIRECT (threshold) | WORKING | build-wave.md Step 5.2 checks midden thresholds mid-build |
+| continue -> pheromone auto-emission | WORKING | Steps 2.1a-d emit FEEDBACK/REDIRECT from learnings/errors/decisions |
+| phase_end expiration | WORKING | pheromone-expire --phase-end-only runs in continue |
+| Fresh-install initialization | MISSING | pheromones.json created lazily by pheromone-write, not by init |
+| Signal strength display | WORKING | pheromone-display shows decay percentages |
+| Mid-build signal refresh | PARTIAL | build-wave.md refreshes colony-prime per wave, but not per worker |
 
-**The gap:** Deduplication in 2.1b checks for both `"auto:decision"` and `"system:decision"` sources — this is correct. However, if `context-update decision` is not called consistently when decisions are made (e.g., during build rather than just continue), some decisions are never promoted.
+## Component Boundaries
 
-**Integration point:** `continue-advance.md` Step 2.1b is the primary wiring point. This step already exists and is correct. The milestone should verify it fires on every continue run, not just when learnings exist.
+| Component | Responsibility | Communicates With | Data Format |
+|-----------|---------------|-------------------|-------------|
+| **pheromone-write** | Create/append signals | pheromones.json, constraints.json (backward compat) | JSON signal objects |
+| **pheromone-read** | Read active signals with decay calculation | pheromones.json | Filtered JSON array |
+| **pheromone-display** | Human-readable signal table | pheromones.json | Formatted text |
+| **pheromone-prime** | Format signals + instincts for prompt injection | pheromones.json, COLONY_STATE.json (instincts) | Markdown prompt section |
+| **pheromone-expire** | Archive expired signals to midden | pheromones.json, midden.json | JSON mutation |
+| **colony-prime** | Unified priming: wisdom + signals + learnings + capsule | QUEEN.md, pheromones.json, COLONY_STATE.json, CONTEXT.md | Combined prompt section |
+| **memory-capture** | Unified event handler: observe + emit pheromone + check promotion | learning-observations.json, pheromones.json, QUEEN.md | Multi-step pipeline |
+| **suggest-analyze** | Codebase analysis for suggested signals | File system, pheromones.json | JSON suggestions |
+| **suggest-approve** | Interactive approval for suggested signals | pheromones.json | JSON + interactive |
+| **build-context.md** | Loads colony-prime into prompt_section at build start | colony-prime, pheromone-display | In-memory variable |
+| **build-wave.md** | Refreshes colony-prime per wave, injects into worker prompts | colony-prime, worker Task calls | Text in worker prompts |
+| **continue-advance.md** | Auto-emits signals from learnings/errors/decisions, expires phase_end signals | pheromone-write, pheromone-expire, memory-capture | JSON mutations |
 
-**Subcommands called:**
-```
-pheromone-write FEEDBACK "[decision] {text}" --strength 0.6 --source "auto:decision" --ttl "30d"
-```
+## Data Flow: Signal Lifecycle
 
-**New vs. modified:** MODIFIED — Step 2.1b already exists, may need robustness fixes.
-
-### Gap 2: Learnings → Instincts (Promotion Path)
-
-**Current state:** `continue-advance.md` has:
-- Step 2 extracts learnings into COLONY_STATE.json `memory.phase_learnings`
-- Step 2.5 calls `memory-capture "learning"` for each extracted learning
-- Step 2.1.5 calls `learning-check-promotion` and if proposals exist, calls `learning-approve-proposals`
-- Step 2.1.6 batch-sweeps with `learning-promote-auto`
-- Step 3 calls `instinct-create` directly for observed patterns
-- Step 3a calls `instinct-create` from midden error patterns
-
-**The gap:** The promotion pipeline (Steps 2.1.5 and 2.1.6) is in continue-advance.md but step ordering means batch promotion runs AFTER the phase advance. The silent-skip condition (no proposals = no output) is correct per spec, but the ordering matters: promotion should happen before state is written (Step 4), not after.
-
-**Integration point:** The ordering in `continue-advance.md` between Steps 2.5 → 2.1.5 → 2.1.6 → 4. Verify promotion runs before phase advance, not after.
-
-**Subcommands called:**
-```
-memory-capture "learning" "{claim}" "pattern" "worker:continue"
-learning-check-promotion
-learning-approve-proposals [--verbose]
-learning-promote-auto "{wisdom_type}" "{content}" "{colony}" "learning"
-instinct-create --trigger "..." --action "..." --confidence N --domain "..." --source "..." --evidence "..."
-```
-
-**New vs. modified:** MODIFIED — ordering fix in continue-advance.md.
-
-### Gap 3: Midden → Behavior (PHER-02)
-
-**Current state:** `continue-advance.md` Step 2.1c already queries `midden-recent-failures 50` and emits REDIRECT pheromones for categories with 3+ occurrences. Step 3a also creates instincts from midden error patterns.
-
-**The gap:** Two-part. First, the midden stores all entries (not just failures — it includes `"coverage"`, `"performance"`, `"refactoring"`, `"integration"`, `"security"`, `"quality"` categories from various agents). The `midden-recent-failures` subcommand returns ALL entries sorted by timestamp, not filtered by failure categories. The Step 2.1c category grouping works correctly on this data, but the 3+ threshold means low-volume genuine failures never trigger REDIRECT.
-
-Second, `build-wave.md` Step 5.2 reads midden at the start of each wave (`midden-recent-failures 5`) to inject context into builder prompts, but this is a display-only read — it does not emit pheromones. Failures found here should also feed back.
-
-**Integration points:**
-1. `continue-advance.md` Step 2.1c — existing, verify threshold and deduplication logic is robust
-2. `build-wave.md` Step 5.2 — existing midden read, no pheromone emission (acceptable — pheromone emission belongs in continue, not build)
-
-**Subcommands called:**
-```
-midden-recent-failures 50
-pheromone-write REDIRECT "[error-pattern] ..." --strength 0.7 --source "auto:error" --ttl "30d"
-memory-capture "resolution" "..." "pattern" "worker:continue"
-```
-
-**New vs. modified:** MODIFIED — verify Step 2.1c threshold and deduplication.
-
-### Gap 4: Memory Capture Consistency
-
-**Current state:** `memory-capture` is called from:
-- `build-wave.md` Step 5.2 on builder failure (MEM-02 block)
-- `build-verify.md` Step 5.7 on chaos findings (MEM-02 block)
-- `build-verify.md` Step 5.8 on watcher failures (MEM-02 block)
-- `continue-advance.md` Step 2.5 on learnings
-
-**The gap:** Success events are not captured via `memory-capture`. When a builder succeeds, no observation is recorded in `learning-observations.json`, so the pattern never accumulates toward promotion threshold. The midden-write calls on success (e.g., Gatekeeper findings, Auditor scores, Measurer baselines) record context but don't trigger the pheromone/promotion pipeline.
-
-**Integration points:**
-1. `build-complete.md` Step 5.9 — synthesis step; add `memory-capture "success"` for tasks_completed with patterns_observed from learning section of synthesis JSON
-2. `build-verify.md` Step 5.7 — after chaos completion, add `memory-capture "success"` for `overall_resilience: "strong"`
-
-**Subcommands called (new calls to add):**
-```
-memory-capture "success" "{pattern.trigger}: {pattern.action}" "pattern" "worker:builder"
-memory-capture "failure" "{issue_title}" "failure" "worker:chaos"
-```
-
-**New vs. modified:** NEW calls in build-complete.md Step 5.9 and build-verify.md Step 5.7.
-
-## Data Flow: Memory Pipeline
-
-The memory pipeline is the central nervous system of all four integration fixes:
+### 1. Signal Creation Flow
 
 ```
-Event Source (builder failure / chaos finding / learning / decision)
+User/System Decision
     |
     v
-memory-capture <event_type> <content> <wisdom_type> <source>
+pheromone-write(type, content, --strength, --ttl, --source, --reason)
     |
-    +-- learning-observe -> learning-observations.json
-    |       content_hash: dedup key
-    |       observation_count: increments on repeat
-    |       colonies: [colony_name]
-    |
-    +-- pheromone-write -> pheromones.json
-    |       type: REDIRECT (failure) | FEEDBACK (learning/success)
-    |       strength: 0.7 (failure) | 0.6 (learning/success) | 0.75 (resolution)
-    |       source: worker:continue | worker:builder | worker:chaos | worker:watcher
-    |
-    +-- learning-promote-auto -> (if threshold met)
-            |
-            +-- instinct-create -> COLONY_STATE.json .memory.instincts[]
-            |
-            +-- queen-promote -> QUEEN.md (appended pattern/redirect/philosophy)
-```
-
-## Data Flow: Colony Prime (Worker Context Injection)
-
-Every worker prompt is primed with accumulated colony knowledge via `colony-prime`:
-
-```
-colony-prime --compact
-    |
-    +-- reads pheromones.json -> active signals (FOCUS/REDIRECT/FEEDBACK)
-    +-- reads COLONY_STATE.json .memory.instincts[] -> instinct list
-    +-- reads QUEEN.md -> queen wisdom entries
-    +-- reads CONTEXT.md -> recent decisions, current phase
+    +---> Validate type (FOCUS/REDIRECT/FEEDBACK)
+    +---> Sanitize content (XSS-like prevention, 500 char limit)
+    +---> Generate ID (sig_{type}_{epoch}_{random})
+    +---> Compute expires_at from TTL
+    +---> Acquire file lock
+    +---> Append signal to pheromones.json .signals[]
+    +---> Write constraints.json (backward compatibility)
+    +---> Release lock
     |
     v
-prompt_section (formatted markdown)
+Signal stored with: {id, type, priority, source, created_at, expires_at, active, strength, reason, content}
+```
+
+### 2. Signal Consumption Flow (During Build)
+
+```
+/ant:build N
     |
     v
-Builder/Watcher/Chaos worker prompts (injected as {prompt_section})
+build-context.md Step 4:
+    colony-prime --compact
+        |
+        +---> Read QUEEN.md (global + local wisdom)
+        +---> Call pheromone-prime --compact --max-signals 8 --max-instincts 3
+        |         |
+        |         +---> Read pheromones.json
+        |         +---> Filter: active==true, not expired (decay calc)
+        |         +---> Sort by priority (high->normal->low), then strength
+        |         +---> Take top N signals
+        |         +---> Read instincts from COLONY_STATE.json
+        |         +---> Format as markdown section
+        |         v
+        +---> Append context capsule (context-capsule --compact)
+        +---> Append phase learnings from COLONY_STATE.json
+        +---> Combine into prompt_section
+        v
+    prompt_section variable stored in-memory
+
+build-wave.md Step 5.1:
+    Before each wave:
+        colony-prime --compact (REFRESH)
+        |
+        v
+    Updated prompt_section
+        |
+        v
+    Injected into each worker's Task tool prompt:
+        "{ prompt_section }"
+        |
+        v
+    Worker reads signals AS TEXT (no structured API)
+    Worker instructed to "check for new signals" at breakpoints
+    (but this is advisory -- no enforcement mechanism)
 ```
 
-This means: pheromones emitted in `continue-advance.md` are picked up by `colony-prime` before the next build's workers are spawned. The signal propagation chain is:
+### 3. Signal Auto-Emission Flow (After Build)
 
 ```
-continue run N -> pheromone-write -> pheromones.json
-                                         |
-                                         v
-build run N+1 -> colony-prime -> prompt_section -> builder worker sees signal
+continue-advance.md Step 2.1:
+    |
+    +---> 2.1a: FEEDBACK from phase outcome (learnings summary, strength 0.6, TTL 30d)
+    +---> 2.1b: FEEDBACK from phase decisions (from CONTEXT.md, strength 0.6, TTL 30d, cap 3)
+    +---> 2.1c: REDIRECT from midden error patterns (3+ occurrences, strength 0.7, TTL 30d, cap 3)
+    +---> 2.1d: FEEDBACK from recurring success criteria (2+ phases, strength 0.6, TTL 30d, cap 2)
+    +---> 2.1e: Expire phase_end signals, archive to midden
+    |
+    v
+All auto-emitted signals have source="auto:*" and are deduplicated against existing active signals
+
+memory-capture (called throughout build):
+    |
+    +---> learning-observe (record in learning-observations.json)
+    +---> pheromone-write (auto-emit REDIRECT for failures, FEEDBACK for learnings)
+    +---> learning-promote-auto (check if observation meets QUEEN.md promotion threshold)
+    v
+Creates signals during build that are consumed in NEXT build cycle
 ```
 
-## Playbook Step Integration Map
+### 4. Signal Expiration Flow
 
-Complete map of which playbook steps call which subcommands for the four gaps:
+```
+Two expiration mechanisms:
 
-### Build Flow
+1. Phase-scoped: expires_at == "phase_end"
+   - Expired by: pheromone-expire --phase-end-only (in continue-advance Step 2.1e)
+   - Archived to: midden/midden.json
 
-| Playbook | Step | Subcommand | Gap | Status |
-|----------|------|-----------|-----|--------|
-| build-wave.md | 5.2 (builder failure) | `memory-capture "failure" ...` | GAP-4 | EXISTS (MEM-02) |
-| build-wave.md | 5.2 (wave start) | `midden-recent-failures 5` | GAP-3 | EXISTS (display only) |
-| build-verify.md | 5.7 (chaos critical finding) | `memory-capture "failure" ...` | GAP-4 | EXISTS (MEM-02) |
-| build-verify.md | 5.7 (chaos strong resilience) | `memory-capture "success" ...` | GAP-4 | MISSING |
-| build-verify.md | 5.8 (watcher failure) | `memory-capture "failure" ...` | GAP-4 | EXISTS (MEM-02) |
-| build-complete.md | 5.9 (synthesis patterns_observed) | `memory-capture "success" ...` | GAP-4 | MISSING |
-| build-complete.md | 5.10 (post-build) | `learning-check-promotion` | GAP-2 | EXISTS |
-| build-complete.md | 5.10 (post-build) | `learning-approve-proposals` | GAP-2 | EXISTS |
+2. Time-scoped: expires_at == ISO-8601 timestamp
+   - Expired by: pheromone-read decay calculation (real-time filtering on read)
+   - Natural decay reduces effective strength over time:
+     FOCUS:    15-day half-life, 30-day full decay
+     REDIRECT: 30-day half-life, 60-day full decay
+     FEEDBACK: 45-day half-life, 90-day full decay
+   - Signals below 10% strength treated as inactive
 
-### Continue Flow
-
-| Playbook | Step | Subcommand | Gap | Status |
-|----------|------|-----------|-----|--------|
-| continue-advance.md | 2.5 (per learning) | `memory-capture "learning" ...` | GAP-2 | EXISTS |
-| continue-advance.md | 2.1.5 | `learning-check-promotion` | GAP-2 | EXISTS |
-| continue-advance.md | 2.1.5 | `learning-approve-proposals` | GAP-2 | EXISTS |
-| continue-advance.md | 2.1.6 | `learning-promote-auto` (batch) | GAP-2 | EXISTS |
-| continue-advance.md | 2.1b | `pheromone-write FEEDBACK "[decision] ..."` | GAP-1 | EXISTS |
-| continue-advance.md | 2.1c | `midden-recent-failures 50` | GAP-3 | EXISTS |
-| continue-advance.md | 2.1c | `pheromone-write REDIRECT "[error-pattern] ..."` | GAP-3 | EXISTS |
-| continue-advance.md | 2.1c | `memory-capture "resolution" ...` | GAP-3 | EXISTS |
-| continue-advance.md | 3 | `instinct-create` (success patterns) | GAP-2 | EXISTS |
-| continue-advance.md | 3a | `instinct-create` (midden errors) | GAP-3 | EXISTS |
-
-## What Is New vs. What Is Modified
-
-### New (does not exist today)
-
-1. `memory-capture "success"` call in `build-verify.md` Step 5.7 — after chaos reports `overall_resilience: "strong"`, capture it as a positive signal.
-
-2. `memory-capture "success"` call in `build-complete.md` Step 5.9 — after synthesis collects `learning.patterns_observed`, emit each pattern through the memory pipeline.
-
-Both calls are additions of ~5-10 lines to existing steps.
-
-### Modified (exists, needs verification or fixing)
-
-1. `continue-advance.md` Step 2.1b — verify it fires on every continue run regardless of whether learnings were extracted. Current code only runs if `[[ -n "$decisions" ]]`. This is correct behavior; the question is whether `decisions` extraction via awk is robust against CONTEXT.md format variations.
-
-2. `continue-advance.md` Step 2.1c — verify the category grouping jq query correctly handles the midden.json format. The `midden-recent-failures` subcommand returns `{count, failures[{timestamp, category, source, message}]}`. The Step 2.1c jq extracts `.failures[].category`, which matches. Threshold is 3+ occurrences. Verify deduplication check queries `pheromones.json .signals[]` with correct field paths.
-
-3. `continue-advance.md` Step 2.1.5 ordering — confirm this step runs before Step 4 (Advance State). Current playbook ordering: Step 2 (extract learnings) → Step 2.5 (memory-capture) → Step 2.1 (auto-emit pheromones) → Step 2.1.5 (promotion proposals) → Step 2.1.6 (batch promotion) → Step 2.2 (handoff) → Step 2.3 (changelog) → Step 4 (advance state). This ordering is correct. No change needed — just confirm.
-
-4. Source tagging consistency in MEM-02 blocks — current `build-wave.md` uses `"worker:builder"` as source. `build-verify.md` chaos block uses `"worker:chaos"`. `build-verify.md` watcher block uses `"worker:watcher"`. These are correct and distinct. The new success calls should use the same source tags.
-
-## Architectural Patterns to Follow
-
-### Pattern 1: Fail-Safe Execution (All Integration Points)
-
-Every call to `aether-utils.sh` in playbook steps uses `2>/dev/null || true`. This is the established pattern. Integration fixes must follow it:
-
-```bash
-bash .aether/aether-utils.sh memory-capture \
-  "success" \
-  "Resilience strong: {finding summary}" \
-  "pattern" \
-  "worker:chaos" 2>/dev/null || true
+3. Pause-aware: Wall-clock TTLs extended by colony pause duration
 ```
 
-The `|| true` ensures no integration step blocks the primary flow. Pheromone emission, memory capture, and instinct creation are all advisory — they cannot fail the build or continue.
+## Architectural Patterns Applied
 
-### Pattern 2: Silent When Empty (GAP-2 Promotion)
+### Pattern: Stigmergic Blackboard (Already in Use)
 
-Per the existing spec and user decision: if `learning-check-promotion` returns zero proposals, produce no output. The promotion UI only appears when there is something to review. The `build-complete.md` Step 5.10 already implements this correctly with:
+**What:** Agents coordinate through a shared environment (pheromones.json) rather than direct messaging. Signals decay naturally, preventing stale data accumulation. The environment (JSON files) IS the communication medium.
 
-```bash
-if [[ "$proposal_count" -gt 0 ]]; then
-  bash .aether/aether-utils.sh learning-approve-proposals
-fi
-```
+**Aether's implementation:** This is the core pattern. Workers never message each other directly. All coordination flows through pheromones.json and COLONY_STATE.json. The system is textbook stigmergy -- agents modify the environment, other agents sense those modifications and adjust behavior.
 
-New additions should follow the same pattern.
+**Strength:** Scales naturally. Adding a 23rd agent type requires zero changes to the signal system. Agents are fully decoupled from each other.
 
-### Pattern 3: Capped Emissions Per Run (GAP-1 and GAP-3)
+### Pattern: Hierarchical Decomposition (Already in Use)
 
-Decision pheromones (Step 2.1b): cap at 3 per continue run via `emit_count` counter.
-Error pattern pheromones (Step 2.1c): cap at 3 per continue run via `emit_count` counter.
-Success patterns (new): cap at 2 per build run (matches `instinct-create` success pattern limit in Step 3b).
+**What:** Queen orchestrator breaks work into waves, delegates to specialized workers, gathers results.
 
-These caps prevent pheromone inflation. New additions must respect them.
+**Aether's implementation:** Build playbook decomposes phases into dependency-ordered waves. Queen spawns Builder/Watcher/Chaos agents per wave. Results bubble up through JSON return values.
 
-### Pattern 4: Deduplication Before Emission (GAP-1 and GAP-3)
+### Pattern: Generator-Critic (Already in Use)
 
-Both Step 2.1b and 2.1c check `pheromones.json` for existing active signals with matching source before emitting. This prevents duplicate signals across multiple continue runs. New calls in build-complete.md Step 5.9 should also check for existing signals before emitting if they are repeatable.
+**What:** Builder generates code, Watcher validates independently.
 
-However, `memory-capture` handles its own deduplication internally via content hash in `learning-observations.json`. Calling `memory-capture` multiple times with the same content increments the count rather than creating duplicates. So new `memory-capture "success"` calls do not need external deduplication checks.
+**Aether's implementation:** Builder agents implement tasks, Watcher agent independently verifies. This is enforced by the Spawn Gate and Watcher Gate in continue-gates.md.
+
+## Patterns to Follow for Integration Work
+
+### Pattern 1: Signal Injection at Construction Time
+
+**What:** Signals must be part of the worker's initial context, not something workers discover mid-execution. The prompt_section from colony-prime is the canonical injection point.
+
+**When:** Every time a worker is spawned.
+
+**Implementation note:** This already works. The key insight is that `prompt_section` is the single bottleneck for signal delivery. Any new signal type or integration point must flow through colony-prime to reach workers.
+
+### Pattern 2: Event-Carried State Transfer
+
+**What:** When signals change, the change event carries enough state for the consumer to act without querying the source. This is what memory-capture does -- it observes an event, writes the observation, emits a pheromone, and checks promotion thresholds in a single pipeline.
+
+**When:** Any time a build outcome, failure, or learning is recorded.
+
+**Implementation note:** memory-capture is the unified pipeline. All new event types should flow through it rather than creating parallel paths.
+
+### Pattern 3: Deduplication by Content Hash
+
+**What:** Auto-emitted signals check for existing active signals with matching content before creating duplicates. This prevents signal pile-up across multiple build/continue cycles.
+
+**When:** Every auto-emission (Steps 2.1a-d in continue-advance).
+
+**Implementation note:** Each auto-emission step includes a jq-based deduplication check. New auto-emission paths must follow the same pattern: check `.signals[] | select(.active == true and .source == "{source}" and (.content.text | contains($text)))`.
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Blocking Integration Calls
+### Anti-Pattern 1: Direct Agent-to-Agent Communication
 
-**What:** Calling `memory-capture` without `2>/dev/null || true`
-**Why it is wrong:** If the subcommand fails (e.g., COLONY_STATE.json missing, jq error), it blocks the entire build or continue flow.
-**Do this instead:** Always append `2>/dev/null || true` to all integration calls.
+**What people do:** Try to have one worker message another worker directly (e.g., Builder telling Watcher "focus on file X").
+**Why it's wrong:** Violates the stigmergic model. Creates coupling between agent types. Breaks when agent types are added/removed.
+**Do this instead:** Have the Builder emit a FOCUS pheromone via pheromone-write. The Watcher picks it up through its own colony-prime injection on the next cycle.
 
-### Anti-Pattern 2: Duplicating Logic That Already Exists
+### Anti-Pattern 2: Signal Checking as Runtime Obligation
 
-**What:** Adding a second midden→pheromone emission path inside the build flow (e.g., after each builder failure in Step 5.2)
-**Why it is wrong:** The midden→pheromone conversion already happens in `continue-advance.md` Step 2.1c. Adding it to build creates duplicate REDIRECT signals and runs the same conversion multiple times per phase.
-**Do this instead:** `build-wave.md` records to midden. `continue-advance.md` reads midden and emits pheromones. One-directional, one place.
+**What people do:** Instruct workers to "periodically check pheromone-read during execution."
+**Why it's wrong:** Workers are sub-agents with limited tool call budgets. Checking signals mid-task burns tool calls on infrastructure instead of task work. Workers cannot reliably be trusted to follow advisory instructions.
+**Do this instead:** Front-load all signal context at spawn time via prompt_section. Workers should receive all relevant signals before they start, not discover them mid-flight. The per-wave colony-prime refresh (build-wave.md Step 5.1) handles inter-wave signal updates.
 
-### Anti-Pattern 3: Emitting Pheromones Inside Worker Prompts
+### Anti-Pattern 3: Parallel Signal Stores
 
-**What:** Instructing builder/watcher agents to call `pheromone-write` directly in their task execution
-**Why it is wrong:** Workers are stateless sub-agents. They complete tasks and return JSON. The Queen (orchestrator playbook) processes results and makes state decisions. Pheromone emission is a Queen responsibility.
-**Do this instead:** Workers write to midden or record in their output JSON. The Queen reads results and emits pheromones.
+**What people do:** Store signals in both pheromones.json AND constraints.json AND COLONY_STATE.json.
+**Why it's wrong:** Creates consistency bugs. The backward-compatibility write to constraints.json in pheromone-write already demonstrates this risk -- it's a maintenance burden.
+**Do this instead:** pheromones.json is the single source of truth for active signals. constraints.json should be deprecated in favor of reading REDIRECT signals from pheromones.json directly. COLONY_STATE.json stores instincts (learned patterns), which are a different concern.
 
-### Anti-Pattern 4: Skipping the memory-capture Pipeline
+### Anti-Pattern 4: Unbounded Signal Accumulation
 
-**What:** Calling `pheromone-write` directly from playbook steps instead of routing through `memory-capture`
-**Why it is wrong:** `memory-capture` does three things atomically: records observation count, emits pheromone, and checks auto-promotion. Bypassing it means the observation count never accumulates, so threshold-based promotion never fires.
-**Do this instead:** For learnings and failures, always use `memory-capture`. Only call `pheromone-write` directly for phase-level signals (Step 2.1a) and decision signals (Step 2.1b/2.1c) that are not learning/failure events.
+**What people do:** Auto-emit signals without caps, creating dozens of signals that dilute attention.
+**Why it's wrong:** colony-prime with --compact takes top 8 signals. If there are 50 active signals, the most relevant may be pushed out. Workers can only process a limited context window.
+**Do this instead:** Cap auto-emissions per cycle (already done: 3 decision pheromones, 3 error patterns, 2 success criteria per continue). Decay and expire aggressively. The 8-signal compact limit in pheromone-prime is correct.
 
-## Build Order for This Milestone
-
-The four gaps have no hard dependencies on each other. They can be built in any order. However, the following ordering is recommended for risk management:
+## Recommended Project Structure for Integration Work
 
 ```
-Phase 1: Verification Only (read the code, write tests)
-  Confirm what exists in each playbook step
-  Write integration tests that assert each pipeline fires
-  Read midden.json format to verify Step 2.1c jq queries
-  --> Zero code changes. Pure reading and test writing.
-
-Phase 2: Gap-4 Success Capture (lowest risk, additive only)
-  Add memory-capture "success" to build-verify.md Step 5.7
-  Add memory-capture "success" to build-complete.md Step 5.9
-  --> Additive changes. Cannot break existing behavior.
-
-Phase 3: Gap-3 Midden→REDIRECT Verification (existing code)
-  Run continue with a populated midden to verify Step 2.1c fires
-  Fix jq query if midden format mismatch found
-  --> Fixes existing code. Low risk.
-
-Phase 4: Gap-1 Decision→Pheromone Verification (existing code)
-  Verify Step 2.1b fires and CONTEXT.md awk extraction is robust
-  Test with CONTEXT.md that has Recent Decisions table
-  --> Fixes existing code. Low risk.
-
-Phase 5: Gap-2 Promotion Pipeline Ordering (existing code)
-  Confirm step ordering in continue-advance.md
-  If reordering needed, move steps (not add new ones)
-  --> Structural change. Moderate risk, requires careful testing.
+.aether/
+ aether-utils.sh            # Signal subcommands live here (pheromone-*, colony-prime, memory-capture)
+ data/
+   pheromones.json           # Active signals (source of truth)
+   COLONY_STATE.json         # Colony state + instincts + phase learnings
+   learning-observations.json # Observation counts for promotion tracking
+   midden/
+     midden.json             # Archived expired signals + failure records
+   constraints.json          # DEPRECATED: backward compat only
+ templates/
+   pheromones.template.json  # Initial pheromones.json structure
+ docs/
+   pheromones.md             # User guide for signal system
+   command-playbooks/
+     build-context.md        # Where colony-prime is called (Step 4)
+     build-wave.md           # Where prompt_section is injected (Step 5.1)
+     continue-advance.md     # Where auto-emission and expiration happen (Step 2.1)
 ```
 
-**Critical path:** Phase 1 → Phase 5. Phases 2-4 can be parallelized after Phase 1 confirms what exists.
+### Structure Rationale
 
-**Lowest risk first:** Phases 2 (additive) before 3-4 (fixes) before 5 (structural).
+- **pheromones.json is the hub:** All signal reads and writes go through it. There is no secondary signal store.
+- **colony-prime is the aggregator:** It combines wisdom + signals + learnings + context capsule into a single injectable section. Downstream consumers never read pheromones.json directly -- they consume colony-prime output.
+- **memory-capture is the pipeline:** All event recording (learning, failure, success, redirect) flows through this single entry point, which handles observe + emit + promote in sequence.
+- **Playbooks are the integration points:** build-context.md and build-wave.md are where signals enter the worker execution path. continue-advance.md is where signals are emitted and expired.
 
-## Integration with Existing Test Architecture
+## Integration Points for the Milestone
 
-The project uses Ava (Node.js) for unit tests and bash scripts for integration tests. Based on the git log (recent commits reference Ava unit tests and bash integration tests), the pattern is:
+### Integration Point 1: Fresh-Install Initialization
 
-- `tests/unit/` — Ava tests for subcommand logic
-- `tests/integration/` — Bash scripts that run full playbook flows
+| Boundary | Communication | Status |
+|----------|---------------|--------|
+| /ant:init -> pheromones.json | Should create from template | MISSING |
+| /ant:lay-eggs -> pheromones.json | Should create from template | NEEDS VERIFICATION |
 
-Integration fixes should be tested at the integration level (bash scripts that run a mini-continue or mini-build and assert that `pheromones.json`, `learning-observations.json`, and `COLONY_STATE.json` contain the expected entries).
+**Current behavior:** pheromones.json is created lazily by pheromone-write when the first signal is emitted. This means colony-prime (called in build-context.md) may encounter a missing file on a fresh install before any signals are emitted. It handles this gracefully (warns and continues), but the system would be cleaner if initialized upfront.
 
-Unit tests are appropriate for any new helper functions but the gaps are in playbook steps, not subcommand logic — so integration tests are the primary verification mechanism.
+### Integration Point 2: Pheromone Display in Status
+
+| Boundary | Communication | Status |
+|----------|---------------|--------|
+| /ant:status -> pheromone-display | Should show active signals in status dashboard | NEEDS VERIFICATION |
+
+### Integration Point 3: Signal Cleanup on Colony Seal/Entomb
+
+| Boundary | Communication | Status |
+|----------|---------------|--------|
+| /ant:seal -> pheromone-expire | Should expire all signals when colony is sealed | NEEDS VERIFICATION |
+| /ant:entomb -> pheromones.json | Should archive all signals to completed colony archive | NEEDS VERIFICATION |
+
+### Integration Point 4: constraints.json Deprecation
+
+| Boundary | Communication | Status |
+|----------|---------------|--------|
+| pheromone-write -> constraints.json | Backward compat write | SHOULD DEPRECATE |
+| Any consumer of constraints.json | Should read from pheromones.json instead | NEEDS AUDIT |
+
+## Scaling Considerations
+
+| Concern | At 5-10 signals | At 20-50 signals | At 100+ signals |
+|---------|-----------------|-------------------|-----------------|
+| File I/O | Negligible | Acceptable | Could slow jq parsing; consider cleanup |
+| Prompt token cost | ~200 tokens (compact) | ~500 tokens | colony-prime --compact caps at 8 signals, so stays bounded |
+| Signal relevance | All visible | Ranking matters (priority + strength) | Many signals lost to compact limit; need stronger decay |
+| Deduplication cost | Trivial | O(n) per emission | jq `.signals[]` scan gets expensive; consider indexing by content hash |
+
+### Scaling Priorities
+
+1. **First bottleneck:** Signal accumulation without cleanup. The pheromone-expire mechanism only runs during `/ant:continue`. Long build sessions without continue cycles can accumulate stale signals. Mitigation: also expire during build-context.md Step 4.
+2. **Second bottleneck:** jq parsing of large pheromones.json. Each read/write operation parses the entire file. At 100+ signals (including inactive), jq performance degrades. Mitigation: periodic compaction that removes inactive signals entirely.
+
+## Build Order Implications
+
+Based on the component boundaries and data flow analysis:
+
+1. **Initialization first** -- Ensure pheromones.json is created during /ant:init and /ant:lay-eggs from the template. This unblocks all downstream consumers.
+2. **Audit constraints.json consumers** -- Before deprecating, find all code paths that read constraints.json and migrate to pheromones.json reads.
+3. **Verify status integration** -- Ensure /ant:status shows active signals via pheromone-display.
+4. **Verify lifecycle cleanup** -- Ensure /ant:seal and /ant:entomb properly handle signal archival.
+5. **Polish fresh-install flow** -- Test the entire path: lay-eggs -> init -> focus -> build -> continue -> signals appear in worker prompts.
 
 ## Sources
 
-All findings are HIGH confidence — sourced directly from the codebase:
-
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/continue-advance.md` — Steps 2, 2.1a-2.1e, 2.1.5, 2.1.6, 3, 3a, 3b
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/continue-gates.md` — Steps 1.6-1.12
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/continue-verify.md` — Steps 1, 1.5, 1.5.1
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/continue-finalize.md` — Steps 2.1.6, 2.2-2.7
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/build-wave.md` — Steps 5-5.3
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/build-verify.md` — Steps 5.4-5.8
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/build-complete.md` — Steps 5.9, 5.10, 6, 7
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/build-prep.md` — Steps 0.5-3
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/build-context.md` — Steps 4-4.2
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` — `memory-capture` (line 5402), `midden-write` (line 8211), `midden-recent-failures` (line 9581), `instinct-create` (line 7252), `pheromone-write` (line 6774), `context-update` (line 2763)
+- **Codebase analysis:** Direct reading of aether-utils.sh (pheromone-write, pheromone-read, pheromone-prime, colony-prime, memory-capture), build playbooks (build-context.md, build-wave.md, build-verify.md, build-complete.md), continue playbooks (continue-verify.md, continue-gates.md, continue-advance.md, continue-finalize.md), pheromones.md user guide. **HIGH confidence.**
+- [Google's Eight Essential Multi-Agent Design Patterns (InfoQ)](https://www.infoq.com/news/2026/01/multi-agent-design-patterns/) -- Validates Aether's hierarchical decomposition + generator-critic patterns. **MEDIUM confidence.**
+- [Four Design Patterns for Event-Driven Multi-Agent Systems (Confluent)](https://www.confluent.io/blog/event-driven-multi-agent-systems/) -- Event-carried state transfer pattern matches memory-capture pipeline. **MEDIUM confidence.**
+- [Why Multi-Agent Systems Don't Need Managers: Lessons from Ant Colonies](https://www.rodriguez.today/articles/emergent-coordination-without-managers) -- Pressure field + decay model validates Aether's signal decay design. **MEDIUM confidence.**
+- [Introducing SBP: Multi-Agent Coordination via Digital Pheromones](https://dev.to/naveentvelu/introducing-sbp-multi-agent-coordination-via-digital-pheromones-2j4e) -- Stigmergic Blackboard Protocol mirrors Aether's pheromones.json approach. **MEDIUM confidence.**
+- [Stigmergy (Wikipedia)](https://en.wikipedia.org/wiki/Stigmergy) -- Foundational concept validation. **HIGH confidence.**
+- [Self-Organising in Multi-agent Coordination Using Stigmergy (Springer)](https://link.springer.com/chapter/10.1007/978-3-540-24701-2_8) -- Academic validation of pheromone-based coordination patterns. **MEDIUM confidence.**
 
 ---
-*Architecture research for: Colony Integration Gap Fixes (PHER-01, PHER-02, learnings→instincts, memory-capture consistency)*
-*Researched: 2026-03-14*
+*Architecture research for: Aether pheromone integration and signal propagation*
+*Researched: 2026-03-19*

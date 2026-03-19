@@ -1,384 +1,152 @@
-# Stack Research
+# Stack Research: Pheromone Integration for Aether Colony System
 
-**Project:** Aether Integration Gap Fixes
-**Researched:** 2026-03-14
-**Confidence:** HIGH
+**Domain:** Multi-agent CLI orchestration / signal-event system maintenance
+**Researched:** 2026-03-19
+**Confidence:** HIGH (existing stack is well-established; recommendations are evolutionary, not revolutionary)
 
----
+## Context: Existing Stack (Not Changing)
 
-## Context: What This Milestone Is
+Aether is already built. This research is about what to **add or upgrade** to make the pheromone system work end-to-end, not about rebuilding the foundation. The existing stack is:
 
-This is NOT a greenfield build and NOT a new dependency milestone. The four integration
-gaps are wiring problems inside an existing bash system. Every required capability
-already exists as an `aether-utils.sh` subcommand or in a command playbook. The work
-is connecting them in the right order, in the right place, with correct argument shapes.
+| Layer | Technology | Status |
+|-------|-----------|--------|
+| Core logic | Bash (`aether-utils.sh`, ~10K lines, 150 subcommands) | Staying |
+| CLI entry | Node.js + Commander.js v12 | Staying |
+| JSON processing | `jq` (system dependency) | Staying |
+| File safety | Custom `file-lock.sh` + `atomic-write.sh` | Staying |
+| Testing (JS) | AVA v6 | Staying |
+| Testing (bash) | Custom test harness (`test-aether-utils.sh`) | Staying |
+| Distribution | npm package | Staying |
+| State storage | JSON files (COLONY_STATE.json, pheromones.json, etc.) | Staying |
 
-**The stack does not change.** No new tools, no new languages, no new libraries.
-
----
-
-## Existing Stack (Confirmed Verified)
-
-All of the below is already present and working in the codebase.
-
-### Core Runtime
-
-| Technology | Version | Purpose | Status |
-|------------|---------|---------|--------|
-| Bash | 3.2+ | Orchestration, all subcommand dispatch | In use everywhere |
-| jq | 1.6+ | JSON read/write for all state files | Required by 150+ subcommands |
-| awk | macOS BSD / GNU | CONTEXT.md parsing (Recent Decisions table) | Used in colony-prime, context-update |
-| sed | macOS BSD / GNU | Inline file updates for CONTEXT.md | Used in context-update subcommand |
-
-**Confidence: HIGH** — Verified by reading aether-utils.sh source. These are the only
-runtime dependencies across the entire system.
-
-### Key Subcommands (Already Implemented, Gaps Are in Callers)
-
-The gaps are in the playbooks and agent definitions that should be calling these
-subcommands but are not wired correctly. The subcommands themselves are correct.
-
-| Subcommand | Signature | What It Does | Gap Connection |
-|------------|-----------|--------------|----------------|
-| `context-update decision` | `<description> [rationale] [who]` | Writes decision row to CONTEXT.md AND auto-emits `system:decision` FEEDBACK pheromone (strength 0.65, 30d TTL) | PHER-01 gap: the `decision` action already emits pheromones — callers just need to call it |
-| `pheromone-write` | `<TYPE> <content> [--strength N] [--ttl TTL] [--source SOURCE] [--reason REASON]` | Writes signal to pheromones.json with deduplication | PHER-01: called in continue-advance Step 2.1b but needs correct AWK to read CONTEXT.md |
-| `instinct-create` | `--trigger <str> --action <str> --confidence <0-1> --domain <str> --source <str> --evidence <str>` | Writes instinct to COLONY_STATE.json `.memory.instincts[]`, deduplicates by trigger+action match, boosts confidence +0.1 on match, evicts lowest at cap 30 | PHER-01/learnings gap: called in continue-advance Step 3 and 3a — check caller context is correct |
-| `memory-capture` | `<event_type> <content> [wisdom_type] [source]` | Full pipeline: `learning-observe` → `pheromone-write` → `learning-promote-auto` → `activity-log` → `rolling-summary`. event_type must be one of: `learning\|failure\|redirect\|feedback\|success\|resolution` | Gap 4: should be called at decision and failure points during build |
-| `midden-recent-failures` | `[limit]` | Returns `{"count": N, "failures": [{timestamp, category, source, message}]}` from `.aether/data/midden/midden.json` | PHER-02 gap: already called in continue-advance Step 2.1c, threshold logic needs validation |
-| `midden-write` | `<category> <message> <source>` | Appends entry to `.aether/data/midden/midden.json` | Gap 3: write-side — should be called when failures occur during build, currently only partially wired |
-| `learning-check-promotion` | `[observations_file]` | Returns `{"proposals": [...]}` of observations meeting threshold | MEM-01: already called in continue finalize, check it runs after memory-capture |
-| `learning-promote-auto` | `<wisdom_type> <content> [colony_name] [event_type]` | Checks recurrence threshold, calls `queen-promote` if met, also calls `instinct-create` on promotion | Runs inside memory-capture automatically |
-| `colony-prime` | `[--compact]` | Combines QUEEN.md wisdom + pheromone signals + instincts into `prompt_section` for worker injection | Already called in build-context.md Step 4 — but only picks up pheromones that already exist |
-
-**Confidence: HIGH** — Verified by reading all subcommand implementations directly in aether-utils.sh.
+**The job is not new infrastructure. The job is wiring existing pieces together and hardening the seams.**
 
 ---
 
-## The Four Integration Gaps: What Exists vs What's Missing
+## Recommended Stack Additions
 
-### Gap 1: Decisions → Pheromones via CONTEXT.md (PHER-01)
+### Core Technologies (Upgrade/Add)
 
-**What exists:**
-- `context-update decision` already auto-emits a `system:decision` FEEDBACK pheromone
-  (source `"system:decision"`, strength 0.65, TTL 30d) — line 508 of aether-utils.sh
-- continue-advance.md Step 2.1b already has AWK to parse CONTEXT.md "Recent Decisions"
-  table and call `pheromone-write` with source `"auto:decision"` for up to 3 decisions,
-  with deduplication check against both `auto:decision` and `system:decision` sources
+| Technology | Version | Purpose | Why Recommended | Confidence |
+|------------|---------|---------|-----------------|------------|
+| Commander.js | ^14.0.3 | CLI framework (upgrade from ^12) | Current version requires Node v20+, matches project's direction. v15 goes ESM-only in May 2026 -- stay on v14 for now to keep CJS compatibility with existing codebase | HIGH |
+| Ajv | ^8.18.0 | JSON Schema validation for pheromone signals | Fastest validator at 14M ops/sec. Validates signal shape at write-time to prevent malformed pheromones from entering the system. Aether already uses JSON Schema concepts (XSD for XML exchange); Ajv standardizes this for JSON | HIGH |
+| picocolors | ^1.1.1 (already installed) | Terminal colors | Already a dependency. No change needed | HIGH |
 
-**What is the actual gap:**
-The deduplication in Step 2.1b checks `.content.text | contains($text)` — this relies on
-the pheromone content text containing the decision text. The `context-update decision`
-pheromone has content `"Decision: $decision — $rationale"`, while Step 2.1b emits
-`"[decision] $dec"`. These two formats don't overlap, so deduplication may fail silently
-and produce duplicate signals. The gap is format alignment in the deduplication check,
-not missing infrastructure.
+### Supporting Libraries (Add)
 
-**Fix location:** `.aether/docs/command-playbooks/continue-advance.md` Step 2.1b
-**Fix type:** Pure playbook markdown change — adjust dedup check OR normalize to same
-source name so only one path emits
+| Library | Version | Purpose | When to Use | Confidence |
+|---------|---------|---------|-------------|------------|
+| Ajv | ^8.18.0 | Validate pheromone signal JSON before write | Every `pheromone-write` call. Schema ensures `type`, `content.text`, `strength`, `expires_at` are valid before persisting | HIGH |
+| chokidar | ^4.0.3 | File watching for live pheromone monitoring | Only if building a `--watch` mode for `/ant:pheromones`. Current `pheromone-display` is poll-based; chokidar enables reactive updates. Used in 30M+ repos, proven stable | MEDIUM |
+| js-yaml | ^4.1.0 (already installed) | YAML parsing | Already a dependency. No change needed | HIGH |
 
-**No aether-utils.sh changes needed.**
+### Development Tools (No Changes)
 
----
-
-### Gap 2: Learnings → Instincts via instinct-create
-
-**What exists:**
-- `instinct-create` is fully implemented (lines 7252-7369 aether-utils.sh)
-- continue-advance.md Steps 3, 3a, 3b already call `instinct-create` with correct
-  argument shapes for patterns from phase work, midden error patterns, and success patterns
-- `memory-capture` calls `learning-promote-auto` which also calls `instinct-create` on
-  promotion (line 5381)
-
-**What is the actual gap:**
-The instructions in Steps 3, 3a, 3b are written as guidance for the Queen LLM agent to
-interpret and translate into bash calls ("Review the completed phase for repeating
-patterns"). This is ambiguous — the LLM must decide what constitutes a pattern.
-High-confidence instincts that SHOULD be created from explicit phase learnings stored in
-`COLONY_STATE.json memory.phase_learnings` are not extracted programmatically. The
-pipeline from `memory.phase_learnings[].learnings[].claim` → `instinct-create` requires
-the LLM to bridge this gap interpretively, which produces inconsistent output.
-
-**Fix location:** `.aether/docs/command-playbooks/continue-advance.md` Step 3
-**Fix type:** Add explicit bash loop over `memory.phase_learnings` to feed claims directly
-into `instinct-create`, replacing (or supplementing) the open-ended LLM interpretation.
-No new subcommands needed — just a tighter bash block.
-
-**No aether-utils.sh changes needed.**
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| AVA ^6.0 | Unit tests (JS layer) | Current version 6.4.1 is latest stable. Supports Node 20+. No upgrade needed |
+| ShellCheck | Bash linting | Already in lint scripts. Keep using for new bash code |
+| bats-core 1.13.0 | Bash test framework | **Recommended addition** for structured bash testing instead of the custom harness. TAP-compliant, supports setup/teardown. However, the existing custom harness works -- adopt only if adding significant new bash test coverage |
+| sinon ^19.0.5 | JS test mocking | Already installed. No change needed |
+| proxyquire ^2.1.3 | Module stubbing | Already installed. No change needed |
 
 ---
 
-### Gap 3: Midden → Behavior via Threshold Tuning
+## What the Pheromone Integration Actually Needs (Stack Perspective)
 
-**What exists:**
-- `midden-write` implemented and called in build-wave.md at worker failure (line 414)
-- `midden-recent-failures` implemented and returns structured data
-- continue-advance.md Step 2.1c reads midden and emits REDIRECT pheromones for categories
-  with 3+ occurrences
-- continue-advance.md Step 3a reads midden and calls `instinct-create` for patterns with
-  2+ occurrences
+The gap is not missing libraries. The gap is **missing wiring**. Here is what each integration point needs from a technology standpoint:
 
-**What is the actual gap:**
-Two separate thresholds exist for the same midden data (3 for REDIRECT pheromones in
-2.1c, 2 for instinct creation in 3a) — this is intentional but undocumented, causing
-confusion about which threshold is correct. More critically, `midden-write` is called
-in build-wave.md only for builder worker failures — it is NOT called for:
-- Watcher failures
-- Chaos failures
-- Verification loop failures in continue-verify.md
+### 1. Signal Validation (Ajv -- NEW)
 
-So the midden underrepresents failures, and the threshold (3) may never be reached in
-practice for non-builder failure categories.
+**Problem:** `pheromone-write` accepts any JSON shape. Malformed signals cause silent failures downstream when `pheromone-read` or `pheromone-prime` tries to process them.
 
-**Fix location:**
-- `.aether/docs/command-playbooks/build-wave.md` — add `midden-write` at Watcher and
-  Chaos failure points
-- `.aether/docs/command-playbooks/continue-verify.md` — add `midden-write` at
-  verification failures (build fail, test fail, success criteria not met)
+**Solution:** Add Ajv-based JSON Schema validation in the Node.js CLI layer. Define a schema for the pheromone signal shape and validate before the bash layer writes.
 
-**No aether-utils.sh changes needed.** Threshold values are in the playbook markdown
-as literals (2 and 3) — they can be changed as markdown edits.
+**Why Ajv over alternatives:**
+- Ajv: 14M ops/sec, JSON Schema standard, shareable across languages
+- Zod: Great for TypeScript, but Aether is CJS JavaScript -- no TypeScript benefit
+- Joi: Slower, heavier API, no JSON Schema standard compatibility
 
----
+**Implementation pattern:**
+```javascript
+// bin/lib/pheromone-schema.js
+const Ajv = require('ajv');
+const ajv = new Ajv({ allErrors: true });
 
-### Gap 4: Memory-Capture at Decision and Failure Points
-
-**What exists:**
-- `memory-capture` is fully implemented with all six event types
-- continue-advance.md Step 2.5 calls it for each learning extracted from the phase
-- build-wave.md calls it for builder worker failures (line 414)
-- `phase-insert` calls it for inserted phases (line 3462 of aether-utils.sh)
-
-**What is the actual gap:**
-`memory-capture` is NOT called at:
-1. **Decision points** — when `context-update decision` is called (build or continue), no
-   corresponding `memory-capture "feedback" "$decision" "pattern" "worker:continue"` fires
-2. **Non-builder failures** — Watcher failures and Chaos failures in build-wave.md
-   don't call `memory-capture "failure"` (only `midden-write` is called there for builder
-   failures, and `memory-capture` is only at line 414 for builders)
-3. **Verification failures** — continue-verify.md's gate decision (NOT READY path) does
-   not call `memory-capture` at all
-
-The result: the `learning-observations.json` accumulator never sees decision events or
-non-builder failures. These never reach `learning-check-promotion` thresholds and never
-auto-promote to QUEEN.md.
-
-**Fix location:**
-- `.aether/docs/command-playbooks/build-wave.md` — add `memory-capture "failure"` at
-  Watcher and Chaos failure handling
-- `.aether/docs/command-playbooks/continue-verify.md` — add `memory-capture "failure"`
-  in the NOT READY gate path
-- `.aether/docs/command-playbooks/continue-advance.md` or
-  `.aether/docs/command-playbooks/continue-finalize.md` — add `memory-capture "feedback"`
-  for each decision recorded via `context-update decision`
-
-**No aether-utils.sh changes needed.**
-
----
-
-## JSON Structures to Validate Before Calling Each Subcommand
-
-These are the shapes the bash caller must conform to. Callers that produce wrong shapes
-fail silently (the subcommands use `|| true` everywhere).
-
-### pheromones.json (read by dedup checks)
-
-```json
-{
-  "signals": [
-    {
-      "id": "sig_...",
-      "type": "FOCUS|REDIRECT|FEEDBACK",
-      "active": true,
-      "source": "auto:decision|system:decision|auto:error|auto:success|worker:continue",
-      "content": { "text": "..." },
-      "strength": 0.6,
-      "ttl": "30d",
-      "created_at": "ISO-8601"
-    }
-  ]
-}
-```
-
-**Dedup check pattern (correct):**
-```bash
-existing=$(jq -r --arg text "$dec" '
-  [.signals[] | select(.active == true
-    and (.source == "auto:decision" or .source == "system:decision")
-    and (.content.text | contains($text)))] | length
-' .aether/data/pheromones.json 2>/dev/null || echo "0")
-```
-
-**The bug:** `context-update decision` emits content `"Decision: $decision — $rationale"`.
-The dedup check uses `contains($text)` where `$text` is the raw `$dec` (no prefix). This
-WILL match because `contains` does substring match, not exact match. The dedup should work
-— but only if `$dec` is the exact string that appears in the `context-update decision`
-pheromone's content. Verify the AWK extraction in Step 2.1b produces the same text used
-as input to `context-update decision`.
-
-### COLONY_STATE.json memory.instincts[] (written by instinct-create)
-
-```json
-{
-  "memory": {
-    "instincts": [
-      {
-        "id": "instinct_<epoch>",
-        "trigger": "when this situation arises",
-        "action": "what to do",
-        "confidence": 0.7,
-        "status": "hypothesis",
-        "domain": "testing|architecture|code-style|debugging|workflow",
-        "source": "phase-{id}",
-        "evidence": "specific observation",
-        "applications": 0,
-        "created_at": "ISO-8601",
-        "last_applied": null
-      }
-    ]
+const signalSchema = {
+  type: 'object',
+  required: ['type', 'content'],
+  properties: {
+    type: { enum: ['FOCUS', 'REDIRECT', 'FEEDBACK'] },
+    content: {
+      type: 'object',
+      required: ['text'],
+      properties: { text: { type: 'string', minLength: 1 } }
+    },
+    strength: { type: 'number', minimum: 0, maximum: 1 },
+    expires_at: { type: 'string' },
   }
-}
+};
+
+const validate = ajv.compile(signalSchema);
+module.exports = { validate, signalSchema };
 ```
 
-**Cap enforcement:** `instinct-create` automatically evicts the lowest-confidence instinct
-when count exceeds 30. No caller needs to handle this.
+### 2. Signal Reading in Workers (No New Tech -- Bash)
 
-### COLONY_STATE.json memory.phase_learnings[] (read to drive Gap 2 fix)
+**Problem:** Workers (Builder, Watcher, Chaos, etc.) receive `prompt_section` from `colony-prime` but don't parse or act on individual signals programmatically.
 
-```json
-{
-  "memory": {
-    "phase_learnings": [
-      {
-        "id": "learning_<epoch>",
-        "phase": 3,
-        "phase_name": "phase-name",
-        "learnings": [
-          {
-            "claim": "specific actionable learning",
-            "status": "hypothesis|validated|disproven",
-            "tested": false,
-            "evidence": "what observation led to this",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "ISO-8601"
-      }
-    ]
-  }
-}
-```
+**Solution:** This is a prompt engineering + bash wiring problem. The `pheromone-prime` output already produces structured text blocks. Workers need to be updated to read and respond to these blocks. No new library needed.
 
-**The correct bash loop for Gap 2 fix:**
+### 3. Signal Auto-Emission During Builds (No New Tech -- Bash)
+
+**Problem:** Auto-emission in `continue-advance.md` Steps 2.1a-2.1d is well-defined but fragile. Failures in pheromone writes silently swallow errors.
+
+**Solution:** Add structured error reporting in the existing bash layer. The `memory-capture` function already handles auto-pheromone emission. The wiring gap is in the build playbooks, not in missing technology.
+
+### 4. Signal Lifecycle Management (No New Tech -- jq)
+
+**Problem:** Decay calculation in `pheromone-read` uses approximate epoch math (30-day months). Expired signals accumulate in pheromones.json.
+
+**Solution:** Fix the jq decay math and add a cleanup step. No new library -- this is a jq logic fix.
+
+### 5. Cross-Session Signal Persistence (No New Tech -- File I/O)
+
+**Problem:** Signals with `expires_at: "phase_end"` are expired by `pheromone-expire --phase-end-only`, but there is no mechanism to carry high-value signals across colony sessions.
+
+**Solution:** The `eternal-init` and `pheromone-export-eternal` subcommands already exist. The gap is that they are not called at the right lifecycle points. This is a playbook wiring fix, not a technology gap.
+
+---
+
+## Installation
+
 ```bash
-current_phase_num=$(jq -r '.current_phase' .aether/data/COLONY_STATE.json)
-jq -r --argjson phase "$current_phase_num" '
-  .memory.phase_learnings[]?
-  | select(.phase == $phase)
-  | .learnings[]?
-  | select(.status != "disproven")
-  | .claim
-' .aether/data/COLONY_STATE.json 2>/dev/null | while IFS= read -r claim; do
-  [[ -z "$claim" ]] && continue
-  bash .aether/aether-utils.sh instinct-create \
-    --trigger "When working on patterns from phase $current_phase_num" \
-    --action "$claim" \
-    --confidence 0.7 \
-    --domain "workflow" \
-    --source "phase-$current_phase_num" \
-    --evidence "$claim" 2>/dev/null || true
-done
+# New dependency (only addition)
+npm install ajv@^8.18.0
+
+# Optional: upgrade commander (currently ^12, recommend ^14)
+npm install commander@^14.0.3
+
+# Optional: add file watching for live pheromone display
+npm install chokidar@^4.0.3
+
+# Optional: structured bash testing
+brew install bats-core  # or: npm install -g bats
 ```
-
-### midden.json (written by midden-write, read by midden-recent-failures)
-
-```json
-{
-  "version": "1.0.0",
-  "entry_count": 5,
-  "entries": [
-    {
-      "id": "midden_<epoch>_<pid>",
-      "timestamp": "ISO-8601",
-      "category": "security|test_failure|build|coverage|edge_cases|integration|general",
-      "source": "gatekeeper|watcher|chaos|builder|probe",
-      "message": "...",
-      "reviewed": false
-    }
-  ]
-}
-```
-
-**midden-recent-failures return shape:**
-```json
-{
-  "count": 5,
-  "failures": [
-    {"timestamp": "...", "category": "...", "source": "...", "message": "..."}
-  ]
-}
-```
-
-Note: `count` is the TOTAL entry count, not the count of returned entries. The limit
-parameter controls how many are returned in `failures[]`.
-
-### learning-observations.json (written by memory-capture via learning-observe)
-
-```json
-{
-  "observations": [
-    {
-      "content_hash": "sha256:<hash>",
-      "content": "the claim text",
-      "wisdom_type": "pattern|failure|redirect",
-      "observation_count": 2,
-      "colonies": ["colony-name"],
-      "first_seen": "ISO-8601",
-      "last_seen": "ISO-8601"
-    }
-  ]
-}
-```
-
-**Dedup mechanism:** `memory-capture` calls `learning-observe`, which hashes content and
-increments `observation_count` if the hash already exists. This means calling
-`memory-capture` with the same claim text twice (across phases) correctly increments
-the count. The auto-promotion threshold for `pattern` type is 2 (propose) / 3 (auto).
 
 ---
 
-## What Requires aether-utils.sh Changes vs Pure Playbook Changes
+## Alternatives Considered
 
-### Pure Playbook Changes (markdown edits only)
-
-| Gap | File(s) to Edit | Change |
-|-----|-----------------|--------|
-| Gap 1 (PHER-01) | `continue-advance.md` Step 2.1b | Align dedup check: use same source name `"system:decision"` OR change `context-update decision` to not auto-emit so Step 2.1b is sole emitter |
-| Gap 2 (learnings→instincts) | `continue-advance.md` Step 3 | Replace open-ended LLM instruction with explicit bash loop over `memory.phase_learnings` |
-| Gap 3 (midden→behavior) | `build-wave.md`, `continue-verify.md` | Add `midden-write` calls at Watcher/Chaos failure points and verification NOT READY path |
-| Gap 4 (memory-capture) | `build-wave.md`, `continue-verify.md`, `continue-advance.md` or `continue-finalize.md` | Add `memory-capture` calls at missing trigger points |
-
-### Potential aether-utils.sh Changes (evaluate during implementation)
-
-| Change | Why | Priority |
-|--------|-----|----------|
-| `context-update decision` — suppress auto-pheromone OR change source to `"auto:decision"` | Eliminates the dedup conflict between `system:decision` and `auto:decision` formats | Low — dedup may work correctly as-is; verify first |
-| Add `midden-write` call inside `spawn-complete` for failed status | Centralizes failure tracking so it fires regardless of which playbook handles the failure | Medium — reduces duplication across multiple playbook files |
-
-**Recommendation:** Start with pure playbook changes only. Resist adding aether-utils.sh
-subcommands — each new subcommand adds to an already 9,808-line file and requires
-syncing with `.aether/agents-claude/` mirrors.
-
----
-
-## Alternatives Considered and Rejected
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| Gap 1 fix | Align dedup check in playbook | Add new `decisions-to-pheromones` subcommand | New subcommand adds complexity for a one-line bash fix |
-| Gap 2 fix | Explicit bash loop over phase_learnings | New `phase-to-instincts` subcommand | Logic is simple enough for a bash block; no new infrastructure needed |
-| Gap 3 fix | Add midden-write calls at additional failure points | Lower threshold from 3 to 1 | Threshold of 1 defeats the purpose of recurrence detection; better to capture more failures |
-| Gap 4 fix | Add memory-capture calls at missing trigger points | Centralize all memory-capture in a single `build-complete` hook | Single hook can't distinguish failure type (decision vs failure vs success) for correct event_type mapping |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Ajv (JSON Schema) | Zod | If project migrates to TypeScript. Zod's type inference is wasted in plain JS |
+| Ajv (JSON Schema) | Joi | If you need complex custom validation beyond schema (e.g., conditional required fields with async checks). Joi is 40x slower but more expressive for edge cases |
+| Keep bash for signal logic | Migrate signal logic to Node.js | If aether-utils.sh exceeds ~15K lines and jq operations become the bottleneck. Currently at ~10K lines -- still manageable |
+| jq for JSON processing | Node.js native JSON | If concurrent write contention becomes a real problem (multiple agents writing pheromones.json simultaneously). Node.js has better locking primitives. Current file-lock.sh is adequate for sequential builds |
+| Custom bash test harness | bats-core 1.13.0 | If adding 20+ new bash test cases for pheromone integration. bats provides proper test isolation, TAP output, and setup/teardown. For fewer tests, the existing harness is fine |
+| chokidar for file watching | Node.js native fs.watch | If targeting Node 22+ only. fs.watch is now more reliable on modern Node but still has cross-platform quirks. chokidar handles edge cases |
 
 ---
 
@@ -386,29 +154,81 @@ syncing with `.aether/agents-claude/` mirrors.
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Python/Node for any gap fix | Breaks portability; entire system is bash | Bash + jq |
-| New JSON state files | Four gaps are about calling existing subcommands, not storing new state | Existing `pheromones.json`, `COLONY_STATE.json`, `midden.json`, `learning-observations.json` |
-| New agent definitions | Gaps are in orchestration playbooks, not agent behavior | Edit existing playbook markdown files |
-| `--no-verify` on git | Would hide pre-commit failures | Fix the failing hook, don't skip it |
+| Event sourcing frameworks (reSolve, EventSourcing.NodeJS) | Massive overkill. Aether's pheromone system is a simple signal store with decay, not a CQRS event log. Adding event sourcing infrastructure would triple complexity for zero benefit | JSON files with atomic writes (already have this) |
+| Redis / SQLite for signal storage | Adds a runtime dependency to a CLI tool distributed via npm. Users would need Redis running or SQLite binaries. JSON files are portable, human-readable, and sufficient at Aether's scale (dozens of signals, not millions) | pheromones.json with file locking (already have this) |
+| RxJS / event emitter libraries | Signals are not real-time streams. They are written during builds and read during builds. There is no "push" use case. Adding reactive programming adds conceptual overhead with no benefit | Direct file read/write with jq (already have this) |
+| Multi-agent orchestration frameworks (LangGraph, CrewAI, AutoGen) | These are for LLM-to-LLM agent orchestration. Aether's agents are prompt-driven Claude Code subagents, not autonomous LLM chains. Different paradigm entirely | Current slash-command + Task tool spawning (already have this) |
+| TypeScript migration | The codebase is CJS Node.js + bash. A TypeScript migration would touch every JS file, break the existing test suite, and add a build step -- all for a system that is prompt-driven, not logic-heavy. The Node.js layer is thin (CLI entry, file operations, validation). The real logic lives in bash and markdown playbooks | Keep CJS JavaScript. Add JSDoc type annotations if type safety is desired |
+| Zod | Only beneficial for TypeScript projects. In plain CJS JavaScript, Zod's type inference provides no benefit over Ajv, and Ajv is 7x faster | Ajv |
+| Complex pub/sub (NATS, RabbitMQ) | CLI tool, not a distributed service. Agents run in the same process tree. File-based signaling is the right abstraction for this scale | File-based pheromones.json (already have this) |
+
+---
+
+## Stack Patterns by Variant
+
+**If adding new pheromone subcommands (bash):**
+- Follow existing pattern in `aether-utils.sh`: case branch, `json_ok`/`json_err` return, file-lock + atomic-write for mutations
+- Use `jq` for all JSON processing (no inline node calls from bash)
+- Add corresponding test in `tests/bash/test-aether-utils.sh`
+
+**If adding new validation/schema logic (Node.js):**
+- Add to `bin/lib/` directory following existing patterns (`errors.js`, `model-profiles.js`)
+- Use Ajv for schema compilation at module load time (compile once, validate many)
+- Add AVA tests in `tests/unit/`
+
+**If modifying build/continue playbooks (markdown):**
+- Playbooks are in `.aether/docs/command-playbooks/`
+- Changes here are prompt-engineering, not code -- no library dependency
+- Test by running the actual command in a colony session
+
+**If adding cross-session signal persistence:**
+- Use existing `eternal-init` + `pheromone-export-eternal` subcommands
+- Storage goes to `~/.aether/eternal/pheromones.xml`
+- No new technology needed -- just call existing subcommands at right lifecycle points
+
+---
+
+## Version Compatibility
+
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| commander@^14.0.3 | Node.js >=20 | v15 (May 2026) will be ESM-only. Stay on v14 for CJS compatibility |
+| ajv@^8.18.0 | Node.js >=16 | Supports both CJS and ESM. Safe to use with current `"engines": {"node": ">=16.0.0"}` |
+| chokidar@^4.0.3 | Node.js >=14 | v5 is ESM-only. Stay on v4 if adding this dependency |
+| ava@^6.0 | Node.js >=20 | Already installed. No compatibility concerns |
+| jq | Any version >= 1.5 | System dependency. Most systems have 1.6+. No concerns |
+| bash | 3.2+ | macOS ships 3.2 (GPLv2). All existing code works with 3.2. Avoid bash 4+ features (associative arrays, `${var,,}` lowercasing) |
+
+---
+
+## Key Insight: The Stack is Not the Problem
+
+The existing stack (bash + jq + Node.js + JSON files) is well-suited for Aether's pheromone system. The integration gap is **behavioral, not technological**:
+
+1. **Workers receive signals but do not act on them** -- this is a prompt/playbook problem
+2. **Auto-emission exists but is fragile** -- this is error-handling in bash, not a missing library
+3. **Signals do not carry across sessions** -- the infrastructure exists (`eternal-*`), it is just not wired into lifecycle
+4. **No validation at write time** -- Ajv fixes this (the one actual technology gap)
+5. **Decay math is approximate** -- this is a jq formula fix
+
+Adding Ajv for schema validation is the only genuine technology addition. Everything else is wiring, error handling, and prompt engineering within the existing stack.
 
 ---
 
 ## Sources
 
-All findings are HIGH confidence based on direct source code inspection:
-
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` lines 482-514 (context-update decision + auto-pheromone)
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` lines 5402-5501 (memory-capture full implementation)
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` lines 5286-5331 (learning-check-promotion)
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` lines 7252-7369 (instinct-create)
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` lines 8211-8270 (midden-write)
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` lines 9581-9605 (midden-recent-failures)
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/continue-advance.md` (Steps 2.1b, 2.1c, 3, 3a, 3b)
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/continue-finalize.md` (Step 2.1.6 QUEEN-01)
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/build-wave.md` lines 400-419 (failure tracking)
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/build-context.md` Step 4 (colony-prime)
+- [Commander.js npm page](https://www.npmjs.com/package/commander) -- verified v14.0.3 is latest stable, v15 ESM-only in May 2026 (HIGH confidence)
+- [Ajv npm page](https://www.npmjs.com/package/ajv) -- verified v8.18.0 is latest stable (HIGH confidence)
+- [Ajv official docs](https://ajv.js.org/) -- JSON Schema draft-2020-12 support confirmed (HIGH confidence)
+- [AVA GitHub](https://github.com/avajs/ava) -- v6.4.1 confirmed latest, Node 20+ required (HIGH confidence)
+- [bats-core GitHub](https://github.com/bats-core/bats-core) -- v1.13.0 latest, Bash 3.2+ compatible (HIGH confidence)
+- [chokidar GitHub](https://github.com/paulmillr/chokidar) -- v4 confirmed CJS-compatible (MEDIUM confidence)
+- [Validation library comparison](https://www.bitovi.com/blog/comparing-schema-validation-libraries-ajv-joi-yup-and-zod) -- Ajv 14M ops/sec vs Joi 322K vs Zod 1.9M benchmarks (MEDIUM confidence)
+- [jq issue #2152](https://github.com/jqlang/jq/issues/2152) -- confirmed in-place write hazard requiring temp file pattern (HIGH confidence)
+- [Stigmergy patterns in multi-agent systems](https://www.rodriguez.today/articles/emergent-coordination-without-managers) -- validated pheromone/stigmergy as established coordination pattern (MEDIUM confidence)
+- [TTL best practices](https://www.imperva.com/learn/performance/time-to-live-ttl/) -- decay/expiration patterns verified against existing Aether implementation (MEDIUM confidence)
+- Existing codebase analysis: `aether-utils.sh`, `pheromones.json`, `file-lock.sh`, `atomic-write.sh`, build/continue playbooks (HIGH confidence -- primary source)
 
 ---
-
-*Stack research for: Aether integration gap fixes (bash-only wiring changes)*
-*Researched: 2026-03-14*
+*Stack research for: Aether pheromone integration milestone*
+*Researched: 2026-03-19*

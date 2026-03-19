@@ -1,187 +1,188 @@
 # Project Research Summary
 
-**Project:** Aether v1.2 — Integration Gap Fixes
-**Domain:** Multi-agent colony system — wiring existing components together
-**Researched:** 2026-03-14
+**Project:** Aether v1.3 Maintenance Milestone — Pheromone Integration & System Polish
+**Domain:** Multi-agent CLI orchestration system with stigmergic coordination
+**Researched:** 2026-03-19
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This is not a build milestone. It is a wiring milestone. Aether v1.1 ships a complete self-improving colony system — pheromones, instincts, midden failure tracking, memory capture, decisions, and queen promotion are all implemented and tested. The problem is that these subsystems operate in isolation. The colony memory is nearly empty in practice: decisions [], instincts [], only 1 phase_learning. The four integration loops (decisions → pheromones, learnings → instincts, midden → behavior, memory capture consistency) are documented in playbooks and backed by working subcommands, but the wiring between them has gaps that prevent natural accumulation during real build/continue cycles.
+Aether is a mature multi-agent CLI orchestration system with ~10K lines of bash, 150 subcommands, 22 agents, 36 slash commands, and 490+ tests. The v1.3 maintenance milestone is not about adding new capabilities — it is about wiring together what already exists. The core insight from all four research streams is the same: the infrastructure is complete but the integration seams are broken. Signals can be written and read, but workers do not act on them. The learning pipeline exists but is polluted with test data that prevents validating real behavior. The fresh-install experience is documented but not smoke-tested and ships test artifacts.
 
-The recommended approach is purely additive. No new subcommands, no new state files, no new languages. Every fix is a targeted markdown edit to existing playbook files (continue-advance.md, build-wave.md, build-verify.md, build-complete.md) that either adds a missing subcommand call at an existing trigger point, or verifies and tightens an existing call that fires inconsistently. The entire implementation surface is 4-6 playbook files and approximately 30-50 lines of bash additions. Every temptation to add infrastructure should be resisted — the system already has too much; the challenge is connecting what exists.
+The recommended approach is strictly sequential: clean the system before integrating it. Test data pollution in pheromones.json, COLONY_STATE.json, QUEEN.md, and constraints.json must be removed first because everything downstream depends on clean state. Only then can pheromone injection be verified end-to-end, the learning pipeline validated, and the fresh-install experience hardened. Doing integration work on a polluted system produces misleading results and wastes effort.
 
-The primary risks are behavioral, not technical. New playbook instructions compete silently with existing ones, silent failure paths swallow errors without signal, and memory-capture calls with generic content strings inflate observation counts without adding knowledge. Every phase must include runtime artifact verification — confirming that midden.json, pheromones.json, and learning-observations.json contain actual new entries after a test build cycle. Code review of playbook edits is necessary but not sufficient.
-
----
+The key risk is the size of the blast radius. aether-utils.sh has 150 subcommands with no module boundaries. A single schema change can break tests across 47+ files simultaneously. The mitigation is strict discipline: run the full test suite after every atomic change, make schema changes additive-only, and never batch changes. The second risk is documentation drift — the docs currently claim workers "read signals" when they actually receive injected context. Updating docs before the integration is verified creates a second round of corrections.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No stack changes. The existing runtime is Bash 3.2+ with jq 1.6+, awk, and sed. These are the only dependencies across the entire 9,808-line system and they cover all four integration gaps without modification. Every capability needed for the fixes — pheromone-write, instinct-create, midden-write, memory-capture — is already implemented and verified in aether-utils.sh. The implementation surface is playbook markdown, not shell functions.
+The existing stack (bash + jq + Node.js CJS + JSON files) is the right stack for this system. No new infrastructure is needed. The one genuine technology addition is **Ajv** (`^8.18.0`) for JSON Schema validation of pheromone signals at write time — this prevents malformed signals from entering the system silently. Everything else identified as a "gap" is wiring, error handling, or prompt engineering within the existing stack.
 
 **Core technologies:**
-- **Bash 3.2+**: Orchestration and all subcommand dispatch — already in use everywhere, no change needed
-- **jq 1.6+**: JSON read/write for all state files — required by 150+ subcommands; defensive reads (`// "fallback"` pattern) are mandatory for every new field access to ensure backward compatibility
-- **awk / sed**: CONTEXT.md parsing and inline file updates — used in the decision→pheromone pipeline; deduplication format alignment needs verification
-
-See `.planning/research/STACK.md` for exact subcommand signatures, argument shapes, and JSON schemas for all four data files (pheromones.json, COLONY_STATE.json, midden.json, learning-observations.json).
+- **bash + jq** — Signal storage and lifecycle logic; 150 subcommands in aether-utils.sh. Stay as-is, avoid migrating signal logic to Node.js until file exceeds ~15K lines
+- **Ajv `^8.18.0`** — Schema validation for pheromone signal JSON before write; only genuine new dependency. 14M ops/sec, CJS-compatible, JSON Schema standard (not Zod which requires TypeScript benefit)
+- **Commander.js `^14.0.3`** — Upgrade from current `^12`; stay on v14 (v15 goes ESM-only May 2026 which would break CJS codebase)
+- **AVA `^6.4.1`** — Already installed, no change. Covers JS unit tests
+- **Custom bash test harness** — Keep for now; adopt bats-core only if adding 20+ new bash test cases
 
 ### Expected Features
 
-The six table-stakes features (T1-T6 from FEATURES.md) close all four integration loops and constitute the full v1.2 MVP. They are all LOW to MEDIUM complexity, all wire existing subcommands to existing call sites, and all can be built in any order without dependencies between them.
+All features for this milestone are maintenance and wiring work, not new capabilities.
 
-**Must have (close the four integration loops):**
-- **T1: Decision-to-pheromone inline emission** — `context-update decision` must call `pheromone-write FEEDBACK` at the moment of the decision, not only in the post-phase batch in continue-advance.md Step 2.1b
-- **T2: Approach-change memory capture** — approach-changes.md (written by builders during task execution, never read afterward) must feed `midden-write` and `memory-capture "failure"` to make abandoned approaches discoverable
-- **T3: Recurrence-calibrated instinct confidence** — `learning-observations.json` already tracks `observation_count` per content hash; this count must drive instinct confidence (`min(0.9, 0.7 + (obs_count - 1) * 0.05)`) rather than always defaulting to 0.7 regardless of recurrence evidence
-- **T4: Intra-phase midden threshold check** — the midden REDIRECT threshold (3+ occurrences of same error category) must fire within a build phase in build-wave.md, not only at phase-end during continue
-- **T5: Failure capture at all failure points** — `memory-capture "failure"` is missing at Gatekeeper CRITICAL and Auditor CRITICAL paths in continue-gates.md; must be wired consistently with the pattern already used in build-wave.md Step 5.2
-- **T6: Rolling-summary fed into colony-prime** — `memory-capture` maintains a rolling-summary on every event but `colony-prime` does not include it; last 5 rolling-summary entries must appear in the priming payload so workers have recent activity awareness
+**Must have (table stakes):**
+- **Clean data files on install** — test artifacts in pheromones.json, COLONY_STATE.json, QUEEN.md, constraints.json make the system look broken to new users; 11 learning-observations are entirely test data
+- **Pheromones that actually affect worker behavior** — the docs claim signals guide workers but no agent definition references pheromones; injection model works but must be verified end-to-end
+- **Working fresh install flow** — lay-eggs -> init -> plan -> build must work without errors; no smoke test validates this today
+- **Documentation that matches reality** — CLAUDE.md references eliminated features; pheromone docs describe aspirational behavior; known-issues.md has stale FIXED statuses
 
-**Should have (enhance the loops after validation):**
-- **D4: User-feedback → instinct auto-create** — `/ant:feedback` FEEDBACK pheromones with strength > 0.7 should auto-create an instinct with confidence 0.9, closing the user → colony knowledge loop directly
-- **D3: Instinct-to-pheromone echo at build start** — high-confidence instincts (>=0.85) should echo as FOCUS pheromones before each build wave, converting durable learned knowledge into current-phase signals
+**Should have (competitive):**
+- **Closed-loop learning pipeline** — observation -> learning -> instinct -> pheromone exists as components but is not validated end-to-end; unique differentiator among multi-agent frameworks
+- **`data-clean` command** — utility to purge test artifacts and expired signals safely; no competitor needs this (they are stateless), but Aether's persistence model requires it
+- **XML exchange command surface** — `/ant:export-signals`, `/ant:import-signals` using the fully-built but unactivated pheromone-xml.sh exchange module
 
-**Defer to v1.3+ (needs more data or infrastructure):**
-- D1: Confidence decay for unverified instincts — requires T3 first; adds maintenance overhead
-- D2: Cross-phase midden pattern surfacing — requires schema extension and a new `midden-pattern-summary` subcommand
-
-**Anti-features to reject explicitly:**
-- Automatic pheromone emission from every decision — causes signal saturation; the 3-per-continue cap exists precisely for this reason
-- Real-time instinct updates during build — concurrent write conflicts; the instinct store is designed for phase-boundary updates only
-- Midden as a blocking gate — midden is a record system, not a quality gate; block only on Gatekeeper CRITICAL findings (already implemented)
+**Defer (v2+):**
+- **Agent Teams migration** — Claude Code Agent Teams (Feb 2026) enables inter-worker communication; significant architecture change, current system works adequately
+- **Cross-colony wisdom sync** — requires XML exchange to be activated and tested first
+- **Dashboard web UI** — out of scope for a CLI tool; ASCII dashboards already work
 
 ### Architecture Approach
 
-All four gaps share the same structural pattern: a source event (decision, failure, success, learning) occurs in a playbook step, but the downstream pipeline call (memory-capture, midden-write, pheromone-write) is either missing at that step or fires in a post-hoc batch that arrives too late to steer the workers who produced the event. The fix in every case is to add the pipeline call at the event's call site, not to restructure the pipeline itself.
+Aether implements textbook stigmergic coordination: workers never communicate directly, all coordination flows through shared environment files (pheromones.json, COLONY_STATE.json). The Queen orchestrator reads signals, compiles them into `prompt_section` via `colony-prime`, and injects that context into each worker's spawn prompt. This injection model is architecturally sound — the gap is not the model, it is missing verification that the injection is happening correctly and that workers are acting on the injected context.
 
-The established signal propagation chain is correct and requires no changes: `continue run N → pheromone-write → pheromones.json → build run N+1 → colony-prime → prompt_section → builder worker sees signal`. The gaps are in the upstream trigger points, not in the propagation path.
-
-**Major components (integration-relevant):**
-1. **Build playbooks** (build-wave.md, build-verify.md, build-complete.md) — event sources for failures, successes, and approach changes; missing `midden-write` and `memory-capture` calls at several failure and success points
-2. **Continue playbooks** (continue-advance.md) — aggregation point for decision→pheromone and midden→REDIRECT conversion; code exists but deduplication format alignment and step ordering need verification
-3. **aether-utils.sh** (150 subcommands) — fully implemented with no changes needed; all callers must conform to exact argument signatures documented in STACK.md
-4. **colony-prime** — assembles worker priming payload from pheromones + instincts + QUEEN.md; does not yet include rolling-summary content (T6 gap)
-
-Patterns to follow for all new integration calls: fail-safe execution (`2>/dev/null || true`), silent-when-empty for promotion proposals, capped emissions (3 per continue run for decisions and error patterns), and deduplication before emission for pheromones. Note: `memory-capture` handles its own deduplication internally via content hash — do not add external dedup checks around memory-capture calls.
+**Major components and their signal roles:**
+1. **pheromones.json** — Single source of truth for active signals; constraints.json is a deprecated backward-compat write that should eventually be eliminated
+2. **colony-prime** — The single aggregation point: wisdom + signals + learnings + context capsule = prompt_section. All new signal types must flow through this, never directly to workers
+3. **memory-capture** — Unified pipeline entry point: observe + emit pheromone + check promotion threshold. All new event recording must go through this, not parallel paths
+4. **build-wave.md + continue-advance.md** — The integration points where signals enter and exit the build lifecycle; these are prompt-engineering files, not code, and are where most wiring work happens
 
 ### Critical Pitfalls
 
-1. **Competing playbook instructions** — a new instruction added to an existing step can conflict with an earlier instruction in the same step; the agent satisfies the earlier one and silently ignores the new one, producing no error. Prevention: read the full step context before adding any instruction; explicitly state the additive relationship; verify both old and new behavior fire in a test build.
-
-2. **Wiring correct but never observed** — all integration calls are added correctly, but `2>/dev/null || true` swallows silent failures. The developer declares the phase complete based on code review, but colony memory stays empty because a call is failing silently. Prevention: each phase's success criteria must include runtime artifact verification — confirm that specific files contain new entries after a test build cycle.
-
-3. **Generic memory-capture content strings** — content like "Builder failed" hashes to similar values across unrelated events, inflates observation counts, and triggers auto-promotion of vague patterns to QUEEN.md. Prevention: every `memory-capture` call site must include discriminating specifics (task ID, agent name, category); content must describe a pattern, not an occurrence.
-
-4. **Lowering the midden threshold instead of fixing the write path** — the 3+ occurrence threshold is a deliberate calibration; lowering it causes a noise spiral where ephemeral failures become 30-day REDIRECT constraints that steer builders away from already-fixed areas. Prevention: fix the write path (add more midden-write call sites) before considering threshold changes.
-
-5. **Schema backward compatibility breaks** — new jq reads that assume fields added in v1.0/v1.1 fail silently on colonies initialized before those fields existed. Prevention: every new field read must use `// "fallback"` pattern; always test on a fresh `/ant:init` colony, not only the current dev colony.
-
----
+1. **Test data cleanup removes canonical seed data** — QUEEN.md has 5 legitimate seed entries mixed with 25+ test entries. Aggressive cleanup removes seeds that new colonies need; insufficient cleanup ships test artifacts. Prevention: document canonical entries before deleting, create a golden-state snapshot as baseline, add CI validation
+2. **Write-only signal system** — The pheromone plumbing was built bottom-up without verifying workers act on signals. Fix must be top-down: start from agent definitions (aether-builder.md, aether-watcher.md), not from plumbing. Start with REDIRECT (simplest behavior) before FOCUS or FEEDBACK
+3. **Test cascade from schema changes** — aether-utils.sh has no module boundaries; one JSON schema change can fail 50+ tests simultaneously. Prevention: additive-only schema changes, run full test suite after every atomic change, write tests first (TDD)
+4. **XML archival leaves dead references** — The XML exchange system has 6 files, tests, and aether-utils.sh help entries but zero active wiring. "Archive" must mean a specific, complete operation: move files, disable tests, remove from help listing, update validate-package.sh
+5. **Lock contention during parallel builds** — File-based locking has no jitter; parallel workers racing on pheromones.json can cause timeouts. Prevention: batch signal writes per wave, add jitter to retry, test with 3+ concurrent writes
 
 ## Implications for Roadmap
 
-Based on research, 5 phases are recommended, ordered by risk from lowest to highest. Phases 3 and 4 can be parallelized after Phase 2 completes — they edit different playbooks with no shared call sites.
+Based on combined research, the dependency chain is clear: clean before integrating, integrate before documenting, document before polishing.
 
-### Phase 1: Verification and Test Infrastructure
+### Phase 1: Data Cleanup and State Reset
 
-**Rationale:** The gaps are in existing code, not in missing code. Phase 1 establishes ground truth — what actually fires today — before any edits are made. Without a verified baseline, later phases have nothing to measure against and no way to confirm that a fix worked rather than a previously-working call broke.
-**Delivers:** Integration tests that assert each pipeline fires; baseline state of midden.json, pheromones.json, learning-observations.json documented; exact format of all relevant JSON fields confirmed against live data; test infrastructure in place for subsequent phases
-**Addresses:** Pitfall 6 — wiring correct but never observed; creates the observability layer that makes all subsequent phases verifiable
-**Avoids:** Making changes to a system whose current behavior is misunderstood; producing fixes that coincidentally break existing behavior that was actually working
+**Rationale:** Everything downstream depends on clean state. The learning pipeline cannot be validated with test-only observations. The fresh install cannot be verified if templates ship test artifacts. Signal injection cannot be audited when signals are fake. This phase has no upstream dependencies and is the prerequisite for all other phases.
 
-### Phase 2: Success Capture Additions (Gap 4, additive only)
+**Delivers:** Clean, verifiable baseline state. Canonical QUEEN.md with only seed entries. Empty or minimal pheromones.json. Reset COLONY_STATE.json. Archived XML system with no dead references. Stale constraints.json entries removed.
 
-**Rationale:** Lowest risk phase — purely additive, cannot break existing behavior. Adds `memory-capture "success"` at build-verify.md Step 5.7 (chaos reports strong resilience) and build-complete.md Step 5.9 (synthesis patterns_observed). These call sites are missing success capture entirely; adding it cannot affect existing failure paths.
-**Delivers:** Success events enter the memory pipeline for the first time; learning-observations.json begins accumulating positive patterns; Gap 4 partially closed on the success side
-**Uses:** `memory-capture "success"` (existing subcommand, ~10 lines added across 2 files)
-**Implements:** Gap 4 success-capture; T5 partial (success side)
-**Avoids:** Competing instruction pitfall — additive-only changes introduce no conflicts with existing instructions
+**Addresses:** Test data purge (P1), broken command audit (P1), stale state cleanup
 
-### Phase 3: Midden Write Path Expansion (Gap 3)
+**Avoids:** Pitfall 1 (seed data removal), Pitfall 3 (test cascade), Pitfall 4 (XML dead references), Pitfall 8 (stale cross-project COLONY_STATE), Pitfall 12 (XML-era constraints)
 
-**Rationale:** The midden threshold (3+ occurrences → REDIRECT) is correctly configured but the write path is narrow — only builder failures in build-wave.md currently write to midden. Watcher, Chaos, and verification failures are not recorded. Expanding the write path makes the threshold reachable for all failure categories without touching the threshold number itself.
-**Delivers:** All failure types write to midden; midden data reflects actual colony failure patterns across all agent types; intra-phase threshold check (T4) has meaningful data to act on; approach-changes.md is processed for the first time
-**Uses:** `midden-write` (existing subcommand); approach-changes.md processing for T2
-**Implements:** Gap 3 write-path expansion; T2 approach-change capture
-**Avoids:** Threshold lowering pitfall — fixing the write path is the correct intervention, not reducing the aggregation threshold
+**Research flag:** Standard patterns — cleanup work is well-understood, no deep research needed
 
-### Phase 4: Decision→Pheromone and Learning→Instinct Verification (Gaps 1 and 2)
+### Phase 2: Pheromone Integration Verification
 
-**Rationale:** These gaps have existing code in place — the question is whether it fires correctly. Phase 4 verifies and tightens continue-advance.md Steps 2.1b (decision→pheromone) and Steps 3/3a/3b (learnings→instincts). The recurrence-calibrated instinct confidence (T3, using observation_count from learning-observations.json) is added here.
-**Delivers:** Decision pheromones emit reliably after every continue run; instinct confidence reflects actual recurrence evidence rather than a fixed 0.7 baseline; deduplication format alignment verified and fixed if needed (PHER-01 dedup check)
-**Implements:** Gap 1 verification and fix; Gap 2 ordering confirmation; T3 confidence calibration
-**Avoids:** Over-precise instruction pitfall — each modified step retains a graceful degradation path with explicit non-blocking behavior
+**Rationale:** With clean data, the pheromone injection chain can be audited and verified end-to-end. The architectural approach (injection model via colony-prime) is correct; the gaps are in verification, error handling, and signal lifecycle management. This phase makes signals actually do what the docs claim.
 
-### Phase 5: Colony-Prime Enrichment and Intra-Phase Threshold (T4, T6)
+**Delivers:** Verified signal flow from `/ant:focus` through to worker prompt context. Pheromone-expire wired into build lifecycle (not just continue). Decay math tested with known timestamps. Signal garbage collection preventing accumulation. Agent definitions updated to reference and acknowledge signals. All three agent definition locations kept in sync (claude/agents, aether/agents-claude, opencode/agents).
 
-**Rationale:** These features depend on Phases 2-4 producing data. T6 (rolling-summary in colony-prime) is only meaningful once memory-capture fires at all new call sites; T4 (intra-phase midden threshold) is only meaningful once the midden receives data from all failure points established in Phase 3.
-**Delivers:** Workers receive rolling-summary context in priming payload for the first time; REDIRECT pheromones can fire within a build phase rather than only after continue; the colony knowledge loop is fully closed
-**Implements:** T6 (rolling-summary in colony-prime `--compact` output); T4 (intra-phase midden threshold check added to build-wave.md wave completion)
-**Avoids:** Building features on sparse data — T4 requires Phase 3's write-path expansion and T6 requires Phase 2-4's broad memory-capture coverage before they produce value
+**Addresses:** Pheromone injection audit (P1), signal lifecycle management, decay math validation
+
+**Avoids:** Pitfall 2 (write-only system), Pitfall 5 (decay math untested), Pitfall 7 (signal accumulation), Pitfall 9 (lock contention), Pitfall 10 (agent definition drift)
+
+**Research flag:** Likely needs research-phase — signal injection across the prompt_section boundary involves multiple interacting components; validate the audit approach before executing
+
+### Phase 3: Learning Pipeline End-to-End Validation
+
+**Rationale:** Once signals work correctly and state is clean, the learning pipeline (observation -> learning -> instinct -> pheromone) can be validated with real data. This is Aether's primary differentiator over stateless competitors and should be verified before documentation is updated to describe it.
+
+**Delivers:** End-to-end integration test following one observation through full pipeline. Real observation data in learning-observations.json. Verified that instincts appear in colony-prime output. Closed-loop confirmation that the learning system improves colony behavior.
+
+**Addresses:** Learning pipeline e2e test (P2), closed-loop verification, real-world instinct validation
+
+**Avoids:** Pitfall 1 (test data skewing pipeline results — must be clean from Phase 1 first)
+
+**Research flag:** Standard patterns — pipeline components are individually tested; integration test follows established test patterns already in codebase
+
+### Phase 4: Fresh Install Polish and Documentation Update
+
+**Rationale:** Documentation must be updated last, after all verified behavior is confirmed. The fresh install flow can only be smoke-tested once cleanup (Phase 1) and pheromone integration (Phase 2) are complete. This phase also validates that the distribution pipeline does not ship polluted state.
+
+**Delivers:** Automated smoke test for lay-eggs -> init -> plan -> build -> continue on a clean repo. Pre-publish validation step that rejects QUEEN.md test artifacts. Documentation updated to match verified behavior (not aspirational). `/ant:pheromones` behavior documented accurately (injection model, not independent worker reads).
+
+**Addresses:** Fresh install smoke test (P1), documentation accuracy pass (P1), distribution pipeline validation
+
+**Avoids:** Pitfall 6 (polluted state ships in npm), Pitfall 11 (docs promise features not working)
+
+**Research flag:** Standard patterns — smoke testing and documentation are well-understood; pre-publish validation follows existing validate-package.sh patterns
+
+### Phase 5: Secondary Features (P2 Items)
+
+**Rationale:** After the core system is clean, verified, and documented, the P2 enhancements add real value without risk of obscuring underlying issues.
+
+**Delivers:** `data-clean` command for safe artifact removal. XML exchange command surface (`/ant:export-signals`, `/ant:import-signals`). Error code standardization (BUG-004, -007, -008, -009, -010, -012). Commander.js upgrade to v14.
+
+**Addresses:** All P2 features from FEATURES.md
+
+**Research flag:** Standard patterns for data-clean and Commander upgrade; XML command surface may need brief research-phase to validate pheromone-xml.sh API surface
 
 ### Phase Ordering Rationale
 
-- Phase 1 before everything: establishes the baseline and test infrastructure that makes all subsequent phases verifiable; without it, there is no way to distinguish a working fix from a coincidental passing test
-- Phase 2 before 3 and 4: additive-only changes build confidence in the test infrastructure before touching existing code paths
-- Phases 3 and 4 can be parallelized: they edit different playbook files (build-wave.md/continue-verify.md vs continue-advance.md) with no shared call sites or overlapping state
-- Phase 5 last: T4 depends on Phase 3's write-path data; T6 depends on Phase 2-4's memory-capture coverage being established
+- **Cleanup before integration:** Clean state is a prerequisite; integrating on polluted data produces misleading validation results
+- **Integration before documentation:** Docs must describe verified behavior; updating docs mid-integration creates a second correction pass
+- **Documentation before polish:** P2 features should be documented in the same pass as P1 behavior, not retrofitted separately
+- **XML deferred from cleanup to secondary:** XML archival in Phase 1 removes the dead code; XML command surface in Phase 5 activates the exchange functionality if and only if the core system is solid
 
 ### Research Flags
 
-Phases with well-documented patterns (standard implementation, no additional research needed):
-- **Phase 2:** `memory-capture "success"` pattern is established in existing MEM-02 blocks in build-wave.md; replicate the pattern, do not reinvent it
-- **Phase 3:** `midden-write` call sites follow the builder failure path in build-wave.md Step 5.2 as a template; extend to Watcher/Chaos/verification paths using identical structure
+Phases likely needing `/gsd:research-phase` during planning:
+- **Phase 2 (Pheromone Integration):** Multiple interacting components across bash, playbooks, and agent definitions; the audit approach should be planned carefully before executing to avoid missing integration points or creating documentation that describes half-fixed behavior
 
-Phases requiring closer attention during execution:
-- **Phase 1:** Test infrastructure design — designing integration tests that accurately simulate a build/continue cycle without running the full AI agent loop requires understanding of the test fixture structure in `tests/integration/`
-- **Phase 4:** Deduplication format alignment (Gap 1) cannot be confirmed by source reading alone; requires runtime verification against actual pheromones.json and CONTEXT.md data to confirm whether `contains()` substring matching works correctly for the two emission paths
-- **Phase 5:** T4 intra-phase threshold timing — the sequence of midden-write calls earlier in a wave and the threshold check later in the same wave depends on file system flush behavior and jq read-after-write consistency; validate during execution
-
----
+Phases with standard patterns (skip research-phase):
+- **Phase 1 (Cleanup):** File cleanup and state reset are well-understood; the risk is carefulness (see Pitfall 1), not knowledge gaps
+- **Phase 3 (Learning Pipeline):** Components are individually tested; integration test follows existing test patterns in codebase
+- **Phase 4 (Fresh Install + Docs):** Smoke testing and documentation update are well-understood; pre-publish validation extends an existing script
+- **Phase 5 (Secondary Features):** Each item has a clear implementation path; may need brief API check for XML commands
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All subcommands verified by direct source inspection of aether-utils.sh with exact line numbers; JSON schemas confirmed against live data files; no new dependencies |
-| Features | HIGH | Six table-stakes features derived from direct gap analysis of playbook source; differentiator features validated against peer-reviewed research on agent memory systems (Reflexion, Voyager, LangMem, Hierarchical Procedural Memory) |
-| Architecture | HIGH | All playbook steps read directly; integration map documents what exists vs what is missing at each call site; data flow verified against actual subcommand implementations; component boundaries are clear |
-| Pitfalls | HIGH | Pitfalls derived from direct inspection of existing playbook patterns, prior milestone audit notes confirming memory is empty in real-world use despite wiring existing, and established multi-agent failure taxonomy research |
+| Stack | HIGH | Existing stack is verified working; Ajv recommendation based on benchmarks and CJS compatibility; Commander v14/v15 ESM boundary verified |
+| Features | HIGH | Based on deep codebase analysis; test pollution confirmed by file inspection; pheromone flow gaps confirmed by grep analysis of agent definitions |
+| Architecture | HIGH | Primary source is the codebase itself; stigmergic pattern validated against multi-agent literature; component boundaries traced through actual code paths |
+| Pitfalls | HIGH | Grounded in 390-line CONCERNS.md audit plus direct file inspection; moderate-confidence items sourced from multi-agent failure research that aligns with observed codebase issues |
 
-**Overall confidence: HIGH**
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Deduplication format alignment (Gap 1):** STACK.md notes the dedup check in continue-advance.md Step 2.1b may work correctly as-is because `contains()` does substring matching. This requires runtime verification in Phase 1 against actual pheromones.json and CONTEXT.md data — source reading alone is insufficient to confirm correct behavior.
-
-- **Instinct confidence calibration formula (T3):** The formula `min(0.9, 0.7 + (obs_count - 1) * 0.05)` is a recommendation derived from research patterns on recurrence-based confidence, not an empirically validated value. After Phase 4 ships T3, monitor whether instinct confidence values in practice produce meaningful differentiation between single-observation and multi-observation instincts.
-
-- **Intra-phase threshold timing (T4):** Whether T4's mid-wave threshold check can reliably read midden data written earlier in the same wave depends on file system flush timing and jq read-after-write consistency on macOS. This needs explicit validation during Phase 5 execution, not assumed.
-
----
+- **Worker signal acknowledgment mechanism:** Research identifies that workers should acknowledge which signals influenced their decisions, but the exact implementation (structured output field? prose reference in worker output?) is not specified. Resolve during Phase 2 planning.
+- **constraints.json deprecation timeline:** The file is written by pheromone-write for backward compatibility and may be read by undiscovered consumers. A full audit of constraints.json readers is needed before deprecating. Handle during Phase 2 audit.
+- **XML command surface scope:** pheromone-xml.sh exists and is tested but the public API surface for `/ant:export-signals` and `/ant:import-signals` is undefined. Needs brief design pass during Phase 5 planning.
+- **Lock contention under real parallel load:** Pitfall 9 identifies the theoretical problem; the actual severity depends on how many workers emit pheromones simultaneously in practice. Validate during Phase 2 with a multi-worker test before deciding whether batching is required.
 
 ## Sources
 
-### Primary (HIGH confidence — direct source inspection)
-- `/Users/callumcowie/repos/Aether/.aether/aether-utils.sh` — direct source inspection of all integration subcommands: memory-capture (line 5402), midden-write (line 8211), instinct-create (line 7252), pheromone-write (line 6774), context-update (line 2763), midden-recent-failures (line 9581)
-- `/Users/callumcowie/repos/Aether/.aether/docs/command-playbooks/` — all 9 split playbooks read directly; integration map derived from actual step content, not documentation
-- [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) — signal emission must happen at decision point, not in batch post-hoc sweep; sliding window memory pattern
-- [Learning Hierarchical Procedural Memory for LLM Agents](https://arxiv.org/pdf/2512.18950) — Bayesian recurrence threshold for procedure promotion; confidence-gated activation; contrastive refinement on failure
+### Primary (HIGH confidence)
+- Direct codebase analysis: `aether-utils.sh`, `pheromones.json`, `COLONY_STATE.json`, `QUEEN.md`, `constraints.json`, `learning-observations.json` — test pollution confirmed by inspection
+- Direct codebase analysis: `.claude/agents/ant/*.md` — zero pheromone references in agent definitions confirmed
+- Direct codebase analysis: `build-context.md`, `build-wave.md`, `continue-advance.md` — signal injection chain traced
+- Direct codebase analysis: `.aether/exchange/*.sh` — XML system confirmed built and untested from commands
+- `.planning/codebase/CONCERNS.md` — 390-line codebase audit identifying all technical debt
 
 ### Secondary (MEDIUM confidence)
-- [LangMem Conceptual Guide](https://langchain-ai.github.io/langmem/concepts/conceptual_guide/) — active vs background memory paths; multi-factor ranking (recency + frequency + importance)
-- [Meta-Policy Reflexion](https://arxiv.org/abs/2509.03990) — predicate-style rules with confidence scores; episodic-to-policy-level memory promotion
-- [Multi-Agent System Failure Analysis (MAST)](https://arxiv.org/pdf/2503.13657) — 41-86.7% failure rates in production MAS; topology-over-agents principle; silent failure propagation
-- [Mastering Confidence Scoring in AI Agents](https://sparkco.ai/blog/mastering-confidence-scoring-in-ai-agents) — 0.8 execution threshold; RL-based dynamic confidence calibration
-- `.planning/PROJECT.md` and `.planning/MILESTONES.md` — v1.0/v1.1 milestone audit; real-world confirmation that memory is empty despite wiring existing
+- [Commander.js npm](https://www.npmjs.com/package/commander) — v14 latest stable, v15 ESM-only May 2026
+- [Ajv npm](https://www.npmjs.com/package/ajv) + [Ajv docs](https://ajv.js.org/) — v8.18.0 latest, CJS-compatible, 14M ops/sec benchmark
+- [bats-core GitHub](https://github.com/bats-core/bats-core) — v1.13.0, Bash 3.2+ compatible
+- [Multi-Agent Orchestration Patterns 2026](https://www.ai-agentsplus.com/blog/multi-agent-orchestration-patterns-2026) — hierarchical decomposition, generator-critic patterns
+- [Stigmergy (Wikipedia)](https://en.wikipedia.org/wiki/Stigmergy) — foundational pattern validation
+- [Multi-Agent System Reliability Failure Patterns](https://www.getmaxim.ai/articles/multi-agent-system-reliability-failure-patterns-root-causes-and-production-validation-strategies/) — 79% of failures from specification issues, validates top-down integration approach
 
-### Tertiary (LOW confidence — patterns only)
-- [Memory in the Age of AI Agents survey](https://arxiv.org/abs/2512.13564) — memory type taxonomy (episodic → semantic → procedural); consolidation pathways
-- [Why Your Multi-Agent System is Failing](https://towardsdatascience.com/why-your-multi-agent-system-is-failing-escaping-the-17x-error-trap-of-the-bag-of-agents/) — error amplification topology; closed-loop suppression; 17x error trap
+### Tertiary (LOW confidence — verify before acting)
+- [Event-Driven Architecture pitfalls](https://medium.com/wix-engineering/event-driven-architecture-5-pitfalls-to-avoid-b3ebf885bdb1) — context propagation patterns; full content not verified
+- [Why Multi-Agent Systems Fail](https://towardsdatascience.com/why-your-multi-agent-system-is-failing-escaping-the-17x-error-trap-of-the-bag-of-agents/) — error amplification without coordination topology; general pattern, not Aether-specific
 
 ---
-*Research completed: 2026-03-14*
+*Research completed: 2026-03-19*
 *Ready for roadmap: yes*
