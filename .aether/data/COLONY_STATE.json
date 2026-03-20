@@ -2,7 +2,7 @@
   "version": "3.0",
   "goal": "Build the Hive Brain — implement the intelligent layer for cross-colony wisdom: abstraction layer that generalizes instincts before promotion, domain-scoped retrieval so hive wisdom filters by repo domain tags, multi-repo validation that boosts confidence when patterns appear across multiple colonies, the ~/.aether/hive/ directory structure (wisdom.json, signals.json, chronicle.json), and the promotion flow from per-repo instincts through abstraction to hive-level wisdom.",
   "state": "READY",
-  "current_phase": 2,
+  "current_phase": 3,
   "session_id": "session_1774004031_ilu2vx",
   "initialized_at": "2026-03-20T10:53:51Z",
   "build_started_at": null,
@@ -59,13 +59,13 @@
       {
         "id": 2,
         "name": "Abstraction Layer",
-        "status": "pending",
+        "status": "completed",
         "description": "Build the transformation logic that strips repo-specific details before hive promotion",
         "tasks": [
           {
             "id": "2.1",
             "description": "Add hive-abstract subcommand (generates abstraction prompt for Queen)",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "1.2"
             ]
@@ -73,7 +73,7 @@
           {
             "id": "2.2",
             "description": "Add hive-promote subcommand (orchestrates abstract+store pipeline)",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "1.2",
               "2.1"
@@ -82,7 +82,7 @@
           {
             "id": "2.3",
             "description": "Write tests for abstraction and promotion",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "2.1",
               "2.2"
@@ -249,6 +249,28 @@
           }
         ],
         "timestamp": "2026-03-20T12:36:45Z"
+      },
+      {
+        "id": "learning_1774012937",
+        "phase": 2,
+        "phase_name": "Abstraction Layer",
+        "learnings": [
+          {
+            "claim": "Orchestrator commands should delegate to sibling subcommands via bash \"$0\" rather than duplicating logic",
+            "status": "validated",
+            "tested": true,
+            "evidence": "hive-promote orchestrates hive-abstract + hive-store without code duplication, 14 tests pass",
+            "disproven_by": null
+          },
+          {
+            "claim": "Text transformation placeholders should avoid angle brackets to prevent double-escaping by downstream sanitization",
+            "status": "hypothesis",
+            "tested": false,
+            "evidence": "Chaos and Auditor both identified placeholder corruption when <source-file> passes through hive-store sanitization",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-20T13:22:17Z"
       }
     ],
     "decisions": [],
@@ -290,6 +312,24 @@
         "failures": 0
       },
       {
+        "id": "instinct_1774012956",
+        "trigger": "when building orchestrator commands that compose multiple subcommands",
+        "action": "use bash $0 subcommand-name to delegate, never duplicate sibling logic",
+        "confidence": 0.8,
+        "status": "hypothesis",
+        "domain": "architecture",
+        "source": "phase-2",
+        "evidence": [
+          "hive-promote successfully delegates to hive-abstract + hive-store"
+        ],
+        "tested": false,
+        "created_at": "2026-03-20T13:22:36Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
         "id": "instinct_1774010253",
         "trigger": "When working on pattern patterns",
         "action": "Use explicit jq if/elif chains instead of the // operator when checking fields that can legitimately be false",
@@ -319,6 +359,8 @@
     "2026-03-20T10:53:51Z|colony_initialized|init|Colony initialized with goal: Build the Hive Brain",
     "2026-03-20T11:23:50Z|plan_generated|plan|Generated 6 phases with 85% confidence (2 iterations)",
     "2026-03-20T11:32:17Z|phase_started|build|Phase 1: Hive Directory and Schema Foundation started",
-    "2026-03-20T12:36:45Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
+    "2026-03-20T12:36:45Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
+    "2026-03-20T12:40:40Z|phase_started|build|Phase 2: Abstraction Layer started",
+    "2026-03-20T13:22:17Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3"
   ]
 }

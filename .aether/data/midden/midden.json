@@ -26,7 +26,15 @@
       "source": "auditor",
       "message": "High severity issues: 1 (score: 72) - unsanitized category in json_ok output",
       "reviewed": false
+    },
+    {
+      "id": "midden_1774012312_90936",
+      "timestamp": "2026-03-20T13:11:52Z",
+      "category": "quality",
+      "source": "auditor",
+      "message": "High severity: placeholder double-escaping in hive-promote pipeline (score: 69)",
+      "reviewed": false
     }
   ],
-  "entry_count": 3
+  "entry_count": 4
 }

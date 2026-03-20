@@ -76,6 +76,28 @@
       "colonies": [
         "1774004031"
       ]
+    },
+    {
+      "content_hash": "sha256:0b3149e23fb96a13a35a36ee25be84304bd61370093cafa39d7189b39bb52f8f",
+      "content": "Orchestrator commands should delegate to sibling subcommands via bash $0 rather than duplicating logic",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T13:22:34Z",
+      "last_seen": "2026-03-20T13:22:34Z",
+      "colonies": [
+        "1774004031"
+      ]
+    },
+    {
+      "content_hash": "sha256:8fed8b2988d366f3b7ddc006516ffe4ac8a70eac14cb0a30ef0c707b272870b1",
+      "content": "Text transformation placeholders should avoid angle brackets to prevent double-escaping",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T13:22:35Z",
+      "last_seen": "2026-03-20T13:22:35Z",
+      "colonies": [
+        "1774004031"
+      ]
     }
   ]
 }

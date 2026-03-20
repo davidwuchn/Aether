@@ -983,7 +983,7 @@ case "$cmd" in
     cat <<'HELP_EOF'
 {
   "ok": true,
-  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read"],
+  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote"],
   "sections": {
     "Core": [
       {"name": "help", "description": "List all available commands with sections"},
@@ -1099,7 +1099,9 @@ case "$cmd" in
     "Hive Intelligence": [
       {"name": "hive-init", "description": "Initialize ~/.aether/hive/ directory and wisdom.json schema"},
       {"name": "hive-store", "description": "Store wisdom entry with dedup, merge, and 200-entry cap"},
-      {"name": "hive-read", "description": "Read wisdom entries with domain filtering, confidence threshold, and access tracking"}
+      {"name": "hive-read", "description": "Read wisdom entries with domain filtering, confidence threshold, and access tracking"},
+      {"name": "hive-abstract", "description": "Abstract repo-specific instinct into generalized cross-colony wisdom text"},
+      {"name": "hive-promote", "description": "Orchestrate abstract+store pipeline to promote instinct to hive wisdom"}
     ]
   },
   "description": "Aether Colony Utility Layer — deterministic ops for the ant colony"
@@ -9003,6 +9005,192 @@ $updated_meta
     else
       json_ok "{\"entries\":$hr_entries,\"total_matched\":$hr_total_matched}"
     fi
+    ;;
+
+  hive-abstract)
+    # Abstract a repo-specific instinct into generalized cross-colony wisdom
+    # Usage: hive-abstract --text <instinct_text> --source-repo <repo_path> [--domain <csv>]
+    # Returns: JSON with original text, abstracted text, and transformations applied.
+    # This is a TEXT TRANSFORMATION only — does NOT write to wisdom.json.
+
+    ha_text=""
+    ha_source_repo=""
+    ha_domain=""
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --text)        ha_text="${2:-}"; shift 2 ;;
+        --source-repo) ha_source_repo="${2:-}"; shift 2 ;;
+        --domain)      ha_domain="${2:-}"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    # Validate required fields
+    [[ -z "$ha_text" ]] && json_err "$E_VALIDATION_FAILED" "Missing required --text argument" '{"missing":"text"}'
+    [[ -z "$ha_source_repo" ]] && json_err "$E_VALIDATION_FAILED" "Missing required --source-repo argument" '{"missing":"source_repo"}'
+
+    # Content sanitization (same pattern as hive-store)
+    if echo "$ha_text" | grep -Eiq '<[[:space:]]*/?(system|prompt|instructions|system-reminder|assistant|user|human)'; then
+      json_err "$E_VALIDATION_FAILED" "Content rejected: XML tag injection pattern detected"
+    fi
+    ha_text="${ha_text//</&lt;}"
+    ha_text="${ha_text//>/&gt;}"
+    ha_text="${ha_text:0:500}"
+    if echo "$ha_text" | grep -Eiq '(\$\(|`|(^|[[:space:]])curl([[:space:]]|$)|(^|[[:space:]])wget([[:space:]]|$)|(^|[[:space:]])rm([[:space:]]|$))'; then
+      json_err "$E_VALIDATION_FAILED" "Content rejected: potential injection pattern"
+    fi
+    if echo "$ha_text" | grep -Eiq '(ignore\s+(all\s+)?(previous\s+|prior\s+|above\s+)?instructions|disregard\s+(above|previous|all)|you are now |new instructions:|system prompt)'; then
+      json_err "$E_VALIDATION_FAILED" "Content rejected: prompt injection pattern detected"
+    fi
+
+    # Save original (post-sanitization) for output
+    ha_original="$ha_text"
+
+    # Track which transformations are applied
+    ha_transforms=()
+
+    # Extract repo basename for name stripping
+    ha_repo_basename=$(basename "$ha_source_repo")
+
+    # 1. Strip absolute file paths (match /path/to/file.ext patterns)
+    #    Replace paths that start with / and contain at least 2 segments
+    ha_abstracted="$ha_text"
+    if echo "$ha_abstracted" | grep -qE '/[A-Za-z_][A-Za-z0-9_./-]*/[A-Za-z0-9_./-]+'; then
+      ha_abstracted=$(echo "$ha_abstracted" | sed -E 's|/[A-Za-z_][A-Za-z0-9_./-]*/[A-Za-z0-9_./-]+|<source-file>|g')
+      ha_transforms+=("path_strip")
+    fi
+
+    # 2. Strip repo basename (case-sensitive match of the project name)
+    if [[ -n "$ha_repo_basename" ]] && echo "$ha_abstracted" | grep -qF "$ha_repo_basename"; then
+      ha_abstracted=$(echo "$ha_abstracted" | sed "s|${ha_repo_basename}|<project>|g")
+      ha_transforms+=("repo_name_strip")
+    fi
+
+    # 3. Strip version numbers (v1.2.3, v2.0.0, etc.)
+    if echo "$ha_abstracted" | grep -qE 'v[0-9]+\.[0-9]+\.[0-9]+'; then
+      ha_abstracted=$(echo "$ha_abstracted" | sed -E 's/v[0-9]+\.[0-9]+\.[0-9]+/<version>/g')
+      ha_transforms+=("version_strip")
+    fi
+
+    # 4. Strip branch names (feature/xyz, bugfix/abc, hotfix/def, release/xyz)
+    if echo "$ha_abstracted" | grep -qE '(feature|bugfix|hotfix|release)/[A-Za-z0-9_.-]+'; then
+      ha_abstracted=$(echo "$ha_abstracted" | sed -E 's/(feature|bugfix|hotfix|release)\/[A-Za-z0-9_.-]+/<branch>/g')
+      ha_transforms+=("branch_strip")
+    fi
+
+    # Parse domain tags CSV into JSON array
+    ha_domain_json="[]"
+    if [[ -n "$ha_domain" ]]; then
+      ha_domain_json=$(echo "$ha_domain" | tr ',' '\n' | jq -R 'gsub("^\\s+|\\s+$";"")' | jq -s '.')
+    fi
+
+    # Build transformations JSON array
+    ha_transforms_json="[]"
+    if [[ ${#ha_transforms[@]} -gt 0 ]]; then
+      ha_transforms_json=$(printf '%s\n' "${ha_transforms[@]}" | jq -R '.' | jq -s '.')
+    fi
+
+    # Build result JSON using jq for proper escaping
+    ha_result=$(jq -n \
+      --arg original "$ha_original" \
+      --arg abstracted "$ha_abstracted" \
+      --arg source_repo "$ha_source_repo" \
+      --argjson domain_tags "$ha_domain_json" \
+      --argjson transformations "$ha_transforms_json" \
+      '{
+        original: $original,
+        abstracted: $abstracted,
+        source_repo: $source_repo,
+        domain_tags: $domain_tags,
+        transformations_applied: $transformations
+      }')
+
+    json_ok "$ha_result"
+    ;;
+
+  hive-promote)
+    # Orchestrate the full promotion pipeline: abstract an instinct, then store it
+    # Usage: hive-promote --text <instinct_text> --source-repo <repo_path> [--domain <csv>] [--confidence <0-1>] [--category <cat>]
+    # Calls hive-abstract internally to generalize the text, then hive-store to persist it.
+    # Returns: combined result with action mapping (stored->promoted, merged->merged, skipped->skipped).
+
+    hp_text=""
+    hp_source_repo=""
+    hp_domain=""
+    hp_confidence="0.7"
+    hp_category="pattern"
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --text)        hp_text="${2:-}"; shift 2 ;;
+        --source-repo) hp_source_repo="${2:-}"; shift 2 ;;
+        --domain)      hp_domain="${2:-}"; shift 2 ;;
+        --confidence)  hp_confidence="${2:-0.7}"; shift 2 ;;
+        --category)    hp_category="${2:-pattern}"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    # Validate required fields
+    [[ -z "$hp_text" ]] && json_err "$E_VALIDATION_FAILED" "Missing required --text argument" '{"missing":"text"}'
+    [[ -z "$hp_source_repo" ]] && json_err "$E_VALIDATION_FAILED" "Missing required --source-repo argument" '{"missing":"source_repo"}'
+
+    # Ensure hive is initialized (idempotent)
+    bash "$0" hive-init >/dev/null 2>&1 || json_err "$E_FILE_NOT_FOUND" "Unable to initialize hive"
+
+    # Step 1: Abstract the instinct text
+    hp_abstract_args=(hive-abstract --text "$hp_text" --source-repo "$hp_source_repo")
+    [[ -n "$hp_domain" ]] && hp_abstract_args+=(--domain "$hp_domain")
+
+    hp_abstract_result=$(bash "$0" "${hp_abstract_args[@]}" 2>&1) || {
+      json_err "$E_VALIDATION_FAILED" "Abstraction failed: $(echo "$hp_abstract_result" | jq -r '.error.message // "unknown error"' 2>/dev/null)"
+    }
+
+    # Extract abstracted text and transformations from abstract result
+    hp_abstracted=$(echo "$hp_abstract_result" | jq -r '.result.abstracted // empty' 2>/dev/null)
+    hp_original=$(echo "$hp_abstract_result" | jq -r '.result.original // empty' 2>/dev/null)
+    hp_transforms=$(echo "$hp_abstract_result" | jq -c '.result.transformations_applied // []' 2>/dev/null)
+
+    if [[ -z "$hp_abstracted" ]]; then
+      json_err "$E_VALIDATION_FAILED" "Abstraction returned empty text"
+    fi
+
+    # Step 2: Store the abstracted text in the hive
+    hp_store_args=(hive-store --text "$hp_abstracted" --source-repo "$hp_source_repo" --confidence "$hp_confidence" --category "$hp_category")
+    [[ -n "$hp_domain" ]] && hp_store_args+=(--domain "$hp_domain")
+
+    hp_store_result=$(bash "$0" "${hp_store_args[@]}" 2>&1) || {
+      json_err "$E_VALIDATION_FAILED" "Store failed: $(echo "$hp_store_result" | jq -r '.error.message // "unknown error"' 2>/dev/null)"
+    }
+
+    # Extract store action
+    hp_store_action=$(echo "$hp_store_result" | jq -r '.result.action // "unknown"' 2>/dev/null)
+
+    # Map store action to promote action: stored->promoted, merged->merged, skipped->skipped
+    hp_action="$hp_store_action"
+    [[ "$hp_store_action" == "stored" ]] && hp_action="promoted"
+
+    # Build combined result
+    hp_result=$(jq -n \
+      --arg action "$hp_action" \
+      --arg original "$hp_original" \
+      --arg abstracted "$hp_abstracted" \
+      --argjson transformations "$hp_transforms" \
+      --arg store_action "$hp_store_action" \
+      --argjson confidence "$hp_confidence" \
+      --arg source_repo "$hp_source_repo" \
+      '{
+        action: $action,
+        original: $original,
+        abstracted: $abstracted,
+        transformations: $transformations,
+        store_action: $store_action,
+        confidence: $confidence,
+        source_repo: $source_repo
+      }')
+
+    json_ok "$hp_result"
     ;;
 
   midden-write)
