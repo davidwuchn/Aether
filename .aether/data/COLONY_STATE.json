@@ -2,7 +2,7 @@
   "version": "3.0",
   "goal": "Build the Hive Brain — implement the intelligent layer for cross-colony wisdom: abstraction layer that generalizes instincts before promotion, domain-scoped retrieval so hive wisdom filters by repo domain tags, multi-repo validation that boosts confidence when patterns appear across multiple colonies, the ~/.aether/hive/ directory structure (wisdom.json, signals.json, chronicle.json), and the promotion flow from per-repo instincts through abstraction to hive-level wisdom.",
   "state": "READY",
-  "current_phase": 5,
+  "current_phase": 6,
   "session_id": "session_1774004031_ilu2vx",
   "initialized_at": "2026-03-20T10:53:51Z",
   "build_started_at": null,
@@ -168,13 +168,13 @@
       {
         "id": 5,
         "name": "Multi-Repo Validation and Confidence Boosting",
-        "status": "pending",
+        "status": "completed",
         "description": "Boost confidence when same wisdom pattern appears from multiple repos",
         "tasks": [
           {
             "id": "5.1",
             "description": "Add confidence boosting to hive-store duplicate path (0.7 at 2 repos, 0.85 at 3, 0.95 at 4+)",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "1.2"
             ]
@@ -182,7 +182,7 @@
           {
             "id": "5.2",
             "description": "Write tests for multi-repo confidence boosting",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "5.1"
             ]
@@ -308,6 +308,21 @@
           }
         ],
         "timestamp": "2026-03-20T18:08:47Z"
+      },
+      {
+        "id": "learning_1774033618",
+        "phase": 5,
+        "phase_name": "Multi-Repo Validation and Confidence Boosting",
+        "learnings": [
+          {
+            "claim": "Confidence tier calculations should be inside atomic jq pipelines to preserve lock safety in shared file operations",
+            "status": "validated",
+            "tested": true,
+            "evidence": "Confidence boosting added inside existing jq pipeline, all 18 tests pass, lock cleanup preserved",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-20T19:06:58Z"
       }
     ],
     "decisions": [],
@@ -402,6 +417,8 @@
     "2026-03-20T13:27:22Z|phase_started|build|Phase 3: Domain-Scoped Retrieval started",
     "2026-03-20T16:20:48.127437Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
     "2026-03-20T17:08:09Z|phase_started|build|Phase 4: Seal Promotion Hook started",
-    "2026-03-20T18:08:47Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5"
+    "2026-03-20T18:08:47Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5",
+    "2026-03-20T18:37:45Z|phase_started|build|Phase 5: Multi-Repo Validation and Confidence Boosting started",
+    "2026-03-20T19:06:58Z|phase_advanced|continue|Completed Phase 5, advancing to Phase 6"
   ]
 }

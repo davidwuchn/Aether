@@ -8846,7 +8846,7 @@ $updated_meta
         [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
         json_ok "{\"action\":\"skipped\",\"reason\":\"duplicate from same repo\",\"id\":\"$hs_content_hash\"}"
       else
-        # Different repo — merge: increment validated_count, add repo
+        # Different repo — merge: increment validated_count, add repo, boost confidence
         hs_updated=$(jq --arg hash "$hs_content_hash" \
           --arg repo "$hs_source_repo" \
           --arg now "$hs_now_iso" '
@@ -8854,7 +8854,16 @@ $updated_meta
             if .id == $hash then
               .validated_count = (.validated_count + 1) |
               .source_repos = (.source_repos + [$repo] | unique) |
-              .last_accessed = $now
+              .last_accessed = $now |
+              # Confidence boosting: tier based on source_repos count
+              # 2 repos -> 0.7, 3 repos -> 0.85, 4+ repos -> 0.95
+              # Never downgrade: use max(current, tier)
+              (.source_repos | length) as $repo_count |
+              (if $repo_count >= 4 then 0.95
+               elif $repo_count == 3 then 0.85
+               elif $repo_count == 2 then 0.7
+               else .confidence end) as $tier_confidence |
+              .confidence = ([.confidence, $tier_confidence] | max)
             else . end
           ] |
           .metadata.contributing_repos = ([.entries[].source_repos[]] | unique) |
@@ -8871,7 +8880,8 @@ $updated_meta
 
         [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
         hs_new_count=$(echo "$hs_updated" | jq --arg hash "$hs_content_hash" '.entries[] | select(.id == $hash) | .validated_count')
-        json_ok "{\"action\":\"merged\",\"id\":\"$hs_content_hash\",\"validated_count\":$hs_new_count}"
+        hs_new_confidence=$(echo "$hs_updated" | jq --arg hash "$hs_content_hash" '.entries[] | select(.id == $hash) | .confidence')
+        json_ok "{\"action\":\"merged\",\"id\":\"$hs_content_hash\",\"validated_count\":$hs_new_count,\"confidence\":$hs_new_confidence}"
       fi
     else
       # New entry — build and append

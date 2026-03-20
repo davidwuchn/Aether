@@ -142,6 +142,28 @@
       "colonies": [
         "1774004031"
       ]
+    },
+    {
+      "content_hash": "sha256:4e84e3a9d719987fd92dd83de08ea481616b54d12c9641655173f99173490271",
+      "content": "Resilience issue found: String-typed confidence causes silent hive-read failure (medium)",
+      "wisdom_type": "failure",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T18:53:15Z",
+      "last_seen": "2026-03-20T18:53:15Z",
+      "colonies": [
+        "1774004031"
+      ]
+    },
+    {
+      "content_hash": "sha256:744752b62c1693c4db7feaec54e4422748949376623bf85e9c56280c052e8896",
+      "content": "Confidence tier calculations should be inside atomic jq pipelines to preserve lock safety",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T19:07:11Z",
+      "last_seen": "2026-03-20T19:07:11Z",
+      "colonies": [
+        "1774004031"
+      ]
     }
   ]
 }

@@ -64,3 +64,15 @@
 2026-03-20T18:04:59Z|Queen|auditor|Review-83|Code quality audit|default|spawned
 2026-03-20T18:05:06Z|Gate-81|completed|0 critical, 0 high, 1 medium CVE
 2026-03-20T18:07:30Z|Review-83|completed|Score 81/100, 0 critical, 0 high, 2 medium
+2026-03-20T18:38:20Z|Queen|scout|Fossil-55|Pre-build archaeology scan|default|spawned
+2026-03-20T18:41:48Z|Fossil-55|completed|Pre-build archaeology scan
+2026-03-20T18:42:13Z|Queen|builder|Chip-22|Add confidence boosting to hive-store|default|spawned
+2026-03-20T18:46:25Z|Chip-22|completed|Confidence boosting added, 6 tests, all 32 related tests pass
+2026-03-20T18:46:35Z|Queen|watcher|Keen-88|Independent verification|default|spawned
+2026-03-20T18:48:29Z|Keen-88|completed|All criteria passed, 18/18 tests, quality 9/10
+2026-03-20T18:48:38Z|Queen|chaos|Probe-71|Resilience testing of Phase 5 work|default|spawned
+2026-03-20T18:53:14Z|Probe-71|completed|Resilience moderate: 5 scenarios, 1 medium (string-typed confidence), 4 low
+2026-03-20T19:03:38Z|Queen|gatekeeper|Protect-96|Supply chain audit|default|spawned
+2026-03-20T19:03:38Z|Queen|auditor|Review-83|Code quality audit|default|spawned
+2026-03-20T19:06:34Z|Protect-96|completed|0 critical, 0 high
+2026-03-20T19:06:34Z|Review-83|completed|Score 88/100, 0 critical

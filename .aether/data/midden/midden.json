@@ -34,7 +34,15 @@
       "source": "auditor",
       "message": "High severity: placeholder double-escaping in hive-promote pipeline (score: 69)",
       "reviewed": false
+    },
+    {
+      "id": "midden_1774032794_46183",
+      "timestamp": "2026-03-20T18:53:14Z",
+      "category": "resilience",
+      "source": "chaos",
+      "message": "Chaos finding: String-typed confidence causes silent hive-read failure (medium)",
+      "reviewed": false
     }
   ],
-  "entry_count": 4
+  "entry_count": 5
 }
