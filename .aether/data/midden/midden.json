@@ -10,7 +10,23 @@
       "source": "gatekeeper",
       "message": "High CVEs found: 3",
       "reviewed": false
+    },
+    {
+      "id": "midden_1774008777_29962",
+      "timestamp": "2026-03-20T12:12:57Z",
+      "category": "resilience",
+      "source": "chaos",
+      "message": "Chaos finding: Cross-repo lock isolation mismatch (high) - lock at AETHER_ROOT but target at HOME",
+      "reviewed": false
+    },
+    {
+      "id": "midden_1774009746_76712",
+      "timestamp": "2026-03-20T12:29:06Z",
+      "category": "quality",
+      "source": "auditor",
+      "message": "High severity issues: 1 (score: 72) - unsanitized category in json_ok output",
+      "reviewed": false
     }
   ],
-  "entry_count": 1
+  "entry_count": 3
 }

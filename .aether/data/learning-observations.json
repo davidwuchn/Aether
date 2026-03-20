@@ -1,3 +1,81 @@
 {
-  "observations": []
+  "observations": [
+    {
+      "content_hash": "sha256:f8aa50cfda0f37cac6cabba140bb99f1d75aa6d01a7100fe7a5ccddc2b3a017b",
+      "content": "Use explicit jq if/elif chains instead of the // operator when checking fields that can legitimately be false",
+      "wisdom_type": "pattern",
+      "observation_count": 2,
+      "first_seen": "2026-03-19T19:10:44Z",
+      "last_seen": "2026-03-19T19:10:45Z",
+      "colonies": [
+        "1771335865738"
+      ]
+    },
+    {
+      "content_hash": "sha256:2811295c55a4efb0bf6b5d679ab6276e6a5767c5b3655491b7740e1fd57e5ec5",
+      "content": "Prompt injection regex needs multi-word support with optional groups",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T07:20:42Z",
+      "last_seen": "2026-03-20T07:20:42Z",
+      "colonies": [
+        "1773987784"
+      ]
+    },
+    {
+      "content_hash": "sha256:471ecd6341d643d814a9dfeee224040eb9b8b1287bf6bc34b99443d50e6d7290",
+      "content": "Colony-prime token budget 8000 chars matches measured output of 2000-5000 chars",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T07:20:43Z",
+      "last_seen": "2026-03-20T07:20:43Z",
+      "colonies": [
+        "1773987784"
+      ]
+    },
+    {
+      "content_hash": "sha256:8404cee7f2750fad3c368fc8389b4b18385c54656709e719297d12de6347d808",
+      "content": "Two wisdom extraction functions must be updated in lockstep",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T07:49:17Z",
+      "last_seen": "2026-03-20T07:49:17Z",
+      "colonies": [
+        "1773987784"
+      ]
+    },
+    {
+      "content_hash": "sha256:f7aae08395d3c9f59a2284a8073e281c6fbb38922bc30eb79ba770a8d9e60d68",
+      "content": "Resilience issue found: Cross-repo lock isolation mismatch (high)",
+      "wisdom_type": "failure",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T12:12:59Z",
+      "last_seen": "2026-03-20T12:12:59Z",
+      "colonies": [
+        "1774004031"
+      ]
+    },
+    {
+      "content_hash": "sha256:e0d9bca58570ce0794acee35bb161ebcb22d67711ba8ef5739a8d9fc899719d5",
+      "content": "Hub-level shared files need hub-level locks — per-repo LOCK_DIR cannot protect cross-repo resources",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T12:37:02Z",
+      "last_seen": "2026-03-20T12:37:02Z",
+      "colonies": [
+        "1774004031"
+      ]
+    },
+    {
+      "content_hash": "sha256:e0324701a5aa3800570e0bf73eb2634c88e804c7859a2d9734e1b0d4dbef34b3",
+      "content": "Content sanitization pattern from pheromone-write is reusable for any user-supplied text input",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-20T12:37:02Z",
+      "last_seen": "2026-03-20T12:37:02Z",
+      "colonies": [
+        "1774004031"
+      ]
+    }
+  ]
 }

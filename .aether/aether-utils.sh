@@ -983,7 +983,7 @@ case "$cmd" in
     cat <<'HELP_EOF'
 {
   "ok": true,
-  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean"],
+  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read"],
   "sections": {
     "Core": [
       {"name": "help", "description": "List all available commands with sections"},
@@ -1070,7 +1070,8 @@ case "$cmd" in
       {"name": "activity-log-read", "description": "Read recent activity log entries"},
       {"name": "generate-commit-message", "description": "Generate a commit message from git diff"},
       {"name": "version-check", "description": "Check if Aether version meets requirement"},
-      {"name": "registry-add", "description": "Register a repo with Aether"},
+      {"name": "registry-add", "description": "Register a repo with Aether (supports --tags, --goal, --active)"},
+      {"name": "registry-list", "description": "List all registered repos with metadata"},
       {"name": "bootstrap-system", "description": "Bootstrap minimal system files if missing"},
       {"name": "memory-metrics", "description": "Aggregate memory health across colony stores"},
       {"name": "midden-recent-failures", "description": "Read recent failure signals from midden"},
@@ -1087,6 +1088,18 @@ case "$cmd" in
     ],
     "Maintenance": [
       {"name": "data-clean", "description": "Scan and remove test/synthetic artifacts from colony data files"}
+    ],
+    "Autopilot": [
+      {"name": "autopilot-init", "description": "Initialize autopilot run state (run-state.json)"},
+      {"name": "autopilot-update", "description": "Update autopilot state after phase action"},
+      {"name": "autopilot-status", "description": "Return current autopilot state"},
+      {"name": "autopilot-stop", "description": "Stop or complete an autopilot run with reason"},
+      {"name": "autopilot-check-replan", "description": "Check if replan trigger should fire based on completed phases"}
+    ],
+    "Hive Intelligence": [
+      {"name": "hive-init", "description": "Initialize ~/.aether/hive/ directory and wisdom.json schema"},
+      {"name": "hive-store", "description": "Store wisdom entry with dedup, merge, and 200-entry cap"},
+      {"name": "hive-read", "description": "Read wisdom entries with domain filtering, confidence threshold, and access tracking"}
     ]
   },
   "description": "Aether Colony Utility Layer — deterministic ops for the ant colony"
@@ -2841,10 +2854,35 @@ Files: ${files_changed} files changed"
 
   registry-add)
     # Add or update a repo entry in ~/.aether/registry.json
-    # Usage: registry-add <repo_path> <version>
+    # Usage: registry-add <repo_path> <version> [--tags "a,b,c"] [--goal "text"] [--active true|false]
     repo_path="${1:-}"
     repo_version="${2:-}"
-    [[ -z "$repo_path" || -z "$repo_version" ]] && json_err "$E_VALIDATION_FAILED" "Usage: registry-add <repo_path> <version>"
+    [[ -z "$repo_path" || -z "$repo_version" ]] && json_err "$E_VALIDATION_FAILED" "Usage: registry-add <repo_path> <version> [--tags \"a,b\"] [--goal \"text\"] [--active true|false]"
+
+    # Parse optional flags after positional args
+    shift 2
+    ra_tags=""
+    ra_goal=""
+    ra_active="false"
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --tags)  ra_tags="${2:-}"; shift 2 ;;
+        --goal)  ra_goal="${2:-}"; shift 2 ;;
+        --active) ra_active="${2:-false}"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    # Convert comma-separated tags to JSON array
+    ra_tags_json="[]"
+    if [[ -n "$ra_tags" ]]; then
+      ra_tags_json=$(echo "$ra_tags" | jq -R 'split(",") | map(select(length > 0))') || ra_tags_json="[]"
+    fi
+
+    # Normalize active to boolean string
+    if [[ "$ra_active" != "true" ]]; then
+      ra_active="false"
+    fi
 
     registry_file="$HOME/.aether/registry.json"
     mkdir -p "$HOME/.aether"
@@ -2855,31 +2893,81 @@ Files: ${files_changed} files changed"
 
     ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+    # Acquire lock to prevent concurrent read-modify-write races
+    acquire_lock "$registry_file" 2>/dev/null || true
+
     # Check if repo already exists in registry
     existing=$(jq --arg path "$repo_path" '.repos[] | select(.path == $path)' "$registry_file" 2>/dev/null)
 
     if [[ -n "$existing" ]]; then
-      # Update existing entry
-      updated=$(jq --arg path "$repo_path" --arg ver "$repo_version" --arg ts "$ts" '
+      # Update existing entry — merge new fields
+      updated=$(jq \
+        --arg path "$repo_path" \
+        --arg ver "$repo_version" \
+        --arg ts "$ts" \
+        --argjson tags "$ra_tags_json" \
+        --arg goal "$ra_goal" \
+        --argjson active "$ra_active" '
         .repos = [.repos[] | if .path == $path then
           .version = $ver |
-          .updated_at = $ts
+          .updated_at = $ts |
+          .domain_tags = $tags |
+          (if $goal != "" then .last_colony_goal = $goal else . end) |
+          .active_colony = $active
         else . end]
       ' "$registry_file") || json_err "$E_JSON_INVALID" "Failed to update registry"
     else
-      # Add new entry
-      updated=$(jq --arg path "$repo_path" --arg ver "$repo_version" --arg ts "$ts" '
+      # Add new entry with all fields
+      updated=$(jq \
+        --arg path "$repo_path" \
+        --arg ver "$repo_version" \
+        --arg ts "$ts" \
+        --argjson tags "$ra_tags_json" \
+        --arg goal "$ra_goal" \
+        --argjson active "$ra_active" '
         .repos += [{
           "path": $path,
           "version": $ver,
           "registered_at": $ts,
-          "updated_at": $ts
+          "updated_at": $ts,
+          "domain_tags": $tags,
+          "last_colony_goal": (if $goal != "" then $goal else null end),
+          "active_colony": $active
         }]
       ' "$registry_file") || json_err "$E_JSON_INVALID" "Failed to update registry"
     fi
 
     echo "$updated" > "$registry_file"
+    release_lock "$registry_file" 2>/dev/null || true
     json_ok "{\"registered\":true,\"path\":\"$repo_path\",\"version\":\"$repo_version\"}"
+    ;;
+
+  registry-list)
+    # List all registered repos with domain tags, goal, and active status
+    # Usage: registry-list
+    # Returns JSON with all repos and their metadata (defaults for missing fields)
+    registry_file="$HOME/.aether/registry.json"
+
+    if [[ ! -f "$registry_file" ]]; then
+      json_ok '{"repos":[],"count":0}'
+    else
+      # Normalize legacy entries: default domain_tags=[], last_colony_goal=null, active_colony=false
+      rl_result=$(jq '
+        {
+          "repos": [.repos[] | {
+            "path": .path,
+            "version": .version,
+            "registered_at": .registered_at,
+            "updated_at": .updated_at,
+            "domain_tags": (if .domain_tags then .domain_tags else [] end),
+            "last_colony_goal": (if .last_colony_goal then .last_colony_goal else null end),
+            "active_colony": (if .active_colony then .active_colony else false end)
+          }],
+          "count": (.repos | length)
+        }
+      ' "$registry_file" 2>/dev/null) || json_err "$E_JSON_INVALID" "Failed to read registry"
+      json_ok "$rl_result"
+    fi
     ;;
 
   bootstrap-system)
@@ -4457,25 +4545,44 @@ ANTLOGO
       local red_line=$(awk '/^## ⚠️ Redirects$/ {print NR; exit}' "$file")
       local stack_line=$(awk '/^## 🔧 Stack Wisdom$/ {print NR; exit}' "$file")
       local dec_line=$(awk '/^## 🏛️ Decrees$/ {print NR; exit}' "$file")
+      local prefs_line=$(awk '/^## 👤 User Preferences$/ {print NR; exit}' "$file")
       local evo_line=$(awk '/^## 📊 Evolution Log$/ {print NR; exit}' "$file")
 
       # Extract each section: lines between section header and next header
-      local philosophies patterns redirects stack_wisdom decrees
+      local philosophies patterns redirects stack_wisdom decrees user_prefs
 
       # Philosophies: between p_line+1 and pat_line-1
-      philosophies=$(awk -v s="$p_line" -v e="$pat_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      if [[ -n "$p_line" && -n "$pat_line" ]]; then
+        philosophies=$(awk -v s="$p_line" -v e="$pat_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else philosophies='""'; fi
 
       # Patterns: between pat_line+1 and red_line-1
-      patterns=$(awk -v s="$pat_line" -v e="$red_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      if [[ -n "$pat_line" && -n "$red_line" ]]; then
+        patterns=$(awk -v s="$pat_line" -v e="$red_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else patterns='""'; fi
 
       # Redirects: between red_line+1 and stack_line-1
-      redirects=$(awk -v s="$red_line" -v e="$stack_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      if [[ -n "$red_line" && -n "$stack_line" ]]; then
+        redirects=$(awk -v s="$red_line" -v e="$stack_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else redirects='""'; fi
 
       # Stack Wisdom: between stack_line+1 and dec_line-1
-      stack_wisdom=$(awk -v s="$stack_line" -v e="$dec_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      if [[ -n "$stack_line" && -n "$dec_line" ]]; then
+        stack_wisdom=$(awk -v s="$stack_line" -v e="$dec_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else stack_wisdom='""'; fi
 
-      # Decrees: between dec_line+1 and (evo_line-1 or end)
-      decrees=$(awk -v s="$dec_line" -v e="${evo_line:-999999}" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      # Decrees: between dec_line+1 and (prefs_line-1 or evo_line-1 or end)
+      local dec_end="${prefs_line:-${evo_line:-999999}}"
+      if [[ -n "$dec_line" ]]; then
+        decrees=$(awk -v s="$dec_line" -v e="$dec_end" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else decrees='""'; fi
+
+      # User Preferences: between prefs_line+1 and (evo_line-1 or end)
+      if [[ -n "$prefs_line" ]]; then
+        user_prefs=$(awk -v s="$prefs_line" -v e="${evo_line:-999999}" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else
+        user_prefs='""'
+      fi
 
       # Output as JSON
       jq -n \
@@ -4484,17 +4591,18 @@ ANTLOGO
         --arg redirects "$redirects" \
         --arg stack_wisdom "$stack_wisdom" \
         --arg decrees "$decrees" \
-        '{philosophies: $philosophies, patterns: $patterns, redirects: $redirects, stack_wisdom: $stack_wisdom, decrees: $decrees}'
+        --arg user_prefs "$user_prefs" \
+        '{philosophies: $philosophies, patterns: $patterns, redirects: $redirects, stack_wisdom: $stack_wisdom, decrees: $decrees, user_prefs: $user_prefs}'
     }
 
     # Extract wisdom from global (if exists)
-    global_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":""}'
+    global_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":"","user_prefs":""}'
     if [[ "$has_global" == "true" ]]; then
       global_wisdom=$(_extract_wisdom_sections "$queen_global")
     fi
 
     # Extract wisdom from local (if exists)
-    local_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":""}'
+    local_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":"","user_prefs":""}'
     if [[ "$has_local" == "true" ]]; then
       local_wisdom=$(_extract_wisdom_sections "$queen_local")
     fi
@@ -4515,7 +4623,8 @@ ANTLOGO
         patterns: combine($global.patterns; $local.patterns),
         redirects: combine($global.redirects; $local.redirects),
         stack_wisdom: combine($global.stack_wisdom; $local.stack_wisdom),
-        decrees: combine($global.decrees; $local.decrees)
+        decrees: combine($global.decrees; $local.decrees),
+        user_prefs: combine($global.user_prefs; $local.user_prefs)
       }
       ')
 
@@ -4544,6 +4653,7 @@ ANTLOGO
     redirects=$(echo "$combined" | jq -r '.redirects')
     stack_wisdom=$(echo "$combined" | jq -r '.stack_wisdom')
     decrees=$(echo "$combined" | jq -r '.decrees')
+    user_prefs=$(echo "$combined" | jq -r '.user_prefs')
 
     # Build JSON output
     result=$(jq -n \
@@ -4553,6 +4663,7 @@ ANTLOGO
       --arg redirects "$redirects" \
       --arg stack_wisdom "$stack_wisdom" \
       --arg decrees "$decrees" \
+      --arg user_prefs "$user_prefs" \
       '{
         metadata: $meta,
         wisdom: {
@@ -4560,14 +4671,16 @@ ANTLOGO
           patterns: $patterns,
           redirects: $redirects,
           stack_wisdom: $stack_wisdom,
-          decrees: $decrees
+          decrees: $decrees,
+          user_prefs: $user_prefs
         },
         priming: {
           has_philosophies: ($philosophies | length) > 0 and $philosophies != "*No philosophies recorded yet.*\n",
           has_patterns: ($patterns | length) > 0 and $patterns != "*No patterns recorded yet.*\n",
           has_redirects: ($redirects | length) > 0 and $redirects != "*No redirects recorded yet.*\n",
           has_stack_wisdom: ($stack_wisdom | length) > 0 and $stack_wisdom != "*No stack wisdom recorded yet.*\n",
-          has_decrees: ($decrees | length) > 0 and $decrees != "*No decrees recorded yet.*\n"
+          has_decrees: ($decrees | length) > 0 and $decrees != "*No decrees recorded yet.*\n",
+          has_user_prefs: ($user_prefs | length) > 0 and $user_prefs != "*No user preferences recorded yet.*\n"
         },
         sources: {
           has_global: ($meta.source == "global" or $meta.source == "local"),
@@ -6812,11 +6925,25 @@ $updated_meta
     fi
 
     # Sanitize and bound input content to reduce injection risk in prompt contexts.
+
+    # Check for XML tag injection BEFORE escaping angle brackets.
+    # Content is injected into worker prompts via colony-prime, so raw XML
+    # structural tags could break prompt boundaries.
+    if echo "$pw_content" | grep -Eiq '<[[:space:]]*/?(system|prompt|instructions|system-reminder|assistant|user|human)'; then
+      json_err "$E_VALIDATION_FAILED" "Pheromone content rejected: XML tag injection pattern detected"
+    fi
+
     pw_content="${pw_content//</&lt;}"
     pw_content="${pw_content//>/&gt;}"
     pw_content="${pw_content:0:500}"
     if echo "$pw_content" | grep -Eiq '(\$\(|`|(^|[[:space:]])curl([[:space:]]|$)|(^|[[:space:]])wget([[:space:]]|$)|(^|[[:space:]])rm([[:space:]]|$))'; then
       json_err "$E_VALIDATION_FAILED" "Pheromone content rejected: potential injection pattern"
+    fi
+
+    # Check for prompt injection text patterns. These phrases attempt to
+    # override LLM instructions when the content is injected into prompts.
+    if echo "$pw_content" | grep -Eiq '(ignore\s+(all\s+)?(previous\s+|prior\s+|above\s+)?instructions|disregard\s+(above|previous|all)|you are now |new instructions:|system prompt)'; then
+      json_err "$E_VALIDATION_FAILED" "Pheromone content rejected: prompt injection pattern detected"
     fi
 
     # Parse optional flags from remaining args (after type and content)
@@ -6909,25 +7036,74 @@ $updated_meta
         "$pw_colony_id" "$pw_created" > "$pw_file"
     fi
 
-    # Build signal object and append to pheromones.json
-    pw_signal=$(jq -n \
-      --arg id "$pw_id" \
-      --arg type "$pw_type" \
-      --arg priority "$pw_priority" \
-      --arg source "$pw_source" \
-      --arg created_at "$pw_created" \
-      --arg expires_at "$pw_expires" \
-      --argjson active true \
-      --argjson strength "$pw_strength" \
-      --arg reason "$pw_reason" \
-      --arg content "$pw_content" \
-      '{id: $id, type: $type, priority: $priority, source: $source, created_at: $created_at, expires_at: $expires_at, active: $active, strength: ($strength | tonumber), reason: $reason, content: {text: $content}}')
+    # Compute SHA-256 content hash for deduplication
+    pw_hash=$(echo -n "$pw_content" | shasum -a 256 | cut -d' ' -f1)
 
-    pw_updated=$(jq --argjson sig "$pw_signal" '.signals += [$sig]' "$pw_file" 2>/dev/null)
-    if [[ -z "$pw_updated" ]]; then
-      [[ "$pw_lock_held" == "true" ]] && release_lock 2>/dev/null || true
-      json_err "${E_JSON_INVALID:-E_JSON_INVALID}" "Failed to update pheromones.json — jq parse error"
+    # Check for existing active signal with same type and content_hash
+    pw_existing_count=$(jq \
+      --arg type "$pw_type" \
+      --arg hash "$pw_hash" \
+      '[.signals[] | select(.active == true and .type == $type and .content_hash == $hash)] | length' \
+      "$pw_file" 2>/dev/null || echo "0")
+
+    pw_action="created"
+
+    if [[ "$pw_existing_count" -gt 0 ]]; then
+      # Reinforce existing signal: update strength to max, reset created_at, increment reinforcement_count
+      pw_action="reinforced"
+
+      # Get the reinforced signal's ID for output (before modification)
+      pw_id=$(jq -r \
+        --arg type "$pw_type" \
+        --arg hash "$pw_hash" \
+        '[.signals[] | select(.active == true and .type == $type and .content_hash == $hash)][0].id' \
+        "$pw_file" 2>/dev/null || echo "$pw_id")
+
+      pw_updated=$(jq \
+        --arg type "$pw_type" \
+        --arg hash "$pw_hash" \
+        --argjson new_strength "$pw_strength" \
+        --arg new_created "$pw_created" \
+        '
+        .signals = [.signals[] |
+          if (.active == true and .type == $type and .content_hash == $hash) then
+            .strength = ([.strength, $new_strength] | max) |
+            .created_at = $new_created |
+            .reinforcement_count = ((.reinforcement_count // 0) + 1)
+          else
+            .
+          end
+        ]
+        ' "$pw_file" 2>/dev/null)
+
+      if [[ -z "$pw_updated" ]]; then
+        [[ "$pw_lock_held" == "true" ]] && release_lock 2>/dev/null || true
+        json_err "${E_JSON_INVALID:-E_JSON_INVALID}" "Failed to reinforce signal in pheromones.json — jq parse error"
+      fi
+    else
+      # Build new signal object with content_hash and append
+      pw_signal=$(jq -n \
+        --arg id "$pw_id" \
+        --arg type "$pw_type" \
+        --arg priority "$pw_priority" \
+        --arg source "$pw_source" \
+        --arg created_at "$pw_created" \
+        --arg expires_at "$pw_expires" \
+        --argjson active true \
+        --argjson strength "$pw_strength" \
+        --arg reason "$pw_reason" \
+        --arg content "$pw_content" \
+        --arg content_hash "$pw_hash" \
+        --argjson reinforcement_count 0 \
+        '{id: $id, type: $type, priority: $priority, source: $source, created_at: $created_at, expires_at: $expires_at, active: $active, strength: ($strength | tonumber), reason: $reason, content: {text: $content}, content_hash: $content_hash, reinforcement_count: $reinforcement_count}')
+
+      pw_updated=$(jq --argjson sig "$pw_signal" '.signals += [$sig]' "$pw_file" 2>/dev/null)
+      if [[ -z "$pw_updated" ]]; then
+        [[ "$pw_lock_held" == "true" ]] && release_lock 2>/dev/null || true
+        json_err "${E_JSON_INVALID:-E_JSON_INVALID}" "Failed to update pheromones.json — jq parse error"
+      fi
     fi
+
     atomic_write "$pw_file" "$pw_updated" || {
       [[ "$pw_lock_held" == "true" ]] && release_lock 2>/dev/null || true
       json_err "$E_JSON_INVALID" "Failed to write pheromones.json"
@@ -6965,7 +7141,7 @@ $updated_meta
     # Get active signal count
     pw_active_count=$(jq '[.signals[] | select(.active == true)] | length' "$pw_file" 2>/dev/null || echo "0")
 
-    json_ok "{\"signal_id\":\"$pw_id\",\"type\":\"$pw_type\",\"active_count\":$pw_active_count}"
+    json_ok "{\"signal_id\":\"$pw_id\",\"type\":\"$pw_type\",\"action\":\"$pw_action\",\"active_count\":$pw_active_count}"
     ;;
 
   pheromone-count)
@@ -7568,6 +7744,12 @@ $updated_meta
       cp_compact=true
     fi
 
+    # Total character budget for cp_final_prompt
+    cp_max_chars=8000
+    if [[ "$cp_compact" == "true" ]]; then
+      cp_max_chars=4000
+    fi
+
     cp_global_queen="$HOME/.aether/QUEEN.md"
     cp_local_queen="$AETHER_ROOT/.aether/QUEEN.md"
 
@@ -7577,8 +7759,8 @@ $updated_meta
     cp_wisdom_json='{}'
 
     # Initialize empty wisdom objects (used if file doesn't exist)
-    cp_global_wisdom='{" philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":""}'
-    cp_local_wisdom='{" philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":""}'
+    cp_global_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":"","user_prefs":""}'
+    cp_local_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":"","user_prefs":""}'
 
     # Helper to extract wisdom sections from a QUEEN.md file
     # Uses line number approach to avoid macOS awk range issues
@@ -7591,16 +7773,35 @@ $updated_meta
       local red_line=$(awk '/^## ⚠️ Redirects$/ {print NR; exit}' "$queen_file")
       local stack_line=$(awk '/^## 🔧 Stack Wisdom$/ {print NR; exit}' "$queen_file")
       local dec_line=$(awk '/^## 🏛️ Decrees$/ {print NR; exit}' "$queen_file")
+      local prefs_line=$(awk '/^## 👤 User Preferences$/ {print NR; exit}' "$queen_file")
       local evo_line=$(awk '/^## 📊 Evolution Log$/ {print NR; exit}' "$queen_file")
 
       # Extract sections
-      local philosophies patterns redirects stack_wisdom decrees
+      local philosophies patterns redirects stack_wisdom decrees user_prefs
 
-      philosophies=$(awk -v s="$p_line" -v e="$pat_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      patterns=$(awk -v s="$pat_line" -v e="$red_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      redirects=$(awk -v s="$red_line" -v e="$stack_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      stack_wisdom=$(awk -v s="$stack_line" -v e="$dec_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      decrees=$(awk -v s="$dec_line" -v e="${evo_line:-999999}" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      if [[ -n "$p_line" && -n "$pat_line" ]]; then
+        philosophies=$(awk -v s="$p_line" -v e="$pat_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else philosophies='""'; fi
+      if [[ -n "$pat_line" && -n "$red_line" ]]; then
+        patterns=$(awk -v s="$pat_line" -v e="$red_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else patterns='""'; fi
+      if [[ -n "$red_line" && -n "$stack_line" ]]; then
+        redirects=$(awk -v s="$red_line" -v e="$stack_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else redirects='""'; fi
+      if [[ -n "$stack_line" && -n "$dec_line" ]]; then
+        stack_wisdom=$(awk -v s="$stack_line" -v e="$dec_line" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else stack_wisdom='""'; fi
+
+      # Decrees: between dec_line+1 and (prefs_line-1 or evo_line-1 or end)
+      local dec_end="${prefs_line:-${evo_line:-999999}}"
+      decrees=$(awk -v s="$dec_line" -v e="$dec_end" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+
+      # User Preferences: between prefs_line+1 and (evo_line-1 or end)
+      if [[ -n "$prefs_line" ]]; then
+        user_prefs=$(awk -v s="$prefs_line" -v e="${evo_line:-999999}" 'NR > s && NR < e {print}' "$queen_file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+      else
+        user_prefs='""'
+      fi
 
       # Return empty strings if any extraction failed
       philosophies=${philosophies:-'""'}
@@ -7608,9 +7809,10 @@ $updated_meta
       redirects=${redirects:-'""'}
       stack_wisdom=${stack_wisdom:-'""'}
       decrees=${decrees:-'""'}
+      user_prefs=${user_prefs:-'""'}
 
       # Build JSON directly with already-quoted strings
-      echo "{\"philosophies\":$philosophies,\"patterns\":$patterns,\"redirects\":$redirects,\"stack_wisdom\":$stack_wisdom,\"decrees\":$decrees}"
+      echo "{\"philosophies\":$philosophies,\"patterns\":$patterns,\"redirects\":$redirects,\"stack_wisdom\":$stack_wisdom,\"decrees\":$decrees,\"user_prefs\":$user_prefs}"
     }
 
     # Load global QUEEN.md first (~/.aether/QUEEN.md)
@@ -7650,7 +7852,8 @@ $updated_meta
         patterns: combine($global.patterns; $local.patterns),
         redirects: combine($global.redirects; $local.redirects),
         stack_wisdom: combine($global.stack_wisdom; $local.stack_wisdom),
-        decrees: combine($global.decrees; $local.decrees)
+        decrees: combine($global.decrees; $local.decrees),
+        user_prefs: combine($global.user_prefs; $local.user_prefs)
       }
       ')
 
@@ -7700,7 +7903,17 @@ $updated_meta
     fi
 
     # Build prompt_section that combines wisdom + signals
+    # Each section is stored separately for budget enforcement
     cp_final_prompt=""
+    cp_sec_queen=""
+    cp_sec_user_prefs=""
+    cp_sec_hive=""
+    cp_sec_capsule=""
+    cp_sec_learnings=""
+    cp_sec_decisions=""
+    cp_sec_blockers=""
+    cp_sec_rolling=""
+    cp_sec_signals=""
 
     # Add wisdom section to prompt if any exists
     cp_philosophies=$(echo "$cp_combined" | jq -r '.philosophies // ""' 2>/dev/null)
@@ -7708,35 +7921,93 @@ $updated_meta
     cp_redirects=$(echo "$cp_combined" | jq -r '.redirects // ""' 2>/dev/null)
     cp_stack=$(echo "$cp_combined" | jq -r '.stack_wisdom // ""' 2>/dev/null)
     cp_decrees=$(echo "$cp_combined" | jq -r '.decrees // ""' 2>/dev/null)
+    cp_user_prefs=$(echo "$cp_combined" | jq -r '.user_prefs // ""' 2>/dev/null)
 
     if [[ -n "$cp_philosophies" || -n "$cp_patterns" || -n "$cp_redirects" || -n "$cp_stack" || -n "$cp_decrees" ]]; then
-      cp_final_prompt+="--- QUEEN WISDOM (Eternal Guidance) ---"$'\n'
+      cp_sec_queen+="--- QUEEN WISDOM (Eternal Guidance) ---"$'\n'
 
       if [[ -n "$cp_philosophies" && "$cp_philosophies" != "null" ]]; then
-        cp_final_prompt+=$'\n'"📜 Philosophies:"$'\n'"$cp_philosophies"$'\n'
+        cp_sec_queen+=$'\n'"📜 Philosophies:"$'\n'"$cp_philosophies"$'\n'
       fi
       if [[ -n "$cp_patterns" && "$cp_patterns" != "null" ]]; then
-        cp_final_prompt+=$'\n'"🧭 Patterns:"$'\n'"$cp_patterns"$'\n'
+        cp_sec_queen+=$'\n'"🧭 Patterns:"$'\n'"$cp_patterns"$'\n'
       fi
       if [[ -n "$cp_redirects" && "$cp_redirects" != "null" ]]; then
-        cp_final_prompt+=$'\n'"⚠️ Redirects (AVOID these):"$'\n'"$cp_redirects"$'\n'
+        cp_sec_queen+=$'\n'"⚠️ Redirects (AVOID these):"$'\n'"$cp_redirects"$'\n'
       fi
       if [[ -n "$cp_stack" && "$cp_stack" != "null" ]]; then
-        cp_final_prompt+=$'\n'"🔧 Stack Wisdom:"$'\n'"$cp_stack"$'\n'
+        cp_sec_queen+=$'\n'"🔧 Stack Wisdom:"$'\n'"$cp_stack"$'\n'
       fi
       if [[ -n "$cp_decrees" && "$cp_decrees" != "null" ]]; then
-        cp_final_prompt+=$'\n'"🏛️ Decrees:"$'\n'"$cp_decrees"$'\n'
+        cp_sec_queen+=$'\n'"🏛️ Decrees:"$'\n'"$cp_decrees"$'\n'
       fi
 
-      cp_final_prompt+=$'\n'"--- END QUEEN WISDOM ---"$'\n'
+      cp_sec_queen+=$'\n'"--- END QUEEN WISDOM ---"$'\n'
     fi
+
+    # Build separate USER PREFERENCES section (distinct from QUEEN WISDOM)
+    cp_sec_user_prefs=""
+    cp_user_prefs_count=0
+    if [[ -n "$cp_user_prefs" && "$cp_user_prefs" != "null" ]]; then
+      # Count entries (lines starting with "- ")
+      cp_user_prefs_count=$(echo "$cp_user_prefs" | grep -c '^- ' || echo "0")
+      if [[ "$cp_user_prefs_count" -gt 0 ]]; then
+        cp_sec_user_prefs=$'\n'"--- USER PREFERENCES ---"$'\n'
+        cp_sec_user_prefs+="$cp_user_prefs"$'\n'
+        cp_sec_user_prefs+="--- END USER PREFERENCES ---"$'\n'
+        cp_log_line="$cp_log_line, $cp_user_prefs_count user_prefs"
+      fi
+    fi
+
+    # === Hive-wisdom injection (HIVE-01) ===
+    # Read high_value_signals from ~/.aether/eternal/memory.json (if it exists)
+    # and format as cross-colony guidance for workers
+    cp_hive_file="$HOME/.aether/eternal/memory.json"
+    cp_hive_count=0
+    cp_sec_hive=""
+
+    cp_max_hive=5
+    if [[ "$cp_compact" == "true" ]]; then
+      cp_max_hive=3
+    fi
+
+    if [[ -f "$cp_hive_file" ]]; then
+      cp_hive_signals=$(jq -r \
+        --argjson max "$cp_max_hive" \
+        '
+        .high_value_signals // []
+        | .[:$max]
+        ' "$cp_hive_file" 2>/dev/null || echo "[]")
+
+      cp_hive_count=$(echo "$cp_hive_signals" | jq 'length' 2>/dev/null || echo "0")
+
+      if [[ "$cp_hive_count" -gt 0 ]]; then
+        cp_hive_section="--- HIVE WISDOM (Cross-Colony Patterns) ---"$'\n'
+
+        cp_hive_lines=$(echo "$cp_hive_signals" | jq -r '
+          .[] | "[" + (.type // "UNKNOWN") + " | " + ((.strength // 0) | tostring) + "] " + (.content // "")
+        ' 2>/dev/null || echo "")
+
+        if [[ -n "$cp_hive_lines" ]]; then
+          while IFS= read -r cp_hive_line; do
+            [[ -n "$cp_hive_line" ]] && cp_hive_section+="- $cp_hive_line"$'\n'
+          done <<< "$cp_hive_lines"
+        fi
+
+        cp_hive_section+="--- END HIVE WISDOM ---"
+
+        cp_sec_hive=$'\n'"$cp_hive_section"$'\n'
+        cp_log_line="$cp_log_line, $cp_hive_count hive"
+      fi
+    fi
+    # === END hive-wisdom injection ===
 
     # Add compact context capsule for low-token continuity
     cp_capsule_prompt=""
     cp_capsule_raw=$("$SCRIPT_DIR/aether-utils.sh" context-capsule --compact --json 2>/dev/null) || cp_capsule_raw=""
     cp_capsule_prompt=$(echo "$cp_capsule_raw" | jq -r '.result.prompt_section // ""' 2>/dev/null || echo "")
     if [[ -n "$cp_capsule_prompt" ]]; then
-      cp_final_prompt+=$'\n'"$cp_capsule_prompt"$'\n'
+      cp_sec_capsule=$'\n'"$cp_capsule_prompt"$'\n'
     fi
 
     # === Phase learnings injection ===
@@ -7794,7 +8065,7 @@ $updated_meta
 
       cp_learning_section+=$'\n'"--- END PHASE LEARNINGS ---"
 
-      cp_final_prompt+=$'\n'"$cp_learning_section"$'\n'
+      cp_sec_learnings=$'\n'"$cp_learning_section"$'\n'
 
       cp_log_line="$cp_log_line, $cp_learning_count learnings"
     fi
@@ -7846,7 +8117,7 @@ $updated_meta
         done <<< "$cp_trimmed_decisions"
         cp_decision_section+="--- END KEY DECISIONS ---"
 
-        cp_final_prompt+=$'\n'"$cp_decision_section"$'\n'
+        cp_sec_decisions=$'\n'"$cp_decision_section"$'\n'
         cp_log_line="$cp_log_line, $cp_decision_count decisions"
       fi
     fi
@@ -7898,7 +8169,7 @@ $updated_meta
 
         cp_blocker_section+="--- END BLOCKER WARNINGS ---"
 
-        cp_final_prompt+=$'\n'"$cp_blocker_section"$'\n'
+        cp_sec_blockers=$'\n'"$cp_blocker_section"$'\n'
         cp_log_line="$cp_log_line, $cp_blocker_count blockers"
       fi
     fi
@@ -7914,9 +8185,9 @@ $updated_meta
     fi
 
     if [[ -n "$cp_roll_entries" ]]; then
-      cp_final_prompt+=$'\n'"--- RECENT ACTIVITY (Colony Narrative) ---"$'\n'
-      cp_final_prompt+="$cp_roll_entries"$'\n'
-      cp_final_prompt+="--- END RECENT ACTIVITY ---"$'\n'
+      cp_sec_rolling=$'\n'"--- RECENT ACTIVITY (Colony Narrative) ---"$'\n'
+      cp_sec_rolling+="$cp_roll_entries"$'\n'
+      cp_sec_rolling+="--- END RECENT ACTIVITY ---"$'\n'
 
       cp_roll_actual=$(echo "$cp_roll_entries" | grep -c '.' || echo "0")
       cp_log_line="$cp_log_line, $cp_roll_actual activity entries"
@@ -7925,8 +8196,119 @@ $updated_meta
 
     # Add pheromone signals section
     if [[ -n "$cp_prompt_section" && "$cp_prompt_section" != "null" ]]; then
-      cp_final_prompt+=$'\n'"$cp_prompt_section"
+      cp_sec_signals=$'\n'"$cp_prompt_section"
     fi
+
+    # === Budget enforcement (BUDGET-01) ===
+    # Assemble cp_final_prompt from sections, respecting cp_max_chars budget.
+    # Truncation priority (trim first to last):
+    #   rolling-summary > phase-learnings > key-decisions > hive-wisdom >
+    #   context-capsule > user-prefs > queen-wisdom > pheromone-signals (NEVER trim REDIRECTs)
+    # Blockers are always kept (REDIRECT-priority).
+
+    # Assemble all sections in original order
+    cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+
+    cp_budget_len=${#cp_final_prompt}
+
+    if [[ "$cp_budget_len" -gt "$cp_max_chars" ]]; then
+      # Over budget -- trim sections in priority order (first = trimmed first)
+      cp_budget_trimmed_list=""
+
+      # 1. Trim rolling-summary
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_rolling" ]]; then
+        cp_sec_rolling=""
+        cp_budget_trimmed_list="rolling-summary"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # 2. Trim phase-learnings
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_learnings" ]]; then
+        cp_sec_learnings=""
+        cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}phase-learnings"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # 3. Trim key-decisions
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_decisions" ]]; then
+        cp_sec_decisions=""
+        cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}key-decisions"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # 4. Trim hive-wisdom
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_hive" ]]; then
+        cp_sec_hive=""
+        cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}hive-wisdom"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # 5. Trim context-capsule
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_capsule" ]]; then
+        cp_sec_capsule=""
+        cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}context-capsule"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # 6. Trim user-prefs
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_user_prefs" ]]; then
+        cp_sec_user_prefs=""
+        cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}user-prefs"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # 7. Trim queen-wisdom
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_queen" ]]; then
+        cp_sec_queen=""
+        cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}queen-wisdom"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # 8. Trim pheromone-signals (preserve REDIRECTs)
+      if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_signals" ]]; then
+        # Extract REDIRECT lines and preserve them
+        cp_redirect_preserved=""
+        if [[ "$cp_sec_signals" == *"REDIRECT (HARD CONSTRAINTS"* ]]; then
+          cp_redirect_lines=""
+          cp_in_redirect=false
+          while IFS= read -r cp_rl; do
+            if [[ "$cp_rl" == *"REDIRECT (HARD CONSTRAINTS"* ]]; then
+              cp_in_redirect=true
+              cp_redirect_lines+="$cp_rl"$'\n'
+            elif [[ "$cp_in_redirect" == "true" ]]; then
+              if [[ "$cp_rl" == "FOCUS "* ]] || [[ "$cp_rl" == "FEEDBACK "* ]] || \
+                   [[ "$cp_rl" == "POSITION "* ]] || [[ "$cp_rl" == "--- "* ]]; then
+                cp_in_redirect=false
+              else
+                cp_redirect_lines+="$cp_rl"$'\n'
+              fi
+            fi
+          done <<< "$cp_sec_signals"
+          if [[ -n "$cp_redirect_lines" ]]; then
+            cp_redirect_preserved=$'\n'"--- ACTIVE SIGNALS (Colony Guidance) ---"$'\n'
+            cp_redirect_preserved+=$'\n'"$cp_redirect_lines"
+            cp_redirect_preserved+=$'\n'"--- END COLONY CONTEXT ---"
+          fi
+        fi
+        cp_sec_signals="$cp_redirect_preserved"
+        cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}pheromone-signals"
+        cp_final_prompt="$cp_sec_queen$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+        cp_budget_len=${#cp_final_prompt}
+      fi
+
+      # Append truncation note to log line
+      if [[ -n "$cp_budget_trimmed_list" ]]; then
+        cp_log_line="$cp_log_line, truncated: $cp_budget_trimmed_list (budget: ${cp_max_chars})"
+      fi
+    fi
+    # === END Budget enforcement ===
 
     # Escape for JSON
     cp_prompt_json=$(printf '%s' "$cp_final_prompt" | jq -Rs '.' 2>/dev/null || echo '""')
@@ -8070,10 +8452,37 @@ $updated_meta
     ' "$phe_pheromones_file" 2>/dev/null || echo '[]')
 
     # Promote high-value expired signals to eternal memory before archival.
+    # Use decayed effective_strength (not raw .strength) for promotion threshold.
     phe_eternal_promoted=0
     while IFS= read -r phe_signal; do
       [[ -z "$phe_signal" ]] && continue
-      phe_strength_int=$(echo "$phe_signal" | jq -r '((.strength // 0) * 100 | floor)' 2>/dev/null || echo "0")
+      phe_strength_int=$(echo "$phe_signal" | jq -r --arg now_iso "$phe_now_iso" '
+        def to_epoch(ts):
+          if ts == null or ts == "" or ts == "phase_end" then null
+          else
+            (ts | split("T")) as $parts |
+            ($parts[0] | split("-")) as $d |
+            ($parts[1] | rtrimstr("Z") | split(":")) as $t |
+            (($d[0] | tonumber) - 1970) * 365 * 86400 +
+            (($d[1] | tonumber) - 1) * 30 * 86400 +
+            (($d[2] | tonumber) - 1) * 86400 +
+            ($t[0] | tonumber) * 3600 +
+            ($t[1] | tonumber) * 60 +
+            ($t[2] | rtrimstr("Z") | tonumber)
+          end;
+        def decay_days(t):
+          if t == "FOCUS" then 30
+          elif t == "REDIRECT" then 60
+          else 90
+          end;
+        (to_epoch($now_iso)) as $now |
+        (to_epoch(.created_at)) as $created |
+        (if $created != null then ($now - $created) / 86400 else 0 end) as $elapsed |
+        (decay_days(.type // "FEEDBACK")) as $dd |
+        ((.strength // 0) * (1 - ($elapsed / $dd))) as $eff_raw |
+        (if $eff_raw < 0 then 0 else $eff_raw end) as $eff |
+        (($eff * 100) | floor)
+      ' 2>/dev/null || echo "0")
       if [[ "$phe_strength_int" -gt 80 ]]; then
         phe_text=$(echo "$phe_signal" | jq -r '.content.text // ""' 2>/dev/null || echo "")
         phe_type=$(echo "$phe_signal" | jq -r '.type // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")
@@ -8240,6 +8649,360 @@ $updated_meta
 
     [[ "$es_lock_held" == "true" ]] && release_lock 2>/dev/null || true
     json_ok "{\"stored\":true,\"signal_id\":\"$es_signal_id\",\"type\":\"$es_type\"}"
+    ;;
+
+  hive-init)
+    # Initialize the ~/.aether/hive/ directory and wisdom.json schema
+    # Usage: hive-init
+    # Idempotent: safe to call multiple times — will NOT overwrite existing wisdom.json
+
+    hv_hive_dir="$HOME/.aether/hive"
+    hv_wisdom_file="$hv_hive_dir/wisdom.json"
+    hv_already_existed="false"
+
+    mkdir -p "$hv_hive_dir"
+
+    if [[ -f "$hv_wisdom_file" ]]; then
+      hv_already_existed="true"
+    else
+      hv_created_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+      hv_initial_schema=$(jq -n \
+        --arg created_at "$hv_created_at" \
+        --arg last_updated "$hv_created_at" \
+        '{
+          version: "1.0.0",
+          created_at: $created_at,
+          last_updated: $last_updated,
+          entries: [],
+          metadata: {
+            total_entries: 0,
+            max_entries: 200,
+            contributing_repos: []
+          }
+        }')
+
+      hv_lock_held=false
+      if type acquire_lock &>/dev/null; then
+        # Use hub-level lock dir so cross-repo locks provide mutual exclusion
+        hv_saved_lock_dir="$LOCK_DIR"
+        LOCK_DIR="$hv_hive_dir"
+        acquire_lock "$hv_wisdom_file" || { LOCK_DIR="$hv_saved_lock_dir"; json_err "$E_LOCK_FAILED" "Failed to acquire lock on wisdom.json"; }
+        hv_lock_held=true
+      fi
+
+      atomic_write "$hv_wisdom_file" "$hv_initial_schema" || {
+        [[ "$hv_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hv_saved_lock_dir:-$LOCK_DIR}"; }
+        json_err "$E_JSON_INVALID" "Failed to write wisdom.json"
+      }
+
+      [[ "$hv_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hv_saved_lock_dir:-$LOCK_DIR}"; }
+    fi
+
+    json_ok "{\"dir\":\"$hv_hive_dir\",\"initialized\":true,\"already_existed\":$hv_already_existed}"
+    ;;
+
+  hive-store)
+    # Store a wisdom entry in ~/.aether/hive/wisdom.json
+    # Usage: hive-store --text <text> --domain <csv> --source-repo <path> --confidence <0-1> --category <cat>
+    # Deduplicates by content hash. Same-repo dups skipped, cross-repo dups merged.
+    # Enforces 200 entry cap — evicts oldest by last_accessed when full.
+
+    hs_text=""
+    hs_domain=""
+    hs_source_repo=""
+    hs_confidence="0.5"
+    hs_category="general"
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --text)        hs_text="${2:-}"; shift 2 ;;
+        --domain)      hs_domain="${2:-}"; shift 2 ;;
+        --source-repo) hs_source_repo="${2:-}"; shift 2 ;;
+        --confidence)  hs_confidence="${2:-0.5}"; shift 2 ;;
+        --category)    hs_category="${2:-general}"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    # Validate required fields
+    [[ -z "$hs_text" ]] && json_err "$E_VALIDATION_FAILED" "Missing required --text argument" '{"missing":"text"}'
+    [[ -z "$hs_source_repo" ]] && json_err "$E_VALIDATION_FAILED" "Missing required --source-repo argument" '{"missing":"source_repo"}'
+
+    # Validate confidence range
+    if ! [[ "$hs_confidence" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]]; then
+      json_err "$E_VALIDATION_FAILED" "Confidence must be a number between 0.0 and 1.0" "{\"provided\":\"$hs_confidence\"}"
+    fi
+
+    # Content sanitization (matches pheromone-write pattern)
+    if echo "$hs_text" | grep -Eiq '<[[:space:]]*/?(system|prompt|instructions|system-reminder|assistant|user|human)'; then
+      json_err "$E_VALIDATION_FAILED" "Wisdom content rejected: XML tag injection pattern detected"
+    fi
+    hs_text="${hs_text//</&lt;}"
+    hs_text="${hs_text//>/&gt;}"
+    hs_text="${hs_text:0:500}"
+    if echo "$hs_text" | grep -Eiq '(\$\(|`|(^|[[:space:]])curl([[:space:]]|$)|(^|[[:space:]])wget([[:space:]]|$)|(^|[[:space:]])rm([[:space:]]|$))'; then
+      json_err "$E_VALIDATION_FAILED" "Wisdom content rejected: potential injection pattern"
+    fi
+    if echo "$hs_text" | grep -Eiq '(ignore\s+(all\s+)?(previous\s+|prior\s+|above\s+)?instructions|disregard\s+(above|previous|all)|you are now |new instructions:|system prompt)'; then
+      json_err "$E_VALIDATION_FAILED" "Wisdom content rejected: prompt injection pattern detected"
+    fi
+
+    # Ensure hive is initialized
+    bash "$0" hive-init >/dev/null 2>&1 || json_err "$E_FILE_NOT_FOUND" "Unable to initialize hive"
+
+    hs_wisdom_file="$HOME/.aether/hive/wisdom.json"
+    [[ -f "$hs_wisdom_file" ]] || json_err "$E_FILE_NOT_FOUND" "Hive wisdom file not found"
+
+    if ! jq -e . "$hs_wisdom_file" >/dev/null 2>&1; then
+      json_err "$E_JSON_INVALID" "Hive wisdom JSON is invalid"
+    fi
+
+    # Generate content hash (first 12 chars of SHA-256)
+    hs_content_hash=$(printf '%s' "$hs_text" | shasum -a 256 | cut -c1-12)
+
+    # Parse domain tags CSV into JSON array
+    hs_domain_json="[]"
+    if [[ -n "$hs_domain" ]]; then
+      hs_domain_json=$(echo "$hs_domain" | tr ',' '\n' | jq -R 'gsub("^\\s+|\\s+$";"")' | jq -s '.')
+    fi
+
+    hs_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Acquire lock — use hub-level lock dir for cross-repo mutual exclusion
+    hs_lock_held=false
+    if type acquire_lock &>/dev/null; then
+      hs_saved_lock_dir="$LOCK_DIR"
+      LOCK_DIR="$HOME/.aether/hive"
+      acquire_lock "$hs_wisdom_file" || { LOCK_DIR="$hs_saved_lock_dir"; json_err "$E_LOCK_FAILED" "Failed to acquire lock on wisdom.json"; }
+      hs_lock_held=true
+    fi
+
+    # Check for existing entry with same content hash
+    hs_existing_idx=$(jq --arg hash "$hs_content_hash" '
+      .entries | to_entries | map(select(.value.id == $hash)) | .[0].key // -1
+    ' "$hs_wisdom_file" 2>/dev/null)
+
+    if [[ "$hs_existing_idx" != "-1" ]] && [[ "$hs_existing_idx" != "null" ]] && [[ -n "$hs_existing_idx" ]]; then
+      # Entry exists — check if same repo
+      hs_has_repo=$(jq --arg hash "$hs_content_hash" --arg repo "$hs_source_repo" '
+        .entries[] | select(.id == $hash) | .source_repos | map(select(. == $repo)) | length > 0
+      ' "$hs_wisdom_file" 2>/dev/null)
+
+      if [[ "$hs_has_repo" == "true" ]]; then
+        # Same repo duplicate — skip
+        [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
+        json_ok "{\"action\":\"skipped\",\"reason\":\"duplicate from same repo\",\"id\":\"$hs_content_hash\"}"
+      else
+        # Different repo — merge: increment validated_count, add repo
+        hs_updated=$(jq --arg hash "$hs_content_hash" \
+          --arg repo "$hs_source_repo" \
+          --arg now "$hs_now_iso" '
+          .entries = [.entries[] |
+            if .id == $hash then
+              .validated_count = (.validated_count + 1) |
+              .source_repos = (.source_repos + [$repo] | unique) |
+              .last_accessed = $now
+            else . end
+          ] |
+          .metadata.contributing_repos = ([.entries[].source_repos[]] | unique) |
+          .last_updated = $now
+        ' "$hs_wisdom_file" 2>/dev/null) || {
+          [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
+          json_err "$E_JSON_INVALID" "Failed to merge wisdom entry"
+        }
+
+        atomic_write "$hs_wisdom_file" "$hs_updated" || {
+          [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
+          json_err "$E_JSON_INVALID" "Failed to write merged wisdom entry"
+        }
+
+        [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
+        hs_new_count=$(echo "$hs_updated" | jq --arg hash "$hs_content_hash" '.entries[] | select(.id == $hash) | .validated_count')
+        json_ok "{\"action\":\"merged\",\"id\":\"$hs_content_hash\",\"validated_count\":$hs_new_count}"
+      fi
+    else
+      # New entry — build and append
+      hs_entry=$(jq -n \
+        --arg id "$hs_content_hash" \
+        --arg text "$hs_text" \
+        --arg category "$hs_category" \
+        --argjson confidence "$hs_confidence" \
+        --argjson domain_tags "$hs_domain_json" \
+        --arg source_repo "$hs_source_repo" \
+        --arg created_at "$hs_now_iso" \
+        --arg last_accessed "$hs_now_iso" \
+        '{
+          id: $id,
+          text: $text,
+          category: $category,
+          confidence: $confidence,
+          domain_tags: $domain_tags,
+          source_repos: [$source_repo],
+          validated_count: 1,
+          created_at: $created_at,
+          last_accessed: $last_accessed,
+          access_count: 0
+        }')
+
+      # Append entry and enforce 200 cap (evict oldest by last_accessed)
+      hs_updated=$(jq --argjson entry "$hs_entry" --arg now "$hs_now_iso" '
+        .entries = (.entries + [$entry]) |
+        if (.entries | length) > 200 then
+          .entries = (.entries | sort_by(.last_accessed) | .[-200:])
+        else . end |
+        .metadata.total_entries = (.entries | length) |
+        .metadata.contributing_repos = ([.entries[].source_repos[]] | unique) |
+        .last_updated = $now
+      ' "$hs_wisdom_file" 2>/dev/null) || {
+        [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
+        json_err "$E_JSON_INVALID" "Failed to append wisdom entry"
+      }
+
+      atomic_write "$hs_wisdom_file" "$hs_updated" || {
+        [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
+        json_err "$E_JSON_INVALID" "Failed to write new wisdom entry"
+      }
+
+      [[ "$hs_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hs_saved_lock_dir:-$LOCK_DIR}"; }
+      json_ok "{\"action\":\"stored\",\"id\":\"$hs_content_hash\",\"category\":\"$hs_category\"}"
+    fi
+    ;;
+
+  hive-read)
+    # Read wisdom entries from ~/.aether/hive/wisdom.json with filtering and access tracking
+    # Usage: hive-read [--domain <csv>] [--limit <N>] [--min-confidence <0.0-1.0>] [--format <json|text>]
+    # Increments access_count and updates last_accessed for returned entries.
+
+    hr_domain=""
+    hr_limit="10"
+    hr_min_confidence="0.0"
+    hr_format="json"
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --domain)         hr_domain="${2:-}"; shift 2 ;;
+        --limit)          hr_limit="${2:-10}"; shift 2 ;;
+        --min-confidence) hr_min_confidence="${2:-0.0}"; shift 2 ;;
+        --format)         hr_format="${2:-json}"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    # Validate limit is a positive integer
+    if ! [[ "$hr_limit" =~ ^[0-9]+$ ]] || [[ "$hr_limit" -lt 1 ]]; then
+      json_err "$E_VALIDATION_FAILED" "Limit must be a positive integer" "{\"provided\":\"$hr_limit\"}"
+    fi
+
+    # Validate min-confidence is a valid number 0.0-1.0
+    if ! [[ "$hr_min_confidence" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]]; then
+      json_err "$E_VALIDATION_FAILED" "Min-confidence must be a number between 0.0 and 1.0" "{\"provided\":\"$hr_min_confidence\"}"
+    fi
+
+    # Validate format
+    if [[ "$hr_format" != "json" ]] && [[ "$hr_format" != "text" ]]; then
+      json_err "$E_VALIDATION_FAILED" "Format must be 'json' or 'text'" "{\"provided\":\"$hr_format\"}"
+    fi
+
+    hr_wisdom_file="$HOME/.aether/hive/wisdom.json"
+
+    # Fallback: no wisdom file
+    if [[ ! -f "$hr_wisdom_file" ]]; then
+      json_ok '{"entries":[],"total_matched":0,"fallback":"no_hive"}'
+      exit 0
+    fi
+
+    # Validate JSON
+    if ! jq -e . "$hr_wisdom_file" >/dev/null 2>&1; then
+      json_ok '{"entries":[],"total_matched":0,"fallback":"invalid_json"}'
+      exit 0
+    fi
+
+    # Parse domain tags CSV into JSON array for jq filtering
+    hr_domain_json="[]"
+    if [[ -n "$hr_domain" ]]; then
+      hr_domain_json=$(echo "$hr_domain" | tr ',' '\n' | jq -R 'gsub("^\\s+|\\s+$";"")' | jq -s '.')
+    fi
+
+    # Filter, sort, and select entries using jq
+    hr_filtered=$(jq \
+      --argjson domain_filter "$hr_domain_json" \
+      --argjson min_conf "$hr_min_confidence" \
+      --argjson limit "$hr_limit" '
+      .entries
+      | map(
+          select(.confidence >= $min_conf)
+          | if ($domain_filter | length) > 0 then
+              select(
+                [.domain_tags[] as $dt | $domain_filter[] | select(. == $dt)] | length > 0
+              )
+            else . end
+        )
+      | sort_by(-.confidence, -.validated_count)
+      | { total_matched: length, entries: .[:$limit], returned_ids: [.[:$limit][].id] }
+    ' "$hr_wisdom_file" 2>/dev/null) || {
+      json_ok '{"entries":[],"total_matched":0,"fallback":"filter_error"}'
+      exit 0
+    }
+
+    hr_total_matched=$(echo "$hr_filtered" | jq -r '.total_matched')
+    hr_returned_ids=$(echo "$hr_filtered" | jq -c '.returned_ids')
+    hr_entries=$(echo "$hr_filtered" | jq -c '.entries')
+
+    # Update access_count and last_accessed for returned entries
+    if [[ "$hr_total_matched" -gt 0 ]] && [[ $(echo "$hr_returned_ids" | jq 'length') -gt 0 ]]; then
+      hr_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+      hr_lock_held=false
+      if type acquire_lock &>/dev/null; then
+        # Use hub-level lock dir for cross-repo mutual exclusion
+        hr_saved_lock_dir="$LOCK_DIR"
+        LOCK_DIR="$HOME/.aether/hive"
+        acquire_lock "$hr_wisdom_file" || { LOCK_DIR="$hr_saved_lock_dir"; json_err "$E_LOCK_FAILED" "Failed to acquire lock on wisdom.json"; }
+        hr_lock_held=true
+      fi
+
+      hr_updated=$(jq \
+        --argjson returned_ids "$hr_returned_ids" \
+        --arg now "$hr_now_iso" '
+        .entries = [.entries[] |
+          if (.id as $id | $returned_ids | index($id)) != null then
+            .access_count = ((.access_count // 0) + 1) |
+            .last_accessed = $now
+          else . end
+        ] |
+        .last_updated = $now
+      ' "$hr_wisdom_file" 2>/dev/null) || {
+        [[ "$hr_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hr_saved_lock_dir:-$LOCK_DIR}"; }
+        json_err "$E_JSON_INVALID" "Failed to update access tracking in wisdom.json"
+      }
+
+      atomic_write "$hr_wisdom_file" "$hr_updated" || {
+        [[ "$hr_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hr_saved_lock_dir:-$LOCK_DIR}"; }
+        json_err "$E_JSON_INVALID" "Failed to write updated wisdom.json"
+      }
+
+      [[ "$hr_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; LOCK_DIR="${hr_saved_lock_dir:-$LOCK_DIR}"; }
+    fi
+
+    # Format output
+    if [[ "$hr_format" == "text" ]]; then
+      hr_text_output=$(echo "$hr_entries" | jq -r '
+        . as $entries |
+        if ($entries | length) == 0 then "(no wisdom entries)"
+        else
+          [range($entries | length)] |
+          map(
+            $entries[.] |
+            "[\(.confidence | tostring)] [\(.category)] \(.text) (validated: \(.validated_count), domains: \(.domain_tags | join(", ")))"
+          ) | join("\n")
+        end
+      ' 2>/dev/null)
+
+      hr_text_escaped=$(echo "$hr_text_output" | jq -Rs '.')
+      json_ok "{\"entries\":$hr_entries,\"total_matched\":$hr_total_matched,\"text\":$hr_text_escaped}"
+    else
+      json_ok "{\"entries\":$hr_entries,\"total_matched\":$hr_total_matched}"
+    fi
     ;;
 
   midden-write)
@@ -10491,6 +11254,227 @@ DRYRUN_EOF
       --argjson constraints "$_dc_removed_constraints" \
       --argjson total "$_dc_total_removed" \
       '{ok:true, removed:{pheromones:$phero, queen:$queen, observations:$obs, midden:$midden, spawn_tree:$spawn, constraints:$constraints}, total:$total}')"
+    ;;
+
+  # --- Autopilot State Tracking ---
+  # Tracks /ant:run autopilot sessions in run-state.json (separate from COLONY_STATE.json)
+  # Optional — colonies without /ant:run are unaffected
+
+  autopilot-init)
+    # Initialize autopilot run state
+    # Usage: autopilot-init --total-phases N --start-phase N [--max-phases N]
+    _ap_total_phases=""
+    _ap_start_phase=""
+    _ap_max_phases="null"
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --total-phases) _ap_total_phases="$2"; shift 2 ;;
+        --start-phase) _ap_start_phase="$2"; shift 2 ;;
+        --max-phases) _ap_max_phases="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    if [[ -z "$_ap_total_phases" || -z "$_ap_start_phase" ]]; then
+      json_err "$E_VALIDATION_FAILED" "autopilot-init requires --total-phases and --start-phase"
+    fi
+
+    _ap_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    _ap_state_file="$DATA_DIR/run-state.json"
+
+    _ap_state=$(jq -n \
+      --arg version "1.0" \
+      --arg status "running" \
+      --arg started_at "$_ap_now" \
+      --arg last_updated "$_ap_now" \
+      --argjson total_phases "$_ap_total_phases" \
+      --argjson start_phase "$_ap_start_phase" \
+      --argjson current_phase "$_ap_start_phase" \
+      --argjson max_phases "$_ap_max_phases" \
+      '{
+        version: $version,
+        status: $status,
+        started_at: $started_at,
+        last_updated: $last_updated,
+        phases_completed_in_run: 0,
+        total_phases: $total_phases,
+        start_phase: $start_phase,
+        current_phase: $current_phase,
+        max_phases: (if $max_phases == null then null else $max_phases end),
+        pause_reason: null,
+        last_action: null,
+        total_auto_advanced: 0,
+        phase_results: []
+      }')
+
+    atomic_write "$_ap_state_file" "$_ap_state"
+    json_ok '{"created":"run-state.json"}'
+    ;;
+
+  autopilot-update)
+    # Update autopilot run state after a phase action
+    # Usage: autopilot-update --action build|continue|advance --phase N [--result success|failure]
+    _ap_action=""
+    _ap_phase=""
+    _ap_result=""
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --action) _ap_action="$2"; shift 2 ;;
+        --phase) _ap_phase="$2"; shift 2 ;;
+        --result) _ap_result="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    _ap_state_file="$DATA_DIR/run-state.json"
+
+    if [[ ! -f "$_ap_state_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "run-state.json not found — autopilot not active"
+    fi
+
+    if [[ -z "$_ap_action" || -z "$_ap_phase" ]]; then
+      json_err "$E_VALIDATION_FAILED" "autopilot-update requires --action and --phase"
+    fi
+
+    _ap_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Build phase result entry if --result provided
+    _ap_result_entry="null"
+    if [[ -n "$_ap_result" ]]; then
+      _ap_result_entry=$(jq -n \
+        --argjson phase "$_ap_phase" \
+        --arg action "$_ap_action" \
+        --arg result "$_ap_result" \
+        --arg timestamp "$_ap_now" \
+        '{phase: $phase, action: $action, result: $result, timestamp: $timestamp}')
+    fi
+
+    # Update state atomically
+    _ap_updated=$(jq \
+      --arg last_updated "$_ap_now" \
+      --arg last_action "$_ap_action" \
+      --argjson current_phase "$_ap_phase" \
+      --argjson result_entry "$_ap_result_entry" \
+      --arg action "$_ap_action" \
+      '
+      .last_updated = $last_updated |
+      .last_action = $last_action |
+      .current_phase = $current_phase |
+      (if $action == "advance" then .phases_completed_in_run += 1 else . end) |
+      (if $action == "advance" then .total_auto_advanced += 1 else . end) |
+      (if $result_entry != null then .phase_results += [$result_entry] else . end)
+      ' "$_ap_state_file")
+
+    atomic_write "$_ap_state_file" "$_ap_updated"
+    json_ok '{"updated":true}'
+    ;;
+
+  autopilot-status)
+    # Return current autopilot state
+    # Usage: autopilot-status
+    _ap_state_file="$DATA_DIR/run-state.json"
+
+    if [[ ! -f "$_ap_state_file" ]]; then
+      json_ok '{"status":"not_active"}'
+      exit 0
+    fi
+
+    json_ok "$(cat "$_ap_state_file")"
+    ;;
+
+  autopilot-stop)
+    # Stop or complete an autopilot run
+    # Usage: autopilot-stop --reason "why" [--status stopped|completed]
+    _ap_reason=""
+    _ap_stop_status="stopped"
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --reason) _ap_reason="$2"; shift 2 ;;
+        --status) _ap_stop_status="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    _ap_state_file="$DATA_DIR/run-state.json"
+
+    if [[ ! -f "$_ap_state_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "run-state.json not found — autopilot not active"
+    fi
+
+    if [[ -z "$_ap_reason" ]]; then
+      json_err "$E_VALIDATION_FAILED" "autopilot-stop requires --reason"
+    fi
+
+    _ap_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    _ap_updated=$(jq \
+      --arg status "$_ap_stop_status" \
+      --arg reason "$_ap_reason" \
+      --arg last_updated "$_ap_now" \
+      '
+      .status = $status |
+      .pause_reason = $reason |
+      .last_updated = $last_updated
+      ' "$_ap_state_file")
+
+    atomic_write "$_ap_state_file" "$_ap_updated"
+    json_ok "{\"status\":\"$_ap_stop_status\"}"
+    ;;
+
+  autopilot-check-replan)
+    # Check if a replan trigger should fire based on completed phases
+    # Usage: autopilot-check-replan [--interval N]
+    # Returns: {should_replan: bool, reason: string, learnings_since_last: number}
+    _ap_interval=2
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --interval) _ap_interval="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    if [[ "$_ap_interval" -le 0 ]]; then
+      json_err "$E_VALIDATION_FAILED" "autopilot-check-replan --interval must be > 0 (got $_ap_interval)"
+    fi
+
+    _ap_state_file="$DATA_DIR/run-state.json"
+
+    if [[ ! -f "$_ap_state_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "run-state.json not found — autopilot not active"
+    fi
+
+    # Read total_auto_advanced from run state (actual phase completions)
+    _ap_auto_advanced=$(jq -r '.total_auto_advanced // 0' "$_ap_state_file")
+
+    # Count learnings from COLONY_STATE.json
+    _ap_colony_file="$DATA_DIR/COLONY_STATE.json"
+    _ap_learnings_count=0
+    if [[ -f "$_ap_colony_file" ]]; then
+      _ap_learnings_count=$(jq '[.memory.phase_learnings[]?.learnings[]? // empty] | length' "$_ap_colony_file" 2>/dev/null || echo "0")
+    fi
+
+    # Check if replan should trigger: auto_advanced > 0 and is a multiple of interval
+    _ap_should_replan="false"
+    _ap_reason="No replan needed"
+
+    if [[ "$_ap_auto_advanced" -gt 0 ]] && [[ $(( _ap_auto_advanced % _ap_interval )) -eq 0 ]]; then
+      _ap_should_replan="true"
+      _ap_reason="$_ap_auto_advanced phases auto-completed (replan interval: every $_ap_interval). $_ap_learnings_count learnings accumulated — consider /ant:plan to regenerate."
+    fi
+
+    json_ok "$(jq -n \
+      --argjson should_replan "$_ap_should_replan" \
+      --arg reason "$_ap_reason" \
+      --argjson learnings_since_last "$_ap_learnings_count" \
+      '{
+        should_replan: $should_replan,
+        reason: $reason,
+        learnings_since_last: $learnings_since_last
+      }')"
     ;;
 
   *)
