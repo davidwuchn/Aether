@@ -2,7 +2,7 @@
 
 > **Current Version:** v2.0.0
 > **Architecture:** v4.0 (runtime/ eliminated, direct packaging)
-> **Last Updated:** 2026-03-20 (v2.0 — autopilot, hive intelligence, user preferences)
+> **Last Updated:** 2026-03-21 (v2.0 — ship-ready release)
 
 ---
 
@@ -13,7 +13,7 @@
 | Version | v2.0.0 |
 | Slash commands | 43 (Claude) + 43 (OpenCode) |
 | Agent definitions | 22 |
-| aether-utils.sh | 10,000+ lines, 115 subcommands |
+| aether-utils.sh | 11,221 lines, 125 subcommands |
 | Tests | 530+ passing |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
@@ -27,7 +27,7 @@
 │                                                                  │
 │   .aether/             ← SOURCE OF TRUTH (packaged directly)    │
 │   ├── workers.md       (edit here)                              │
-│   ├── aether-utils.sh  (10,000+ lines, 110 subcommands)          │
+│   ├── aether-utils.sh  (11,221 lines, 125 subcommands)           │
 │   ├── utils/           (18 utility scripts)                     │
 │   ├── docs/            (distributed documentation)              │
 │   └── templates/       (12 templates)                           │
@@ -35,7 +35,7 @@
 │   .aether/data/        ← LOCAL ONLY (excluded by .npmignore)    │
 │   .aether/dreams/      ← LOCAL ONLY (excluded by .npmignore)    │
 │                                                                  │
-│   .claude/commands/ant/ ← 42 slash commands (Claude Code)       │
+│   .claude/commands/ant/ ← 43 slash commands (Claude Code)       │
 │   .claude/agents/ant/   ← 22 agent definitions                  │
 │   .opencode/commands/ant/ ← 40 slash commands (OpenCode)        │
 │   .opencode/agents/     ← Agent definitions (OpenCode)          │
@@ -139,7 +139,7 @@ aether update      # or /ant:update
 
 ```
 .claude/
-├── commands/ant/        # 42 slash commands
+├── commands/ant/        # 43 slash commands
 │   ├── init.md          # Colony initialization
 │   ├── plan.md          # Phase planning
 │   ├── build.md         # Build orchestrator (loads split playbooks)
@@ -414,6 +414,8 @@ The midden tracks failures for colony learning:
 - `.aether/data/midden/midden.json` — Failure records
 - `midden-write` — Log a failure
 - `midden-recent-failures` — Query recent failures
+- `midden-review` — Review unacknowledged midden entries grouped by category
+- `midden-acknowledge` — Mark midden entries as addressed by id or category
 
 Failures are logged during:
 - Build failures (build.md)
@@ -540,4 +542,4 @@ For OpenCode-specific rules and agents, see `.opencode/OPENCODE.md`
 
 ---
 
-*Updated for Aether v2.0.0 — 2026-03-20 (autopilot, hive brain, user preferences, pheromone hardening)*
+*Updated for Aether v2.0.0 — 2026-03-21 (ship-ready release)*

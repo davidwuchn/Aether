@@ -230,6 +230,17 @@
       "colonies": [
         "1774047872"
       ]
+    },
+    {
+      "content_hash": "sha256:9a1c495174c92921da9e126374266e1297f7435b9bb4c1cf59c591729aaa896f",
+      "content": "Watcher cross-checking catches stale number references in secondary doc locations",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-21T03:40:31Z",
+      "last_seen": "2026-03-21T03:40:31Z",
+      "colonies": [
+        "1774047872"
+      ]
     }
   ]
 }

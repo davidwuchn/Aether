@@ -2,7 +2,7 @@
   "version": "3.0",
   "goal": "Ship-ready Aether v2: close the loops the Dreamer found (wisdom plumbing, midden reviews, monolith decomposition, TO-DOS cleanup), push to hub, and prepare for other repos to use",
   "state": "READY",
-  "current_phase": 4,
+  "current_phase": 5,
   "session_id": "session_1774047872_0106db2a",
   "initialized_at": "2026-03-20T23:04:32Z",
   "build_started_at": null,
@@ -131,31 +131,31 @@
       {
         "id": 4,
         "name": "Clean Up Documentation",
-        "status": "pending",
+        "status": "completed",
         "description": "Update TO-DOS.md, README.md, CHANGELOG.md, and CLAUDE.md to reflect v2.0.0 reality",
         "tasks": [
           {
             "id": "4.1",
             "description": "Audit TO-DOS.md — mark 8+ implemented items as done, keep genuinely pending items, remove superseded items",
-            "status": "pending",
+            "status": "completed",
             "depends_on": []
           },
           {
             "id": "4.2",
             "description": "Update README.md — version to v2.0.0, command count to 43, expand caste table to 22 agents, add v2 features",
-            "status": "pending",
+            "status": "completed",
             "depends_on": []
           },
           {
             "id": "4.3",
             "description": "Write CHANGELOG [2.0.0] entry with Added/Fixed/Changed sections documenting all v2 features",
-            "status": "pending",
+            "status": "completed",
             "depends_on": []
           },
           {
             "id": "4.4",
             "description": "Update CLAUDE.md Quick Reference — line count, subcommand count, add new subcommands to tables",
-            "status": "pending",
+            "status": "completed",
             "depends_on": []
           }
         ],
@@ -271,6 +271,21 @@
           }
         ],
         "timestamp": "2026-03-21T03:21:04Z"
+      },
+      {
+        "id": "learning_1774064416",
+        "phase": 4,
+        "phase_name": "Clean Up Documentation",
+        "learnings": [
+          {
+            "claim": "Documentation updates benefit from Watcher cross-checking all number references — secondary locations (architecture diagrams, directory listings) easily get missed by the builder",
+            "status": "validated",
+            "tested": true,
+            "evidence": "Watcher found 4 stale number references in secondary CLAUDE.md locations that all 4 builders missed",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-21T03:40:16Z"
       }
     ],
     "decisions": [],
@@ -363,6 +378,8 @@
     "2026-03-21T01:40:55Z|phase_started|build|Phase 2: Add Midden Review Mechanism started",
     "2026-03-21T02:02:24Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
     "2026-03-21T02:35:52Z|phase_started|build|Phase 3: Extract Utility Groups from Monolith started",
-    "2026-03-21T03:21:04Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4"
+    "2026-03-21T03:21:04Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
+    "2026-03-21T03:26:19Z|phase_started|build|Phase 4: Clean Up Documentation started",
+    "2026-03-21T03:40:16Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5"
   ]
 }

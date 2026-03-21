@@ -22,3 +22,15 @@
 2026-03-21T02:50:40Z|Keen-93|completed|576 tests pass, all extraction criteria verified
 2026-03-21T02:50:40Z|Queen|chaos|Snap-54|Resilience testing of monolith extraction|default|spawned
 2026-03-21T02:55:07Z|Snap-54|completed|5 scenarios, 1 high fixed, 1 medium logged, 1 low logged
+2026-03-21T03:26:32Z|Queen|builder|Brick-60|Audit TO-DOS.md|default|spawned
+2026-03-21T03:26:32Z|Queen|builder|Mason-69|Update README.md|default|spawned
+2026-03-21T03:26:32Z|Queen|builder|Forge-78|Write CHANGELOG [2.0.0]|default|spawned
+2026-03-21T03:26:32Z|Queen|builder|Bolt-19|Update CLAUDE.md|default|spawned
+2026-03-21T03:29:19Z|Brick-60|completed|TO-DOS: 11 items moved to Completed, 10 pending kept
+2026-03-21T03:29:19Z|Mason-69|completed|README: v2.0.0, 43 commands, 22 agents, v2 features added
+2026-03-21T03:29:19Z|Forge-78|completed|CHANGELOG: [2.0.0] entry with 12 Added, 3 Changed, 4 Fixed
+2026-03-21T03:29:19Z|Bolt-19|completed|CLAUDE.md: line count, subcommand count, midden commands updated
+2026-03-21T03:29:20Z|Queen|watcher|Alert-96|Verify documentation updates|default|spawned
+2026-03-21T03:33:53Z|Alert-96|completed|Docs verified, 4 consistency fixes applied
+2026-03-21T03:33:53Z|Queen|chaos|Probe-73|Resilience testing of documentation|default|spawned
+2026-03-21T03:34:05Z|Probe-73|completed|Doc accuracy verified — no critical issues

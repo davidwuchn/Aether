@@ -14,7 +14,7 @@
 [![npm version](https://img.shields.io/npm/v/aether-colony.svg)](https://www.npmjs.com/package/aether-colony)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**v1.1.5**
+**v2.0.0**
 </div>
 
 <p align="center">
@@ -52,7 +52,7 @@ When a Builder hits something complex, it spawns a Scout to research. When code 
 ## Key Features
 
 - **22 Agent Definitions** — Real subagents spawned via Task tool
-- **40 Slash Commands** — Full lifecycle management
+- **43 Slash Commands** — Full lifecycle management
 - **Hard Enforcement Guards** — Spawn budget hard-fail mode, schema-validated worker payloads, and explicit blocker gating
 - **Pheromone System** — Guide the colony with FOCUS, REDIRECT, FEEDBACK signals
 - **State Safety** — Lock + atomic-write protections on critical state and memory mutation paths
@@ -61,6 +61,12 @@ When a Builder hits something complex, it spawns a Scout to research. When code 
 - **Colony Memory** — Learnings persist across sessions via QUEEN.md
 - **Operational Evolution Loop** — Incident template, regression scaffolding, weekly audit script, and entropy/spawn metrics
 - **Pause/Resume** — Full state serialization for context breaks
+- **Autopilot** (`/ant:run`) — Automated build-verify-advance loop across phases
+- **Hive Brain** — Cross-colony wisdom sharing with domain-scoped retrieval and multi-repo confidence boosting
+- **User Preferences** — Colony adapts to your communication style and decision patterns
+- **Pre-Seal Audit** (`/ant:patrol`) — Verify work against plan, check docs, review issues before sealing
+- **Quality Gates** — Security (Gatekeeper), quality (Auditor), coverage (Probe), performance (Measurer)
+- **Pheromone Hardening** — Content deduplication, prompt injection sanitization, and signal reinforcement
 
 ---
 
@@ -74,7 +80,7 @@ npx aether-colony install
 npm install -g aether-colony
 ```
 
-This installs 22 agents to `~/.claude/agents/ant/` plus 40 slash commands to `~/.claude/commands/ant/`.
+This installs 22 agents to `~/.claude/agents/ant/` plus 43 slash commands to `~/.claude/commands/ant/`.
 
 ---
 
@@ -101,6 +107,8 @@ This installs 22 agents to `~/.claude/agents/ant/` plus 40 slash commands to `~/
 | `/ant:continue` | ➡️ 6-phase verification, advance to next phase |
 | `/ant:pause-colony` | 💾 Save state for context break |
 | `/ant:resume-colony` | 🚦 Restore from pause |
+| `/ant:run` | 🤖 Autopilot — build, verify, advance automatically |
+| `/ant:patrol` | 🔍 Pre-seal audit — verify work against plan |
 | `/ant:seal` | 🏺 Complete and archive colony |
 | `/ant:entomb` | ⚰️ Create chamber from completed colony |
 
@@ -111,6 +119,11 @@ Implementation note:
 **Core Flow:**
 ```
 /ant:init → /ant:plan → /ant:build 1 → /ant:continue → /ant:build 2 → ... → /ant:seal
+```
+
+**Autopilot Flow:**
+```
+/ant:init → /ant:plan → /ant:run → /ant:seal
 ```
 
 ### Pheromone Signals
@@ -165,23 +178,36 @@ Implementation note:
 | `/ant:data-clean` | 🧹 Remove test artifacts from colony data |
 | `/ant:export-signals` | 📤 Export pheromone signals to XML |
 | `/ant:import-signals` | 📥 Import pheromone signals from XML |
+| `/ant:preferences` | 🎨 Add or list user preferences |
 
 ---
 
 ## The Active Castes
 
-| Caste | Emoji | Role | Spawned By |
-|-------|-------|------|------------|
-| Queen | 👑 | Orchestrates, spawns workers | You |
-| Builder | 🔨 | Writes code, TDD-first | `/ant:build` |
-| Watcher | 👁️ | Tests, validates | `/ant:build` |
-| Scout | 🔍 | Researches, discovers | `/ant:build`, `/ant:oracle`, `/ant:swarm` |
-| Tracker | 🐛 | Investigates bugs | `/ant:swarm` |
-| Surveyor | 🗺️ | Explores codebases | `/ant:colonize` (4 parallel) |
-| Route-Setter | 📋 | Plans phases | `/ant:plan` |
-| Archaeologist | 🏺 | Excavates git history | `/ant:archaeology`, `/ant:build` |
-| Chaos | 🎲 | Resilience testing | `/ant:chaos`, `/ant:build` |
-| Keeper | 📚 | Preserves knowledge | `/ant:continue` |
+| Tier | Agent | Role | Spawned By |
+|------|-------|------|------------|
+| **Core** | Queen | Orchestrates, spawns workers | You |
+| **Core** | Builder | Writes code, TDD-first | `/ant:build` |
+| **Core** | Watcher | Tests, validates | `/ant:build` |
+| **Core** | Scout | Researches, discovers | `/ant:build`, `/ant:oracle`, `/ant:swarm` |
+| **Orchestration** | Route-Setter | Plans phases | `/ant:plan` |
+| **Surveyor** | surveyor-nest | Maps directory structure | `/ant:colonize` |
+| **Surveyor** | surveyor-disciplines | Documents conventions | `/ant:colonize` |
+| **Surveyor** | surveyor-pathogens | Identifies tech debt | `/ant:colonize` |
+| **Surveyor** | surveyor-provisions | Maps dependencies | `/ant:colonize` |
+| **Specialist** | Keeper | Preserves knowledge | `/ant:continue` |
+| **Specialist** | Tracker | Investigates bugs | `/ant:swarm` |
+| **Specialist** | Probe | Coverage analysis | `/ant:continue` |
+| **Specialist** | Weaver | Refactoring specialist | `/ant:build` |
+| **Specialist** | Auditor | Quality gate | `/ant:continue` |
+| **Niche** | Chaos | Resilience testing | `/ant:chaos`, `/ant:build` |
+| **Niche** | Archaeologist | Excavates git history | `/ant:archaeology`, `/ant:build` |
+| **Niche** | Gatekeeper | Security gate | `/ant:continue` |
+| **Niche** | Includer | Accessibility audits | `/ant:build` |
+| **Niche** | Measurer | Performance analysis | `/ant:continue` |
+| **Niche** | Sage | Wisdom synthesis | `/ant:seal` |
+| **Niche** | Ambassador | External integrations | `/ant:build` |
+| **Niche** | Chronicler | Documentation | `/ant:build`, `/ant:seal` |
 
 ---
 
@@ -237,7 +263,7 @@ View memory: `/ant:memory-details`
 <your-repo>/.aether/              # Repo-local colony files
     ├── QUEEN.md                  # Colony wisdom (persists across sessions)
     ├── workers.md                # Worker specs and spawn protocol
-    ├── aether-utils.sh           # Utility layer (110 subcommands)
+    ├── aether-utils.sh           # Utility layer (125 subcommands)
     ├── model-profiles.yaml       # Model routing config
     │
     ├── docs/                     # Documentation
@@ -271,7 +297,11 @@ View memory: `/ant:memory-details`
 6. /ant:build 1                     # Execute phase 1
 7. /ant:continue                    # Verify, advance
 8. Repeat until done
-9. /ant:seal                        # Complete and archive
+9. /ant:patrol                      # Pre-seal audit
+10. /ant:seal                       # Complete and archive
+
+# Or use autopilot (replaces steps 6-8):
+6. /ant:run                         # Auto build/verify/advance all phases
 ```
 
 ### Deep Research with Oracle
