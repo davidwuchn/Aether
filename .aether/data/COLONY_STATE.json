@@ -2,7 +2,7 @@
   "version": "3.0",
   "goal": "Ship-ready Aether v2: close the loops the Dreamer found (wisdom plumbing, midden reviews, monolith decomposition, TO-DOS cleanup), push to hub, and prepare for other repos to use",
   "state": "READY",
-  "current_phase": 2,
+  "current_phase": 3,
   "session_id": "session_1774047872_0106db2a",
   "initialized_at": "2026-03-20T23:04:32Z",
   "build_started_at": null,
@@ -59,19 +59,19 @@
       {
         "id": 2,
         "name": "Add Midden Review Mechanism",
-        "status": "pending",
+        "status": "completed",
         "description": "Add midden-review and midden-acknowledge subcommands to close the midden feedback loop",
         "tasks": [
           {
             "id": "2.1",
             "description": "Add midden-review subcommand — lists unacknowledged failures grouped by category with filtering",
-            "status": "pending",
+            "status": "completed",
             "depends_on": []
           },
           {
             "id": "2.2",
             "description": "Add midden-acknowledge subcommand — marks entries as addressed with a reason",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "2.1"
             ]
@@ -79,7 +79,7 @@
           {
             "id": "2.3",
             "description": "Write tests for midden-review and midden-acknowledge (6 test cases)",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "2.1",
               "2.2"
@@ -234,6 +234,21 @@
           }
         ],
         "timestamp": "2026-03-21T01:24:48Z"
+      },
+      {
+        "id": "learning_1774058544",
+        "phase": 2,
+        "phase_name": "Add Midden Review Mechanism",
+        "learnings": [
+          {
+            "claim": "Combining related subcommands (review+acknowledge) into a single builder task produces cleaner, more consistent APIs than splitting across workers",
+            "status": "validated",
+            "tested": true,
+            "evidence": "Mason-87 built both subcommands with consistent argument patterns and shared jq expressions, 6 tests pass",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-21T02:02:24Z"
       }
     ],
     "decisions": [],
@@ -273,6 +288,24 @@
         "applications": 0,
         "successes": 0,
         "failures": 0
+      },
+      {
+        "id": "instinct_1774058602",
+        "trigger": "building related read+write subcommands for the same data store",
+        "action": "assign to a single builder to ensure consistent argument patterns and shared jq logic",
+        "confidence": 0.7,
+        "status": "hypothesis",
+        "domain": "workflow",
+        "source": "phase-2",
+        "evidence": [
+          "midden-review and midden-acknowledge built together with consistent API"
+        ],
+        "tested": false,
+        "created_at": "2026-03-21T02:03:22Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
       }
     ]
   },
@@ -286,6 +319,8 @@
     "2026-03-20T23:04:32Z|colony_initialized|init|Colony initialized with goal: Ship-ready Aether v2: close the loops the Dreamer found (wisdom plumbing, midden reviews, monolith decomposition, TO-DOS cleanup), push to hub, and prepare for other repos to use",
     "2026-03-21T00:11:20Z|plan_generated|plan|Generated 5 phases with 91% confidence (3 iterations)",
     "2026-03-21T00:26:24Z|phase_started|build|Phase 1: Fix Wisdom Plumbing started",
-    "2026-03-21T01:24:48Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
+    "2026-03-21T01:24:48Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
+    "2026-03-21T01:40:55Z|phase_started|build|Phase 2: Add Midden Review Mechanism started",
+    "2026-03-21T02:02:24Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3"
   ]
 }

@@ -143,7 +143,23 @@
       "source": "chaos",
       "message": "Chaos finding: Unbound variable crash when --id flag passed without value (medium)",
       "reviewed": false
+    },
+    {
+      "id": "midden_1774057831_64927",
+      "timestamp": "2026-03-21T01:50:31Z",
+      "category": "resilience",
+      "source": "chaos",
+      "message": "Chaos finding: midden-acknowledge crashes on missing entries array (high)",
+      "reviewed": false
+    },
+    {
+      "id": "midden_1774057831_64983",
+      "timestamp": "2026-03-21T01:50:31Z",
+      "category": "resilience",
+      "source": "chaos",
+      "message": "Chaos finding: midden-review crashes on null category (high)",
+      "reviewed": false
     }
   ],
-  "entry_count": 14
+  "entry_count": 16
 }

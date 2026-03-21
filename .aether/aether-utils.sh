@@ -983,7 +983,7 @@ case "$cmd" in
     cat <<'HELP_EOF'
 {
   "ok": true,
-  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote"],
+  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","midden-review","midden-acknowledge","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote"],
   "sections": {
     "Core": [
       {"name": "help", "description": "List all available commands with sections"},
@@ -1075,6 +1075,8 @@ case "$cmd" in
       {"name": "bootstrap-system", "description": "Bootstrap minimal system files if missing"},
       {"name": "memory-metrics", "description": "Aggregate memory health across colony stores"},
       {"name": "midden-recent-failures", "description": "Read recent failure signals from midden"},
+      {"name": "midden-review", "description": "Review unacknowledged midden entries grouped by category"},
+      {"name": "midden-acknowledge", "description": "Acknowledge midden entries by id or category"},
       {"name": "entropy-score", "description": "Compute colony entropy score (0-100)"},
       {"name": "force-unlock", "description": "Emergency unlock — remove stale lock files"}
     ],
@@ -10761,6 +10763,163 @@ EOF
     else
       echo "$result"
     fi
+    exit 0
+    ;;
+
+  midden-review)
+    # Review unacknowledged midden entries grouped by category
+    # Usage: midden-review [--category <cat>] [--limit N] [--include-acknowledged]
+    # Returns: JSON with unacknowledged_count, categories summary, and entries array
+
+    mr_category=""
+    mr_limit=20
+    mr_include_ack=false
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --category)             mr_category="${2:-}"; shift 2 ;;
+        --limit)                mr_limit="${2:-20}"; shift 2 ;;
+        --include-acknowledged) mr_include_ack=true; shift ;;
+        *) shift ;;
+      esac
+    done
+
+    mr_midden_file="$DATA_DIR/midden/midden.json"
+
+    if [[ ! -f "$mr_midden_file" ]]; then
+      json_ok '{"unacknowledged_count":0,"categories":{},"entries":[]}'
+      exit 0
+    fi
+
+    # Build jq filter based on options
+    mr_result=$(jq \
+      --arg category "$mr_category" \
+      --argjson limit "$mr_limit" \
+      --argjson include_ack "$mr_include_ack" \
+      '
+      # Start with all entries
+      [.entries // [] | .[] |
+        # Filter acknowledged unless --include-acknowledged
+        if $include_ack then . else select(.acknowledged != true) end |
+        # Filter by category if specified
+        if ($category | length) > 0 then select(.category == $category) else . end
+      ] |
+      # Sort by timestamp descending
+      sort_by(.timestamp) | reverse |
+      # Compute categories before limiting
+      . as $all |
+      # Apply limit
+      ($all | .[:$limit]) as $limited |
+      # Group $all by category for counts
+      ($all | group_by(.category) | map({key: .[0].category, value: length}) | from_entries) as $cats |
+      {
+        unacknowledged_count: ($all | length),
+        categories: $cats,
+        entries: $limited
+      }
+      ' "$mr_midden_file" 2>/dev/null)
+
+    if [[ -z "$mr_result" ]]; then
+      json_ok '{"unacknowledged_count":0,"categories":{},"entries":[]}'
+    else
+      json_ok "$mr_result"
+    fi
+    exit 0
+    ;;
+
+  midden-acknowledge)
+    # Acknowledge midden entries by id or by category
+    # Usage: midden-acknowledge --id <entry_id> [--reason <reason>]
+    #    OR: midden-acknowledge --category <cat> --reason <reason>
+    # Returns: JSON with acknowledged=true, count, and reason
+
+    ma_id=""
+    ma_category=""
+    ma_reason=""
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --id)       ma_id="${2:-}"; shift 2 ;;
+        --category) ma_category="${2:-}"; shift 2 ;;
+        --reason)   ma_reason="${2:-}"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    # Validate: need either --id or --category
+    if [[ -z "$ma_id" && -z "$ma_category" ]]; then
+      json_err "$E_VALIDATION_FAILED" "midden-acknowledge requires --id or --category"
+    fi
+
+    ma_midden_file="$DATA_DIR/midden/midden.json"
+
+    if [[ ! -f "$ma_midden_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "midden.json not found"
+    fi
+
+    ma_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Acquire lock with trap-based cleanup
+    acquire_lock "$ma_midden_file" || {
+      json_err "$E_LOCK_FAILED" "Failed to acquire lock on midden.json"
+    }
+    trap 'release_lock 2>/dev/null || true' EXIT
+
+    if [[ -n "$ma_id" ]]; then
+      # Acknowledge single entry by id
+      ma_exists=$(jq --arg id "$ma_id" '[.entries[]? | select(.id == $id)] | length > 0' "$ma_midden_file" 2>/dev/null || echo "false")
+      if [[ "$ma_exists" != "true" ]]; then
+        trap - EXIT
+        release_lock 2>/dev/null || true
+        json_err "$E_RESOURCE_NOT_FOUND" "Midden entry '$ma_id' not found"
+      fi
+
+      ma_updated=$(jq \
+        --arg id "$ma_id" \
+        --arg now "$ma_now" \
+        --arg reason "$ma_reason" \
+        '
+        .entries = [.entries[] |
+          if .id == $id then
+            . + {acknowledged: true, acknowledged_at: $now, acknowledge_reason: $reason}
+          else
+            .
+          end
+        ]
+        ' "$ma_midden_file" 2>/dev/null)
+
+      ma_count=1
+    else
+      # Acknowledge all entries matching category
+      ma_count=$(jq --arg cat "$ma_category" '[.entries[]? | select(.category == $cat and .acknowledged != true)] | length' "$ma_midden_file" 2>/dev/null || echo "0")
+
+      ma_updated=$(jq \
+        --arg cat "$ma_category" \
+        --arg now "$ma_now" \
+        --arg reason "$ma_reason" \
+        '
+        .entries = [.entries[] |
+          if .category == $cat and .acknowledged != true then
+            . + {acknowledged: true, acknowledged_at: $now, acknowledge_reason: $reason}
+          else
+            .
+          end
+        ]
+        ' "$ma_midden_file" 2>/dev/null)
+    fi
+
+    if [[ -z "$ma_updated" ]]; then
+      trap - EXIT
+      release_lock 2>/dev/null || true
+      json_err "$E_INTERNAL" "Failed to update midden.json"
+    fi
+
+    atomic_write "$ma_midden_file" "$ma_updated"
+
+    trap - EXIT
+    release_lock 2>/dev/null || true
+
+    json_ok "{\"acknowledged\":true,\"count\":$ma_count,\"reason\":$(echo "$ma_reason" | jq -Rs '.')}"
     exit 0
     ;;
 

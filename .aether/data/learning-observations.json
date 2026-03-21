@@ -208,6 +208,17 @@
       "colonies": [
         "1774047872"
       ]
+    },
+    {
+      "content_hash": "sha256:0f9c8bd66ed3806f3c151945b6d7b593d1e64d1a1dc6f61cb7bef9e59f8799ac",
+      "content": "Combining related subcommands into a single builder produces consistent APIs",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-21T02:03:22Z",
+      "last_seen": "2026-03-21T02:03:22Z",
+      "colonies": [
+        "1774047872"
+      ]
     }
   ]
 }
