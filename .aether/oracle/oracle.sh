@@ -811,7 +811,7 @@ promote_to_colony() {
 
     # Create instinct from the research finding
     bash "$utils" instinct-create \
-      --trigger "When researching: $q_text" \
+      --trigger "researching: $q_text" \
       --action "Oracle found (${q_confidence}% confidence): $findings_text" \
       --confidence "$(echo "scale=2; $q_confidence / 100" | bc)" \
       --domain "research" \

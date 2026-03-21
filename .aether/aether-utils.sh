@@ -983,7 +983,7 @@ case "$cmd" in
     cat <<'HELP_EOF'
 {
   "ok": true,
-  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote"],
+  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote"],
   "sections": {
     "Core": [
       {"name": "help", "description": "List all available commands with sections"},
@@ -5506,7 +5506,7 @@ $updated_meta
     if echo "$promote_result" | jq -e '.ok == true' >/dev/null 2>&1; then
       # Also create an instinct from the promoted learning
       bash "$0" instinct-create \
-        --trigger "When working on $wisdom_type patterns" \
+        --trigger "working on $wisdom_type patterns" \
         --action "$content" \
         --confidence "$lp_confidence" \
         --domain "$wisdom_type" \
@@ -7470,6 +7470,16 @@ $updated_meta
     ic_state_file="$DATA_DIR/COLONY_STATE.json"
     [[ -f "$ic_state_file" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found. Run /ant:init first."
 
+    # Acquire lock for atomic instinct update (BUG-FIX: was missing locking)
+    if type feature_enabled &>/dev/null && ! feature_enabled "file_locking"; then
+      : # Locking disabled — proceed without lock
+    else
+      acquire_lock "$ic_state_file" || {
+        json_err "$E_LOCK_FAILED" "Failed to acquire lock on COLONY_STATE.json for instinct-create"
+      }
+      trap 'release_lock 2>/dev/null || true' EXIT
+    fi
+
     # Validate confidence range
     if ! [[ "$ic_confidence" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]]; then
       ic_confidence="0.5"
@@ -7504,6 +7514,8 @@ $updated_meta
         ic_new_conf=$(echo "$ic_updated" | jq --arg trigger "$ic_trigger" --arg action "$ic_action" '
           [(.memory.instincts // [])[] | select(.trigger == $trigger and .action == $action)] | first | .confidence // 0
         ' 2>/dev/null)
+        trap - EXIT
+        release_lock 2>/dev/null || true
         json_ok "{\"instinct_id\":\"existing\",\"action\":\"updated\",\"confidence\":$ic_new_conf}"
       else
         json_err "$E_INTERNAL" "Failed to update existing instinct"
@@ -7548,11 +7560,112 @@ $updated_meta
 
       if [[ -n "$ic_updated" ]]; then
         atomic_write "$ic_state_file" "$ic_updated"
+        trap - EXIT
+        release_lock 2>/dev/null || true
         json_ok "{\"instinct_id\":\"$ic_id\",\"action\":\"created\",\"confidence\":$ic_confidence}"
       else
         json_err "$E_INTERNAL" "Failed to create instinct"
       fi
     fi
+    exit 0
+    ;;
+
+  instinct-apply)
+    # Record when an instinct was actually used in practice
+    # Usage: instinct-apply --id <instinct_id> [--outcome success|failure]
+    # Success: boosts confidence by 0.05 (cap 1.0), increments successes
+    # Failure: reduces confidence by 0.1 (floor 0.1), increments failures
+
+    ia_id=""
+    ia_outcome="success"
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --id)      ia_id="$2"; shift 2 ;;
+        --outcome) ia_outcome="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    [[ -z "$ia_id" ]] && json_err "$E_VALIDATION_FAILED" "instinct-apply requires --id"
+
+    # Validate outcome
+    if [[ "$ia_outcome" != "success" && "$ia_outcome" != "failure" ]]; then
+      json_err "$E_VALIDATION_FAILED" "instinct-apply --outcome must be 'success' or 'failure'"
+    fi
+
+    ia_state_file="$DATA_DIR/COLONY_STATE.json"
+    [[ -f "$ia_state_file" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found. Run /ant:init first."
+
+    # Acquire lock for atomic instinct update
+    if type feature_enabled &>/dev/null && ! feature_enabled "file_locking"; then
+      : # Locking disabled — proceed without lock
+    else
+      acquire_lock "$ia_state_file" || {
+        json_err "$E_LOCK_FAILED" "Failed to acquire lock on COLONY_STATE.json for instinct-apply"
+      }
+      trap 'release_lock 2>/dev/null || true' EXIT
+    fi
+
+    # Check instinct exists
+    ia_exists=$(jq --arg id "$ia_id" '
+      [(.memory.instincts // [])[] | select(.id == $id)] | length > 0
+    ' "$ia_state_file" 2>/dev/null || echo "false")
+
+    if [[ "$ia_exists" != "true" ]]; then
+      json_err "$E_RESOURCE_NOT_FOUND" "Instinct '$ia_id' not found"
+    fi
+
+    ia_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Update the instinct based on outcome
+    if [[ "$ia_outcome" == "success" ]]; then
+      ia_updated=$(jq --arg id "$ia_id" --arg now "$ia_now" '
+        .memory.instincts = [
+          (.memory.instincts // [])[] |
+          if .id == $id then
+            .applications = ((.applications // 0) + 1) |
+            .successes = ((.successes // 0) + 1) |
+            .confidence = ([(.confidence + 0.05), 1.0] | min) |
+            .last_applied = $now
+          else
+            .
+          end
+        ]
+      ' "$ia_state_file" 2>/dev/null)
+    else
+      ia_updated=$(jq --arg id "$ia_id" --arg now "$ia_now" '
+        .memory.instincts = [
+          (.memory.instincts // [])[] |
+          if .id == $id then
+            .applications = ((.applications // 0) + 1) |
+            .failures = ((.failures // 0) + 1) |
+            .confidence = ([(.confidence - 0.1), 0.1] | max) |
+            .last_applied = $now
+          else
+            .
+          end
+        ]
+      ' "$ia_state_file" 2>/dev/null)
+    fi
+
+    if [[ -z "$ia_updated" ]]; then
+      json_err "$E_INTERNAL" "Failed to update instinct"
+    fi
+
+    atomic_write "$ia_state_file" "$ia_updated"
+
+    # Extract updated values for response
+    ia_new_apps=$(echo "$ia_updated" | jq --arg id "$ia_id" '
+      [(.memory.instincts // [])[] | select(.id == $id)] | first | .applications
+    ' 2>/dev/null)
+    ia_new_conf=$(echo "$ia_updated" | jq --arg id "$ia_id" '
+      [(.memory.instincts // [])[] | select(.id == $id)] | first | .confidence
+    ' 2>/dev/null)
+
+    trap - EXIT
+    release_lock 2>/dev/null || true
+    json_ok "{\"applied\":true,\"instinct_id\":\"$ia_id\",\"applications\":$ia_new_apps,\"new_confidence\":$ia_new_conf}"
     exit 0
     ;;
 
@@ -7711,7 +7824,7 @@ $updated_meta
           group_by(.domain // "general")
           | map({
               domain: (.[0].domain // "general"),
-              items: [.[] | "  [" + ((.confidence * 10 | round) / 10 | tostring) + "] When " + .trigger + " -> " + .action]
+              items: [.[] | "  [" + ((.confidence * 10 | round) / 10 | tostring) + "] When " + (.trigger | if test("^[Ww]hen ") then sub("^[Ww]hen "; "") else . end) + " -> " + .action]
             })
           | sort_by(.domain)
           | .[]

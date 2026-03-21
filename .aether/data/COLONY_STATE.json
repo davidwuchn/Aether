@@ -1,88 +1,85 @@
 {
   "version": "3.0",
-  "goal": "Build the Hive Brain — implement the intelligent layer for cross-colony wisdom: abstraction layer that generalizes instincts before promotion, domain-scoped retrieval so hive wisdom filters by repo domain tags, multi-repo validation that boosts confidence when patterns appear across multiple colonies, the ~/.aether/hive/ directory structure (wisdom.json, signals.json, chronicle.json), and the promotion flow from per-repo instincts through abstraction to hive-level wisdom.",
+  "goal": "Ship-ready Aether v2: close the loops the Dreamer found (wisdom plumbing, midden reviews, monolith decomposition, TO-DOS cleanup), push to hub, and prepare for other repos to use",
   "state": "READY",
-  "current_phase": 6,
-  "session_id": "session_1774004031_ilu2vx",
-  "initialized_at": "2026-03-20T10:53:51Z",
+  "current_phase": 2,
+  "session_id": "session_1774047872_0106db2a",
+  "initialized_at": "2026-03-20T23:04:32Z",
   "build_started_at": null,
   "plan": {
-    "generated_at": "2026-03-20T11:23:50Z",
-    "confidence": 85,
+    "generated_at": "2026-03-21T00:11:20Z",
+    "confidence": 91,
     "phases": [
       {
         "id": 1,
-        "name": "Hive Directory and Schema Foundation",
+        "name": "Fix Wisdom Plumbing",
         "status": "completed",
-        "description": "Create ~/.aether/hive/ directory, wisdom.json schema, and hive-init/hive-store/hive-read subcommands",
+        "description": "Fix when-when stutter across 4 locations, fix instinct-create locking bug, add instinct-apply subcommand",
         "tasks": [
           {
             "id": "1.1",
-            "description": "Add hive-init subcommand (create ~/.aether/hive/wisdom.json)",
+            "description": "Fix when-when stutter in seal.md (Claude + OpenCode) — strip leading when from trigger before prepending When",
             "status": "completed",
             "depends_on": []
           },
           {
             "id": "1.2",
-            "description": "Add hive-store subcommand (write entries with full schema, dedup, 200 cap)",
+            "description": "Fix when-when in prompt-print display (aether-utils.sh line 7714)",
             "status": "completed",
-            "depends_on": [
-              "1.1"
-            ]
+            "depends_on": []
           },
           {
             "id": "1.3",
-            "description": "Add hive-read subcommand (domain filtering, access_count tracking)",
+            "description": "Fix learning-promote-auto trigger format (line 5509) — remove When prefix from auto-created triggers",
             "status": "completed",
-            "depends_on": [
-              "1.2"
-            ]
+            "depends_on": []
           },
           {
             "id": "1.4",
-            "description": "Write tests for all three hive subcommands",
+            "description": "Fix instinct-create locking bug — add acquire_lock/release_lock around COLONY_STATE.json mutation",
+            "status": "completed",
+            "depends_on": []
+          },
+          {
+            "id": "1.5",
+            "description": "Add instinct-apply subcommand — records application outcomes and adjusts confidence",
             "status": "completed",
             "depends_on": [
-              "1.1",
-              "1.2",
-              "1.3"
+              "1.4"
             ]
           }
         ],
         "success_criteria": [
-          "hive-init creates wisdom.json",
-          "hive-store adds/merges entries",
-          "hive-read filters by domain tags",
-          "All tests pass"
+          "No When-when stutter in any instinct display or hive promotion",
+          "instinct-create holds lock during state mutation",
+          "instinct-apply subcommand exists and works",
+          "All existing tests pass"
         ]
       },
       {
         "id": 2,
-        "name": "Abstraction Layer",
-        "status": "completed",
-        "description": "Build the transformation logic that strips repo-specific details before hive promotion",
+        "name": "Add Midden Review Mechanism",
+        "status": "pending",
+        "description": "Add midden-review and midden-acknowledge subcommands to close the midden feedback loop",
         "tasks": [
           {
             "id": "2.1",
-            "description": "Add hive-abstract subcommand (generates abstraction prompt for Queen)",
-            "status": "completed",
-            "depends_on": [
-              "1.2"
-            ]
+            "description": "Add midden-review subcommand — lists unacknowledged failures grouped by category with filtering",
+            "status": "pending",
+            "depends_on": []
           },
           {
             "id": "2.2",
-            "description": "Add hive-promote subcommand (orchestrates abstract+store pipeline)",
-            "status": "completed",
+            "description": "Add midden-acknowledge subcommand — marks entries as addressed with a reason",
+            "status": "pending",
             "depends_on": [
-              "1.2",
               "2.1"
             ]
           },
           {
             "id": "2.3",
-            "description": "Write tests for abstraction and promotion",
-            "status": "completed",
+            "description": "Write tests for midden-review and midden-acknowledge (6 test cases)",
+            "status": "pending",
             "depends_on": [
               "2.1",
               "2.2"
@@ -90,138 +87,119 @@
           }
         ],
         "success_criteria": [
-          "hive-abstract produces clear generalization prompt",
-          "hive-promote stores entries with metadata",
-          "Multi-repo promotion increments validated_count"
+          "midden-review returns unacknowledged entries",
+          "midden-acknowledge marks entries as handled",
+          "6 new tests pass"
         ]
       },
       {
         "id": 3,
-        "name": "Domain-Scoped Retrieval in Colony-Prime",
-        "status": "completed",
-        "description": "Replace unfiltered eternal injection with domain-scoped hive wisdom retrieval",
+        "name": "Extract Utility Groups from Monolith",
+        "status": "pending",
+        "description": "Extract hive-* (548 lines) and midden-* subcommands from aether-utils.sh into .aether/utils/ files",
         "tasks": [
           {
             "id": "3.1",
-            "description": "Modify colony-prime to use hive-read with domain tags from registry",
-            "status": "completed",
-            "depends_on": [
-              "1.3"
-            ]
+            "description": "Extract hive-init/store/read/abstract/promote into .aether/utils/hive.sh — preserve LOCK_DIR save/restore pattern",
+            "status": "pending",
+            "depends_on": []
           },
           {
             "id": "3.2",
-            "description": "Update hive-intelligence tests for domain-scoped retrieval",
-            "status": "completed",
+            "description": "Extract midden-write/recent-failures/review/acknowledge into .aether/utils/midden.sh",
+            "status": "pending",
             "depends_on": [
               "3.1"
+            ]
+          },
+          {
+            "id": "3.3",
+            "description": "Run full test suite and validate-package.sh to verify zero regressions",
+            "status": "pending",
+            "depends_on": [
+              "3.1",
+              "3.2"
             ]
           }
         ],
         "success_criteria": [
-          "colony-prime injects domain-relevant hive wisdom",
-          "Fallback chain works: hive->eternal->empty",
-          "All tests pass"
+          "hive.sh and midden.sh exist in .aether/utils/",
+          "aether-utils.sh is ~640+ lines shorter",
+          "All tests pass with zero regressions"
         ]
       },
       {
         "id": 4,
-        "name": "Seal Promotion Hook",
-        "status": "completed",
-        "description": "Wire hive promotion into the seal ceremony — Queen extracts and promotes instincts to hive",
+        "name": "Clean Up Documentation",
+        "status": "pending",
+        "description": "Update TO-DOS.md, README.md, CHANGELOG.md, and CLAUDE.md to reflect v2.0.0 reality",
         "tasks": [
           {
             "id": "4.1",
-            "description": "Add Step 3.7 Hive Promotion to seal.md",
-            "status": "completed",
-            "depends_on": [
-              "2.2"
-            ]
+            "description": "Audit TO-DOS.md — mark 8+ implemented items as done, keep genuinely pending items, remove superseded items",
+            "status": "pending",
+            "depends_on": []
           },
           {
             "id": "4.2",
-            "description": "Add hive subcommands to help output",
-            "status": "completed",
-            "depends_on": [
-              "1.1",
-              "1.2",
-              "1.3",
-              "2.1",
-              "2.2"
-            ]
+            "description": "Update README.md — version to v2.0.0, command count to 43, expand caste table to 22 agents, add v2 features",
+            "status": "pending",
+            "depends_on": []
           },
           {
             "id": "4.3",
-            "description": "Mirror seal changes to OpenCode seal.md",
-            "status": "completed",
-            "depends_on": [
-              "4.1"
-            ]
+            "description": "Write CHANGELOG [2.0.0] entry with Added/Fixed/Changed sections documenting all v2 features",
+            "status": "pending",
+            "depends_on": []
+          },
+          {
+            "id": "4.4",
+            "description": "Update CLAUDE.md Quick Reference — line count, subcommand count, add new subcommands to tables",
+            "status": "pending",
+            "depends_on": []
           }
         ],
         "success_criteria": [
-          "Seal promotes high-confidence instincts to hive",
-          "Help lists all hive subcommands",
-          "Claude+OpenCode seal parity"
+          "TO-DOS.md only shows genuinely pending work",
+          "README.md shows v2.0.0 with accurate counts",
+          "CHANGELOG has [2.0.0] entry",
+          "CLAUDE.md numbers are accurate"
         ]
       },
       {
         "id": 5,
-        "name": "Multi-Repo Validation and Confidence Boosting",
-        "status": "completed",
-        "description": "Boost confidence when same wisdom pattern appears from multiple repos",
+        "name": "Version Bump and Publish Prep",
+        "status": "pending",
+        "description": "Bump package.json to 2.0.0, run full validation, verify hub install works",
         "tasks": [
           {
             "id": "5.1",
-            "description": "Add confidence boosting to hive-store duplicate path (0.7 at 2 repos, 0.85 at 3, 0.95 at 4+)",
-            "status": "completed",
-            "depends_on": [
-              "1.2"
-            ]
+            "description": "Bump package.json version from 1.1.11 to 2.0.0",
+            "status": "pending",
+            "depends_on": []
           },
           {
             "id": "5.2",
-            "description": "Write tests for multi-repo confidence boosting",
-            "status": "completed",
+            "description": "Run full validation: npm test + validate-package.sh + npm pack --dry-run",
+            "status": "pending",
             "depends_on": [
               "5.1"
             ]
-          }
-        ],
-        "success_criteria": [
-          "Confidence boosts at 2/3/4+ repo thresholds",
-          "Same-repo re-promotion deduped",
-          "Tests pass"
-        ]
-      },
-      {
-        "id": 6,
-        "name": "Documentation and Validation",
-        "status": "completed",
-        "description": "Update CLAUDE.md and run full test suite",
-        "tasks": [
-          {
-            "id": "6.1",
-            "description": "Add Hive Brain section to CLAUDE.md",
-            "status": "completed",
-            "depends_on": [
-              "4.2"
-            ]
           },
           {
-            "id": "6.2",
-            "description": "Run full test suite to verify no regressions",
-            "status": "completed",
+            "id": "5.3",
+            "description": "Run npm install -g . to push to hub and verify hub setup works",
+            "status": "pending",
             "depends_on": [
-              "5.2",
-              "6.1"
+              "5.2"
             ]
           }
         ],
         "success_criteria": [
-          "CLAUDE.md documents Hive Brain",
+          "package.json version is 2.0.0",
           "All tests pass",
-          "No regressions"
+          "Hub install succeeds",
+          "Other repos can pull v2 via aether update"
         ]
       }
     ]
@@ -229,186 +207,68 @@
   "memory": {
     "phase_learnings": [
       {
-        "id": "learning_1774010205",
+        "id": "learning_1774056288",
         "phase": 1,
-        "phase_name": "Hive Directory and Schema Foundation",
+        "phase_name": "Fix Wisdom Plumbing",
         "learnings": [
           {
-            "claim": "Hub-level shared files need hub-level locks — per-repo LOCK_DIR cannot protect cross-repo resources",
+            "claim": "Archaeologist pre-build scans catch latent bugs in recently-added code that was never tested in production (jq path .instincts vs .memory.instincts)",
             "status": "validated",
             "tested": true,
-            "evidence": "Chaos Ant found cross-repo lock isolation bug, fixed by overriding LOCK_DIR to HOME/.aether/hive/",
+            "evidence": "Strata-8 found seal.md used wrong jq path — builders fixed it alongside the stutter fix",
             "disproven_by": null
           },
           {
-            "claim": "Content sanitization pattern from pheromone-write (XML rejection, angle bracket escaping, shell injection, prompt injection) is reusable for any user-supplied text input",
+            "claim": "When fixing one bug in a code block, checking the surrounding 10 lines often reveals related bugs in the same commit",
             "status": "validated",
             "tested": true,
-            "evidence": "hive-store reused the pattern successfully, 14 integration tests pass including injection tests",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-20T12:36:45Z"
-      },
-      {
-        "id": "learning_1774012937",
-        "phase": 2,
-        "phase_name": "Abstraction Layer",
-        "learnings": [
-          {
-            "claim": "Orchestrator commands should delegate to sibling subcommands via bash \"$0\" rather than duplicating logic",
-            "status": "validated",
-            "tested": true,
-            "evidence": "hive-promote orchestrates hive-abstract + hive-store without code duplication, 14 tests pass",
+            "evidence": "When-when stutter fix exposed adjacent jq path bug — both introduced in same commit 839ddf2",
             "disproven_by": null
           },
           {
-            "claim": "Text transformation placeholders should avoid angle brackets to prevent double-escaping by downstream sanitization",
-            "status": "hypothesis",
-            "tested": false,
-            "evidence": "Chaos and Auditor both identified placeholder corruption when <source-file> passes through hive-store sanitization",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-20T13:22:17Z"
-      },
-      {
-        "id": "learning_1774023648",
-        "phase": 3,
-        "phase_name": "Domain-Scoped Retrieval in Colony-Prime",
-        "learnings": [
-          {
-            "claim": "Domain filtering in colony-prime uses hive-read with domain_tags from registry",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "Tests pass, colony-prime output includes domain-relevant entries",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-20T16:20:48.124270Z"
-      },
-      {
-        "id": "learning_1774030127",
-        "phase": 4,
-        "phase_name": "Seal Promotion Hook",
-        "learnings": [
-          {
-            "claim": "Archaeology pre-build scans catch API contract mismatches (--instinct vs --text) that would silently fail at runtime",
+            "claim": "Trap-based lock cleanup (acquire -> trap EXIT -> work -> trap - EXIT -> release) prevents deadlocks on error paths",
             "status": "validated",
             "tested": true,
-            "evidence": "Archaeologist Shard-37 found hive-promote --instinct flag mismatch, builders fixed it, 20 tests pass",
-            "disproven_by": null
-          },
-          {
-            "claim": "Dead code variables (declared but never used) should be caught by auditor and either removed or implemented",
-            "status": "hypothesis",
-            "tested": false,
-            "evidence": "Auditor found hive_errors=0 declared but never incremented in both seal.md files",
+            "evidence": "instinct-create locking fix uses canonical pattern from flag-add, 7 tests pass including lock cleanup test",
             "disproven_by": null
           }
         ],
-        "timestamp": "2026-03-20T18:08:47Z"
-      },
-      {
-        "id": "learning_1774033618",
-        "phase": 5,
-        "phase_name": "Multi-Repo Validation and Confidence Boosting",
-        "learnings": [
-          {
-            "claim": "Confidence tier calculations should be inside atomic jq pipelines to preserve lock safety in shared file operations",
-            "status": "validated",
-            "tested": true,
-            "evidence": "Confidence boosting added inside existing jq pipeline, all 18 tests pass, lock cleanup preserved",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-20T19:06:58Z"
-      },
-      {
-        "id": "learning_1774035488",
-        "phase": 6,
-        "phase_name": "Documentation and Validation",
-        "learnings": [
-          {
-            "claim": "Documentation chaos testing catches gaps between documented behavior and actual code — e.g., colony-prime not passing --min-confidence despite docs claiming it does",
-            "status": "validated",
-            "tested": true,
-            "evidence": "Chaos Ant Breach-89 found 2 medium doc accuracy gaps against aether-utils.sh code",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-20T19:38:08Z"
+        "timestamp": "2026-03-21T01:24:48Z"
       }
     ],
     "decisions": [],
     "instincts": [
       {
-        "id": "instinct_1774010223",
-        "trigger": "when writing subcommands that operate on hub-level shared files",
-        "action": "override LOCK_DIR to the target file directory before acquire_lock, restore after release_lock",
+        "id": "instinct_1774056300",
+        "trigger": "fixing a bug in recently-added code",
+        "action": "check the surrounding lines in the same commit for related bugs",
+        "confidence": 0.8,
+        "status": "hypothesis",
+        "domain": "debugging",
+        "source": "phase-1",
+        "evidence": [
+          "When-when fix exposed adjacent jq path bug — both from same commit"
+        ],
+        "tested": false,
+        "created_at": "2026-03-21T01:25:00Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774056300",
+        "trigger": "adding file locking to a case block in aether-utils.sh",
+        "action": "use the trap-based pattern: acquire -> trap EXIT -> work -> trap - EXIT -> release",
         "confidence": 0.8,
         "status": "hypothesis",
         "domain": "architecture",
         "source": "phase-1",
         "evidence": [
-          "Cross-repo lock isolation bug fixed by using hub-level LOCK_DIR"
+          "Canonical pattern from flag-add, confirmed by 3 prior deadlock bug fixes"
         ],
         "tested": false,
-        "created_at": "2026-03-20T12:37:03Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774010224",
-        "trigger": "when accepting user-supplied text in new subcommands",
-        "action": "reuse the pheromone-write sanitization pattern: XML tag rejection, angle bracket escaping, shell injection check, prompt injection check, 500-char cap",
-        "confidence": 0.8,
-        "status": "hypothesis",
-        "domain": "code-style",
-        "source": "phase-1",
-        "evidence": [
-          "hive-store successfully reused the pattern, all injection tests pass"
-        ],
-        "tested": false,
-        "created_at": "2026-03-20T12:37:04Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774012956",
-        "trigger": "when building orchestrator commands that compose multiple subcommands",
-        "action": "use bash $0 subcommand-name to delegate, never duplicate sibling logic",
-        "confidence": 0.8,
-        "status": "hypothesis",
-        "domain": "architecture",
-        "source": "phase-2",
-        "evidence": [
-          "hive-promote successfully delegates to hive-abstract + hive-store"
-        ],
-        "tested": false,
-        "created_at": "2026-03-20T13:22:36Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774010253",
-        "trigger": "When working on pattern patterns",
-        "action": "Use explicit jq if/elif chains instead of the // operator when checking fields that can legitimately be false",
-        "confidence": 0.75,
-        "status": "hypothesis",
-        "domain": "pattern",
-        "source": "promoted_from_learning",
-        "evidence": [
-          "Auto-promoted after 2 observations (confidence: 0.75)"
-        ],
-        "tested": false,
-        "created_at": "2026-03-20T12:37:33Z",
+        "created_at": "2026-03-21T01:25:00Z",
         "last_applied": null,
         "applications": 0,
         "successes": 0,
@@ -423,19 +283,9 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-03-20T10:53:51Z|colony_initialized|init|Colony initialized with goal: Build the Hive Brain",
-    "2026-03-20T11:23:50Z|plan_generated|plan|Generated 6 phases with 85% confidence (2 iterations)",
-    "2026-03-20T11:32:17Z|phase_started|build|Phase 1: Hive Directory and Schema Foundation started",
-    "2026-03-20T12:36:45Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
-    "2026-03-20T12:40:40Z|phase_started|build|Phase 2: Abstraction Layer started",
-    "2026-03-20T13:22:17Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
-    "2026-03-20T13:27:22Z|phase_started|build|Phase 3: Domain-Scoped Retrieval started",
-    "2026-03-20T16:20:48.127437Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
-    "2026-03-20T17:08:09Z|phase_started|build|Phase 4: Seal Promotion Hook started",
-    "2026-03-20T18:08:47Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5",
-    "2026-03-20T18:37:45Z|phase_started|build|Phase 5: Multi-Repo Validation and Confidence Boosting started",
-    "2026-03-20T19:06:58Z|phase_advanced|continue|Completed Phase 5, advancing to Phase 6",
-    "2026-03-20T19:19:02Z|phase_started|build|Phase 6: Documentation and Validation started",
-    "2026-03-20T19:38:08Z|phase_advanced|continue|Completed Phase 6 (final) — ALL PHASES COMPLETE"
+    "2026-03-20T23:04:32Z|colony_initialized|init|Colony initialized with goal: Ship-ready Aether v2: close the loops the Dreamer found (wisdom plumbing, midden reviews, monolith decomposition, TO-DOS cleanup), push to hub, and prepare for other repos to use",
+    "2026-03-21T00:11:20Z|plan_generated|plan|Generated 5 phases with 91% confidence (3 iterations)",
+    "2026-03-21T00:26:24Z|phase_started|build|Phase 1: Fix Wisdom Plumbing started",
+    "2026-03-21T01:24:48Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
   ]
 }

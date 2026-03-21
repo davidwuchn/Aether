@@ -286,7 +286,7 @@ After QUEEN.md promotion, promote abstracted instincts to the cross-colony hive.
 **Extract high-confidence instincts for hive promotion:**
 ```bash
 # Get instincts with confidence >= 0.8
-high_conf_instincts=$(jq -r '.instincts[] | select(.confidence >= 0.8) | @base64' .aether/data/COLONY_STATE.json 2>/dev/null || echo "")
+high_conf_instincts=$(jq -r '.memory.instincts[] | select(.confidence >= 0.8) | @base64' .aether/data/COLONY_STATE.json 2>/dev/null || echo "")
 
 # Derive source repo name from current directory
 source_repo="$(pwd)"
@@ -304,8 +304,11 @@ for encoded in $high_conf_instincts; do
 
   [[ -z "$trigger" || -z "$action" ]] && continue
 
+  # Strip leading "When " or "when " from trigger to avoid "When When..." stutter
+  trigger_clean=$(echo "$trigger" | sed 's/^[Ww]hen //')
+
   # Build the promotion text in "When {trigger}: {action}" format
-  promote_text="When ${trigger}: ${action}"
+  promote_text="When ${trigger_clean}: ${action}"
 
   # Build hive-promote args with --text and --source-repo (required)
   promote_args=(hive-promote --text "$promote_text" --source-repo "$source_repo" --confidence "$confidence")

@@ -175,6 +175,39 @@
       "colonies": [
         "1774004031"
       ]
+    },
+    {
+      "content_hash": "sha256:69174f7d2e9c2bee83ec4226efa62711e0e9c358c0fbc9c930eab8886eb5b6e5",
+      "content": "Chaos resilience moderate: confidence cap correct, special chars safe, zero-instincts seal works. Medium: unbound var crash on missing flag values",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-21T01:02:57Z",
+      "last_seen": "2026-03-21T01:02:57Z",
+      "colonies": [
+        "1774047872"
+      ]
+    },
+    {
+      "content_hash": "sha256:1a94259506e2923b7f8cfbdc0fdd18ba38e02ad6185a1e880457e8724dea9c4f",
+      "content": "Archaeologist pre-build scans catch latent bugs in recently-added code",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-21T01:25:01Z",
+      "last_seen": "2026-03-21T01:25:01Z",
+      "colonies": [
+        "1774047872"
+      ]
+    },
+    {
+      "content_hash": "sha256:e89aac03db78058035e46a22a9747456573164df2f302426a72c6464931717f6",
+      "content": "When fixing one bug check surrounding lines for related bugs from the same commit",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-21T01:25:02Z",
+      "last_seen": "2026-03-21T01:25:02Z",
+      "colonies": [
+        "1774047872"
+      ]
     }
   ]
 }

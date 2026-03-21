@@ -193,7 +193,7 @@ while IFS= read -r question; do
   first_finding=$(echo "$question" | jq -r '[.key_findings[].text // .key_findings[]] | first // "No findings"' 2>/dev/null)
 
   bash "$UTILS" instinct-create \
-    --trigger "When researching: $q_text" \
+    --trigger "researching: $q_text" \
     --action "Oracle found (${q_confidence}% confidence): $findings_text" \
     --confidence "$(echo "scale=2; $q_confidence / 100" | bc)" \
     --domain "research" \

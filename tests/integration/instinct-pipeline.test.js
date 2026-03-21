@@ -419,8 +419,8 @@ test.serial('colony-prime includes instincts in prompt_section', async (t) => {
     t.true(resultJson.ok, 'Should return ok=true');
     t.true(resultJson.result.prompt_section.includes('INSTINCTS (Learned Behaviors)'),
       'Should contain INSTINCTS header');
-    t.true(resultJson.result.prompt_section.includes('when API calls fail'),
-      'Should contain instinct trigger text');
+    t.true(resultJson.result.prompt_section.includes('When API calls fail'),
+      'Should contain instinct trigger text (display adds When prefix)');
     t.true(resultJson.result.prompt_section.includes('add retry with backoff'),
       'Should contain instinct action text');
   } finally {
@@ -490,10 +490,88 @@ test.serial('complete pipeline: create -> read -> prime', async (t) => {
     const section = primeJson.result.prompt_section;
     t.true(section.includes('Testing:'), 'Should have Testing domain group');
     t.true(section.includes('Architecture:'), 'Should have Architecture domain group');
-    t.true(section.includes('when tests fail intermittently'), 'Should contain first instinct trigger');
-    t.true(section.includes('when file imports are circular'), 'Should contain second instinct trigger');
+    t.true(section.includes('When tests fail intermittently'), 'Should contain first instinct trigger (display adds When prefix)');
+    t.true(section.includes('When file imports are circular'), 'Should contain second instinct trigger (display adds When prefix)');
     t.true(section.includes('add retry logic to flaky tests'), 'Should contain first instinct action');
     t.true(section.includes('introduce interface layer'), 'Should contain second instinct action');
+  } finally {
+    await cleanupTempDir(tmpDir);
+  }
+});
+
+
+test.serial('colony-prime deduplicates "When" prefix in instinct display (no When-When)', async (t) => {
+  const tmpDir = await createTempDir();
+
+  try {
+    // Setup with instincts that already have "when"/"When" prefixes in triggers
+    await setupTestColony(tmpDir, {
+      instincts: [
+        {
+          id: 'instinct_lower',
+          trigger: 'when API calls fail',
+          action: 'add retry with backoff',
+          confidence: 0.8,
+          status: 'hypothesis',
+          domain: 'resilience',
+          source: 'phase-1',
+          evidence: [],
+          tested: false,
+          created_at: new Date().toISOString(),
+          last_applied: null,
+          applications: 0,
+          successes: 0,
+          failures: 0
+        },
+        {
+          id: 'instinct_upper',
+          trigger: 'When deploying to production',
+          action: 'run smoke tests first',
+          confidence: 0.9,
+          status: 'hypothesis',
+          domain: 'deployment',
+          source: 'phase-2',
+          evidence: [],
+          tested: false,
+          created_at: new Date().toISOString(),
+          last_applied: null,
+          applications: 0,
+          successes: 0,
+          failures: 0
+        },
+        {
+          id: 'instinct_noprefix',
+          trigger: 'working on database migrations',
+          action: 'backup first',
+          confidence: 0.7,
+          status: 'hypothesis',
+          domain: 'database',
+          source: 'phase-1',
+          evidence: [],
+          tested: false,
+          created_at: new Date().toISOString(),
+          last_applied: null,
+          applications: 0,
+          successes: 0,
+          failures: 0
+        }
+      ]
+    });
+
+    const result = runAetherUtil(tmpDir, 'colony-prime', ['--compact']);
+    const resultJson = JSON.parse(result);
+    t.true(resultJson.ok, 'Should return ok=true');
+
+    const section = resultJson.result.prompt_section;
+
+    // The display should NOT contain "When when" or "When When" (doubled prefix)
+    t.false(section.includes('When when'), 'Should NOT have "When when" (doubled prefix)');
+    t.false(section.includes('When When'), 'Should NOT have "When When" (doubled prefix)');
+
+    // Should have exactly one "When " prefix for each instinct
+    t.true(section.includes('When API calls fail'), 'lowercase "when" trigger should display as "When API calls fail"');
+    t.true(section.includes('When deploying to production'), 'uppercase "When" trigger should display as "When deploying to production"');
+    t.true(section.includes('When working on database migrations'), 'no-prefix trigger should display as "When working on database migrations"');
   } finally {
     await cleanupTempDir(tmpDir);
   }

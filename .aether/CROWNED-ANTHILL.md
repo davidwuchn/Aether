@@ -1,56 +1,38 @@
-# Crowned Anthill
+# Crowned Anthill — Build the Hive Brain
 
-> The colony has reached its final form.
+**Sealed:** 2026-03-20T19:56:05Z
+**Milestone:** Crowned Anthill
+**Version:** 3.0
 
-**Goal:** Implement Aether v2.0 — The Living Hive
+## The Achievement
 
-**Sealed:** 2026-03-20
-**Phases:** 6/6 completed
-**Colony Age:** 0 days (single-session build)
+This colony set out to accomplish something real — and it did. Every phase pushed the anthill higher. Now it stands crowned.
 
----
+## Colony Stats
+- Total Phases: 6
+- Phases Completed: 6 of 6
+- Colony Age: 0 days of focused work
+- Wisdom Promoted: 19 entries carried forward
 
 ## Phase Recap
 
-| Phase | Name | Status |
-|-------|------|--------|
-| 1 | Security Foundation | completed |
-| 2 | Queen Memory — User Preferences | completed |
-| 3 | Hive Reads — Cross-Colony Intelligence | completed |
-| 4 | Adaptive Autopilot — /ant:run | completed |
-| 5 | Integration Testing | completed |
-| 6 | Documentation & Sync | completed |
+Every phase below is a chapter in the story of this anthill's rise:
 
-## Colony Achievements
+  - Hive Directory and Schema Foundation: completed
+  - Abstraction Layer: completed
+  - Domain-Scoped Retrieval in Colony-Prime: completed
+  - Seal Promotion Hook: completed
+  - Multi-Repo Validation and Confidence Boosting: completed
+  - Documentation and Validation: completed
 
-- **Prompt injection sanitization** — pheromone content screened for LLM instruction override attempts
-- **Colony-prime token budget** — 8000/4000 char budget with priority-based truncation
-- **Eternal promotion threshold fix** — uses decayed effective_strength, not raw strength
-- **Pheromone deduplication** — SHA-256 content hashing with reinforce-on-collision
-- **User Preferences in QUEEN.md** — new section parsed by colony-prime, injected into worker prompts
-- **Hive intelligence** — eternal memory read into colony-prime as cross-colony wisdom
-- **Registry domain tags** — repos tagged with domains, goals tracked, active status lifecycle
-- **Autopilot /ant:run** — build→continue→advance loop with smart pausing and replan triggers
-- **Colony patrol /ant:patrol** — pre-seal audit verifying work against plan
-- **19 integration tests** — security, hive intelligence, autopilot state machine
-- **84 total new tests** across unit, bash, and integration suites
-- **2 chaos-ant bugs fixed** — interval=0 divide-by-zero, phases_completed inflation
-- **5 header guards added** — _extract_wisdom content leakage prevention
-- **Registry file locking** — acquire_lock/release_lock for concurrent safety
+## Pheromone Legacy
 
-## Colony Statistics
+The colony's hard-won wisdom doesn't stop here. 19 validated learnings and instincts have been promoted to QUEEN.md — a living record that will guide future colonies before they take their first steps.
 
-- Workers spawned: 30+
-- Total tool calls: 600+
-- Instincts created: 5
-- Pheromones emitted: 12
-- Chaos findings: 7 (all resolved)
-- Commands added: /ant:run, /ant:preferences, /ant:patrol (43/43 parity)
+What this colony learned, the next colony inherits.
 
-## Wisdom Promoted
+## The Work
 
-Colony wisdom lives on in ~/.aether/QUEEN.md and will guide future colonies.
+Build the Hive Brain — implement the intelligent layer for cross-colony wisdom: abstraction layer that generalizes instincts before promotion, domain-scoped retrieval so hive wisdom filters by repo domain tags, multi-repo validation that boosts confidence when patterns appear across multiple colonies, the ~/.aether/hive/ directory structure (wisdom.json, signals.json, chronicle.json), and the promotion flow from per-repo instincts through abstraction to hive-level wisdom.
 
----
-
-*The anthill stands crowned. Its wisdom endures.*
+The anthill stands crowned. The work endures.
