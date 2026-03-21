@@ -219,6 +219,17 @@
       "colonies": [
         "1774047872"
       ]
+    },
+    {
+      "content_hash": "sha256:83c0915490df38d34864dca9b7ae3e30d5b16dfafe1fe6a80ffdf2052a31d06f",
+      "content": "Extracting case blocks to functions requires changing positional parameter references",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-21T03:21:22Z",
+      "last_seen": "2026-03-21T03:21:22Z",
+      "colonies": [
+        "1774047872"
+      ]
     }
   ]
 }

@@ -16,3 +16,9 @@
 2026-03-21T01:47:08Z|Alert-79|completed|548 tests pass, all success criteria verified
 2026-03-21T01:47:08Z|Queen|chaos|Stress-26|Resilience testing of Phase 2 work|default|spawned
 2026-03-21T01:50:31Z|Stress-26|completed|5 scenarios, 2 high, 1 medium findings
+2026-03-21T02:36:13Z|Queen|builder|Hammer-47|Extract hive-* and midden-* from monolith|default|spawned
+2026-03-21T02:47:51Z|Hammer-47|completed|Extracted 9 subcommands, 783 lines removed, all tests pass
+2026-03-21T02:47:51Z|Queen|watcher|Keen-93|Independent verification of monolith extraction|default|spawned
+2026-03-21T02:50:40Z|Keen-93|completed|576 tests pass, all extraction criteria verified
+2026-03-21T02:50:40Z|Queen|chaos|Snap-54|Resilience testing of monolith extraction|default|spawned
+2026-03-21T02:55:07Z|Snap-54|completed|5 scenarios, 1 high fixed, 1 medium logged, 1 low logged
