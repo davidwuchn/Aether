@@ -169,19 +169,19 @@
       {
         "id": 5,
         "name": "Version Bump and Publish Prep",
-        "status": "pending",
+        "status": "completed",
         "description": "Bump package.json to 2.0.0, run full validation, verify hub install works",
         "tasks": [
           {
             "id": "5.1",
             "description": "Bump package.json version from 1.1.11 to 2.0.0",
-            "status": "pending",
+            "status": "completed",
             "depends_on": []
           },
           {
             "id": "5.2",
             "description": "Run full validation: npm test + validate-package.sh + npm pack --dry-run",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "5.1"
             ]
@@ -189,7 +189,7 @@
           {
             "id": "5.3",
             "description": "Run npm install -g . to push to hub and verify hub setup works",
-            "status": "pending",
+            "status": "completed",
             "depends_on": [
               "5.2"
             ]
@@ -286,6 +286,21 @@
           }
         ],
         "timestamp": "2026-03-21T03:40:16Z"
+      },
+      {
+        "id": "learning_1774070983",
+        "phase": 5,
+        "phase_name": "Version Bump and Publish Prep",
+        "learnings": [
+          {
+            "claim": "npm install -g . with a prepublishOnly hook running validate-package.sh provides an end-to-end verification gate before hub deployment",
+            "status": "validated",
+            "tested": true,
+            "evidence": "Package validation runs automatically during global install, catches file/content issues before hub push",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-21T05:29:43Z"
       }
     ],
     "decisions": [],
@@ -380,6 +395,8 @@
     "2026-03-21T02:35:52Z|phase_started|build|Phase 3: Extract Utility Groups from Monolith started",
     "2026-03-21T03:21:04Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
     "2026-03-21T03:26:19Z|phase_started|build|Phase 4: Clean Up Documentation started",
-    "2026-03-21T03:40:16Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5"
+    "2026-03-21T03:40:16Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5",
+    "2026-03-21T03:49:16Z|phase_started|build|Phase 5: Version Bump and Publish Prep started",
+    "2026-03-21T05:29:43Z|phase_advanced|continue|Completed Phase 5 (final) — ALL PHASES COMPLETE"
   ]
 }
