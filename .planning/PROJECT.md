@@ -2,11 +2,23 @@
 
 ## What This Is
 
-Aether is a multi-agent colony orchestration system for AI-assisted development. It provides 40 slash commands, 22 specialized worker agents, and a living pheromone signaling system that auto-emits signals during builds, carries context across sessions, and changes worker behavior based on colony intelligence.
+Aether is a multi-agent colony orchestration system for AI-assisted development. It provides 44 slash commands, 22 specialized worker agents, 28 skills (10 colony + 18 domain), and a living pheromone signaling system. Distributed as `aether-colony` on npm, it works with Claude Code and OpenCode.
 
 ## Core Value
 
-The pheromone system is a living system — auto-emitting signals during builds, carrying context across sessions, and actually changing worker behavior — not just a storage format.
+The system must reliably interpret a user request, decompose it into executable work, verify outputs, and ship correct work with minimal user back-and-forth — not just look autonomous, but actually deliver.
+
+## Current Milestone: v2.1 Production Hardening
+
+**Goal:** Address Oracle audit findings, make Aether genuinely production-ready — deeper planning, verified features, accurate docs, great first-user experience.
+
+**Target areas:**
+- Fix reliability gaps found by Oracle (silent failures, state desync, dead code)
+- Deepen planning quality (per-phase research, not just quick decomposition)
+- Verify every feature works end-to-end (skills, oracle, hive, pheromones)
+- Update all documentation to match reality (README, CLAUDE.md, docs/)
+- Modularize aether-utils.sh (extract unused code into optional modules)
+- Publish and verify clean install experience
 
 ## Requirements
 
@@ -31,11 +43,11 @@ The pheromone system is a living system — auto-emitting signals during builds,
 
 ### Active
 
-(None — next milestone will define new requirements)
+(Defined in REQUIREMENTS.md for v2.1)
 
 ### Out of Scope
 
-- Splitting aether-utils.sh into modules — large refactor, separate initiative
+- Full rewrite of aether-utils.sh — extract modules, don't rewrite from scratch
 - Web/TUI dashboard — CLI tool, ASCII dashboards work in terminal
 - Multi-repo colony coordination — future architecture work
 - Performance optimization (state caching, lock backoff) — defer unless blocking
@@ -44,14 +56,14 @@ The pheromone system is a living system — auto-emitting signals during builds,
 
 ## Context
 
-- Aether is at v1.3.0, published on npm as `aether-colony`
-- v1.3 shipped: 8 phases, 17 plans, 49 commits in a single day
-- 40 Claude commands, 40 OpenCode commands, 22 agents, 110 subcommands
-- 10,499 lines in aether-utils.sh
-- Pheromone system is fully integrated: signals auto-emit, persist across sessions, and influence worker behavior via pheromone_protocol sections
-- Learning pipeline works end-to-end: observations promote to instincts that appear in colony-prime prompt_section
-- XML exchange wired into commands and seal lifecycle
-- Fresh install validated with isolated smoke test
+- Aether is at v2.0.0, published on npm as `aether-colony`
+- v2.0 shipped: Skills system (28 skills), oracle distribution fix, v2 release
+- v1.3 shipped: Pheromone integration, learning pipeline, XML exchange, install hardening
+- 44 Claude commands, 44 OpenCode commands, 22 agents, 178 subcommands (76 unused per Oracle audit)
+- 11,272 lines in aether-utils.sh with rising bug-fix ratio (33.8% → 45.8%)
+- Oracle audit (82% confidence, 55 findings) identified: silent error suppression (338 instances), state desync risks, 43% dead code, documentation drift
+- Bug-fix ratio improving overall (17.5% Feb → 11.6% Mar) but spikes late in each period
+- 572+ tests passing (1 pre-existing failure in context-continuity)
 
 ## Constraints
 
@@ -71,5 +83,9 @@ The pheromone system is a living system — auto-emitting signals during builds,
 | Principle-based agent protocols | Workers are LLMs — they understand intent, don't need 100-line rule sets | ✓ Good — 35 lines per agent, all effective |
 | Define "influence" structurally | Signal in prompt + agent has protocol = maximum testable without live LLM | ✓ Good — pragmatic definition, fully tested |
 
+| Oracle distribution fix | oracle.sh excluded from npm by .npmignore blanket rule | ✓ Good — moved to .aether/utils/oracle/, position-aware HUB_EXCLUDE |
+| Extract modules not rewrite | 76 unused subcommands should be modularized, not deleted | — Pending |
+| Deepen planning quality | Aether plans too quickly vs GSD's per-phase research depth | — Pending |
+
 ---
-*Last updated: 2026-03-20 after v1.3 milestone*
+*Last updated: 2026-03-23 after v2.1 milestone start*
