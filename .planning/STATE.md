@@ -9,17 +9,17 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 
 ## Current Position
 
-Phase: 11 of 16 (Dead Code Deprecation) -- IN PROGRESS
-Plan: 1 of 2
-Status: Executing
-Last activity: 2026-03-24 — Completed 11-01 (deprecation warnings for 18 dead subcommands)
+Phase: 11 of 16 (Dead Code Deprecation) -- COMPLETE
+Plan: 2 of 2
+Status: Phase Complete
+Last activity: 2026-03-24 — Completed 11-02 (test updates for deprecation warnings)
 
-Progress: [███░░░░░░░] 25%
+Progress: [███░░░░░░░] 27%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 5min
 - Total execution time: 1.25 hours
 
@@ -37,11 +37,11 @@ Progress: [███░░░░░░░] 25%
 | 08-documentation-update | 2 | 6min | 3min |
 | 09-quick-wins | 2 | 10min | 5min |
 | 10-error-triage | 2 | 28min | 14min |
-| 11-dead-code-deprecation | 1 | 3min | 3min |
+| 11-dead-code-deprecation | 2 | 9min | 4.5min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 5min, 12min, 16min, 3min
-- Trend: normalizing (deprecation task was straightforward)
+- Last 5 plans: 5min, 12min, 16min, 3min, 6min
+- Trend: normalizing
 
 *Updated after each plan completion*
 
@@ -72,6 +72,8 @@ Recent decisions affecting current work:
 - [11-01]: Deprecation warning uses printf >&2 to avoid breaking JSON stdout contracts
 - [11-01]: Warning format '[deprecated] name -- will be removed in v3.0' for grep-ability
 - [11-01]: Only 3 of 18 deprecated commands appeared in named help sections; rest only in flat commands array
+- [11-02]: Use 2>/dev/null (not 2>&1) for tests parsing JSON stdout from deprecated subcommands
+- [11-02]: Use spawnSync in Node.js tests for separate stderr capture (execSync merges stdio)
 
 ### Pending Todos
 
@@ -86,5 +88,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-24
-Stopped at: Completed 11-01-PLAN.md (deprecation warnings)
+Stopped at: Completed 11-02-PLAN.md (test updates for deprecation warnings) -- Phase 11 complete
 Resume file: None
