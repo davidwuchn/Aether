@@ -326,6 +326,12 @@ Goal: "{colony_goal}"
 
 { integration_plan if exists }
 
+{ research_context if exists }
+
+**Phase Research Context (if provided):**
+- This is domain research conducted during planning. Use it to understand patterns, avoid gotchas, and follow the recommended approach.
+- If the research mentions specific files to study, read them before implementing.
+
 { grave_context if exists }
 
 { midden_context if exists }
