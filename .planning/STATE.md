@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 12 — State API Verification (v2.1 Production Hardening)
+**Current focus:** Phase 13 — Monolith Modularization (v2.1 Production Hardening)
 
 ## Current Position
 
-Phase: 12 of 16 (State API Verification)
-Plan: 3 of 3
-Status: Phase Complete
-Last activity: 2026-03-24 — Completed 12-03 (subcommand migration to state-api facade)
+Phase: 13 of 16 (Monolith Modularization)
+Plan: 1 of 9
+Status: In Progress
+Last activity: 2026-03-24 — Completed 13-01 (flag domain extraction)
 
-Progress: [████░░░░░░] 35%
+Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 24
 - Average duration: 5min
-- Total execution time: 1.9 hours
+- Total execution time: 1.97 hours
 
 **By Phase:**
 
@@ -39,9 +39,10 @@ Progress: [████░░░░░░] 35%
 | 10-error-triage | 2 | 28min | 14min |
 | 11-dead-code-deprecation | 2 | 9min | 4.5min |
 | 12-state-api-verification | 3 | 41min | 13.7min |
+| 13-monolith-modularization | 1 | 4min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 3min, 6min, 9min, 12min, 20min
+- Last 5 plans: 6min, 9min, 12min, 20min, 4min
 - Trend: normalizing
 
 *Updated after each plan completion*
@@ -85,6 +86,8 @@ Recent decisions affecting current work:
 - [12-03]: Read-only migrations use _state_read_field('.') piped to jq for complex multi-field queries
 - [12-03]: grave-add uses jq-side type coercion (tonumber, null detection) instead of bash pre-formatting
 - [12-03]: spawn-complete wraps _state_mutate in error handler (non-critical event logging path)
+- [13-01]: Verbatim extraction -- no refactoring during domain moves, structural change only
+- [13-01]: json_ok response uses .result field (not .data) -- existing contract preserved in smoke tests
 
 ### Pending Todos
 
@@ -99,5 +102,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-24
-Stopped at: Completed 12-03-PLAN.md (subcommand migration to state-api facade) -- Phase 12 complete
+Stopped at: Completed 13-01-PLAN.md (flag domain extraction) -- Phase 13 plan 1 of 9
 Resume file: None
