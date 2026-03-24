@@ -27,8 +27,8 @@ See: `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 **Milestone Goal:** Address Oracle audit findings, make Aether genuinely production-ready — deeper planning, verified features, accurate docs, great first-user experience.
 
-- [ ] **Phase 9: Quick Wins** - Six independent reliability fixes with outsized impact
-- [ ] **Phase 10: Error Triage** - Classify and fix dangerous error suppressions
+- [x] **Phase 9: Quick Wins** - Six independent reliability fixes with outsized impact (completed 2026-03-24)
+- [x] **Phase 10: Error Triage** - Classify and fix dangerous error suppressions (completed 2026-03-24)
 - [ ] **Phase 11: Dead Code Deprecation** - Audit and deprecate unused subcommands across all surfaces
 - [ ] **Phase 12: State API & Verification** - Centralize state access and harden verification evidence chain
 - [ ] **Phase 13: Monolith Modularization** - Extract domain modules from aether-utils.sh
@@ -55,7 +55,7 @@ Plans:
 - [ ] 09-02-PLAN.md — Close state write lock gap and add context trimming notifications
 
 ### Phase 10: Error Triage
-**Goal**: All 338 error-swallowing patterns are classified, and the ~40 dangerous ones on state-mutation paths are replaced with proper error handling
+**Goal**: All 438 error-swallowing patterns are classified, and the ~48 dangerous ones on state-mutation paths are replaced with proper error handling
 **Depends on**: Phase 9
 **Requirements**: REL-07, REL-08, REL-09
 **Success Criteria** (what must be TRUE):
@@ -63,11 +63,12 @@ Plans:
   2. All dangerous-category suppressions on state-writing paths have been replaced with explicit error handling that surfaces failures
   3. All intentional suppressions carry a `# SUPPRESS:OK` comment explaining why they are safe
   4. The test suite remains green after all error-handling changes (no regressions from removing suppressions)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
+- [ ] 10-01-PLAN.md — Add _aether_log_error infrastructure and annotate intentional suppressions with SUPPRESS:OK comments
+- [ ] 10-02-PLAN.md — Fix ~110 lazy error suppressions with proper fallbacks and warnings
+- [ ] 10-03-PLAN.md — Fix ~48 dangerous suppressions on state-mutation paths with atomic writes and validation
 
 ### Phase 11: Dead Code Deprecation
 **Goal**: Unused subcommands are identified across all three command surfaces and marked with deprecation warnings before any code is moved or removed
@@ -78,11 +79,11 @@ Plans:
   2. Confirmed-dead subcommands emit a deprecation warning to stderr when invoked
   3. Subcommands found to be alive on any surface are documented and removed from the dead list
   4. Code identified as dead-but-useful is extracted into optional utility modules rather than deleted
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
+- [ ] 11-01-PLAN.md — Add _deprecation_warning function, deprecation calls to 18 dead subcommands, and help JSON updates
+- [ ] 11-02-PLAN.md — Update 6 test files to expect deprecation warnings on stderr
 
 ### Phase 12: State API & Verification
 **Goal**: COLONY_STATE.json access is centralized through a single facade, and the verification chain catches fabricated worker claims
@@ -173,8 +174,8 @@ Phases execute in numeric order: 9 -> 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16
 | 6. XML Exchange Activation | v1.3 | 2/2 | Complete | 2026-03-19 |
 | 7. Fresh Install Hardening | v1.3 | 2/2 | Complete | 2026-03-19 |
 | 8. Documentation Update | v1.3 | 2/2 | Complete | 2026-03-19 |
-| 9. Quick Wins | v2.1 | 0/2 | Not started | - |
-| 10. Error Triage | v2.1 | 0/TBD | Not started | - |
+| 9. Quick Wins | v2.1 | Complete    | 2026-03-24 | - |
+| 10. Error Triage | v2.1 | 3/3 | Complete | 2026-03-24 |
 | 11. Dead Code Deprecation | v2.1 | 0/TBD | Not started | - |
 | 12. State API & Verification | v2.1 | 0/TBD | Not started | - |
 | 13. Monolith Modularization | v2.1 | 0/TBD | Not started | - |
