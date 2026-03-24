@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 13 of 16 (Monolith Modularization)
-Plan: 5 of 9
+Plan: 6 of 9
 Status: In Progress
-Last activity: 2026-03-24 — Completed 13-05 (queen domain extraction)
+Last activity: 2026-03-24 — Completed 13-06 (swarm domain extraction)
 
-Progress: [██████░░░░] 53%
+Progress: [██████░░░░] 58%
 
 ## Performance Metrics
 
@@ -39,11 +39,11 @@ Progress: [██████░░░░] 53%
 | 10-error-triage | 2 | 28min | 14min |
 | 11-dead-code-deprecation | 2 | 9min | 4.5min |
 | 12-state-api-verification | 3 | 41min | 13.7min |
-| 13-monolith-modularization | 5 | 25min | 5min |
+| 13-monolith-modularization | 6 | 37min | 6.2min |
 
 **Recent Trend:**
-- Last 5 plans: 4min, 4min, 5min, 5min, 7min
-- Trend: normalizing
+- Last 5 plans: 4min, 5min, 5min, 7min, 12min
+- Trend: increasing (swarm extraction was the largest by subcommand count)
 
 *Updated after each plan completion*
 
@@ -98,6 +98,10 @@ Recent decisions affecting current work:
 - [13-05]: Verbatim extraction of non-contiguous blocks -- same no-refactoring policy as Plans 01-04
 - [13-05]: _extract_wisdom_sections moved into queen.sh -- only caller is _queen_read, keeps helper co-located
 - [13-05]: get_wisdom_threshold and get_wisdom_thresholds_json stay in main file -- shared by queen and learning domains
+- [13-06]: Verbatim extraction of 2 non-contiguous blocks -- same no-refactoring policy as Plans 01-05
+- [13-06]: Local helper functions renamed with _sw_ prefix to avoid namespace collisions (format_duration, render_progress_bar, etc.)
+- [13-06]: ANSI color variables prefixed with _SW_ inside display functions to avoid global pollution
+- [13-06]: Plan listed autofix-restore/autofix-apply but actual subcommands are autofix-checkpoint/autofix-rollback (17 total)
 
 ### Pending Todos
 
@@ -112,5 +116,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-24
-Stopped at: Completed 13-05-PLAN.md (queen domain extraction) -- Phase 13 plan 5 of 9
+Stopped at: Completed 13-06-PLAN.md (swarm domain extraction) -- Phase 13 plan 6 of 9
 Resume file: None
