@@ -961,6 +961,12 @@ get_wisdom_threshold() {
   local mode="${2:-propose}"
 
   case "$wisdom_type:$mode" in
+    # V2 types (no threshold -- always write)
+    build_learning:propose) echo 0 ;;
+    build_learning:auto) echo 0 ;;
+    instinct:propose) echo 0 ;;
+    instinct:auto) echo 0 ;;
+    # V1 types (backward compat)
     philosophy:propose) echo 1 ;;
     philosophy:auto) echo 3 ;;
     pattern:propose) echo 1 ;;
@@ -982,6 +988,8 @@ get_wisdom_threshold() {
 get_wisdom_thresholds_json() {
   cat <<'EOF'
 {
+  "build_learning": {"propose": 0, "auto": 0},
+  "instinct": {"propose": 0, "auto": 0},
   "philosophy": {"propose": 1, "auto": 3},
   "pattern": {"propose": 1, "auto": 2},
   "redirect": {"propose": 1, "auto": 2},

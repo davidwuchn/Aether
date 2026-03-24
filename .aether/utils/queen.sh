@@ -14,66 +14,111 @@
 _extract_wisdom_sections() {
       local file="$1"
 
-      # Find line numbers for each section
-      local p_line=$(awk '/^## 📜 Philosophies$/ {print NR; exit}' "$file")
-      local pat_line=$(awk '/^## 🧭 Patterns$/ {print NR; exit}' "$file")
-      local red_line=$(awk '/^## ⚠️ Redirects$/ {print NR; exit}' "$file")
-      local stack_line=$(awk '/^## 🔧 Stack Wisdom$/ {print NR; exit}' "$file")
-      local dec_line=$(awk '/^## 🏛️ Decrees$/ {print NR; exit}' "$file")
-      local prefs_line=$(awk '/^## 👤 User Preferences$/ {print NR; exit}' "$file")
-      local evo_line=$(awk '/^## 📊 Evolution Log$/ {print NR; exit}' "$file")
+      # Format detection: check for v2 header "## Build Learnings"
+      # If present -> v2 format (4 sections). Otherwise -> v1 format (6 emoji sections, mapped).
+      if grep -q '^## Build Learnings$' "$file" 2>/dev/null; then
+        # === V2 FORMAT (4 clean sections) ===
+        local uprefs_line=$(awk '/^## User Preferences$/ {print NR; exit}' "$file")
+        local cpat_line=$(awk '/^## Codebase Patterns$/ {print NR; exit}' "$file")
+        local blearn_line=$(awk '/^## Build Learnings$/ {print NR; exit}' "$file")
+        local inst_line=$(awk '/^## Instincts$/ {print NR; exit}' "$file")
+        local evo_line=$(awk '/^## Evolution Log$/ {print NR; exit}' "$file")
 
-      # Extract each section: lines between section header and next header
-      local philosophies patterns redirects stack_wisdom decrees user_prefs
+        local user_prefs codebase_patterns build_learnings instincts
 
-      # Philosophies: between p_line+1 and pat_line-1
-      if [[ -n "$p_line" && -n "$pat_line" ]]; then
-        # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
-        philosophies=$(awk -v s="$p_line" -v e="$pat_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      else philosophies='""'; fi
+        # User Preferences: between uprefs_line and next section
+        local uprefs_end="${cpat_line:-${blearn_line:-${inst_line:-${evo_line:-999999}}}}"
+        if [[ -n "$uprefs_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          user_prefs=$(awk -v s="$uprefs_line" -v e="$uprefs_end" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | sed '/^---$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else user_prefs='""'; fi
 
-      # Patterns: between pat_line+1 and red_line-1
-      if [[ -n "$pat_line" && -n "$red_line" ]]; then
-        # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
-        patterns=$(awk -v s="$pat_line" -v e="$red_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      else patterns='""'; fi
+        # Codebase Patterns: between cpat_line and next section
+        local cpat_end="${blearn_line:-${inst_line:-${evo_line:-999999}}}"
+        if [[ -n "$cpat_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          codebase_patterns=$(awk -v s="$cpat_line" -v e="$cpat_end" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | sed '/^---$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else codebase_patterns='""'; fi
 
-      # Redirects: between red_line+1 and stack_line-1
-      if [[ -n "$red_line" && -n "$stack_line" ]]; then
-        # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
-        redirects=$(awk -v s="$red_line" -v e="$stack_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      else redirects='""'; fi
+        # Build Learnings: between blearn_line and next section
+        local blearn_end="${inst_line:-${evo_line:-999999}}"
+        if [[ -n "$blearn_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          build_learnings=$(awk -v s="$blearn_line" -v e="$blearn_end" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | sed '/^---$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else build_learnings='""'; fi
 
-      # Stack Wisdom: between stack_line+1 and dec_line-1
-      if [[ -n "$stack_line" && -n "$dec_line" ]]; then
-        # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
-        stack_wisdom=$(awk -v s="$stack_line" -v e="$dec_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      else stack_wisdom='""'; fi
+        # Instincts: between inst_line and evo_line (or end)
+        if [[ -n "$inst_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          instincts=$(awk -v s="$inst_line" -v e="${evo_line:-999999}" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | sed '/^---$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else instincts='""'; fi
 
-      # Decrees: between dec_line+1 and (prefs_line-1 or evo_line-1 or end)
-      local dec_end="${prefs_line:-${evo_line:-999999}}"
-      if [[ -n "$dec_line" ]]; then
-        # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
-        decrees=$(awk -v s="$dec_line" -v e="$dec_end" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
-      else decrees='""'; fi
+        # Output v2 JSON
+        echo "{\"user_prefs\":$user_prefs,\"codebase_patterns\":$codebase_patterns,\"build_learnings\":$build_learnings,\"instincts\":$instincts}"
 
-      # User Preferences: between prefs_line+1 and (evo_line-1 or end)
-      if [[ -n "$prefs_line" ]]; then
-        # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
-        user_prefs=$(awk -v s="$prefs_line" -v e="${evo_line:-999999}" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
       else
-        user_prefs='""'
-      fi
+        # === V1 FORMAT (6 emoji sections, mapped to v2 keys) ===
+        local p_line=$(awk '/^## ..? ?Philosophies$/ {print NR; exit}' "$file")
+        local pat_line=$(awk '/^## ..? ?Patterns$/ {print NR; exit}' "$file")
+        local red_line=$(awk '/^## ..? ?Redirects$/ {print NR; exit}' "$file")
+        local stack_line=$(awk '/^## ..? ?Stack Wisdom$/ {print NR; exit}' "$file")
+        local dec_line=$(awk '/^## ..? ?Decrees$/ {print NR; exit}' "$file")
+        local prefs_line=$(awk '/^## ..? ?User Preferences$/ {print NR; exit}' "$file")
+        local evo_line=$(awk '/^## ..? ?Evolution Log$/ {print NR; exit}' "$file")
 
-      # Output as JSON
-      jq -n \
-        --arg philosophies "$philosophies" \
-        --arg patterns "$patterns" \
-        --arg redirects "$redirects" \
-        --arg stack_wisdom "$stack_wisdom" \
-        --arg decrees "$decrees" \
-        --arg user_prefs "$user_prefs" \
-        '{philosophies: $philosophies, patterns: $patterns, redirects: $redirects, stack_wisdom: $stack_wisdom, decrees: $decrees, user_prefs: $user_prefs}'
+        local philosophies patterns redirects stack_wisdom decrees user_prefs
+
+        if [[ -n "$p_line" && -n "$pat_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          philosophies=$(awk -v s="$p_line" -v e="$pat_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else philosophies='""'; fi
+
+        if [[ -n "$pat_line" && -n "$red_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          patterns=$(awk -v s="$pat_line" -v e="$red_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else patterns='""'; fi
+
+        if [[ -n "$red_line" && -n "$stack_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          redirects=$(awk -v s="$red_line" -v e="$stack_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else redirects='""'; fi
+
+        if [[ -n "$stack_line" && -n "$dec_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          stack_wisdom=$(awk -v s="$stack_line" -v e="$dec_line" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else stack_wisdom='""'; fi
+
+        local dec_end="${prefs_line:-${evo_line:-999999}}"
+        if [[ -n "$dec_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          decrees=$(awk -v s="$dec_line" -v e="$dec_end" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else decrees='""'; fi
+
+        if [[ -n "$prefs_line" ]]; then
+          # SUPPRESS:OK -- read-default: text escaping returns fallback on empty input
+          user_prefs=$(awk -v s="$prefs_line" -v e="${evo_line:-999999}" 'NR > s && NR < e {print}' "$file" | sed '/^$/d' | jq -Rs '.' 2>/dev/null || echo '""')
+        else user_prefs='""'; fi
+
+        # Map v1 sections to v2 keys:
+        # Philosophies + Patterns + Redirects + Stack Wisdom -> codebase_patterns
+        # Decrees + old User Preferences -> user_prefs
+        # build_learnings and instincts -> empty for v1 files
+        local combined_codebase
+        combined_codebase=$(jq -n \
+          --arg phil "$philosophies" \
+          --arg pat "$patterns" \
+          --arg red "$redirects" \
+          --arg stack "$stack_wisdom" \
+          '[$phil, $pat, $red, $stack] | map(select(. != "" and . != null)) | join("\n")' 2>/dev/null || echo '""')
+
+        local combined_uprefs
+        combined_uprefs=$(jq -n \
+          --arg dec "$decrees" \
+          --arg up "$user_prefs" \
+          '[$dec, $up] | map(select(. != "" and . != null)) | join("\n")' 2>/dev/null || echo '""')
+
+        echo "{\"user_prefs\":$combined_uprefs,\"codebase_patterns\":$combined_codebase,\"build_learnings\":\"\",\"instincts\":\"\"}"
+      fi
     }
 
 # ============================================================================
@@ -158,19 +203,19 @@ _queen_read() {
       exit 1
     fi
 
-    # Extract wisdom from global (if exists)
-    global_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":"","user_prefs":""}'
+    # Extract wisdom from global (if exists) -- _extract_wisdom_sections returns v2 keys
+    global_wisdom='{"user_prefs":"","codebase_patterns":"","build_learnings":"","instincts":""}'
     if [[ "$has_global" == "true" ]]; then
       global_wisdom=$(_extract_wisdom_sections "$queen_global")
     fi
 
     # Extract wisdom from local (if exists)
-    local_wisdom='{"philosophies":"","patterns":"","redirects":"","stack_wisdom":"","decrees":"","user_prefs":""}'
+    local_wisdom='{"user_prefs":"","codebase_patterns":"","build_learnings":"","instincts":""}'
     if [[ "$has_local" == "true" ]]; then
       local_wisdom=$(_extract_wisdom_sections "$queen_local")
     fi
 
-    # Combine wisdom: local extends global - content appended
+    # Combine wisdom: local extends global - content appended (v2 keys)
     combined=$(jq -n \
       --argjson global "$global_wisdom" \
       --argjson local "$local_wisdom" \
@@ -182,12 +227,10 @@ _queen_read() {
         end;
 
       {
-        philosophies: combine($global.philosophies; $local.philosophies),
-        patterns: combine($global.patterns; $local.patterns),
-        redirects: combine($global.redirects; $local.redirects),
-        stack_wisdom: combine($global.stack_wisdom; $local.stack_wisdom),
-        decrees: combine($global.decrees; $local.decrees),
-        user_prefs: combine($global.user_prefs; $local.user_prefs)
+        user_prefs: combine($global.user_prefs; $local.user_prefs),
+        codebase_patterns: combine($global.codebase_patterns; $local.codebase_patterns),
+        build_learnings: combine($global.build_learnings; $local.build_learnings),
+        instincts: combine($global.instincts; $local.instincts)
       }
       ')
 
@@ -210,40 +253,32 @@ _queen_read() {
         "QUEEN.md has a malformed METADATA block — the JSON between <!-- METADATA and --> is invalid. Try: fix the JSON in .aether/QUEEN.md or run queen-init to reset."
     fi
 
-    # Extract individual combined wisdom values
-    philosophies=$(echo "$combined" | jq -r '.philosophies')
-    patterns=$(echo "$combined" | jq -r '.patterns')
-    redirects=$(echo "$combined" | jq -r '.redirects')
-    stack_wisdom=$(echo "$combined" | jq -r '.stack_wisdom')
-    decrees=$(echo "$combined" | jq -r '.decrees')
+    # Extract individual combined wisdom values (v2 keys)
     user_prefs=$(echo "$combined" | jq -r '.user_prefs')
+    codebase_patterns=$(echo "$combined" | jq -r '.codebase_patterns')
+    build_learnings=$(echo "$combined" | jq -r '.build_learnings')
+    instincts=$(echo "$combined" | jq -r '.instincts')
 
-    # Build JSON output
+    # Build JSON output (v2 keys)
     result=$(jq -n \
       --argjson meta "$metadata" \
-      --arg philosophies "$philosophies" \
-      --arg patterns "$patterns" \
-      --arg redirects "$redirects" \
-      --arg stack_wisdom "$stack_wisdom" \
-      --arg decrees "$decrees" \
       --arg user_prefs "$user_prefs" \
+      --arg codebase_patterns "$codebase_patterns" \
+      --arg build_learnings "$build_learnings" \
+      --arg instincts "$instincts" \
       '{
         metadata: $meta,
         wisdom: {
-          philosophies: $philosophies,
-          patterns: $patterns,
-          redirects: $redirects,
-          stack_wisdom: $stack_wisdom,
-          decrees: $decrees,
-          user_prefs: $user_prefs
+          user_prefs: $user_prefs,
+          codebase_patterns: $codebase_patterns,
+          build_learnings: $build_learnings,
+          instincts: $instincts
         },
         priming: {
-          has_philosophies: ($philosophies | length) > 0 and $philosophies != "*No philosophies recorded yet.*\n",
-          has_patterns: ($patterns | length) > 0 and $patterns != "*No patterns recorded yet.*\n",
-          has_redirects: ($redirects | length) > 0 and $redirects != "*No redirects recorded yet.*\n",
-          has_stack_wisdom: ($stack_wisdom | length) > 0 and $stack_wisdom != "*No stack wisdom recorded yet.*\n",
-          has_decrees: ($decrees | length) > 0 and $decrees != "*No decrees recorded yet.*\n",
-          has_user_prefs: ($user_prefs | length) > 0 and $user_prefs != "*No user preferences recorded yet.*\n"
+          has_user_prefs: ($user_prefs | length) > 0 and ($user_prefs | test("No user preferences recorded yet") | not),
+          has_codebase_patterns: ($codebase_patterns | length) > 0 and ($codebase_patterns | test("No codebase patterns recorded yet") | not),
+          has_build_learnings: ($build_learnings | length) > 0 and ($build_learnings | test("No build learnings recorded yet") | not),
+          has_instincts: ($instincts | length) > 0 and ($instincts | test("No instincts recorded yet") | not)
         },
         sources: {
           has_global: ($meta.source == "global" or $meta.source == "local"),
@@ -333,18 +368,35 @@ _queen_promote() {
 
     ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Map type to section header and emoji
-    # Note: failure observations map to Patterns section when promoted
-    case "$wisdom_type" in
-      philosophy) section_header="## 📜 Philosophies" ;;
-      pattern|failure) section_header="## 🧭 Patterns" ;;
-      redirect) section_header="## ⚠️ Redirects" ;;
-      stack) section_header="## 🔧 Stack Wisdom" ;;
-      decree) section_header="## 🏛️ Decrees" ;;
-    esac
+    # Map type to section header (v2 format)
+    # Old types map to new sections; detect QUEEN.md format first
+    local is_v2=false
+    if grep -q '^## Build Learnings$' "$queen_file" 2>/dev/null; then
+      is_v2=true
+    fi
+
+    if [[ "$is_v2" == "true" ]]; then
+      # V2 format: map old types to new clean section headers
+      case "$wisdom_type" in
+        philosophy) section_header="## Codebase Patterns" ; entry_prefix="[general] " ;;
+        pattern|failure) section_header="## Codebase Patterns" ; entry_prefix="" ;;
+        redirect) section_header="## Codebase Patterns" ; entry_prefix="AVOID: " ;;
+        stack) section_header="## Codebase Patterns" ; entry_prefix="[repo] " ;;
+        decree) section_header="## User Preferences" ; entry_prefix="" ;;
+      esac
+    else
+      # V1 format: use original emoji headers
+      case "$wisdom_type" in
+        philosophy) section_header="## 📜 Philosophies" ; entry_prefix="" ;;
+        pattern|failure) section_header="## 🧭 Patterns" ; entry_prefix="" ;;
+        redirect) section_header="## ⚠️ Redirects" ; entry_prefix="" ;;
+        stack) section_header="## 🔧 Stack Wisdom" ; entry_prefix="" ;;
+        decree) section_header="## 🏛️ Decrees" ; entry_prefix="" ;;
+      esac
+    fi
 
     # Build the new entry
-    entry="- **${colony_name}** (${ts}): ${content}"
+    entry="- ${entry_prefix}**${colony_name}** (${ts}): ${content}"
 
     # Create temp file for atomic write
     tmp_file="${queen_file}.tmp.$$"
@@ -409,12 +461,22 @@ ${entry}" "$queen_file" > "$tmp_file"
     awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
 
     # Update METADATA stats in temp file
-    # Map wisdom_type to stat key (irregular plurals handled)
-    case "$wisdom_type" in
-      stack) stat_key="total_stack_entries" ;;
-      philosophy) stat_key="total_philosophies" ;;
-      *) stat_key="total_${wisdom_type}s" ;;
-    esac
+    # Map wisdom_type to stat key -- detect v2 vs v1 METADATA format
+    if [[ "$is_v2" == "true" ]]; then
+      # V2 stats keys
+      case "$wisdom_type" in
+        philosophy|pattern|failure|redirect|stack) stat_key="total_codebase_patterns" ;;
+        decree) stat_key="total_user_prefs" ;;
+        *) stat_key="total_codebase_patterns" ;;
+      esac
+    else
+      # V1 stats keys (irregular plurals handled)
+      case "$wisdom_type" in
+        stack) stat_key="total_stack_entries" ;;
+        philosophy) stat_key="total_philosophies" ;;
+        *) stat_key="total_${wisdom_type}s" ;;
+      esac
+    fi
     # Read current count from temp file (which has the latest state)
     current_count=$(grep "\"${stat_key}\":" "$tmp_file" 2>/dev/null | grep -o '[0-9]*' | head -1 || true)  # SUPPRESS:OK -- read-default: file may not exist
     current_count=${current_count:-0}
