@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 12 of 16 (State API Verification)
-Plan: 1 of 3
+Plan: 2 of 3
 Status: In Progress
-Last activity: 2026-03-24 — Completed 12-01 (test fixes and state API facade)
+Last activity: 2026-03-24 — Completed 12-02 (verify-claims subcommand and continue integration)
 
 Progress: [████░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 5min
-- Total execution time: 1.4 hours
+- Total execution time: 1.6 hours
 
 **By Phase:**
 
@@ -38,10 +38,10 @@ Progress: [████░░░░░░] 30%
 | 09-quick-wins | 2 | 10min | 5min |
 | 10-error-triage | 2 | 28min | 14min |
 | 11-dead-code-deprecation | 2 | 9min | 4.5min |
-| 12-state-api-verification | 1 | 9min | 9min |
+| 12-state-api-verification | 2 | 21min | 10.5min |
 
 **Recent Trend:**
-- Last 5 plans: 12min, 16min, 3min, 6min, 9min
+- Last 5 plans: 16min, 3min, 6min, 9min, 12min
 - Trend: normalizing
 
 *Updated after each plan completion*
@@ -78,6 +78,9 @@ Recent decisions affecting current work:
 - [12-01]: futureISO(30) for dynamic test dates -- prevents recurring expiration failures
 - [12-01]: state-read-field returns raw for internal callers; subcommand entry wraps in json_ok
 - [12-01]: _state_migrate extracted from validate-state for reuse by state-api.sh
+- [12-02]: Missing builder claims file = graceful skip (not error) for first-time runs
+- [12-02]: Conservative watcher (says fail when tests pass) is not fabrication; only opposite direction blocks
+- [12-02]: verify-claims returns json_ok even for blocked status (ok:true, verification_status:"blocked")
 
 ### Pending Todos
 
@@ -92,5 +95,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-24
-Stopped at: Completed 12-01-PLAN.md (test fixes and state API facade)
+Stopped at: Completed 12-02-PLAN.md (verify-claims subcommand and continue integration)
 Resume file: None
