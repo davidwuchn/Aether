@@ -1167,13 +1167,15 @@ HELP_EOF
     fi
     ;;
   validate-state)
-    # Delegates migration to _state_migrate in state-api.sh
+    # Migrated to state-api facade: uses _state_read_field for reads, _state_migrate for schema migration
     case "${1:-}" in
       colony)
-        [[ -f "$DATA_DIR/COLONY_STATE.json" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found" '{"file":"COLONY_STATE.json"}'
+        # Read full state via facade (handles missing file error)
+        vs_state=$(_state_read_field '.')
+        [[ -n "$vs_state" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found" '{"file":"COLONY_STATE.json"}'
         # Run schema migration before field validation (ensures v3.0 fields always present)
         _state_migrate "$DATA_DIR/COLONY_STATE.json"
-        json_ok "$(jq '
+        json_ok "$(echo "$vs_state" | jq '
           def chk(f;t): if has(f) then (if (.[f]|type) as $a | t | any(. == $a) then "pass" else "fail: \(f) is \(.[f]|type), expected \(t|join("|"))" end) else "fail: missing \(f)" end;
           def opt(f;t): if has(f) then (if (.[f]|type) as $a | t | any(. == $a) then "pass" else "fail: \(f) is \(.[f]|type), expected \(t|join("|"))" end) else "pass" end;
           {file:"COLONY_STATE.json", checks:[
@@ -1188,7 +1190,7 @@ HELP_EOF
             opt("initialized_at";["string","null"]),
             opt("build_started_at";["string","null"])
           ]} | . + {pass: (([.checks[] | select(. == "pass")] | length) == (.checks | length))}
-        ' "$DATA_DIR/COLONY_STATE.json")"
+        ')"
         ;;
       constraints)
         [[ -f "$DATA_DIR/constraints.json" ]] || json_err "$E_FILE_NOT_FOUND" "constraints.json not found" '{"file":"constraints.json"}'
@@ -1265,6 +1267,103 @@ HELP_EOF
   state-mutate)
     # Read-modify-write COLONY_STATE.json with a jq expression -- delegates to state-api.sh
     _state_mutate "$@"
+    ;;
+  verify-claims)
+    # Cross-reference worker claims against reality (QUAL-08)
+    # Usage: bash .aether/aether-utils.sh verify-claims <builder-claims-json> <watcher-claims-json-or-path> <test-exit-code>
+    # Returns JSON with verification_status, checks_run, mismatches, blocked, summary
+    _verify_claims() {
+      local vc_builder_claims="${1:-}"
+      local vc_watcher_claims="${2:-}"
+      local vc_test_exit_code="${3:-0}"
+      local vc_blocked=false
+      local vc_mismatches="[]"
+      local vc_checks_run=0
+      local vc_summary="Verification passed"
+
+      # --- Check 1: Builder-claimed files exist ---
+      vc_checks_run=$((vc_checks_run + 1))
+
+      if [[ -n "$vc_builder_claims" && -f "$vc_builder_claims" ]]; then
+        # Read files_created and files_modified arrays
+        local vc_files
+        vc_files=$(jq -r '(.files_created // []) + (.files_modified // []) | .[]' "$vc_builder_claims" 2>/dev/null || echo "")
+
+        if [[ -n "$vc_files" ]]; then
+          local vc_missing_files=""
+          local vc_missing_count=0
+          while IFS= read -r vc_file_path; do
+            if [[ -n "$vc_file_path" && ! -f "$vc_file_path" ]]; then
+              vc_missing_count=$((vc_missing_count + 1))
+              vc_missing_files="${vc_missing_files}${vc_file_path},"
+            fi
+          done <<< "$vc_files"
+
+          if [[ $vc_missing_count -gt 0 ]]; then
+            vc_blocked=true
+            # Build mismatches array entries for missing files
+            local vc_total_claimed
+            vc_total_claimed=$(echo "$vc_files" | wc -l | tr -d ' ')
+            vc_missing_files="${vc_missing_files%,}" # trim trailing comma
+            # Build JSON array of missing file mismatches
+            local vc_mm_arr="[]"
+            IFS=',' read -ra vc_mm_parts <<< "$vc_missing_files"
+            for vc_mm_f in "${vc_mm_parts[@]}"; do
+              vc_mm_arr=$(echo "$vc_mm_arr" | jq --arg f "$vc_mm_f" '. + [{"type":"missing_file","file":$f,"message":"Worker claimed file was created/modified, but file does not exist"}]')
+            done
+            vc_mismatches="$vc_mm_arr"
+            vc_summary="Worker claimed $vc_total_claimed files, but $vc_missing_count missing: ${vc_missing_files}. Blocked."
+          fi
+        fi
+      fi
+      # If builder claims file does not exist, skip file check gracefully (no block)
+
+      # --- Check 2: Test exit code vs Watcher verification_passed ---
+      vc_checks_run=$((vc_checks_run + 1))
+
+      local vc_watcher_passed="true"
+      if [[ -n "$vc_watcher_claims" ]]; then
+        if [[ -f "$vc_watcher_claims" ]]; then
+          vc_watcher_passed=$(jq -r '.verification_passed // true' "$vc_watcher_claims" 2>/dev/null || echo "true")
+        else
+          # Treat as inline JSON
+          vc_watcher_passed=$(echo "$vc_watcher_claims" | jq -r '.verification_passed // true' 2>/dev/null || echo "true")
+        fi
+      fi
+
+      # Fabrication: test exit code != 0 but watcher claims passed
+      if [[ "$vc_test_exit_code" != "0" && "$vc_watcher_passed" == "true" ]]; then
+        vc_blocked=true
+        vc_mismatches=$(echo "$vc_mismatches" | jq --arg code "$vc_test_exit_code" '. + [{"type":"test_mismatch","message":"Test exit code was \($code) but watcher claimed verification_passed: true"}]')
+        if [[ "$vc_summary" == "Verification passed" ]]; then
+          vc_summary="Test exit code $vc_test_exit_code but watcher claimed tests passed. Blocked."
+        else
+          vc_summary="${vc_summary} Also: test exit code $vc_test_exit_code but watcher claimed tests passed."
+        fi
+      fi
+
+      # --- Build result ---
+      local vc_status="passed"
+      if [[ "$vc_blocked" == "true" ]]; then
+        vc_status="blocked"
+      fi
+
+      json_ok "$(jq -n \
+        --arg status "$vc_status" \
+        --argjson checks "$vc_checks_run" \
+        --argjson mismatches "$vc_mismatches" \
+        --argjson blocked "$vc_blocked" \
+        --arg summary "$vc_summary" \
+        '{
+          "verification_status": $status,
+          "checks_run": $checks,
+          "mismatches": $mismatches,
+          "blocked": $blocked,
+          "summary": $summary
+        }'
+      )"
+    }
+    _verify_claims "$@"
     ;;
   validate-oracle-state)
     # Validate oracle state files (state.json, plan.json)
@@ -1358,39 +1457,33 @@ HELP_EOF
     esac
     ;;
   error-add)
+    # Migrated to state-api facade: uses _state_mutate for atomic read-modify-write
     [[ $# -ge 3 ]] || json_err "$E_VALIDATION_FAILED" "Usage: error-add <category> <severity> <description> [phase]"
-    state_file="$DATA_DIR/COLONY_STATE.json"
-    [[ -f "$state_file" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found" '{"file":"COLONY_STATE.json"}'
 
-    state_lock_held=false
-    if type acquire_lock &>/dev/null; then
-      acquire_lock "$state_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on COLONY_STATE.json"
-      state_lock_held=true
-    fi
-
-    id="err_$(date -u +%s)_$(head -c 2 /dev/urandom | od -An -tx1 | tr -d ' ')"
-    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    phase_val="${4:-null}"
-    if [[ "$phase_val" =~ ^[0-9]+$ ]]; then
-      phase_jq="$phase_val"
+    ea_id="err_$(date -u +%s)_$(head -c 2 /dev/urandom | od -An -tx1 | tr -d ' ')"
+    ea_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    ea_phase_val="${4:-null}"
+    if [[ "$ea_phase_val" =~ ^[0-9]+$ ]]; then
+      ea_phase_jq="$ea_phase_val"
     else
-      phase_jq="null"
+      ea_phase_jq="null"
     fi
-    updated=$(jq --arg id "$id" --arg cat "$1" --arg sev "$2" --arg desc "$3" --argjson phase "$phase_jq" --arg ts "$ts" '
-      .errors.records += [{id:$id, category:$cat, severity:$sev, description:$desc, root_cause:null, phase:$phase, task_id:null, timestamp:$ts}] |
-      if (.errors.records|length) > 50 then .errors.records = .errors.records[-50:] else . end
-    ' "$state_file") || {
-      [[ "$state_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-      json_err "$E_JSON_INVALID" "Failed to update COLONY_STATE.json"
-    }
+    EA_ID="$ea_id" EA_CAT="$1" EA_SEV="$2" EA_DESC="$3" EA_PHASE="$ea_phase_jq" EA_TS="$ea_ts" \
+      _state_mutate '
+        .errors.records += [{
+          id: env.EA_ID,
+          category: env.EA_CAT,
+          severity: env.EA_SEV,
+          description: env.EA_DESC,
+          root_cause: null,
+          phase: (env.EA_PHASE | if . == "null" then null else tonumber end),
+          task_id: null,
+          timestamp: env.EA_TS
+        }] |
+        if (.errors.records|length) > 50 then .errors.records = .errors.records[-50:] else . end
+      ' >/dev/null
 
-    atomic_write "$state_file" "$updated" || {
-      [[ "$state_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-      json_err "$E_JSON_INVALID" "Failed to write COLONY_STATE.json"
-    }
-
-    [[ "$state_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-    json_ok "\"$id\""
+    json_ok "\"$ea_id\""
     ;;
   error-pattern-check)
     _deprecation_warning "error-pattern-check"
@@ -3501,6 +3594,7 @@ NODESCRIPT
     ;;
 
   phase-insert)
+    # Migrated to state-api facade: uses _state_read_field for reads, _state_mutate for atomic write
     # Insert a new phase immediately after current_phase and renumber downstream phases safely.
     # Usage: phase-insert <phase_name> <goal> [constraints]
     phase_name="${1:-}"
@@ -3510,49 +3604,32 @@ NODESCRIPT
     [[ -n "$phase_name" ]] || json_err "$E_VALIDATION_FAILED" "Usage: phase-insert <phase_name> <goal> [constraints]" '{"missing":"phase_name"}'
     [[ -n "$phase_goal" ]] || json_err "$E_VALIDATION_FAILED" "Usage: phase-insert <phase_name> <goal> [constraints]" '{"missing":"goal"}'
 
-    state_file="$DATA_DIR/COLONY_STATE.json"
-    [[ -f "$state_file" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found" '{"file":"COLONY_STATE.json"}'
+    # Read phase count and current_phase via state-api facade
+    pi_phase_count=$(_state_read_field '(.plan.phases // []) | length')
+    [[ -n "$pi_phase_count" && "$pi_phase_count" -gt 0 ]] 2>/dev/null || json_err "$E_VALIDATION_FAILED" "No project plan found. Run /ant:plan first."
 
-    if ! jq -e . "$state_file" >/dev/null 2>&1; then  # SUPPRESS:OK -- validation: testing JSON validity
-      json_err "$E_JSON_INVALID" "COLONY_STATE.json has invalid JSON"
+    pi_current_phase=$(_state_read_field '.current_phase // 0')
+    [[ "$pi_current_phase" =~ ^[0-9]+$ ]] || pi_current_phase=0
+    if [[ "$pi_current_phase" -gt "$pi_phase_count" ]]; then
+      pi_current_phase="$pi_phase_count"
+    fi
+    if [[ "$pi_current_phase" -lt 0 ]]; then
+      pi_current_phase=0
     fi
 
-    phase_count=$(jq -r '(.plan.phases // []) | length' "$state_file" 2>/dev/null || echo "0")  # SUPPRESS:OK -- read-default: file may not exist yet
-    [[ "$phase_count" -gt 0 ]] || json_err "$E_VALIDATION_FAILED" "No project plan found. Run /ant:plan first."
-
-    current_phase=$(jq -r '.current_phase // 0' "$state_file" 2>/dev/null || echo "0")  # SUPPRESS:OK -- read-default: file may not exist yet
-    [[ "$current_phase" =~ ^[0-9]+$ ]] || current_phase=0
-    if [[ "$current_phase" -gt "$phase_count" ]]; then
-      current_phase="$phase_count"
-    fi
-    if [[ "$current_phase" -lt 0 ]]; then
-      current_phase=0
-    fi
-
-    insert_id=$((current_phase + 1))
+    insert_id=$((pi_current_phase + 1))
     ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Acquire lock for safe state mutation
-    _phase_lock_held=false
-    if type acquire_lock &>/dev/null; then
-      acquire_lock "$state_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on COLONY_STATE.json"
-      _phase_lock_held=true
-      trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
-    fi
+    # Use _state_mutate for atomic read-modify-write (handles locking and backup)
+    PI_INSERT_ID="$insert_id" PI_NAME="$phase_name" PI_GOAL="$phase_goal" \
+    PI_CONSTRAINTS="$phase_constraints" PI_TS="$ts" \
+      _state_mutate '
+      (env.PI_INSERT_ID | tonumber) as $insert_id |
+      env.PI_NAME as $name |
+      env.PI_GOAL as $goal |
+      env.PI_CONSTRAINTS as $constraints |
+      env.PI_TS as $ts |
 
-    if type create_backup &>/dev/null; then
-      if ! create_backup "$state_file"; then
-        _aether_log_error "Could not create backup of colony state before phase insertion"
-      fi
-    fi
-
-    updated=$(jq \
-      --argjson insert_id "$insert_id" \
-      --arg name "$phase_name" \
-      --arg goal "$phase_goal" \
-      --arg constraints "$phase_constraints" \
-      --arg ts "$ts" \
-      '
       def tail_id:
         if (type == "string") and test("^[0-9]+\\.") then
           capture("^[0-9]+\\.(?<tail>.+)$").tail
@@ -3627,22 +3704,7 @@ NODESCRIPT
         } as $new_phase
       | .plan.phases = (($shifted + [$new_phase]) | sort_by(.id))
       | .events = ((.events // []) + [($ts + "|phase_inserted|insert-phase|Inserted Phase " + ($insert_id|tostring) + ": " + $name)])
-      ' "$state_file") || {
-      [[ "$_phase_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-      trap - EXIT
-      json_err "$E_JSON_INVALID" "Failed to insert phase into COLONY_STATE.json"
-    }
-    [[ -n "$updated" && "$updated" != "null" ]] || {
-      [[ "$_phase_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-      trap - EXIT
-      _aether_log_error "Phase insertion produced empty result -- not overwriting colony state"
-      json_err "$E_JSON_INVALID" "Phase insertion produced empty result"
-    }
-
-    atomic_write "$state_file" "$updated"
-
-    [[ "$_phase_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-    trap - EXIT
+      ' >/dev/null
 
     # Emit guidance signals non-blocking to reinforce inserted phase intent.
     bash "$0" pheromone-write FOCUS "Inserted Phase $insert_id: $phase_goal" --strength 0.8 --source "user:insert-phase" --reason "Phase inserted to correct execution path" --ttl "30d" >/dev/null 2>&1 \
@@ -3659,7 +3721,7 @@ NODESCRIPT
       --arg phase_name "$phase_name" \
       --arg phase_goal "$phase_goal" \
       --arg constraints "$phase_constraints" \
-      --argjson after_phase "$current_phase" \
+      --argjson after_phase "$pi_current_phase" \
       '{
         inserted: true,
         inserted_phase_id: $inserted_phase_id,
@@ -7683,7 +7745,7 @@ $updated_meta
     ;;
 
   instinct-create)
-    # Create or update an instinct in COLONY_STATE.json
+    # Migrated to state-api facade: uses _state_read_field for reads, _state_mutate for atomic writes
     # Usage: instinct-create --trigger "when X" --action "do Y" --confidence 0.5 --domain "architecture" --source "phase-3" --evidence "observation"
     # Deduplicates: if trigger+action matches existing instinct, boosts confidence instead
     # Cap: max 30 instincts, evicts lowest confidence when exceeded
@@ -7710,19 +7772,6 @@ $updated_meta
     [[ -z "$ic_trigger" ]] && json_err "$E_VALIDATION_FAILED" "instinct-create requires --trigger"
     [[ -z "$ic_action" ]] && json_err "$E_VALIDATION_FAILED" "instinct-create requires --action"
 
-    ic_state_file="$DATA_DIR/COLONY_STATE.json"
-    [[ -f "$ic_state_file" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found. Run /ant:init first."
-
-    # Acquire lock for atomic instinct update (BUG-FIX: was missing locking)
-    if type feature_enabled &>/dev/null && ! feature_enabled "file_locking"; then
-      : # Locking disabled — proceed without lock
-    else
-      acquire_lock "$ic_state_file" || {
-        json_err "$E_LOCK_FAILED" "Failed to acquire lock on COLONY_STATE.json for instinct-create"
-      }
-      trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
-    fi
-
     # Validate confidence range
     if ! [[ "$ic_confidence" =~ ^(0(\.[0-9]+)?|1(\.0+)?)$ ]]; then
       ic_confidence="0.5"
@@ -7732,88 +7781,62 @@ $updated_meta
     ic_epoch=$(date +%s)
     ic_id="instinct_${ic_epoch}"
 
-    # Check for existing instinct with matching trigger+action (fuzzy: exact substring match)
-    ic_existing=$(jq -c --arg trigger "$ic_trigger" --arg action "$ic_action" '
-      [(.memory.instincts // [])[] | select(.trigger == $trigger and .action == $action)] | first // null
-    ' "$ic_state_file" 2>/dev/null)  # SUPPRESS:OK -- read-default: file may not exist yet
+    # Check for existing instinct with matching trigger+action via facade
+    ic_existing=$(_state_read_field "$(printf '[(.memory.instincts // [])[] | select(.trigger == "%s" and .action == "%s")] | first // null' "$ic_trigger" "$ic_action")")
 
     if [[ -n "$ic_existing" && "$ic_existing" != "null" ]]; then
       # Update existing: boost confidence by +0.1, increment applications
-      ic_updated=$(jq --arg trigger "$ic_trigger" --arg action "$ic_action" --arg now "$ic_now" '
-        .memory.instincts = [
-          (.memory.instincts // [])[] |
-          if .trigger == $trigger and .action == $action then
-            .confidence = ([(.confidence + 0.1), 1.0] | min) |
-            .applications = ((.applications // 0) + 1) |
-            .last_applied = $now
-          else
-            .
-          end
-        ]
-      ' "$ic_state_file" 2>/dev/null)  # SUPPRESS:OK -- read-default: file may not exist yet
+      IC_TRIGGER="$ic_trigger" IC_ACTION="$ic_action" IC_NOW="$ic_now" \
+        _state_mutate '
+          .memory.instincts = [
+            (.memory.instincts // [])[] |
+            if .trigger == env.IC_TRIGGER and .action == env.IC_ACTION then
+              .confidence = ([(.confidence + 0.1), 1.0] | min) |
+              .applications = ((.applications // 0) + 1) |
+              .last_applied = env.IC_NOW
+            else
+              .
+            end
+          ]
+        ' >/dev/null
 
-      if [[ -n "$ic_updated" ]]; then
-        atomic_write "$ic_state_file" "$ic_updated"
-        ic_new_conf=$(echo "$ic_updated" | jq --arg trigger "$ic_trigger" --arg action "$ic_action" '
-          [(.memory.instincts // [])[] | select(.trigger == $trigger and .action == $action)] | first | .confidence // 0
-        ' 2>/dev/null)  # SUPPRESS:OK -- read-default: operation may fail
-        trap - EXIT
-        release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-        json_ok "{\"instinct_id\":\"existing\",\"action\":\"updated\",\"confidence\":$ic_new_conf}"
-      else
-        json_err "$E_INTERNAL" "Failed to update existing instinct"
-      fi
+      # Read updated confidence
+      ic_new_conf=$(_state_read_field "$(printf '[(.memory.instincts // [])[] | select(.trigger == "%s" and .action == "%s")] | first | .confidence // 0' "$ic_trigger" "$ic_action")")
+      json_ok "{\"instinct_id\":\"existing\",\"action\":\"updated\",\"confidence\":$ic_new_conf}"
     else
-      # Create new instinct
-      ic_new_instinct=$(jq -n \
-        --arg id "$ic_id" \
-        --arg trigger "$ic_trigger" \
-        --arg action "$ic_action" \
-        --argjson confidence "$ic_confidence" \
-        --arg status "hypothesis" \
-        --arg domain "$ic_domain" \
-        --arg source "$ic_source" \
-        --arg evidence "$ic_evidence" \
-        --arg created_at "$ic_now" \
-        '{
-          id: $id,
-          trigger: $trigger,
-          action: $action,
-          confidence: $confidence,
-          status: $status,
-          domain: $domain,
-          source: $source,
-          evidence: [$evidence],
-          tested: false,
-          created_at: $created_at,
-          last_applied: null,
-          applications: 0,
-          successes: 0,
-          failures: 0
-        }')
+      # Create new instinct via _state_mutate (handles locking and backup)
+      IC_ID="$ic_id" IC_TRIGGER="$ic_trigger" IC_ACTION="$ic_action" IC_CONFIDENCE="$ic_confidence" \
+      IC_DOMAIN="$ic_domain" IC_SOURCE="$ic_source" IC_EVIDENCE="$ic_evidence" IC_NOW="$ic_now" \
+        _state_mutate '
+          .memory.instincts = (
+            ((.memory.instincts // []) + [{
+              id: env.IC_ID,
+              trigger: env.IC_TRIGGER,
+              action: env.IC_ACTION,
+              confidence: (env.IC_CONFIDENCE | tonumber),
+              status: "hypothesis",
+              domain: env.IC_DOMAIN,
+              source: env.IC_SOURCE,
+              evidence: [env.IC_EVIDENCE],
+              tested: false,
+              created_at: env.IC_NOW,
+              last_applied: null,
+              applications: 0,
+              successes: 0,
+              failures: 0
+            }])
+            | sort_by(-.confidence)
+            | .[:30]
+          )
+        ' >/dev/null
 
-      # Add instinct, enforce 30-instinct cap (evict lowest confidence)
-      ic_updated=$(jq --argjson new_instinct "$ic_new_instinct" '
-        .memory.instincts = (
-          ((.memory.instincts // []) + [$new_instinct])
-          | sort_by(-.confidence)
-          | .[:30]
-        )
-      ' "$ic_state_file" 2>/dev/null)  # SUPPRESS:OK -- read-default: file may not exist yet
-
-      if [[ -n "$ic_updated" ]]; then
-        atomic_write "$ic_state_file" "$ic_updated"
-        trap - EXIT
-        release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
-        json_ok "{\"instinct_id\":\"$ic_id\",\"action\":\"created\",\"confidence\":$ic_confidence}"
-      else
-        json_err "$E_INTERNAL" "Failed to create instinct"
-      fi
+      json_ok "{\"instinct_id\":\"$ic_id\",\"action\":\"created\",\"confidence\":$ic_confidence}"
     fi
     exit 0
     ;;
 
   instinct-apply)
+    # Migrated to state-api facade: uses _state_read_field for reads, _state_mutate for atomic writes
     # Record when an instinct was actually used in practice
     # Usage: instinct-apply --id <instinct_id> [--outcome success|failure]
     # Success: boosts confidence by 0.05 (cap 1.0), increments successes
@@ -7837,77 +7860,51 @@ $updated_meta
       json_err "$E_VALIDATION_FAILED" "instinct-apply --outcome must be 'success' or 'failure'"
     fi
 
-    ia_state_file="$DATA_DIR/COLONY_STATE.json"
-    [[ -f "$ia_state_file" ]] || json_err "$E_FILE_NOT_FOUND" "COLONY_STATE.json not found. Run /ant:init first."
-
-    # Acquire lock for atomic instinct update
-    if type feature_enabled &>/dev/null && ! feature_enabled "file_locking"; then
-      : # Locking disabled — proceed without lock
-    else
-      acquire_lock "$ia_state_file" || {
-        json_err "$E_LOCK_FAILED" "Failed to acquire lock on COLONY_STATE.json for instinct-apply"
-      }
-      trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
-    fi
-
-    # Check instinct exists
-    ia_exists=$(jq --arg id "$ia_id" '
-      [(.memory.instincts // [])[] | select(.id == $id)] | length > 0
-    ' "$ia_state_file" 2>/dev/null || echo "false")  # SUPPRESS:OK -- read-default: file may not exist yet
-
+    # Check instinct exists via facade
+    ia_exists=$(_state_read_field "$(printf '[(.memory.instincts // [])[] | select(.id == "%s")] | length > 0' "$ia_id")")
     if [[ "$ia_exists" != "true" ]]; then
       json_err "$E_RESOURCE_NOT_FOUND" "Instinct '$ia_id' not found"
     fi
 
     ia_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Update the instinct based on outcome
+    # Update the instinct based on outcome via _state_mutate (handles locking and backup)
     if [[ "$ia_outcome" == "success" ]]; then
-      ia_updated=$(jq --arg id "$ia_id" --arg now "$ia_now" '
-        .memory.instincts = [
-          (.memory.instincts // [])[] |
-          if .id == $id then
-            .applications = ((.applications // 0) + 1) |
-            .successes = ((.successes // 0) + 1) |
-            .confidence = ([(.confidence + 0.05), 1.0] | min) |
-            .last_applied = $now
-          else
-            .
-          end
-        ]
-      ' "$ia_state_file" 2>/dev/null)  # SUPPRESS:OK -- read-default: file may not exist yet
+      IA_ID="$ia_id" IA_NOW="$ia_now" \
+        _state_mutate '
+          .memory.instincts = [
+            (.memory.instincts // [])[] |
+            if .id == env.IA_ID then
+              .applications = ((.applications // 0) + 1) |
+              .successes = ((.successes // 0) + 1) |
+              .confidence = ([(.confidence + 0.05), 1.0] | min) |
+              .last_applied = env.IA_NOW
+            else
+              .
+            end
+          ]
+        ' >/dev/null
     else
-      ia_updated=$(jq --arg id "$ia_id" --arg now "$ia_now" '
-        .memory.instincts = [
-          (.memory.instincts // [])[] |
-          if .id == $id then
-            .applications = ((.applications // 0) + 1) |
-            .failures = ((.failures // 0) + 1) |
-            .confidence = ([(.confidence - 0.1), 0.1] | max) |
-            .last_applied = $now
-          else
-            .
-          end
-        ]
-      ' "$ia_state_file" 2>/dev/null)  # SUPPRESS:OK -- read-default: file may not exist yet
+      IA_ID="$ia_id" IA_NOW="$ia_now" \
+        _state_mutate '
+          .memory.instincts = [
+            (.memory.instincts // [])[] |
+            if .id == env.IA_ID then
+              .applications = ((.applications // 0) + 1) |
+              .failures = ((.failures // 0) + 1) |
+              .confidence = ([(.confidence - 0.1), 0.1] | max) |
+              .last_applied = env.IA_NOW
+            else
+              .
+            end
+          ]
+        ' >/dev/null
     fi
 
-    if [[ -z "$ia_updated" ]]; then
-      json_err "$E_INTERNAL" "Failed to update instinct"
-    fi
+    # Extract updated values for response via facade
+    ia_new_apps=$(_state_read_field "$(printf '[(.memory.instincts // [])[] | select(.id == "%s")] | first | .applications' "$ia_id")")
+    ia_new_conf=$(_state_read_field "$(printf '[(.memory.instincts // [])[] | select(.id == "%s")] | first | .confidence' "$ia_id")")
 
-    atomic_write "$ia_state_file" "$ia_updated"
-
-    # Extract updated values for response
-    ia_new_apps=$(echo "$ia_updated" | jq --arg id "$ia_id" '
-      [(.memory.instincts // [])[] | select(.id == $id)] | first | .applications
-    ' 2>/dev/null)  # SUPPRESS:OK -- read-default: operation may fail
-    ia_new_conf=$(echo "$ia_updated" | jq --arg id "$ia_id" '
-      [(.memory.instincts // [])[] | select(.id == $id)] | first | .confidence
-    ' 2>/dev/null)  # SUPPRESS:OK -- read-default: operation may fail
-
-    trap - EXIT
-    release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
     json_ok "{\"applied\":true,\"instinct_id\":\"$ia_id\",\"applications\":$ia_new_apps,\"new_confidence\":$ia_new_conf}"
     exit 0
     ;;
