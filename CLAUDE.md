@@ -2,7 +2,7 @@
 
 > **Current Version:** v2.0.0
 > **Architecture:** v4.0 (runtime/ eliminated, direct packaging)
-> **Last Updated:** 2026-03-21 (v2.0 — ship-ready release)
+> **Last Updated:** 2026-03-24 (post-hardening accuracy sweep)
 
 ---
 
@@ -11,10 +11,12 @@
 | What | Count/Status |
 |------|--------------|
 | Version | v2.0.0 |
-| Slash commands | 43 (Claude) + 43 (OpenCode) |
+| Slash commands | ~44 (Claude) + ~44 (OpenCode) |
 | Agent definitions | 22 |
-| aether-utils.sh | 11,221 lines, 125 subcommands |
-| Tests | 530+ passing |
+| Skills | 28 (10 colony + 18 domain) |
+| aether-utils.sh | ~5,200 lines (dispatcher), ~150 subcommands across all modules |
+| Utils | ~29 scripts (9 domain modules + infrastructure + XML) |
+| Tests | 580+ passing |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
 ---
@@ -27,17 +29,28 @@
 │                                                                  │
 │   .aether/             ← SOURCE OF TRUTH (packaged directly)    │
 │   ├── workers.md       (edit here)                              │
-│   ├── aether-utils.sh  (11,221 lines, 125 subcommands)           │
-│   ├── utils/           (18 utility scripts)                     │
+│   ├── aether-utils.sh  (dispatcher, ~5,200 lines, ~150 subcmds) │
+│   ├── utils/           (~29 scripts, modular architecture)      │
+│   │   ├── Domain modules (9):                                   │
+│   │   │   flag.sh, spawn.sh, session.sh, suggest.sh,            │
+│   │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh,        │
+│   │   │   state-api.sh                                          │
+│   │   ├── Infrastructure:                                       │
+│   │   │   file-lock.sh, atomic-write.sh, error-handler.sh,      │
+│   │   │   hive.sh, midden.sh, skills.sh                         │
+│   │   └── XML + other:                                          │
+│   │       xml-core.sh, xml-query.sh, xml-compose.sh,            │
+│   │       xml-convert.sh, xml-utils.sh, swarm-display.sh, ...   │
+│   ├── skills/          colony/ (10) + domain/ (18)              │
 │   ├── docs/            (distributed documentation)              │
 │   └── templates/       (12 templates)                           │
 │                                                                  │
 │   .aether/data/        ← LOCAL ONLY (excluded by .npmignore)    │
 │   .aether/dreams/      ← LOCAL ONLY (excluded by .npmignore)    │
 │                                                                  │
-│   .claude/commands/ant/ ← 43 slash commands (Claude Code)       │
+│   .claude/commands/ant/ ← 44 slash commands (Claude Code)       │
 │   .claude/agents/ant/   ← 22 agent definitions                  │
-│   .opencode/commands/ant/ ← 40 slash commands (OpenCode)        │
+│   .opencode/commands/ant/ ← 44 slash commands (OpenCode)        │
 │   .opencode/agents/     ← Agent definitions (OpenCode)          │
 │                                                                  │
 │   ~/.aether/           ← HUB (cross-colony, user-level)         │
@@ -115,12 +128,19 @@ aether update      # or /ant:update
 ```
 .aether/
 ├── workers.md           # Worker definitions, spawn protocol
-├── aether-utils.sh      # 110 subcommands for state management
-├── utils/               # 18 utility scripts
-│   ├── file-lock.sh     # Locking primitives
-│   ├── atomic-write.sh  # Safe file writes
-│   ├── swarm-display.sh # Visualization
-│   └── xml-*.sh         # XML processing
+├── aether-utils.sh      # Dispatcher (~5,200 lines, ~150 subcommands across all modules)
+├── utils/               # ~29 scripts (modular architecture)
+│   ├── Domain modules (9 -- extracted from monolith in Phase 13):
+│   │   flag.sh, spawn.sh, session.sh, suggest.sh,
+│   │   queen.sh, swarm.sh, learning.sh, pheromone.sh, state-api.sh
+│   ├── Infrastructure:
+│   │   file-lock.sh, atomic-write.sh, error-handler.sh,
+│   │   hive.sh, midden.sh, skills.sh
+│   ├── XML utilities:
+│   │   xml-core.sh, xml-query.sh, xml-compose.sh,
+│   │   xml-convert.sh, xml-utils.sh
+│   └── Other:
+│       swarm-display.sh, spawn-tree.sh, oracle.sh, ...
 ├── templates/           # 12 templates (colony-state, pheromones, etc.)
 ├── docs/                # Distributed documentation
 ├── exchange/            # XML exchange modules (pheromone-xml, wisdom-xml)
@@ -139,7 +159,7 @@ aether update      # or /ant:update
 
 ```
 .claude/
-├── commands/ant/        # 43 slash commands
+├── commands/ant/        # 44 slash commands
 │   ├── init.md          # Colony initialization
 │   ├── plan.md          # Phase planning
 │   ├── build.md         # Build orchestrator (loads split playbooks)
@@ -266,6 +286,67 @@ User-colony communication via signals:
 
 ---
 
+## Skills System
+
+Skills provide reusable behavior modules and domain knowledge that workers can load
+on demand. They come in two categories:
+
+- **Colony skills** (10) — Behavioral patterns that shape how workers operate
+  (e.g., TDD discipline, error handling conventions, commit style)
+- **Domain skills** (18) — Technical knowledge for specific frameworks, languages,
+  or tools (e.g., React patterns, Go idioms, database optimization)
+
+### Where Skills Live
+
+| Location | Purpose |
+|----------|---------|
+| `.aether/skills/` | Source of truth (packaged with Aether) |
+| `~/.aether/skills/` | Installed skills (hub-level, shared across colonies) |
+| `~/.aether/skills/domain/` | Custom user-created domain skills |
+
+### How Matching Works
+
+1. Colony-prime builds a skills index via `skill-index` (cached for performance)
+2. `skill-match` scores each skill against the current worker using:
+   - Worker role (builder, watcher, etc.)
+   - Active pheromone signals (FOCUS/REDIRECT)
+   - `skill-detect` patterns matched against the codebase
+3. Top 3 colony skills + top 3 domain skills are selected per worker
+
+### Skill Injection
+
+Skill content is injected separately from colony-prime context:
+
+- Own 12K character budget (independent of the colony-prime token budget)
+- Injected into builder and watcher prompts
+- `skill-inject` assembles matched skills into a prompt section
+
+### Subcommands
+
+| Subcommand | Purpose |
+|------------|---------|
+| `skill-index` | Build/read cached skills index |
+| `skill-detect` | Detect domain skills matching codebase |
+| `skill-match` | Match skills to worker by role + task + pheromones |
+| `skill-inject` | Load matched skills into prompt section |
+| `skill-list` | List all installed skills |
+| `skill-parse-frontmatter` | Parse SKILL.md frontmatter to JSON |
+| `skill-diff` | Compare user skill with shipped version |
+| `skill-cache-rebuild` | Force rebuild of index cache |
+
+### Custom Skills
+
+- `/ant:skill-create` — Oracle-powered skill generation from a description
+- Manual creation: add a `SKILL.md` file to `~/.aether/skills/domain/`
+- Each skill uses frontmatter (name, category, detect patterns, roles)
+
+### Update Safety
+
+- Manifest-based tracking ensures shipped skills update cleanly
+- User-created or user-modified skills are never overwritten during `aether update`
+
+---
+
 ## Token Budget
 
 Colony-prime assembles worker context within a character budget to avoid prompt bloat:
@@ -275,17 +356,18 @@ Colony-prime assembles worker context within a character budget to avoid prompt 
 | Normal | 8,000 chars | Default |
 | Compact | 4,000 chars | `--compact` flag or auto-detected |
 
-**Priority order** (trimmed from bottom when over budget):
-1. Rolling summary (highest priority — never trimmed first)
+**Trim order** (first trimmed = lowest retention priority):
+1. Rolling summary (trimmed first -- lowest retention priority)
 2. Phase learnings
 3. Key decisions
 4. Hive wisdom
 5. Context capsule
 6. User preferences
 7. QUEEN.md wisdom
-8. Pheromone signals (lowest priority)
+8. Pheromone signals (trimmed last -- highest retention priority)
+9. Blockers (NEVER trimmed)
 
-Trimmed sections are logged for debugging.
+Trimmed sections are logged for debugging. See `pheromone.sh` lines 1284-1340 for implementation.
 
 ---
 
@@ -387,7 +469,7 @@ New agents integrated into continue.md:
 
 ### Gatekeeper (Security)
 - Runs after verification passes
-- Scans for exposed secrets, debug artifacts
+- Scans for exposed secrets, debug artifacts via `check-antipattern` (~6 patterns -- not a full security scanner)
 - Creates blockers if security issues found
 
 ### Auditor (Quality)
@@ -542,4 +624,4 @@ For OpenCode-specific rules and agents, see `.opencode/OPENCODE.md`
 
 ---
 
-*Updated for Aether v2.0.0 — 2026-03-21 (ship-ready release)*
+*Updated for Aether v2.0.0 — 2026-03-24 (post-hardening accuracy sweep)*
