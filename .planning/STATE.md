@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-23)
 ## Current Position
 
 Phase: 13 of 16 (Monolith Modularization)
-Plan: 1 of 9
+Plan: 2 of 9
 Status: In Progress
-Last activity: 2026-03-24 — Completed 13-01 (flag domain extraction)
+Last activity: 2026-03-24 — Completed 13-02 (spawn domain extraction)
 
 Progress: [████░░░░░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: 5min
 - Total execution time: 1.97 hours
 
@@ -39,10 +39,10 @@ Progress: [████░░░░░░] 38%
 | 10-error-triage | 2 | 28min | 14min |
 | 11-dead-code-deprecation | 2 | 9min | 4.5min |
 | 12-state-api-verification | 3 | 41min | 13.7min |
-| 13-monolith-modularization | 1 | 4min | 4min |
+| 13-monolith-modularization | 2 | 8min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 6min, 9min, 12min, 20min, 4min
+- Last 5 plans: 9min, 12min, 20min, 4min, 4min
 - Trend: normalizing
 
 *Updated after each plan completion*
@@ -88,6 +88,8 @@ Recent decisions affecting current work:
 - [12-03]: spawn-complete wraps _state_mutate in error handler (non-critical event logging path)
 - [13-01]: Verbatim extraction -- no refactoring during domain moves, structural change only
 - [13-01]: json_ok response uses .result field (not .data) -- existing contract preserved in smoke tests
+- [13-02]: Verbatim extraction from 3 non-contiguous ranges -- same no-refactoring policy as Plan 01
+- [13-02]: get_caste_emoji stays in main file -- available at call time since sourcing defines functions, not calls them
 
 ### Pending Todos
 
@@ -102,5 +104,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-24
-Stopped at: Completed 13-01-PLAN.md (flag domain extraction) -- Phase 13 plan 1 of 9
+Stopped at: Completed 13-02-PLAN.md (spawn domain extraction) -- Phase 13 plan 2 of 9
 Resume file: None
