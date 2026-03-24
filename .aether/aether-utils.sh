@@ -1150,7 +1150,9 @@ HELP_EOF
       if ! jq -e . "$state_file" >/dev/null 2>&1; then  # SUPPRESS:OK -- validation: testing JSON validity
         # Corrupt state file — backup and error
         if type create_backup &>/dev/null; then
-          create_backup "$state_file" 2>/dev/null || true
+          if ! create_backup "$state_file" 2>/dev/null; then
+            _aether_log_error "Could not create backup of corrupted COLONY_STATE.json"
+          fi
         fi
         json_err "$E_JSON_INVALID" \
           "COLONY_STATE.json is corrupted (invalid JSON). A backup was saved in .aether/data/backups/. Try: run /ant:init to reset colony state."
@@ -1288,7 +1290,9 @@ HELP_EOF
 
     # Create backup before writing
     if [[ -f "$sw_state_file" ]]; then
-      create_backup "$sw_state_file" 2>/dev/null || true
+      if ! create_backup "$sw_state_file" 2>/dev/null; then
+        _aether_log_error "Could not create backup of $(basename "$sw_state_file") before writing"
+      fi
     fi
 
     # Write atomically; release lock on failure
@@ -2012,7 +2016,7 @@ EOF
     high_conf_signatures=$(jq -c '.signatures[] | select(.confidence_threshold >= 0.7)' "$signatures_file" 2>/dev/null)
 
     # Check if any high-confidence signatures exist
-    sig_count=$(echo "$high_conf_signatures" | grep -c '{' || echo 0)
+    sig_count=$(echo "$high_conf_signatures" | grep -c '{' || echo 0)  # SUPPRESS:OK -- read-default: grep returns 1 when no matches
     if [[ "$sig_count" -eq 0 ]]; then
       json_ok '{"files_scanned":0,"matches":{},"signatures_checked":0}'
       exit 0
@@ -3550,7 +3554,9 @@ NODESCRIPT
     fi
 
     if type create_backup &>/dev/null; then
-      create_backup "$state_file" 2>/dev/null || true
+      if ! create_backup "$state_file" 2>/dev/null; then
+        _aether_log_error "Could not create backup of $(basename "$state_file") before phase insertion"
+      fi
     fi
 
     updated=$(jq \
@@ -5166,6 +5172,7 @@ ANTLOGO
     fi
 
     # Check if section has placeholder (grep returns 1 when no matches, handle with || true)
+    # SUPPRESS:OK -- read-default: grep returns 1 when no matches found
     has_placeholder=$(sed -n "${section_line},${section_end}p" "$queen_file" | grep -c "No.*recorded yet" || true)
     has_placeholder=${has_placeholder:-0}
 
@@ -5466,9 +5473,9 @@ $updated_meta
       # Existing observation: increment count, update last_seen, add colony if new
       # Rotate backups before write (uses .bak.N naming)
       if [[ -f "$observations_file" ]]; then
-        cp -f "${observations_file}.bak.2" "${observations_file}.bak.3" 2>/dev/null || true
-        cp -f "${observations_file}.bak.1" "${observations_file}.bak.2" 2>/dev/null || true
-        cp -f "$observations_file" "${observations_file}.bak.1" 2>/dev/null || true
+        cp -f "${observations_file}.bak.2" "${observations_file}.bak.3" 2>/dev/null || _aether_log_error "Could not rotate observations backup .bak.2 to .bak.3"
+        cp -f "${observations_file}.bak.1" "${observations_file}.bak.2" 2>/dev/null || _aether_log_error "Could not rotate observations backup .bak.1 to .bak.2"
+        cp -f "$observations_file" "${observations_file}.bak.1" 2>/dev/null || _aether_log_error "Could not create observations backup .bak.1"
       fi
       tmp_file="${observations_file}.tmp.$$"
 
@@ -5496,9 +5503,9 @@ $updated_meta
       # New observation: create entry
       # Rotate backups before write (uses .bak.N naming)
       if [[ -f "$observations_file" ]]; then
-        cp -f "${observations_file}.bak.2" "${observations_file}.bak.3" 2>/dev/null || true
-        cp -f "${observations_file}.bak.1" "${observations_file}.bak.2" 2>/dev/null || true
-        cp -f "$observations_file" "${observations_file}.bak.1" 2>/dev/null || true
+        cp -f "${observations_file}.bak.2" "${observations_file}.bak.3" 2>/dev/null || _aether_log_error "Could not rotate observations backup .bak.2 to .bak.3"
+        cp -f "${observations_file}.bak.1" "${observations_file}.bak.2" 2>/dev/null || _aether_log_error "Could not rotate observations backup .bak.1 to .bak.2"
+        cp -f "$observations_file" "${observations_file}.bak.1" 2>/dev/null || _aether_log_error "Could not create observations backup .bak.1"
       fi
       tmp_file="${observations_file}.tmp.$$"
 
@@ -8268,7 +8275,7 @@ $updated_meta
     cp_user_prefs_count=0
     if [[ -n "$cp_user_prefs" && "$cp_user_prefs" != "null" ]]; then
       # Count entries (lines starting with "- ")
-      cp_user_prefs_count=$(echo "$cp_user_prefs" | grep -c '^- ' || echo "0")
+      cp_user_prefs_count=$(echo "$cp_user_prefs" | grep -c '^- ' || echo "0")  # SUPPRESS:OK -- read-default: grep returns 1 when no matches
       if [[ "$cp_user_prefs_count" -gt 0 ]]; then
         cp_sec_user_prefs=$'\n'"--- USER PREFERENCES ---"$'\n'
         cp_sec_user_prefs+="$cp_user_prefs"$'\n'
@@ -8483,7 +8490,7 @@ $updated_meta
 
     if [[ -n "$cp_decisions" ]]; then
       cp_trimmed_decisions=$(echo "$cp_decisions" | tail -n "$cp_max_decisions")
-      cp_decision_count=$(echo "$cp_trimmed_decisions" | grep -c '.' || echo "0")
+      cp_decision_count=$(echo "$cp_trimmed_decisions" | grep -c '.' || echo "0")  # SUPPRESS:OK -- read-default: grep returns 1 when no matches
 
       if [[ "$cp_decision_count" -gt 0 ]]; then
         cp_decision_section="--- KEY DECISIONS (Active Decisions) ---"$'\n'
@@ -8526,7 +8533,7 @@ $updated_meta
     fi
 
     if [[ -n "$cp_blockers" ]]; then
-      cp_blocker_count=$(echo "$cp_blockers" | grep -c '^\[source:' || echo "0")
+      cp_blocker_count=$(echo "$cp_blockers" | grep -c '^\[source:' || echo "0")  # SUPPRESS:OK -- read-default: grep returns 1 when no matches
 
       if [[ "$cp_blocker_count" -gt 0 ]]; then
         cp_blocker_section="--- BLOCKER WARNINGS (Unresolved Build Blockers) ---"$'\n'
@@ -8565,7 +8572,7 @@ $updated_meta
       cp_sec_rolling+="$cp_roll_entries"$'\n'
       cp_sec_rolling+="--- END RECENT ACTIVITY ---"$'\n'
 
-      cp_roll_actual=$(echo "$cp_roll_entries" | grep -c '.' || echo "0")
+      cp_roll_actual=$(echo "$cp_roll_entries" | grep -c '.' || echo "0")  # SUPPRESS:OK -- read-default: grep returns 1 when no matches
       cp_log_line="$cp_log_line, $cp_roll_actual activity entries"
     fi
     # === END rolling-summary injection ===
@@ -9777,7 +9784,9 @@ $updated_meta
         mkdir -p "$DATA_DIR/spawn-tree-archive"
         local archive_ts
         archive_ts=$(date +%Y%m%d_%H%M%S)
-        cp "$tree_file" "$DATA_DIR/spawn-tree-archive/spawn-tree.${archive_ts}.txt" 2>/dev/null || true
+        if ! cp "$tree_file" "$DATA_DIR/spawn-tree-archive/spawn-tree.${archive_ts}.txt" 2>/dev/null; then
+          _aether_log_error "Could not archive spawn-tree before rotation"
+        fi
         > "$tree_file"  # Truncate in-place — preserves file handle for tail -f watchers
         # Keep only 5 archives
         # SUPPRESS:OK -- read-default: directory may not exist
@@ -10134,7 +10143,7 @@ EOF
       exit 0
     fi
 
-    lock_count=$(echo "$lock_files" | grep -c '\.lock$' || echo "0")
+    lock_count=$(echo "$lock_files" | grep -c '\.lock$' || echo "0")  # SUPPRESS:OK -- read-default: grep returns 1 when no matches
 
     if [[ "$auto_yes" != "true" ]]; then
       if [[ -t 2 ]]; then
@@ -10547,7 +10556,10 @@ EOF
         patterns_found=$((patterns_found + 1))
         content="Large file: consider refactoring ($line_count lines)"
         reason="File exceeds 300 lines, consider breaking into smaller modules"
-        hash=$(echo -n "$file:FOCUS:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1 || echo "$(date +%s)")
+        hash=$(echo -n "$file:FOCUS:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1) || {
+          _aether_log_error "Could not generate content hash -- using timestamp fallback"
+          hash="$(date +%s%N)"
+        }
 
         # Append suggestion to raw_suggestions using jq
         new_suggestion=$(jq -n --arg type "FOCUS" --arg content "$content" --arg file "$file" --arg reason "$reason" --arg hash "$hash" --arg priority "7" '{type: $type, content: $content, file: $file, reason: $reason, hash: $hash, priority: ($priority | tonumber)}')
@@ -10561,7 +10573,10 @@ EOF
           patterns_found=$((patterns_found + 1))
           content="$todo_matches pending TODO/FIXME comments"
           reason="Unresolved markers indicate technical debt"
-          hash=$(echo -n "$file:FEEDBACK:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1 || echo "$(date +%s)")
+          hash=$(echo -n "$file:FEEDBACK:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1) || {
+            _aether_log_error "Could not generate content hash -- using timestamp fallback"
+            hash="$(date +%s%N)"
+          }
 
           new_suggestion=$(jq -n --arg type "FEEDBACK" --arg content "$content" --arg file "$file" --arg reason "$reason" --arg hash "$hash" --arg priority "4" '{type: $type, content: $content, file: $file, reason: $reason, hash: $hash, priority: ($priority | tonumber)}')
           jq --argjson suggestion "$new_suggestion" '. += [$suggestion]' "$raw_suggestions" > "${raw_suggestions}.tmp" && mv "${raw_suggestions}.tmp" "$raw_suggestions"
@@ -10576,7 +10591,10 @@ EOF
           patterns_found=$((patterns_found + 1))
           content="Remove debug artifacts before commit ($debug_matches found)"
           reason="Debug statements should not be committed to production code"
-          hash=$(echo -n "$file:REDIRECT:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1 || echo "$(date +%s)")
+          hash=$(echo -n "$file:REDIRECT:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1) || {
+            _aether_log_error "Could not generate content hash -- using timestamp fallback"
+            hash="$(date +%s%N)"
+          }
 
           new_suggestion=$(jq -n --arg type "REDIRECT" --arg content "$content" --arg file "$file" --arg reason "$reason" --arg hash "$hash" --arg priority "9" '{type: $type, content: $content, file: $file, reason: $reason, hash: $hash, priority: ($priority | tonumber)}')
           jq --argjson suggestion "$new_suggestion" '. += [$suggestion]' "$raw_suggestions" > "${raw_suggestions}.tmp" && mv "${raw_suggestions}.tmp" "$raw_suggestions"
@@ -10590,7 +10608,10 @@ EOF
           patterns_found=$((patterns_found + 1))
           content="Type safety gaps detected ($type_gaps instances)"
           reason="Using 'any' or 'unknown' bypasses TypeScript's type checking"
-          hash=$(echo -n "$file:FEEDBACK:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1 || echo "$(date +%s)")
+          hash=$(echo -n "$file:FEEDBACK:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1) || {
+            _aether_log_error "Could not generate content hash -- using timestamp fallback"
+            hash="$(date +%s%N)"
+          }
 
           new_suggestion=$(jq -n --arg type "FEEDBACK" --arg content "$content" --arg file "$file" --arg reason "$reason" --arg hash "$hash" --arg priority "5" '{type: $type, content: $content, file: $file, reason: $reason, hash: $hash, priority: ($priority | tonumber)}')
           jq --argjson suggestion "$new_suggestion" '. += [$suggestion]' "$raw_suggestions" > "${raw_suggestions}.tmp" && mv "${raw_suggestions}.tmp" "$raw_suggestions"
@@ -10605,7 +10626,10 @@ EOF
           patterns_found=$((patterns_found + 1))
           content="Complex module: test carefully ($func_count functions)"
           reason="High function count may indicate multiple concerns; verify test coverage"
-          hash=$(echo -n "$file:FOCUS:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1 || echo "$(date +%s)")
+          hash=$(echo -n "$file:FOCUS:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1) || {
+            _aether_log_error "Could not generate content hash -- using timestamp fallback"
+            hash="$(date +%s%N)"
+          }
 
           new_suggestion=$(jq -n --arg type "FOCUS" --arg content "$content" --arg file "$file" --arg reason "$reason" --arg hash "$hash" --arg priority "6" '{type: $type, content: $content, file: $file, reason: $reason, hash: $hash, priority: ($priority | tonumber)}')
           jq --argjson suggestion "$new_suggestion" '. += [$suggestion]' "$raw_suggestions" > "${raw_suggestions}.tmp" && mv "${raw_suggestions}.tmp" "$raw_suggestions"
@@ -10628,7 +10652,10 @@ EOF
             patterns_found=$((patterns_found + 1))
             content="Add tests for uncovered module: $base_name"
             reason="No corresponding test file found for module with functions"
-            hash=$(echo -n "$file:FOCUS:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1 || echo "$(date +%s)")
+            hash=$(echo -n "$file:FOCUS:$content" | shasum -a 256 2>/dev/null | cut -d' ' -f1) || {
+              _aether_log_error "Could not generate content hash -- using timestamp fallback"
+              hash="$(date +%s%N)"
+            }
 
             new_suggestion=$(jq -n --arg type "FOCUS" --arg content "$content" --arg file "$file" --arg reason "$reason" --arg hash "$hash" --arg priority "5" '{type: $type, content: $content, file: $file, reason: $reason, hash: $hash, priority: ($priority | tonumber)}')
             jq --argjson suggestion "$new_suggestion" '. += [$suggestion]' "$raw_suggestions" > "${raw_suggestions}.tmp" && mv "${raw_suggestions}.tmp" "$raw_suggestions"
