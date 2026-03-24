@@ -634,3 +634,302 @@ $updated_meta
 
     json_ok "{\"promoted\":true,\"type\":\"$wisdom_type\",\"colony\":\"$colony_name\",\"timestamp\":\"$ts\",\"threshold\":$threshold,\"new_count\":$new_count,\"content_hash\":\"$content_hash\"}"
 }
+
+# ============================================================================
+# _queen_write_learnings
+# Write build learnings directly to QUEEN.md Build Learnings section
+# Bypasses observation thresholds -- every build writes learnings
+# Usage: queen-write-learnings <phase_id> <phase_name> <learnings_json>
+# learnings_json: [{"claim":"what happened","tag":"repo|general","evidence":"..."}]
+# ============================================================================
+_queen_write_learnings() {
+    local phase_id="${1:-}"
+    local phase_name="${2:-}"
+    local learnings_json="${3:-}"
+
+    # Validate required arguments
+    [[ -z "$phase_id" ]] && { json_err "$E_VALIDATION_FAILED" "Usage: queen-write-learnings <phase_id> <phase_name> <learnings_json>" '{"missing":"phase_id"}'; return 1; }
+    [[ -z "$phase_name" ]] && { json_err "$E_VALIDATION_FAILED" "Usage: queen-write-learnings <phase_id> <phase_name> <learnings_json>" '{"missing":"phase_name"}'; return 1; }
+    [[ -z "$learnings_json" ]] && { json_err "$E_VALIDATION_FAILED" "Usage: queen-write-learnings <phase_id> <phase_name> <learnings_json>" '{"missing":"learnings_json"}'; return 1; }
+
+    # Validate learnings_json is valid JSON array
+    if ! echo "$learnings_json" | jq -e 'type == "array"' >/dev/null 2>&1; then
+      json_err "$E_JSON_INVALID" "learnings_json must be a JSON array" '{"received":"not_array"}'
+      return 1
+    fi
+
+    local queen_file="$AETHER_ROOT/.aether/QUEEN.md"
+
+    if [[ ! -f "$queen_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "QUEEN.md not found. Run queen-init first." '{"path":".aether/QUEEN.md"}'
+      return 1
+    fi
+
+    local ts
+    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local date_short
+    date_short=$(date -u +"%Y-%m-%d")
+
+    # Build entries from learnings_json
+    local written=0
+    local entries=""
+    local subsection_header="### Phase ${phase_id}: ${phase_name}"
+
+    while IFS= read -r encoded_entry; do
+      [[ -z "$encoded_entry" ]] && continue
+      local claim tag evidence
+      claim=$(echo "$encoded_entry" | base64 -d 2>/dev/null | jq -r '.claim // ""' 2>/dev/null) || continue
+      tag=$(echo "$encoded_entry" | base64 -d 2>/dev/null | jq -r '.tag // "repo"' 2>/dev/null) || tag="repo"
+      evidence=$(echo "$encoded_entry" | base64 -d 2>/dev/null | jq -r '.evidence // ""' 2>/dev/null) || evidence=""
+
+      [[ -z "$claim" ]] && continue
+
+      # Dedup check: skip if claim already in QUEEN.md
+      if grep -Fq -- "$claim" "$queen_file" 2>/dev/null; then
+        continue
+      fi
+
+      local entry_line="- [${tag}] ${claim} -- *Phase ${phase_id} (${phase_name})* (${date_short})"
+      entries="${entries}${entry_line}"$'\n'
+      written=$((written + 1))
+    done < <(echo "$learnings_json" | jq -r '.[] | @base64')
+
+    # If nothing to write, return early
+    if [[ "$written" -eq 0 ]]; then
+      json_ok "{\"written\":0,\"phase\":\"${phase_id}\",\"timestamp\":\"${ts}\",\"reason\":\"all_duplicates_or_empty\"}"
+      return 0
+    fi
+
+    # Create temp file for atomic write
+    local tmp_file="${queen_file}.tmp.$$"
+    cp "$queen_file" "$tmp_file"
+
+    # Find Build Learnings section
+    local section_line
+    section_line=$(grep -n '^## Build Learnings$' "$tmp_file" | head -1 | cut -d: -f1)
+
+    if [[ -z "$section_line" ]]; then
+      rm -f "$tmp_file"
+      json_err "$E_VALIDATION_FAILED" "Build Learnings section not found in QUEEN.md. Is this a v2 format file?" '{"section":"Build Learnings"}'
+      return 1
+    fi
+
+    # Find end of section (next ## header or end of file)
+    local next_section_line
+    next_section_line=$(tail -n +$((section_line + 1)) "$tmp_file" | grep -n "^## " | head -1 | cut -d: -f1)
+    local section_end
+    if [[ -n "$next_section_line" ]]; then
+      section_end=$((section_line + next_section_line - 1))
+    else
+      section_end=$(wc -l < "$tmp_file")
+    fi
+
+    # Remove placeholder if present
+    # SUPPRESS:OK -- existence-test: grep returns 1 when no matches
+    local has_placeholder
+    has_placeholder=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -c "No build learnings recorded yet" || true)
+    has_placeholder=${has_placeholder:-0}
+
+    if [[ "$has_placeholder" -gt 0 ]]; then
+      local placeholder_line
+      placeholder_line=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -n "^\\*No build learnings recorded yet" | head -1 | cut -d: -f1)
+      if [[ -n "$placeholder_line" ]]; then
+        local actual_line=$((section_line + placeholder_line - 1))
+        sed -i.bak "${actual_line}d" "$tmp_file" && rm -f "${tmp_file}.bak"
+        section_end=$((section_end - 1))
+      fi
+    fi
+
+    # Check if subsection header already exists
+    local has_subsection
+    has_subsection=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -c "^### Phase ${phase_id}:" || true)
+    has_subsection=${has_subsection:-0}
+
+    if [[ "$has_subsection" -gt 0 ]]; then
+      # Find the subsection header line and append entries after it
+      local sub_line
+      sub_line=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -n "^### Phase ${phase_id}:" | head -1 | cut -d: -f1)
+      local actual_sub_line=$((section_line + sub_line - 1))
+      # Find end of subsection (next ### or next ## or --- or end of section)
+      local sub_end_rel
+      sub_end_rel=$(tail -n +$((actual_sub_line + 1)) "$tmp_file" | grep -n "^###\|^## \|^---$" | head -1 | cut -d: -f1)
+      local insert_at
+      if [[ -n "$sub_end_rel" ]]; then
+        insert_at=$((actual_sub_line + sub_end_rel - 1))
+      else
+        insert_at=$section_end
+      fi
+      # Insert entries before the boundary
+      local temp_entries="${tmp_file}.entries"
+      {
+        head -n "$insert_at" "$tmp_file"
+        printf '%s' "$entries"
+        tail -n +$((insert_at + 1)) "$tmp_file"
+      } > "$temp_entries" && mv "$temp_entries" "$tmp_file"
+    else
+      # Create new subsection at end of Build Learnings section (before --- or next ##)
+      # Find last content line in section (skip trailing --- and blanks)
+      local insert_at
+      # Insert before the separator (---) that ends the section, or before next ## header
+      local sep_line
+      sep_line=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -n "^---$" | tail -1 | cut -d: -f1)
+      if [[ -n "$sep_line" ]]; then
+        insert_at=$((section_line + sep_line - 2))
+      else
+        insert_at=$section_end
+      fi
+
+      local temp_entries="${tmp_file}.entries"
+      {
+        head -n "$insert_at" "$tmp_file"
+        echo ""
+        echo "$subsection_header"
+        printf '%s' "$entries"
+        tail -n +$((insert_at + 1)) "$tmp_file"
+      } > "$temp_entries" && mv "$temp_entries" "$tmp_file"
+    fi
+
+    # Update Evolution Log
+    local ev_entry="| ${ts} | phase-${phase_id} | build_learnings | Added ${written} learnings from Phase ${phase_id}: ${phase_name} |"
+    local ev_separator
+    ev_separator=$(grep -n "^|------|" "$tmp_file" | tail -1 | cut -d: -f1)
+    if [[ -n "$ev_separator" ]]; then
+      awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
+    fi
+
+    # Update METADATA stats: increment total_build_learnings
+    local current_count
+    current_count=$(grep '"total_build_learnings":' "$tmp_file" 2>/dev/null | grep -o '[0-9]*' | head -1 || true)
+    current_count=${current_count:-0}
+    local new_count=$((current_count + written))
+    awk -v count="$new_count" '{
+      gsub(/"total_build_learnings": [0-9]*/, "\"total_build_learnings\": " count)
+      print
+    }' "$tmp_file" > "${tmp_file}.stats" && mv "${tmp_file}.stats" "$tmp_file"
+
+    # Update last_evolved
+    awk -v ts="$ts" '/"last_evolved":/ { gsub(/"last_evolved": "[^"]*"/, "\"last_evolved\": \"" ts "\""); } {print}' "$tmp_file" > "${tmp_file}.meta" && mv "${tmp_file}.meta" "$tmp_file"
+
+    # Atomic move
+    mv "$tmp_file" "$queen_file"
+
+    json_ok "{\"written\":${written},\"phase\":\"${phase_id}\",\"timestamp\":\"${ts}\"}"
+}
+
+# ============================================================================
+# _queen_promote_instinct
+# Promote a high-confidence instinct to QUEEN.md Instincts section
+# Usage: queen-promote-instinct <trigger> <action> [confidence] [domain]
+# ============================================================================
+_queen_promote_instinct() {
+    local trigger="${1:-}"
+    local action="${2:-}"
+    local confidence="${3:-0.8}"
+    local domain="${4:-workflow}"
+
+    # Validate required arguments
+    [[ -z "$trigger" ]] && { json_err "$E_VALIDATION_FAILED" "Usage: queen-promote-instinct <trigger> <action> [confidence] [domain]" '{"missing":"trigger"}'; return 1; }
+    [[ -z "$action" ]] && { json_err "$E_VALIDATION_FAILED" "Usage: queen-promote-instinct <trigger> <action> [confidence] [domain]" '{"missing":"action"}'; return 1; }
+
+    local queen_file="$AETHER_ROOT/.aether/QUEEN.md"
+
+    if [[ ! -f "$queen_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "QUEEN.md not found. Run queen-init first." '{"path":".aether/QUEEN.md"}'
+      return 1
+    fi
+
+    # Dedup check: skip if action already in QUEEN.md
+    if grep -Fq -- "$action" "$queen_file" 2>/dev/null; then
+      json_ok '{"promoted":false,"written":0,"reason":"duplicate"}'
+      return 0
+    fi
+
+    local ts
+    ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Build entry
+    local entry="- [instinct] **${domain}** (${confidence}): When ${trigger}, then ${action}"
+
+    # Create temp file for atomic write
+    local tmp_file="${queen_file}.tmp.$$"
+    cp "$queen_file" "$tmp_file"
+
+    # Find Instincts section
+    local section_line
+    section_line=$(grep -n '^## Instincts$' "$tmp_file" | head -1 | cut -d: -f1)
+
+    if [[ -z "$section_line" ]]; then
+      rm -f "$tmp_file"
+      json_err "$E_VALIDATION_FAILED" "Instincts section not found in QUEEN.md. Is this a v2 format file?" '{"section":"Instincts"}'
+      return 1
+    fi
+
+    # Find end of section
+    local next_section_line
+    next_section_line=$(tail -n +$((section_line + 1)) "$tmp_file" | grep -n "^## " | head -1 | cut -d: -f1)
+    local section_end
+    if [[ -n "$next_section_line" ]]; then
+      section_end=$((section_line + next_section_line - 1))
+    else
+      section_end=$(wc -l < "$tmp_file")
+    fi
+
+    # Check for placeholder and replace or append
+    # SUPPRESS:OK -- existence-test: grep returns 1 when no matches
+    local has_placeholder
+    has_placeholder=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -c "No instincts recorded yet" || true)
+    has_placeholder=${has_placeholder:-0}
+
+    if [[ "$has_placeholder" -gt 0 ]]; then
+      local placeholder_line
+      placeholder_line=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -n "^\\*No instincts recorded yet" | head -1 | cut -d: -f1)
+      if [[ -n "$placeholder_line" ]]; then
+        local actual_line=$((section_line + placeholder_line - 1))
+        sed "${actual_line}c\\
+${entry}" "$tmp_file" > "${tmp_file}.rep" && mv "${tmp_file}.rep" "$tmp_file"
+      fi
+    else
+      # Append entry before section separator (---) or at end
+      local sep_line
+      sep_line=$(sed -n "${section_line},${section_end}p" "$tmp_file" | grep -n "^---$" | tail -1 | cut -d: -f1)
+      local insert_at
+      if [[ -n "$sep_line" ]]; then
+        insert_at=$((section_line + sep_line - 2))
+      else
+        insert_at=$section_end
+      fi
+
+      local temp_entries="${tmp_file}.entries"
+      {
+        head -n "$insert_at" "$tmp_file"
+        echo "$entry"
+        tail -n +$((insert_at + 1)) "$tmp_file"
+      } > "$temp_entries" && mv "$temp_entries" "$tmp_file"
+    fi
+
+    # Update Evolution Log
+    local ev_entry="| ${ts} | instinct | promoted_instinct | ${domain}: ${action:0:50}... |"
+    local ev_separator
+    ev_separator=$(grep -n "^|------|" "$tmp_file" | tail -1 | cut -d: -f1)
+    if [[ -n "$ev_separator" ]]; then
+      awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
+    fi
+
+    # Update METADATA stats: increment total_instincts
+    local current_count
+    current_count=$(grep '"total_instincts":' "$tmp_file" 2>/dev/null | grep -o '[0-9]*' | head -1 || true)
+    current_count=${current_count:-0}
+    local new_count=$((current_count + 1))
+    awk -v count="$new_count" '{
+      gsub(/"total_instincts": [0-9]*/, "\"total_instincts\": " count)
+      print
+    }' "$tmp_file" > "${tmp_file}.stats" && mv "${tmp_file}.stats" "$tmp_file"
+
+    # Update last_evolved
+    awk -v ts="$ts" '/"last_evolved":/ { gsub(/"last_evolved": "[^"]*"/, "\"last_evolved\": \"" ts "\""); } {print}' "$tmp_file" > "${tmp_file}.meta" && mv "${tmp_file}.meta" "$tmp_file"
+
+    # Atomic move
+    mv "$tmp_file" "$queen_file"
+
+    json_ok "{\"promoted\":true,\"written\":1,\"domain\":\"${domain}\",\"confidence\":${confidence},\"timestamp\":\"${ts}\"}"
+}

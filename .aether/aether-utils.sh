@@ -1030,6 +1030,8 @@ case "$cmd" in
       {"name": "queen-read", "description": "Read QUEEN.md wisdom as JSON for worker priming"},
       {"name": "queen-promote", "description": "Promote a validated learning to QUEEN.md wisdom"},
       {"name": "queen-thresholds", "description": "Return propose/auto promotion thresholds by wisdom type"},
+      {"name": "queen-write-learnings", "description": "Write build learnings directly to QUEEN.md Build Learnings section (no threshold)"},
+      {"name": "queen-promote-instinct", "description": "Promote a high-confidence instinct to QUEEN.md Instincts section"},
       {"name": "incident-rule-add", "description": "Append an incident-derived rule to decree/constraint/gate stores"},
       {"name": "learning-observe", "description": "Record observation of a learning across colonies"},
       {"name": "learning-check-promotion", "description": "Check which learnings meet promotion thresholds"},
@@ -3468,6 +3470,8 @@ NODESCRIPT
     ;;
 
   queen-promote) _queen_promote "$@" ;;
+  queen-write-learnings) _queen_write_learnings "$@" ;;
+  queen-promote-instinct) _queen_promote_instinct "$@" ;;
 
   learning-observe) _learning_observe "$@" ;;
   learning-check-promotion) _learning_check_promotion "$@" ;;
