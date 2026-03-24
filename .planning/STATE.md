@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 15 — Documentation Accuracy (v2.1 Production Hardening)
+**Current focus:** Phase 16 — Shipping (v2.1 Production Hardening)
 
 ## Current Position
 
 Phase: 15 of 16 (Documentation Accuracy)
-Plan: 2 of 3
-Status: In Progress
-Last activity: 2026-03-24 — Completed 15-02 (README.md rewrite for developer audience)
+Plan: 3 of 3
+Status: Phase Complete
+Last activity: 2026-03-24 — Completed 15-03 (docs sweep and v2.1 changelog)
 
-Progress: [█████████░] 91%
+Progress: [██████████] 94%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36
+- Total plans completed: 37
 - Average duration: 5min
-- Total execution time: 2.9 hours
+- Total execution time: 3.0 hours
 
 **By Phase:**
 
@@ -41,10 +41,10 @@ Progress: [█████████░] 91%
 | 12-state-api-verification | 3 | 41min | 13.7min |
 | 13-monolith-modularization | 9 | 58min | 6.4min |
 | 14-planning-depth | 2 | 16min | 8min |
-| 15-documentation-accuracy | 2 | 4min | 2min |
+| 15-documentation-accuracy | 3 | 10min | 3.3min |
 
 **Recent Trend:**
-- Last 5 plans: 2min, 2min, 12min, 2min, 2min
+- Last 5 plans: 2min, 12min, 2min, 2min, 6min
 - Trend: fast (documentation-only changes)
 
 *Updated after each plan completion*
@@ -128,6 +128,10 @@ Recent decisions affecting current work:
 - [15-02]: Gatekeeper caveat added to Key Features and 6-Phase Verification sections
 - [15-02]: Oracle described as experimental/beta per user decision on partial features
 - [15-02]: skill-create added to Coordination & Maintenance table (was missing from original)
+- [15-03]: 6 of 7 BUG entries marked FIXED in v2.1 (verified via grep); BUG-006 remains open (lock ownership contract)
+- [15-03]: Subcommand name references instead of line numbers for stability in known-issues.md
+- [15-03]: planning.md discipline noted as "planned, not yet created" rather than removed from table
+- [15-03]: Context-continuity Phases 3-4 marked "(planned, not yet implemented)" per user caveat decision
 
 ### Pending Todos
 
@@ -142,5 +146,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-24
-Stopped at: Completed 15-01-PLAN.md (CLAUDE.md accuracy corrections)
+Stopped at: Completed 15-03-PLAN.md (docs sweep and v2.1 changelog) -- Phase 15 fully complete
 Resume file: None
