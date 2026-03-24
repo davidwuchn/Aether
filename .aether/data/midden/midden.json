@@ -38,7 +38,10 @@
       "category": "security",
       "source": "gatekeeper",
       "message": "High CVEs found: 3",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:12Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774008777_29962",
@@ -46,7 +49,10 @@
       "category": "resilience",
       "source": "chaos",
       "message": "Chaos finding: Cross-repo lock isolation mismatch (high) - lock at AETHER_ROOT but target at HOME",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774009746_76712",
@@ -54,7 +60,10 @@
       "category": "quality",
       "source": "auditor",
       "message": "High severity issues: 1 (score: 72) - unsanitized category in json_ok output",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774012312_90936",
@@ -62,7 +71,10 @@
       "category": "quality",
       "source": "auditor",
       "message": "High severity: placeholder double-escaping in hive-promote pipeline (score: 69)",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774032794_46183",
@@ -70,7 +82,10 @@
       "category": "resilience",
       "source": "chaos",
       "message": "Chaos finding: String-typed confidence causes silent hive-read failure (medium)",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774036709_43066",
@@ -78,7 +93,10 @@
       "category": "documentation",
       "source": "chronicler",
       "message": "Gap (high): README.md shows v1.1.5 but project is v2.0.0 — version drift across README, package.json, CLAUDE.md",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:12Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774036709_43138",
@@ -86,7 +104,10 @@
       "category": "documentation",
       "source": "chronicler",
       "message": "Gap (high): README missing 11 commands and all v2.0 features (Hive Brain, Autopilot, Preferences)",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:12Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774036709_43208",
@@ -94,7 +115,10 @@
       "category": "documentation",
       "source": "chronicler",
       "message": "Gap (high): CHANGELOG.md has no formal [2.0.0] entry — latest is [1.1.11]",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:12Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774036709_43279",
@@ -102,7 +126,10 @@
       "category": "documentation",
       "source": "chronicler",
       "message": "Gap (medium): No dedicated Hive Brain or Autopilot user guides exist",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:12Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774036709_43350",
@@ -110,7 +137,10 @@
       "category": "documentation",
       "source": "chronicler",
       "message": "Gap (medium): README castes table shows only 10 of 22 agents",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:12Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774036709_43422",
@@ -118,7 +148,10 @@
       "category": "documentation",
       "source": "chronicler",
       "message": "Gap (medium): bin/cli.js has 19 functions missing JSDoc",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:12Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774036726_45289",
@@ -142,7 +175,10 @@
       "category": "resilience",
       "source": "chaos",
       "message": "Chaos finding: Unbound variable crash when --id flag passed without value (medium)",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774057831_64927",
@@ -150,7 +186,10 @@
       "category": "resilience",
       "source": "chaos",
       "message": "Chaos finding: midden-acknowledge crashes on missing entries array (high)",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774057831_64983",
@@ -158,7 +197,10 @@
       "category": "resilience",
       "source": "chaos",
       "message": "Chaos finding: midden-review crashes on null category (high)",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     },
     {
       "id": "midden_1774061707_32378",
@@ -166,7 +208,10 @@
       "category": "resilience",
       "source": "chaos",
       "message": "Chaos finding: E_INTERNAL undefined - triggers unbound variable crash (medium)",
-      "reviewed": false
+      "reviewed": false,
+      "acknowledged": true,
+      "acknowledged_at": "2026-03-22T14:19:11Z",
+      "acknowledge_reason": ""
     }
   ],
   "entry_count": 17

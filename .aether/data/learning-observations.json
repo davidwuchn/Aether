@@ -241,6 +241,149 @@
       "colonies": [
         "1774047872"
       ]
+    },
+    {
+      "content_hash": "sha256:33f07de1afec4f6511b9a255b6fd5327835ee4e165296eb1a6b29535435b49a0",
+      "content": "Process substitution avoids subshell variable loss in bash while loops",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-22T12:55:22Z",
+      "last_seen": "2026-03-22T12:55:22Z",
+      "colonies": [
+        "1774178419"
+      ]
+    },
+    {
+      "content_hash": "sha256:bc5ae6371487c2e05bef1a78ad8c3ede4538ba45d264af24730307c2aa66a6ce",
+      "content": "TDD with parallel background agents speeds up Phase 1 type work",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-22T12:55:23Z",
+      "last_seen": "2026-03-22T12:55:23Z",
+      "colonies": [
+        "1774178419"
+      ]
+    },
+    {
+      "content_hash": "sha256:a4d82a2637ea6b73386ca6beb20edd7a8932837c03607997a7dd47833114721c",
+      "content": "Watcher independently catches state-path bugs that builders miss during refactoring",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-22T19:48:47Z",
+      "last_seen": "2026-03-22T19:48:47Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:53e5ad2e20cc575786ea0bfe734da16af4f09f3994e7fb2a90a93d85ef4a104f",
+      "content": "Separate infrastructure from state using distinct directory variables when moving scripts",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-22T19:48:48Z",
+      "last_seen": "2026-03-22T19:48:48Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:b4b50accb2eac535ccca71cba057e55d91b5497febdeea143ae7e2a4e4333940",
+      "content": "Anchor .npmignore patterns with leading slash when directory name appears at multiple depths",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-22T19:48:49Z",
+      "last_seen": "2026-03-22T19:48:49Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:bd6d4044c86ce149a473e66203ddccbef629d8bf4c76a0bde0f75eff078632e8",
+      "content": "SCRIPT_DIR references in test harness setup are easily missed when updating main path constants — grep separately",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T15:26:37Z",
+      "last_seen": "2026-03-23T15:26:37Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:a3be9e194732b527f599b33ce0ad48e31b561720f248a6beac775f220eb3b24a",
+      "content": "Distribution pipeline has three independent exclusion layers — verify each separately",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T15:43:02Z",
+      "last_seen": "2026-03-23T15:43:02Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:8b6cc3b1eb81e08523bd6b80da6dbf0d02af420e14967dc4e3f40478cc6f3c8e",
+      "content": "Position-aware path exclusion (first-segment-only) is needed when a directory name appears at multiple depths",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T15:56:43Z",
+      "last_seen": "2026-03-23T15:56:43Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:23a4b314b4186037b260912cf3071f4c435cea836f58fe4a328fb7f54d839df3",
+      "content": "Oracle research finding: What are the main components and their responsibilities in the Aether system? (85%)",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T17:41:30Z",
+      "last_seen": "2026-03-23T17:41:30Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:78db8bcb6ab616b7f4c5cd35e896e06a73a15f2028e4be04c904c21132fadc50",
+      "content": "Oracle research finding: What are the dependency relationships between components, and where are coupling risks? (82%)",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T17:41:31Z",
+      "last_seen": "2026-03-23T17:41:31Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:3c8ad53d7d9a4bc37f5f9f3551cbcfd42b78226841da8a86516c9e43546bd605",
+      "content": "Oracle research finding: Where are the risk areas — execution reliability gaps, silent failures, fake autonomy, hallucination vectors, and verification weaknesses? (82%)",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T17:41:32Z",
+      "last_seen": "2026-03-23T17:41:32Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:6040664a0982317c825bab0a3ff941ef1e1a63ae2150bbe4ee5b487748700dd5",
+      "content": "Oracle research finding: How does the memory and context management system handle state persistence, session resume, context rot, and cross-colony knowledge sharing? (82%)",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T17:41:34Z",
+      "last_seen": "2026-03-23T17:41:34Z",
+      "colonies": [
+        "1774204068"
+      ]
+    },
+    {
+      "content_hash": "sha256:8f3f163dfa40c9a3d19d62d1db525af25b86b869ed74f6f23858bbc20c120c9d",
+      "content": "Oracle research finding: What would an expert change about this architecture to minimize user input while maximizing safety, verifiability, and autonomous execution capability? (80%)",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-23T17:41:35Z",
+      "last_seen": "2026-03-23T17:41:35Z",
+      "colonies": [
+        "1774204068"
+      ]
     }
   ]
 }

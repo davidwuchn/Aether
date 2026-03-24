@@ -1,6 +1,6 @@
-# Crowned Anthill — Build the Hive Brain
+# Crowned Anthill — Fix why Oracle tmux session dies immediately
 
-**Sealed:** 2026-03-20T19:56:05Z
+**Sealed:** 2026-03-23T15:58:00Z
 **Milestone:** Crowned Anthill
 **Version:** 3.0
 
@@ -9,30 +9,28 @@
 This colony set out to accomplish something real — and it did. Every phase pushed the anthill higher. Now it stands crowned.
 
 ## Colony Stats
-- Total Phases: 6
-- Phases Completed: 6 of 6
-- Colony Age: 0 days of focused work
-- Wisdom Promoted: 19 entries carried forward
+- Total Phases: 4
+- Phases Completed: 4 of 4
+- Colony Age: 1 day of focused work
+- Wisdom Promoted: 6 learnings carried forward
 
 ## Phase Recap
 
 Every phase below is a chapter in the story of this anthill's rise:
 
-  - Hive Directory and Schema Foundation: completed
-  - Abstraction Layer: completed
-  - Domain-Scoped Retrieval in Colony-Prime: completed
-  - Seal Promotion Hook: completed
-  - Multi-Repo Validation and Confidence Boosting: completed
-  - Documentation and Validation: completed
+  - Phase 1: Move oracle infrastructure to distributable location — completed
+  - Phase 2: Update all oracle.sh path references across codebase — completed
+  - Phase 3: Verify distribution pipeline — completed
+  - Phase 4: End-to-end validation — completed
 
 ## Pheromone Legacy
 
-The colony's hard-won wisdom doesn't stop here. 19 validated learnings and instincts have been promoted to QUEEN.md — a living record that will guide future colonies before they take their first steps.
+The colony's hard-won wisdom doesn't stop here. 6 validated learnings and instincts have been promoted to QUEEN.md — a living record that will guide future colonies before they take their first steps.
 
 What this colony learned, the next colony inherits.
 
 ## The Work
 
-Build the Hive Brain — implement the intelligent layer for cross-colony wisdom: abstraction layer that generalizes instincts before promotion, domain-scoped retrieval so hive wisdom filters by repo domain tags, multi-repo validation that boosts confidence when patterns appear across multiple colonies, the ~/.aether/hive/ directory structure (wisdom.json, signals.json, chronicle.json), and the promotion flow from per-repo instincts through abstraction to hive-level wisdom.
+Fix why Oracle tmux session dies immediately — oracle.sh doesn't exist. Oracle is meant to run autonomously like a ralph loop. Ensure the Oracle background execution path works when installed in other repos.
 
 The anthill stands crowned. The work endures.

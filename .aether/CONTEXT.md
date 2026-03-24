@@ -8,21 +8,24 @@
 
 | Field | Value |
 |-------|-------|
-| **Last Updated** | 2026-03-21T05:29:55Z |
-| **Current Phase** | 5 |
-| **Phase Name** | Version Bump and Publish Prep |
+| **Last Updated** | 2026-03-23T15:56:44Z |
+| **Current Phase** | 4 |
+| **Phase Name** | End-to-end validation |
 | **Milestone** | First Mound |
 | **Colony Status** | initializing |
-| **Safe to Clear?** | YES — Build complete |
+| **Safe to Clear?** | YES — Build complete, ready to continue |
 
 ---
 
 ## 🎯 Current Goal
 
-Ship-ready Aether v2: close the loops the Dreamer found (wisdom plumbing, midden reviews, monolith decomposition, TO-DOS cleanup), push to hub, and prepare for other repos to use
+Fix why Oracle tmux session dies immediately — oracle.sh doesn't exist. Oracle is meant to run autonomously like a ralph loop.
 
 ---
 
+## 📍 What's In Progress
+
+**Build completed** — success
 ## ⚠️ Active Constraints (REDIRECT Signals)
 
 | Constraint | Source | Date Set |
@@ -49,17 +52,15 @@ Ship-ready Aether v2: close the loops the Dreamer found (wisdom plumbing, midden
 
 | Timestamp | Command | Result | Files Changed |
 |-----------|---------|--------|---------------|
-| 2026-03-21T05:29:55Z | continue | Phase 5 completed — ALL PHASES COMPLETE | — |
-| 2026-03-21T05:20:57Z | build 5 | completed | 3 |
-| 2026-03-21T03:40:32Z | continue | Phase 4 completed, advanced to 5 | — |
-| 2026-03-21T03:34:16Z | build 4 | completed | 4 |
-| 2026-03-21T03:21:23Z | continue | Phase 3 completed, advanced to 4 | — |
-| 2026-03-21T02:55:07Z | build 3 | completed | 3 |
-| 2026-03-21T02:03:24Z | continue | Phase 2 completed, advanced to 3 | — |
-| 2026-03-21T01:50:41Z | build 2 | completed | 3 |
-| 2026-03-21T01:25:49Z | continue | Phase 1 completed, advanced to 2 | — |
-| 2026-03-21T01:03:22Z | build 1 | completed | 12 |
-| 2026-03-20T23:05:12Z | init | Colony initialized | — |
+| 2026-03-23T15:56:44Z | continue | Phase 4 completed — all phases done, project complete | — |
+| 2026-03-23T15:52:05Z | build 4 | completed | 2 |
+| 2026-03-23T15:43:03Z | continue | Phase 3 completed, advanced to Phase 4 | — |
+| 2026-03-23T15:33:04Z | build 3 | completed | 0 |
+| 2026-03-23T15:26:38Z | continue | Phase 2 completed, advanced to Phase 3 | — |
+| 2026-03-22T20:23:31Z | build 2 | completed | 15 |
+| 2026-03-22T19:49:10Z | continue | Phase 1 completed, advanced to Phase 2 | — |
+| 2026-03-22T19:38:52Z | build 1 | completed | 5 |
+| 2026-03-22T18:28:24Z | init | Colony initialized | — |
 
 ---
 
