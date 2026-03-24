@@ -7327,7 +7327,6 @@ $updated_meta
         # SUPPRESS:OK -- read-default: query may return empty
         pw_colony_id=$(jq -r '.session_id // "aether-dev"' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null || echo "aether-dev")
       fi
-      local pw_init_content
       pw_init_content=$(printf '{\n  "version": "1.0.0",\n  "colony_id": "%s",\n  "generated_at": "%s",\n  "signals": []\n}\n' \
         "$pw_colony_id" "$pw_created")
       atomic_write "$pw_file" "$pw_init_content" || {
