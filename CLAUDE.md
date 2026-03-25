@@ -317,7 +317,7 @@ on demand. They come in two categories:
 
 Skill content is injected separately from colony-prime context:
 
-- Own 12K character budget (independent of the colony-prime token budget)
+- Own 8K character budget (independent of the colony-prime token budget)
 - Injected into builder and watcher prompts
 - `skill-inject` assembles matched skills into a prompt section
 

@@ -1145,7 +1145,7 @@ case "$cmd" in
       {"name": "skill-index-read", "description": "Read cached index, rebuild if stale (mtime check) [DEPRECATED]"},
       {"name": "skill-detect", "description": "Detect domain skills matching the repo (file patterns + packages)"},
       {"name": "skill-match", "description": "Smart-match skills to worker by role, pheromones, task description"},
-      {"name": "skill-inject", "description": "Load full SKILL.md content for matched skills within 12K budget"},
+      {"name": "skill-inject", "description": "Load full SKILL.md content for matched skills within 8K budget"},
       {"name": "skill-list", "description": "List all installed skills with type, domains, detection status"},
       {"name": "skill-manifest-read", "description": "Read .manifest.json for update safety [DEPRECATED]"},
       {"name": "skill-cache-rebuild", "description": "Force rebuild of skills index cache"},

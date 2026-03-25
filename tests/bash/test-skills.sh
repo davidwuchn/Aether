@@ -644,13 +644,13 @@ test_skill_diff_user_only() {
 }
 
 # ============================================================================
-# Test 19: skill-inject respects 12K char budget
+# Test 19: skill-inject respects 8K char budget
 # ============================================================================
 test_skill_inject_budget() {
-    test_start "skill-inject respects 12K char budget"
+    test_start "skill-inject respects 8K char budget"
     setup_skills_env
 
-    # Create a huge skill that would exceed 12K
+    # Create a huge skill that would exceed 8K
     mkdir -p "$SKILLS_DIR/domain/huge-skill"
     {
         echo "---"
@@ -681,10 +681,10 @@ test_skill_inject_budget() {
 
     local total_chars
     total_chars=$(echo "$output" | jq -r '.result.total_chars')
-    if [[ "$total_chars" -le 12000 ]]; then
+    if [[ "$total_chars" -le 8000 ]]; then
         test_pass
     else
-        test_fail "Expected total_chars <= 12000" "Got $total_chars"
+        test_fail "Expected total_chars <= 8000" "Got $total_chars"
     fi
 
     cleanup_skills_env
