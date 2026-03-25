@@ -5,26 +5,27 @@
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 18 — Local Wisdom Injection (v2.2 Living Wisdom)
+**Current focus:** Phase 19 — Cross-Colony Hive (v2.2 Living Wisdom)
 
 ## Current Position
 
-Phase: 18 of 20 (Local Wisdom Injection) -- COMPLETE
+Phase: 19 of 20 (Cross-Colony Hive) -- COMPLETE
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-03-25 — Completed 18-01 (Post-extraction filtering + wisdom injection tests)
+Last activity: 2026-03-25 — Completed 19-01 (Cross-colony hive plumbing + tests)
 
-Progress: [######....] 55%
+Progress: [######....] 60%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 40
+- Total plans completed: 41
 - Average duration: 5min
-- Total execution time: 3.1 hours
+- Total execution time: 3.4 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
+- v2.2 wisdom phases: 17-01 + 17-02 + 18-01 + 19-01 completed
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -46,6 +47,10 @@ Progress: [######....] 55%
 - [18-01]: Filter AFTER _extract_wisdom() to avoid dual-function drift with queen.sh
 - [18-01]: Renamed QUEEN WISDOM header from "Eternal Guidance" to "Colony Experience"
 - [18-01]: Entry-only filtering via grep for '^(- |### )' -- simple and reliable
+- [19-01]: Domain tags sourced from registry.json (not instinct.domain) for hive promotion
+- [19-01]: Domain auto-detection based on file presence (package.json -> node, etc.)
+- [19-01]: Hive seeding is NON-BLOCKING -- init completes even if hive is empty
+- [19-01]: Confidence threshold 0.5 for hive seeding
 
 ### Pending Todos
 
@@ -53,11 +58,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- Hive brain has subcommands but no confirmed cross-colony data flow
+- ~~Hive brain has subcommands but no confirmed cross-colony data flow~~ RESOLVED (19-01): End-to-end cross-colony flow wired and tested
 - First blocker resolved: QUEEN.md wisdom promotion now wired into continue playbooks (17-02)
 
 ## Session Continuity
 
 Last session: 2026-03-25
-Stopped at: Completed 18-01-PLAN.md (Post-extraction filtering + wisdom injection tests) -- Phase 18 complete
+Stopped at: Completed 19-01-PLAN.md (Cross-colony hive plumbing + end-to-end tests) -- Phase 19 complete
 Resume file: None
