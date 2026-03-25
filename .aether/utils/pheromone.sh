@@ -761,6 +761,18 @@ cp_wisdom_json='{}'
 cp_global_wisdom='{"user_prefs":"","codebase_patterns":"","build_learnings":"","instincts":""}'
 cp_local_wisdom='{"user_prefs":"","codebase_patterns":"","build_learnings":"","instincts":""}'
 
+# Helper to filter wisdom entries, keeping only actual entries and phase headers
+# Strips description paragraphs, placeholder text, and boilerplate
+# Returns only lines starting with "- " (entries) or "### " (phase headers)
+_filter_wisdom_entries() {
+  local raw="$1"
+  if [[ -z "$raw" || "$raw" == "null" ]]; then
+    echo ""
+    return
+  fi
+  echo "$raw" | grep -E '^(- |### )' || echo ""  # SUPPRESS:OK -- grep returns 1 on no matches
+}
+
 # Helper to extract wisdom sections from a QUEEN.md file
 # Uses line number approach to avoid macOS awk range issues
 # Supports both v2 (4-section) and v1 (6-emoji-section) formats
@@ -983,17 +995,23 @@ cp_build_learnings=$(echo "$cp_combined" | jq -r '.build_learnings // ""' 2>/dev
 cp_instincts=$(echo "$cp_combined" | jq -r '.instincts // ""' 2>/dev/null)  # SUPPRESS:OK -- read-default: file may not exist yet
 cp_user_prefs=$(echo "$cp_combined" | jq -r '.user_prefs // ""' 2>/dev/null)  # SUPPRESS:OK -- read-default: file may not exist yet
 
-if [[ -n "$cp_codebase_patterns" || -n "$cp_build_learnings" || -n "$cp_instincts" ]]; then
-  cp_sec_queen+="--- QUEEN WISDOM (Eternal Guidance) ---"$'\n'
+# Post-extraction filtering: strip description paragraphs, keep only entries and phase headers
+cp_codebase_filtered=$(_filter_wisdom_entries "$cp_codebase_patterns")
+cp_learnings_filtered=$(_filter_wisdom_entries "$cp_build_learnings")
+cp_instincts_filtered=$(_filter_wisdom_entries "$cp_instincts")
 
-  if [[ -n "$cp_codebase_patterns" && "$cp_codebase_patterns" != "null" ]]; then
-    cp_sec_queen+=$'\n'"Codebase Patterns:"$'\n'"$cp_codebase_patterns"$'\n'
+# Only build QUEEN WISDOM section if real entries exist (not just descriptions/placeholders)
+if [[ -n "$cp_codebase_filtered" || -n "$cp_learnings_filtered" || -n "$cp_instincts_filtered" ]]; then
+  cp_sec_queen+="--- QUEEN WISDOM (Colony Experience) ---"$'\n'
+
+  if [[ -n "$cp_codebase_filtered" ]]; then
+    cp_sec_queen+=$'\n'"Codebase Patterns:"$'\n'"$cp_codebase_filtered"$'\n'
   fi
-  if [[ -n "$cp_build_learnings" && "$cp_build_learnings" != "null" ]]; then
-    cp_sec_queen+=$'\n'"Build Learnings:"$'\n'"$cp_build_learnings"$'\n'
+  if [[ -n "$cp_learnings_filtered" ]]; then
+    cp_sec_queen+=$'\n'"Build Learnings:"$'\n'"$cp_learnings_filtered"$'\n'
   fi
-  if [[ -n "$cp_instincts" && "$cp_instincts" != "null" ]]; then
-    cp_sec_queen+=$'\n'"Instincts:"$'\n'"$cp_instincts"$'\n'
+  if [[ -n "$cp_instincts_filtered" ]]; then
+    cp_sec_queen+=$'\n'"Instincts:"$'\n'"$cp_instincts_filtered"$'\n'
   fi
 
   cp_sec_queen+=$'\n'"--- END QUEEN WISDOM ---"$'\n'
