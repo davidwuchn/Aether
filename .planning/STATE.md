@@ -5,28 +5,28 @@
 See: .planning/PROJECT.md (updated 2026-03-24)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 19 — Cross-Colony Hive (v2.2 Living Wisdom)
+**Current focus:** Phase 20 — Hub Wisdom Layer (v2.2 Living Wisdom) -- COMPLETE
 
 ## Current Position
 
-Phase: 19 of 20 (Cross-Colony Hive) -- COMPLETE
+Phase: 20 of 20 (Hub Wisdom Layer) -- COMPLETE
 Plan: 1 of 1 in current phase
-Status: Phase complete
-Last activity: 2026-03-25 — Completed 19-01 (Cross-colony hive plumbing + tests)
+Status: v2.2 milestone complete
+Last activity: 2026-03-25 — Completed 20-01 (Hub wisdom layer: global/local split + migration + tests)
 
-Progress: [######....] 60%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 41
+- Total plans completed: 42
 - Average duration: 5min
-- Total execution time: 3.4 hours
+- Total execution time: 3.7 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
-- v2.2 wisdom phases: 17-01 + 17-02 + 18-01 + 19-01 completed
-- Trend: Stable
+- v2.2 wisdom phases: 17-01 + 17-02 + 18-01 + 19-01 + 20-01 completed
+- Trend: Stable -- v2.2 milestone complete
 
 *Updated after each plan completion*
 
@@ -51,6 +51,10 @@ Progress: [######....] 60%
 - [19-01]: Domain auto-detection based on file presence (package.json -> node, etc.)
 - [19-01]: Hive seeding is NON-BLOCKING -- init completes even if hive is empty
 - [19-01]: Confidence threshold 0.5 for hive seeding
+- [20-01]: Global QUEEN wisdom trimmed before local in budget enforcement (local more relevant)
+- [20-01]: Same-path detection when HOME == AETHER_ROOT to avoid double-loading
+- [20-01]: v1 migration preserves entry lines only, strips description paragraphs
+- [20-01]: Global QUEEN.md should NOT have Build Learnings (colony-specific content)
 
 ### Pending Todos
 
@@ -64,5 +68,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-25
-Stopped at: Completed 19-01-PLAN.md (Cross-colony hive plumbing + end-to-end tests) -- Phase 19 complete
+Stopped at: Completed 20-01-PLAN.md (Hub wisdom layer: global/local split + v1 migration + 7 tests) -- Phase 20 complete, v2.2 milestone complete
 Resume file: None
