@@ -272,7 +272,7 @@ Run using the Bash tool with description "Refreshing colony context...": `prime_
 
 **PER WAVE:** Query midden for recent failures to inject into builder context:
 Run using the Bash tool with description "Checking midden for recent failures...":
-`midden_result=$(bash .aether/aether-utils.sh midden-recent-failures 5 2>/dev/null || echo '{"count":0,"failures":[]}')`
+`midden_result=$(bash .aether/aether-utils.sh midden-recent-failures 3 2>/dev/null || echo '{"count":0,"failures":[]}')`
 
 Parse `midden_result`. If `count > 0`, format as `midden_context`:
 ```
@@ -280,6 +280,8 @@ Parse `midden_result`. If `count > 0`, format as `midden_context`:
 - [{category}] {message} (source: {source}, {timestamp})
 ...
 ```
+
+**Budget cap:** `midden_context` must not exceed 2000 characters. If it exceeds the cap, truncate and append `[midden truncated]`.
 
 If `count == 0`, set `midden_context` to empty.
 
@@ -293,6 +295,7 @@ For each Wave 1 task, use Task tool with `subagent_type="aether-builder"`, inclu
   `bash .aether/aether-utils.sh grave-check "{file}"`
 - Parse each JSON result and keep only entries where `caution_level` is `high` or `low`.
 - Merge these into a single `grave_context` block for that worker.
+- **Budget cap:** `grave_context` must not exceed 2000 characters per worker. If it exceeds the cap, truncate and append `[graveyard truncated]`.
 - If no file paths are identified, or all checks return `none`, set `grave_context` to empty.
 - If `grave_context` is non-empty, display a visible line before spawning that worker:
   `⚰️ Graveyard caution for {ant_name}: {file_1} ({level_1}), {file_2} ({level_2})`
@@ -313,6 +316,11 @@ Display per worker:
 ```
 
 **PER WORKER:** Run using the Bash tool with description "Preparing worker {name}...": `bash .aether/aether-utils.sh spawn-log "Queen" "builder" "{ant_name}" "{task_description}" && bash .aether/aether-utils.sh context-update worker-spawn "{ant_name}" "builder" "{task_description}"`
+
+**Context layer budget caps (enforce before injecting into prompt):**
+- `archaeology_context`: cap at 4000 characters. If it exceeds the cap, truncate and append `[archaeology truncated]`.
+- `midden_context`: cap at 2000 characters (already enforced above).
+- `grave_context`: cap at 2000 characters per worker (already enforced above).
 
 **Builder Worker Prompt (CLEAN OUTPUT):**
 ```

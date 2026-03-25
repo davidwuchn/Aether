@@ -92,8 +92,8 @@ if [[ -f "$research_file" ]]; then
   research_content=$(cat "$research_file")
   research_word_count=$(wc -w < "$research_file" | tr -d ' ')
 
-  # Apply 16K character budget (own budget, separate from colony-prime's 8K and skills' 12K)
-  research_budget=16000
+  # Apply 8K character budget (same size as colony-prime's 8K; skills has its own 8K)
+  research_budget=8000
   if [[ ${#research_content} -gt $research_budget ]]; then
     research_content="${research_content:0:$research_budget}"
     echo "[research] trimmed to ${research_budget} chars" >&2
@@ -123,7 +123,7 @@ Or if no research file:
 No phase research found -- plan was generated before research feature
 ```
 
-**Store for worker injection:** The `research_context` variable is now available for build-wave.md and build-verify.md to inject into worker prompts. This budget is independent of colony-prime's 8K budget and skills' 12K budget.
+**Store for worker injection:** The `research_context` variable is now available for build-wave.md and build-verify.md to inject into worker prompts. This 8K budget matches colony-prime's 8K budget; skills also has its own separate 8K budget.
 
 ### Step 4.1: Archaeologist Pre-Build Scan
 
