@@ -10,8 +10,8 @@
 Communication style, expertise level, and decision-making patterns observed from the user (the Queen). These shape how the colony communicates and what it prioritizes. User decisions are the most important wisdom.
 
 
-- [charter] **Intent**: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA... (Colony: Aether Colony)
-- [charter] **Vision**: Short (Colony: Aether Colony)
+- [charter] **Intent**: Add commit message synthesis and push prompts to Aether phase completion and seal workflows (Colony: Aether Colony)
+- [charter] **Vision**: When a phase finishes or a colony seals, the system synthesizes a meaningful commit message from what was built, prompts the user to commit, and at seal time also prompts to push to remote (Colony: Aether Colony)
 ---
 
 ## Codebase Patterns
@@ -25,8 +25,8 @@ Validated approaches that work in this codebase, and anti-patterns to avoid. Inc
 - [hive] When Deploying files via SFTP to Cloudways: Use -oPreferredAuthentications=password flags for Cloudways SFTP (cross-colony, confidence: 0.9)
 - [hive] When Verifying deployed changes on Cloudways: Use ?nocache= to bypass Varnish when verifying deploys (cross-colony, confidence: 0.9)
 - [hive] When building bash utilities with scoring/accumulation loops: use process substitution (&lt; &lt;(jq)) not pipes to while loops — pipes create subshells that lose variable modifications (cross-colony, confidence: 0.85)
-- [charter] **Governance**: Also short (Colony: Aether Colony)
-- [charter] **Goal**: Goals (Colony: Aether Colony)
+- [charter] **Governance**: CI/CD pipeline active -- ensure all checks pass before merging (Colony: Aether Colony)
+- [charter] **Goal**: Ship two targeted changes: (1) continue/advance flow generates commit message and prompts user (2) seal flow prompts commit + push to remote (Colony: Aether Colony)
 ---
 
 ## Build Learnings
@@ -51,6 +51,7 @@ High-confidence behavioral patterns that have been validated through repeated co
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-03-27T18:52:28Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-27T16:37:32Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-27T16:37:22Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-27T16:36:49Z | system | charter_updated | Colony charter updated for Aether Colony |
@@ -68,7 +69,7 @@ High-confidence behavioral patterns that have been validated through repeated co
 {
   "version": "2.0.0",
   "wisdom_version": "2.0",
-  "last_evolved": "2026-03-27T16:37:32Z",
+  "last_evolved": "2026-03-27T18:52:28Z",
   "colonies_contributed": [],
   "stats": {
     "total_user_prefs": 2,
