@@ -10,14 +10,17 @@
 Communication style, expertise level, and decision-making patterns observed from the user (the Queen). These shape how the colony communicates and what it prioritizes. User decisions are the most important wisdom.
 
 
-- [charter] **Intent**: Add commit message synthesis and push prompts to Aether phase completion and seal workflows (Colony: Aether Colony)
-- [charter] **Vision**: When a phase finishes or a colony seals, the system synthesizes a meaningful commit message from what was built, prompts the user to commit, and at seal time also prompts to push to remote (Colony: Aether Colony)
+- [charter] **Intent**: Comprehensive audit of today's session work — verify QUEEN.md, pheromone system, wisdom pipeline, charter-write, and all colony lifecycle changes are functioning correctly (Colony: Aether Colony)
+- [charter] **Vision**: Confirm that everything built across three colonies today (versioning, seal audit fixes, visual consistency) works end-to-end with no regressions, silent failures, or data loss (Colony: Aether Colony)
 ---
 
 ## Codebase Patterns
 
 Validated approaches that work in this codebase, and anti-patterns to avoid. Includes architecture conventions, naming patterns, error handling style, and technology-specific insights. Tagged [repo] for project-specific or [general] for cross-colony patterns.
 
+- **1774650429** (2026-03-27T23:20:16Z): Test fixtures with hardcoded dates will break as calendar time advances — use dynamic date computation with cross-platform fallbacks instead
+- **1774650429** (2026-03-27T23:14:32Z): Chaos resilience moderate: 5 scenarios tested on pheromone-expire date fix, 3 resilient, 2 findings (static fallback staleness, double date failure)
+- **1774645519** (2026-03-27T21:50:42Z): Inserted phase 5 (Stabilize caste emojis in spawn and phase displays): Add caste emojis to all ant spawn announcements and phase header displays across all commands — every spawn shows its caste emoji and phase headers include visual emoji markers
 - [general] **Use explicit jq if/elif chains instead of the // operator when checking fields that can legitimately be false** (source: colony 1771335865738, 2026-03-20)
 
 - [hive] When creating testimonials, press bars, or review content: Use clearly labeled placeholders instead of fabricating content — mark sections as 'Your real testimonial here' or similar (cross-colony, confidence: 0.95)
@@ -25,8 +28,7 @@ Validated approaches that work in this codebase, and anti-patterns to avoid. Inc
 - [hive] When Deploying files via SFTP to Cloudways: Use -oPreferredAuthentications=password flags for Cloudways SFTP (cross-colony, confidence: 0.9)
 - [hive] When Verifying deployed changes on Cloudways: Use ?nocache= to bypass Varnish when verifying deploys (cross-colony, confidence: 0.9)
 - [hive] When building bash utilities with scoring/accumulation loops: use process substitution (&lt; &lt;(jq)) not pipes to while loops — pipes create subshells that lose variable modifications (cross-colony, confidence: 0.85)
-- [charter] **Governance**: CI/CD pipeline active -- ensure all checks pass before merging (Colony: Aether Colony)
-- [charter] **Goal**: Ship two targeted changes: (1) continue/advance flow generates commit message and prompts user (2) seal flow prompts commit + push to remote (Colony: Aether Colony)
+- [charter] **Governance**: CI/CD pipeline active — ensure all checks pass before merging (Colony: Aether Colony)
 ---
 
 ## Build Learnings
@@ -45,12 +47,21 @@ High-confidence behavioral patterns that have been validated through repeated co
 
 - [instinct] **testing** (0.85): When codebase changes, then always run full test suite after module extraction
 
+- [instinct] **testing** (0.8): When test fixtures use hardcoded dates, then replace with dynamic cross-platform date computation to prevent time-based test degradation
 ---
 
 ## Evolution Log
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-03-27T23:20:27Z | instinct | promoted_instinct | testing: replace with dynamic cross-platform date computati... |
+| 2026-03-27T23:20:16Z | 1774650429 | promoted_pattern | Added: Test fixtures with hardcoded dates will break as c... |
+| 2026-03-27T23:14:32Z | 1774650429 | promoted_pattern | Added: Chaos resilience moderate: 5 scenarios tested on p... |
+| 2026-03-27T22:26:57Z | system | charter_updated | Colony charter updated for Aether Colony |
+| 2026-03-27T21:50:42Z | 1774645519 | promoted_pattern | Added: Inserted phase 5 (Stabilize caste emojis in spawn ... |
+| 2026-03-27T21:05:08Z | system | charter_updated | Colony charter updated for Aether Colony |
+| 2026-03-27T19:58:37Z | system | charter_updated | Colony charter updated for Aether Colony |
+| 2026-03-27T19:16:20Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-27T18:52:28Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-27T16:37:32Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-27T16:37:22Z | system | charter_updated | Colony charter updated for Aether Colony |
@@ -69,13 +80,13 @@ High-confidence behavioral patterns that have been validated through repeated co
 {
   "version": "2.0.0",
   "wisdom_version": "2.0",
-  "last_evolved": "2026-03-27T18:52:28Z",
-  "colonies_contributed": [],
+  "last_evolved": "2026-03-27T23:20:27Z",
+  "colonies_contributed": ["1774645519"],
   "stats": {
     "total_user_prefs": 2,
-    "total_codebase_patterns": 8,
+    "total_codebase_patterns": 10,
     "total_build_learnings": 1,
-    "total_instincts": 1
+    "total_instincts": 2
   },
   "evolution_log": [{"timestamp": "2026-03-24T23:40:00Z", "action": "migrate", "wisdom_type": "system", "content_hash": "v1-to-v2-migration", "colony": "system"}, {"timestamp": "2026-03-20T12:37:32Z", "action": "promote", "wisdom_type": "pattern", "content_hash": "sha256:f8aa50cfda0f37cac6cabba140bb99f1d75aa6d01a7100fe7a5ccddc2b3a017b", "colony": "1771335865738"}]
 }

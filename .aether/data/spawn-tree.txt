@@ -1,46 +1,12 @@
-2026-03-22T19:26:49Z|Queen|builder|Weld-2|Move oracle.sh and oracle.md to .aether/utils/oracle/|default|spawned
-2026-03-22T19:27:48Z|Weld-2|completed|Moved oracle infrastructure files via git mv
-2026-03-22T19:27:54Z|Queen|builder|Forge-16|Fix AETHER_ROOT derivation|default|spawned
-2026-03-22T19:27:54Z|Queen|builder|Bolt-98|Fix .aether/.npmignore anchor|default|spawned
-2026-03-22T19:30:19Z|Forge-16|completed|Fixed AETHER_ROOT path
-2026-03-22T19:30:19Z|Bolt-98|completed|Anchored .npmignore pattern
-2026-03-22T19:30:25Z|Queen|builder|Anvil-82|Redirect state file paths to .aether/oracle/|default|spawned
-2026-03-22T19:31:33Z|Anvil-82|completed|Redirected state file paths
-2026-03-22T19:31:44Z|Queen|watcher|Vigil-96|Independent verification|default|spawned
-2026-03-22T19:35:08Z|Queen|chaos|Snap-12|Resilience testing of Phase 1 work|default|spawned
-2026-03-22T19:38:38Z|Vigil-96|completed|Verification found line 895 bug (fixed) plus Phase 2 path updates needed
-2026-03-22T19:38:38Z|Snap-12|completed|Resilience moderate - ORACLE_STATE_DIR refactor clean, command files deferred to Phase 2
-2026-03-22T19:41:11Z|Queen|gatekeeper|Gate-94|Supply chain security audit|default|spawned
-2026-03-22T19:44:00Z|Queen|auditor|Review-75|Code quality audit|default|spawned
-2026-03-22T19:46:07Z|Gate-94|completed|No critical CVEs
-2026-03-22T19:46:07Z|Review-75|completed|Score 71/100
-2026-03-22T19:59:02Z|Queen|builder|Hammer-52|Update command files|default|spawned
-2026-03-22T19:59:02Z|Queen|builder|Anvil-67|Update e2e test|default|spawned
-2026-03-22T19:59:02Z|Queen|builder|Hammer-82|Update 13 test files|default|spawned
-2026-03-22T20:16:09Z|Hammer-52|completed|Updated command files
-2026-03-22T20:16:09Z|Anvil-67|completed|Updated e2e test
-2026-03-22T20:16:10Z|Hammer-82|completed|Updated 13 test files
-2026-03-22T20:16:16Z|Queen|builder|Brick-96|Sweep repo for remaining old-path references|default|spawned
-2026-03-22T20:16:55Z|Brick-96|completed|Codebase clean - zero old-path references
-2026-03-22T20:17:01Z|Queen|watcher|Sentinel-37|Independent verification|default|spawned
-2026-03-22T20:22:27Z|Sentinel-37|completed|Found SCRIPT_DIR bugs in 2 colony test files — fixed by Queen
-2026-03-22T20:22:27Z|Queen|chaos|Breach-52|Resilience testing of Phase 2|default|spawned
-2026-03-22T20:23:25Z|Breach-52|completed|Resilience strong - all functional references clean
-2026-03-23T15:27:56Z|Queen|builder|Weld-28|Verify npm pack|default|spawned
-2026-03-23T15:28:37Z|Weld-28|completed|npm pack verified
-2026-03-23T15:28:37Z|Queen|builder|Forge-43|Run validate-package.sh|default|spawned
-2026-03-23T15:29:03Z|Forge-43|completed|validate-package.sh passed
-2026-03-23T15:29:09Z|Queen|watcher|Alert-83|Independent verification|default|spawned
-2026-03-23T15:29:58Z|Alert-83|completed|All verification passed 10/10
-2026-03-23T15:29:58Z|Queen|chaos|Shake-98|Resilience testing Phase 3|default|spawned
-2026-03-23T15:33:04Z|Shake-98|completed|1 medium (dev workflow), 1 info (latent substring match)
-2026-03-23T15:44:23Z|Queen|builder|Forge-52|Run full test suite|default|spawned
-2026-03-23T15:46:22Z|Forge-52|completed|572 passed, 0 oracle failures
-2026-03-23T15:46:22Z|Queen|builder|Weld-66|Install globally and verify hub|default|spawned
-2026-03-23T15:47:45Z|Weld-66|completed|Global install verified, oracle.sh in hub
-2026-03-23T15:47:51Z|Queen|watcher|Guard-80|Final verification|default|spawned
-2026-03-23T15:47:51Z|Queen|chaos|Breach-95|Final resilience testing|default|spawned
-2026-03-23T15:52:05Z|Guard-80|completed|All criteria verified 9/10
-2026-03-23T15:52:05Z|Breach-95|completed|Hub leak found and fixed
-2026-03-23T15:58:28Z|Queen|sage|Helper-15|Colony analytics review|default|spawned
-2026-03-23T16:01:03Z|Helper-15|completed|Analytics review complete
+2026-03-27T22:57:52Z|Queen|oracle|Seer-84|Phase 1 research|opus|spawned
+2026-03-27T23:01:51Z|Seer-84|completed|Root cause confirmed, dynamic date fix pattern identified
+2026-03-27T23:01:52Z|Queen|architect|Frame-99|Phase 1 design|opus|spawned
+2026-03-27T23:04:15Z|Frame-99|completed|Single-file fix designed: dynamic dates + heredoc change
+2026-03-27T23:04:34Z|Queen|builder|Anvil-20|Update test fixture dates for eternal promotion|sonnet|spawned
+2026-03-27T23:05:33Z|Anvil-20|completed|Fixed test 42 with dynamic dates
+2026-03-27T23:05:41Z|Queen|builder|Mason-4|Run full test-aether-utils.sh, confirm test 42 passes|sonnet|spawned
+2026-03-27T23:07:25Z|Mason-4|completed|37/43 pass, test 42 fixed, 6 pre-existing failures unchanged
+2026-03-27T23:07:32Z|Queen|watcher|Vigil-86|Independent verification|sonnet|spawned
+2026-03-27T23:10:22Z|Vigil-86|completed|All criteria pass, quality 9/10, recommend proceed
+2026-03-27T23:10:31Z|Queen|chaos|Snap-1|Resilience testing of Phase 1 work|sonnet|spawned
+2026-03-27T23:14:29Z|Snap-1|completed|5 scenarios: 2 findings (medium: static fallback dates expire 2026-03-29, low: double date failure), 3 resilient

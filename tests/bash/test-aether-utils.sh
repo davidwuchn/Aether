@@ -1477,6 +1477,47 @@ test_queen_thresholds_command() {
 }
 
 # ============================================================================
+# Test: pattern:auto threshold is 1 in both get_wisdom_threshold and
+#       get_wisdom_thresholds_json (lockstep verification)
+# ============================================================================
+test_pattern_auto_threshold_lockstep() {
+    # Verify get_wisdom_threshold via queen-thresholds JSON output
+    local json_output
+    json_output=$(bash "$AETHER_UTILS_SOURCE" queen-thresholds 2>&1)
+
+    if ! assert_json_valid "$json_output"; then
+        test_fail "valid JSON from queen-thresholds" "$json_output"
+        return 1
+    fi
+
+    local json_auto
+    json_auto=$(echo "$json_output" | jq -r '.result.pattern.auto // "missing"')
+    if [[ "$json_auto" != "1" ]]; then
+        test_fail "pattern.auto=1 in get_wisdom_thresholds_json" "got $json_auto"
+        return 1
+    fi
+
+    # Verify get_wisdom_threshold (case statement) by extracting and evaluating
+    # the function definition only, then calling it in a subshell
+    local func_def
+    func_def=$(awk '/^get_wisdom_threshold\(\)/,/^}$/' "$AETHER_UTILS_SOURCE")
+    local case_auto
+    case_auto=$(bash -c "$func_def; get_wisdom_threshold pattern auto" 2>/dev/null)
+    if [[ "$case_auto" != "1" ]]; then
+        test_fail "get_wisdom_threshold pattern auto=1" "got $case_auto"
+        return 1
+    fi
+
+    # Assert both values match
+    if [[ "$json_auto" != "$case_auto" ]]; then
+        test_fail "lockstep: json_auto($json_auto) == case_auto($case_auto)" "values diverged"
+        return 1
+    fi
+
+    return 0
+}
+
+# ============================================================================
 # Test: validate-worker-response validates builder schema
 # ============================================================================
 test_validate_worker_response_builder() {
@@ -1566,7 +1607,15 @@ test_pheromone_expire_promotes_eternal() {
     tmp_dir=$(setup_isolated_env)
     tmp_home=$(mktemp -d)
 
-    cat > "$tmp_dir/.aether/data/pheromones.json" << 'EOF'
+    local recent_created recent_expired
+    recent_created=$(date -u -v-1d +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+                     date -u -d "1 day ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+                     echo "2026-03-26T00:00:00Z")
+    recent_expired=$(date -u -v-1H +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+                     date -u -d "1 hour ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+                     echo "2026-03-26T23:00:00Z")
+
+    cat > "$tmp_dir/.aether/data/pheromones.json" << EOF
 {
   "version": "1.0.0",
   "signals": [
@@ -1575,8 +1624,8 @@ test_pheromone_expire_promotes_eternal() {
       "type": "FOCUS",
       "priority": "normal",
       "source": "test",
-      "created_at": "2024-01-01T00:00:00Z",
-      "expires_at": "2024-01-02T00:00:00Z",
+      "created_at": "$recent_created",
+      "expires_at": "$recent_expired",
       "active": true,
       "strength": 0.9,
       "reason": "test",
@@ -1717,6 +1766,7 @@ main() {
     run_test "test_force_unlock_stale_only" "force-unlock --stale-only removes stale locks and preserves live locks"
     run_test "test_session_update_argument_mapping" "session-update maps args correctly after dispatch shift"
     run_test "test_queen_thresholds_command" "queen-thresholds returns propose/auto values"
+    run_test "test_pattern_auto_threshold_lockstep" "pattern:auto threshold is 1 in both bash case and JSON (lockstep)"
     run_test "test_validate_worker_response_builder" "validate-worker-response enforces builder schema"
     run_test "test_spawn_efficiency_command" "spawn-efficiency reports totals and efficiency percentage"
     run_test "test_pheromone_expire_promotes_eternal" "pheromone-expire promotes high-strength signals to eternal memory"

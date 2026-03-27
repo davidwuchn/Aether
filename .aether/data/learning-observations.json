@@ -384,6 +384,39 @@
       "colonies": [
         "1774204068"
       ]
+    },
+    {
+      "content_hash": "sha256:43451abdf28c314acee52b7a15e30249a00fb2498ae598437f78f09323079bb7",
+      "content": "Inserted phase 5 (Stabilize caste emojis in spawn and phase displays): Add caste emojis to all ant spawn announcements and phase header displays across all commands — every spawn shows its caste emoji and phase headers include visual emoji markers",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-27T21:50:39Z",
+      "last_seen": "2026-03-27T21:50:39Z",
+      "colonies": [
+        "1774645519"
+      ]
+    },
+    {
+      "content_hash": "sha256:512d998e11057d93f7dcb90ebc94d2cbaa5911ed29d5d31d23c05adb52161bde",
+      "content": "Chaos resilience moderate: 5 scenarios tested on pheromone-expire date fix, 3 resilient, 2 findings (static fallback staleness, double date failure)",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-27T23:14:31Z",
+      "last_seen": "2026-03-27T23:14:31Z",
+      "colonies": [
+        "1774650429"
+      ]
+    },
+    {
+      "content_hash": "sha256:b805b1fdcf2c27f12422230d58487a172ef0568f35bbdd717e7403c3909080c4",
+      "content": "Test fixtures with hardcoded dates will break as calendar time advances — use dynamic date computation with cross-platform fallbacks instead",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-27T23:20:15Z",
+      "last_seen": "2026-03-27T23:20:15Z",
+      "colonies": [
+        "1774650429"
+      ]
     }
   ]
 }
