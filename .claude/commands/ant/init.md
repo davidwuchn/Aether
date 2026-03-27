@@ -1,6 +1,6 @@
 ---
 name: ant:init
-description: "🌱🐜🆕🐜🌱 Initialize Aether colony - Queen sets intention, colony mobilizes"
+description: "Initialize Aether colony - scan repo, approve charter, create colony"
 ---
 
 You are the **Queen Ant Colony**. Initialize the colony with the Queen's intention.
@@ -15,10 +15,7 @@ Parse `$ARGUMENTS`:
 
 <failure_modes>
 ### Colony State Overwrite
-If COLONY_STATE.json already exists with an active colony:
-- STOP before overwriting
-- Warn: "Active colony detected with goal: [goal]. Overwriting will lose this data."
-- Options: (1) Archive first with /ant:seal, (2) Continue and overwrite, (3) Cancel
+Re-init mode detects existing COLONY_STATE.json and preserves all state. Charter content is updated in-place via charter-write. Colony state, wisdom, instincts, learnings, pheromones, and phase progress are never reset.
 
 ### Write Failure Mid-Init
 If writing COLONY_STATE.json fails partway:
@@ -29,10 +26,11 @@ If writing COLONY_STATE.json fails partway:
 
 <success_criteria>
 Command is complete when:
-- COLONY_STATE.json exists and is valid JSON
-- Colony goal, milestone, and timestamp are set
+- User has approved the charter prompt (Charter, Context, Pheromones sections)
+- Charter content is written to QUEEN.md via charter-write
+- COLONY_STATE.json exists and is valid JSON (fresh init only)
 - Session file is written
-- User sees confirmation of colony creation
+- User sees confirmation of colony creation or re-init
 </success_criteria>
 
 <read_only>
@@ -51,8 +49,8 @@ If `$ARGUMENTS` is empty or blank, output:
 ```
 Aether Colony
 
-  Initialize the colony with a goal. This creates the colony state,
-  initializes constraints, and logs the init event.
+  Initialize the colony with a goal. This scans the repo, generates
+  a charter for your approval, then creates colony files.
 
   Usage: /ant:init "<your goal here>"
 
@@ -68,7 +66,7 @@ Stop here. Do not proceed.
 
 Check if `.aether/aether-utils.sh` exists using the Read tool.
 
-**If the file already exists** — skip this step entirely. Aether is set up.
+**If the file already exists** -- skip this step entirely. Aether is set up.
 
 **If the file does NOT exist:**
 ```
@@ -85,9 +83,9 @@ If the global hub isn't installed either:
 ```
 Stop here. Do not proceed.
 
-### Step 1.6: Initialize QUEEN.md Wisdom Document
+### Step 2: Initialize QUEEN.md
 
-After bootstrap completes (or if system files already existed), run using the Bash tool:
+Run using the Bash tool:
 ```
 bash .aether/aether-utils.sh queen-init
 ```
@@ -96,148 +94,160 @@ Parse the JSON result:
 - If `created` is true: Display `QUEEN.md initialized`
 - If `created` is false and `reason` is "already_exists": Display `QUEEN.md already exists`
 
-This step is non-blocking — proceed regardless of outcome.
+This step is non-blocking -- proceed regardless of outcome.
 
-### Step 2: Read Current State with Freshness Check
+### Step 3: Scan Repository
 
-Capture session start time:
+Run the scan via Bash tool:
 ```bash
-INIT_START=$(date +%s)
+scan_result=$(bash .aether/aether-utils.sh init-research 2>/dev/null)
+scan_data=$(echo "$scan_result" | jq '.result')
 ```
 
-Use the Read tool to read `.aether/data/COLONY_STATE.json`.
+Extract fields with jq defaults for missing data:
+- `tech_langs`: `.tech_stack.languages | if length > 0 then join(", ") else "not detected" end`
+- `tech_fwks`: `.tech_stack.frameworks | if length > 0 then join(", ") else "none" end`
+- `tech_pkg`: `.tech_stack.package_managers | join(", ")`
+- `complexity`: `.complexity.size`
+- `file_count`: `.complexity.metrics.file_count`
+- `top_dirs`: `.directory_structure.top_level_dirs | if . and length > 0 then join(", ") else "flat" end`
+- `commit_count`: `.git_history.commit_count // "unknown"`
+- `is_git`: `.git_history.is_git_repo // false`
+- `survey_suggestion`: `.survey_status.suggestion.reason // empty`
+- `has_active`: `.prior_colonies.has_active_colony // false`
+- `active_goal`: `.prior_colonies.active_goal // empty`
 
-Check freshness of existing state:
+If `scan_result` is empty or `jq` fails, set all fields to fallback values and proceed (graceful degradation -- never stop init because scan fails).
+
+### Step 4: Detect Re-Init Mode
+
+Use Read tool to check `.aether/data/COLONY_STATE.json`.
+
+- If file exists AND has a non-null `goal` field: set `reinit_mode = true`, store `existing_goal`
+- Otherwise: set `reinit_mode = false`
+
+If re-init mode, read existing charter entries from `.aether/QUEEN.md`:
 ```bash
-fresh_check=$(bash .aether/aether-utils.sh session-verify-fresh --command init "" "$INIT_START")
-is_stale=$(echo "$fresh_check" | jq -r '.stale | length')
-freshness_status=$([[ "$is_stale" -gt 0 ]] && echo "stale" || echo "fresh")
+existing_intent=$(grep '\[charter\] \*\*Intent\*\*:' .aether/QUEEN.md 2>/dev/null | sed 's/.*\*\*Intent\*\*: //' | sed 's/ (Colony:.*//' || true)
+existing_vision=$(grep '\[charter\] \*\*Vision\*\*:' .aether/QUEEN.md 2>/dev/null | sed 's/.*\*\*Vision\*\*: //' | sed 's/ (Colony:.*//' || true)
+existing_governance=$(grep '\[charter\] \*\*Governance\*\*:' .aether/QUEEN.md 2>/dev/null | sed 's/.*\*\*Governance\*\*: //' | sed 's/ (Colony:.*//' || true)
+existing_goals=$(grep '\[charter\] \*\*Goal\*\*:' .aether/QUEEN.md 2>/dev/null | sed 's/.*\*\*Goal\*\*: //' | sed 's/ (Colony:.*//' || true)
 ```
 
-If the `goal` field is not null:
-- If state is stale (old session): Warn user but proceed
-- If state is fresh (active session): Strongly recommend continuation
+Strip `(Colony: ...)` suffixes using sed. If grep finds nothing, variables remain empty.
 
+### Step 5: Assemble and Display Approval Prompt
+
+Display a brief header:
 ```
-Colony already initialized with goal: "{existing_goal}"
-
-State freshness: {freshness_status}
-Initialized: {initialized_at}
-
-To reinitialize with a new goal, the current state will be reset.
-Proceeding with new goal: "{new_goal}"
+------------------------------------------------------
+   A E T H E R   C O L O N Y   I N I T
+------------------------------------------------------
 ```
 
-**Note:** Init never auto-clears COLONY_STATE.json. Reinitialization is an explicit user choice.
-
-### Step 2.6: Load Prior Colony Knowledge (Optional)
-
-Check if `.aether/data/completion-report.md` exists using the Read tool.
-
-**If the file does NOT exist**, skip to Step 3 — this is a fresh colony with no prior history.
-
-**If the file exists**, read it and extract:
-1. **Instincts** — look for the `## Colony Instincts` section. Each line has format: `N. [confidence] domain: description`. Keep only instincts with confidence >= 0.5.
-2. **Learnings** — look for the `## Colony Learnings (Validated)` section. Keep all numbered items.
-
-Store the extracted instincts and learnings for use in Step 3 (Write Colony State). Display a brief note:
-
+If re-init mode, display:
 ```
-🧠 Prior colony knowledge found:
-   {N} instinct(s) inherited (confidence >= 0.5)
-   {N} validated learning(s) carried forward
+Re-init mode detected (existing goal: "{existing_goal}")
+Charter will be updated. All colony state, wisdom, instincts, and progress will be preserved.
 ```
 
-If no instincts meet the threshold, display:
+Then display the approval prompt as formatted Markdown with three sections:
+
+**Section 1: Charter**
+```markdown
+## Charter
+
+**Intent:** {user's goal from $ARGUMENTS, or existing_intent if re-init}
+**Vision:** {derived from user's goal by Claude, or existing_vision if re-init}
+**Governance:** {blank for fresh init, or existing_governance if re-init}
+**Goals:** {blank for fresh init, or existing_goals if re-init}
 ```
-🧠 Prior colony knowledge found but no high-confidence instincts to inherit.
+
+For fresh init, Claude should derive a brief Vision from the user's goal (1-2 sentences). Governance and Goals start blank. The user fills them in if desired.
+
+For re-init, pre-populate all fields from existing QUEEN.md charter entries.
+
+**Section 2: Context**
+```markdown
+## Context
+
+**Tech Stack:** {tech_langs} | {tech_fwks} | {tech_pkg}
+**Project Size:** {complexity} ({file_count} files)
+**Structure:** {top_dirs}
+**Git:** {commit_count} commits
+{if survey_suggestion: **Note:** {survey_suggestion}}
 ```
 
-**Important:** This step is read-only and non-blocking. If the file is malformed or unreadable, skip silently and proceed to Step 3 with empty memory.
+**Section 3: Pheromones**
+```markdown
+## Pheromones
 
-### Step 3: Write Colony State
+No pheromone suggestions yet -- use /ant:focus and /ant:redirect to guide the colony.
+```
 
-Generate a session ID in the format `session_{unix_timestamp}_{random}` and an ISO-8601 UTC timestamp.
+End with clear instructions:
+```
+--------------------------------------------------
+Review the prompt above. You can:
+  - Edit any section (just describe your changes)
+  - Say "approve" or "looks good" to proceed
+  - Say "cancel" to abort
 
-Resolve the colony-state template path:
-  Check `~/.aether/system/templates/colony-state.template.json` first,
-  then `.aether/templates/colony-state.template.json`.
+If you don't respond, the colony will not be initialized.
+--------------------------------------------------
+```
 
-If no template found: output "Template missing: colony-state.template.json. Run aether update to fix." and stop.
+**STOP HERE.** Wait for the user's response. Do NOT proceed to Step 6 until the user responds.
 
-Read the template file. Follow its `_instructions` field.
-Replace all `__PLACEHOLDER__` values:
-  - `__GOAL__` → the user's goal from $ARGUMENTS
-  - `__SESSION_ID__` → the generated session ID (format: `session_{unix_timestamp}_{random}`)
-  - `__ISO8601_TIMESTAMP__` → the current ISO-8601 UTC timestamp (used in both `initialized_at` and the events entry)
-  - `__PHASE_LEARNINGS__` → JSON array from Step 2.6, or `[]` if none
-  - `__INSTINCTS__` → JSON array from Step 2.6, or `[]` if none
+### Step 6: Handle User Response
 
-IMPORTANT: `__PHASE_LEARNINGS__` and `__INSTINCTS__` must be JSON array values (e.g., `[]` not `"[]"`).
+Parse the user's response:
+- If the user approves (says "approve", "looks good", "yes", "ok", or similar): proceed to Step 7
+- If the user provides edits: apply the edits to the relevant section(s), re-display the full prompt, increment a revision counter, and wait again
+- If the user cancels: display "Colony initialization cancelled." and stop
+- Max 2 revision rounds. After 2 rejections/edits, display: "Maximum revisions reached. Approve current version, or cancel init?" and wait for final decision
 
-**If Step 2.6 found instincts to inherit**, convert each into the instinct format for the `__INSTINCTS__` array. Each inherited instinct should have:
-- `id`: `instinct_inherited_{index}`
-- `trigger`: inferred from the instinct description
-- `action`: the instinct description
-- `confidence`: the original confidence value (from the completion report)
-- `domain`: the original domain (from the completion report)
-- `source`: `"inherited:completion-report"`
-- `evidence`: `["Validated in prior colony session"]`
-- `created_at`: current ISO-8601 timestamp
-- `last_applied`: null
-- `applications`: 0
-- `successes`: 0
+When applying edits, Claude updates the section content in memory (not files) and re-displays the full prompt. Each re-display includes a revision counter: "(Revision {N}/2)"
 
-**If Step 2.6 found validated learnings**, seed the `__PHASE_LEARNINGS__` array with each as:
-- `phase`: `"inherited"`
-- `learning`: the learning text
-- `status`: `"validated"`
-- `source`: `"inherited:completion-report"`
+### Step 7: Create Colony (Post-Approval)
 
-**If Step 2.6 was skipped or found nothing**, use empty arrays `[]` for both `__PHASE_LEARNINGS__` and `__INSTINCTS__`.
+Only reached after user approval. ALL file writes happen here.
 
-Remove ALL keys starting with underscore (`_template`, `_version`, `_instructions`, `_comment_*`).
-Write the resulting JSON to `.aether/data/COLONY_STATE.json` using the Write tool.
+**If re-init mode:**
 
-### Step 4: Initialize Constraints
+1. Write charter content via:
+```bash
+bash .aether/aether-utils.sh charter-write --intent "{approved_intent}" --vision "{approved_vision}" --governance "{approved_governance}" --goals "{approved_goals}"
+```
 
-Resolve the constraints template path:
-  Check `~/.aether/system/templates/constraints.template.json` first,
-  then `.aether/templates/constraints.template.json`.
+2. Optionally update the goal field in COLONY_STATE.json in-place:
+```bash
+jq --arg new_goal "{approved_intent}" '.goal = $new_goal' .aether/data/COLONY_STATE.json > .aether/data/COLONY_STATE.json.tmp && mv .aether/data/COLONY_STATE.json.tmp .aether/data/COLONY_STATE.json
+```
 
-If no template found: output "Template missing: constraints.template.json. Run aether update to fix." and stop.
+3. Run `bash .aether/aether-utils.sh session-init "$(jq -r '.session_id' .aether/data/COLONY_STATE.json)" "{approved_intent}"`
 
-Read the template file. Follow its `_instructions` field.
-No placeholder substitution needed — the data keys are written as-is.
-Remove ALL keys starting with underscore (`_template`, `_version`, `_instructions`, `_comment_*`).
-Write the resulting JSON to `.aether/data/constraints.json` using the Write tool.
+4. Skip to Step 8 (display result). Do NOT write COLONY_STATE.json from template, do NOT write constraints.json, do NOT write pheromones.json.
 
-### Step 4.5: Initialize Runtime Files from Templates
+**If fresh init:**
 
-Initialize runtime files that support colony operations. Each file is created from its template if it doesn't already exist.
+1. Initialize QUEEN.md (already done in Step 2)
+2. Write charter content via charter-write (same command as above)
+3. Write COLONY_STATE.json from template:
+   - Generate a session ID in the format `session_{unix_timestamp}_{random}` and an ISO-8601 UTC timestamp
+   - Resolve template: check `~/.aether/system/templates/colony-state.template.json` first, then `.aether/templates/colony-state.template.json`
+   - If no template found: output "Template missing: colony-state.template.json. Run aether update to fix." and stop
+   - Read the template file. Follow its `_instructions` field
+   - Replace placeholders: `__GOAL__` with approved intent, `__SESSION_ID__` with generated session ID, `__ISO8601_TIMESTAMP__` with current timestamp, `__PHASE_LEARNINGS__` with `[]`, `__INSTINCTS__` with `[]`
+   - Remove ALL keys starting with underscore
+   - Write the resulting JSON to `.aether/data/COLONY_STATE.json` using the Write tool
 
-**For each template, check both hub and local paths:**
-- `~/.aether/system/templates/{template}` first
-- `.aether/templates/{template}` second
+4. Write constraints.json from template:
+   - Resolve template: check `~/.aether/system/templates/constraints.template.json` first, then `.aether/templates/constraints.template.json`
+   - If no template found: output "Template missing: constraints.template.json. Run aether update to fix." and stop
+   - Read template, follow `_instructions`, remove `_` prefixed keys, write to `.aether/data/constraints.json`
 
-**Files to initialize:**
-
-1. **pheromones.json** - Signal tracking for colony guidance
-   - Template: `pheromones.template.json`
-   - Target: `.aether/data/pheromones.json`
-   - If missing: copy template, remove `_` prefixed keys
-
-2. **midden.json** - Failure signal tracking
-   - Template: `midden.template.json`
-   - Target: `.aether/data/midden/midden.json`
-   - If missing: copy template, remove `_` prefixed keys
-
-3. **learning-observations.json** - Pattern observation tracking
-   - Template: `learning-observations.template.json`
-   - Target: `.aether/data/learning-observations.json`
-   - If missing: copy template, remove `_` prefixed keys
-
-Run using Bash tool:
+5. Initialize runtime files from templates (non-blocking):
 ```bash
 for template in pheromones midden learning-observations; do
   if [[ "$template" == "midden" ]]; then
@@ -260,128 +270,50 @@ for template in pheromones midden learning-observations; do
 done
 ```
 
-This step is non-blocking — proceed regardless of outcome.
-
-### Step 5: Initialize Context Document
-
-Run using Bash tool:
-```
-bash .aether/aether-utils.sh context-update init "$ARGUMENTS"
-```
-
-This creates `.aether/CONTEXT.md` — the colony's persistent memory. If context collapses, this file tells the next session what we were doing.
-
-### Step 6: Validate State File
-
-Use the Bash tool to run:
-```
-bash .aether/aether-utils.sh validate-state colony
-```
-
-This validates COLONY_STATE.json structure. If validation fails, output a warning.
-
-### Step 6.5: Detect Nestmates
-
-Run using Bash tool: `node -e "const nl = require('./bin/lib/nestmate-loader'); console.log(JSON.stringify(nl.findNestmates(process.cwd())))"`
-
-If nestmates are found:
-1. Display: `Nestmates found: N related colonies`
-2. List each nestmate with name and truncated goal
-3. Check for shared TO-DOs or cross-project dependencies
-
-### Step 6.6: Register Repo (Silent)
-
-Attempt to register this repo in the global hub with the colony goal, active status, and auto-detected domain tags. Both steps are silent on failure — registry is not required for the colony to work.
-
-Run using the Bash tool (ignore errors):
+6. Run `bash .aether/aether-utils.sh context-update init "{approved_intent}"`
+7. Run `bash .aether/aether-utils.sh validate-state colony`
+8. Register repo (silent on failure):
 ```bash
-# Auto-detect domain tags from file presence (node, typescript, rust, etc.)
 domain_tags=$(bash .aether/aether-utils.sh domain-detect 2>/dev/null | jq -r '.result.tags // ""' || echo "")
-
-# Register repo with domain tags
-bash .aether/aether-utils.sh registry-add "$(pwd)" "$(jq -r '.version // "unknown"' ~/.aether/version.json 2>/dev/null || echo 'unknown')" --goal "$ARGUMENTS" --active true --tags "$domain_tags" 2>/dev/null || true
-```
-
-Then attempt to write `.aether/version.json` with the hub version:
-```
+bash .aether/aether-utils.sh registry-add "$(pwd)" "$(jq -r '.version // "unknown"' ~/.aether/version.json 2>/dev/null || echo 'unknown')" --goal "{approved_intent}" --active true --tags "$domain_tags" 2>/dev/null || true
 cp ~/.aether/version.json .aether/version.json 2>/dev/null || true
 ```
-
-If either command fails, proceed silently. These are optional bookkeeping.
-
-### Step 6.7: Seed QUEEN.md from Hive (Non-Blocking)
-
-Seed the new colony's QUEEN.md with relevant cross-colony wisdom from the hive.
-
+9. Seed QUEEN.md from hive (non-blocking):
 ```bash
-# Read domain tags just registered
 domain_tags=$(jq -r --arg repo "$(pwd)" \
   '[.repos[] | select(.path == $repo) | .domain_tags // []] | .[0] // [] | join(",")' \
   "$HOME/.aether/registry.json" 2>/dev/null || echo "")
-
 seed_args="queen-seed-from-hive --limit 5"
 [[ -n "$domain_tags" ]] && seed_args="$seed_args --domain $domain_tags"
-
 seed_result=$(bash .aether/aether-utils.sh $seed_args 2>/dev/null || echo '{}')
 seeded_count=$(echo "$seed_result" | jq -r '.result.seeded // 0' 2>/dev/null || echo "0")
-
-if [[ "$seeded_count" -gt 0 ]]; then
-  echo "Hive wisdom: seeded $seeded_count cross-colony patterns into QUEEN.md"
-fi
 ```
+10. Run `bash .aether/aether-utils.sh session-init "{session_id}" "{approved_intent}"`
 
-Continue to Step 7 regardless of outcome.
+### Step 8: Display Result
 
-### Step 7: Display Result
-
-Output this header:
+Display the success header and result block:
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+------------------------------------------------------
    A E T H E R   C O L O N Y
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+------------------------------------------------------
 
-Then output the result:
+Queen has set the colony's intention
 
-```
-👑 Queen has set the colony's intention
+   "{approved_intent}"
 
-   "{goal}"
+   Colony Status: READY
 
-🏠 Colony Status: READY
+{If re-init: "   Mode: Re-init (charter updated, state preserved)"}
+{If fresh and seeded_count > 0: "   Hive wisdom: {seeded_count} cross-colony pattern(s) seeded into QUEEN.md"}
 
-{If instincts or learnings were inherited from Step 2.6:}
-🧠 Inherited from prior colony:
-   {N} instinct(s) | {N} learning(s)
-{End if}
+State persisted -- safe to /clear, then run /ant:plan
 
-{If nestmates found in Step 5.5:}
-🏘️ Nest Context: {N} sibling colonies detected
-   Context from related projects will be automatically considered
-   during planning and execution.
-{End if}
-
-{If seeded_count > 0:}
-🐝 Hive wisdom: {seeded_count} cross-colony pattern(s) seeded into QUEEN.md
-{End if}
-
-💾 State persisted — safe to /clear, then run /ant:plan
-
-📋 Context document created at `.aether/CONTEXT.md` — read this if session resets
-
-──────────────────────────────────────────────────
-🐜 Next Up
-──────────────────────────────────────────────────
-   /ant:plan                 📋 Create execution plan
-   /ant:status               📊 Check colony state
-   /ant:focus                🎯 Set initial focus
-```
-
-### Step 8: Initialize Session
-
-Initialize session tracking to enable `/ant:resume` after context clear:
-
-```bash
-bash .aether/aether-utils.sh session-init "$(jq -r '.session_id' .aether/data/COLONY_STATE.json)" "$ARGUMENTS"
+--------------------------------------------------
+   Next Up
+--------------------------------------------------
+   /ant:plan                 Generate execution plan
+   /ant:status               Check colony state
+   /ant:focus                Set initial focus
 ```
