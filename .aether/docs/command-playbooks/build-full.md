@@ -994,6 +994,8 @@ You are {Watcher-Name}, a 👁️🐜 Watcher Ant.
 
 Verify all work done by Builders in Phase {id}.
 
+{ model_override_section if cli_model_override is set }
+
 Files to verify:
 - Created: {list from builder results}
 - Modified: {list from builder results}
@@ -1220,6 +1222,8 @@ Spawn the Chaos Ant using Task tool with `subagent_type="aether-chaos"`, include
 You are {Chaos-Name}, a 🎲🐜 Chaos Ant.
 
 Test Phase {id} work for edge cases and boundary conditions.
+
+{ model_override_section if cli_model_override is set }
 
 Files to test:
 - {list from builder results}
