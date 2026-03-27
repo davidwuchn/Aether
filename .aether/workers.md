@@ -86,7 +86,8 @@ This maps the opus slot to GLM-5 and the sonnet slot to GLM-5-Turbo.
 
 ### Dual-Mode Switching
 
-The same caste-to-slot assignments work with both Claude API and GLM proxy:
+**Default: Claude API mode.** GLM proxy is opt-in via settings.json change.
+No Aether code changes needed to switch between modes.
 
 **GLM Proxy mode** (via `~/.claude/settings.json.glm`):
 - opus -> glm-5, sonnet -> glm-5-turbo, haiku -> glm-4.5-air
@@ -95,7 +96,6 @@ The same caste-to-slot assignments work with both Claude API and GLM proxy:
 **Claude API mode** (via `~/.claude/settings.json.claude`):
 - opus -> claude-opus-4, sonnet -> claude-sonnet-4, haiku -> claude-haiku-4
 - Activate: `cp ~/.claude/settings.json.claude ~/.claude/settings.json`
-- No Aether code changes needed to switch modes
 
 ### Available Models (via GLM Proxy)
 

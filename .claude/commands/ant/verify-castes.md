@@ -61,23 +61,24 @@ curl -s http://localhost:4000/health 2>/dev/null | grep -q "healthy" && echo "�
 
 ## Step 3: Show Current Model Configuration
 
-Display the active model mapping:
+Display the active model configuration:
 
 ```
 MODEL CONFIGURATION
-───────────────────
-To change models, swap settings files:
+──────────────────
+Default: Claude API mode (opus -> claude-opus-4, sonnet -> claude-sonnet-4)
 
-  GLM Proxy mode:
-    cp ~/.claude/settings.json.glm ~/.claude/settings.json
-    (opus -> glm-5, sonnet -> glm-5-turbo, haiku -> glm-4.5-air)
+To switch to GLM Proxy mode:
+  cp ~/.claude/settings.json.glm ~/.claude/settings.json
+  (opus -> glm-5, sonnet -> glm-5-turbo, haiku -> glm-4.5-air)
 
-  Claude API mode:
-    cp ~/.claude/settings.json.claude ~/.claude/settings.json
-    (opus -> claude-opus-4, sonnet -> claude-sonnet-4, haiku -> claude-haiku-4)
+To switch back to Claude API:
+  cp ~/.claude/settings.json.claude ~/.claude/settings.json
+```
 
-Current model mapping can be verified by reading agent frontmatter:
-  grep "^model:" .claude/agents/ant/*.md
+Current model mapping from agent frontmatter:
+```bash
+grep "^model:" .claude/agents/ant/*.md
 ```
 
 ## Step 4: Summary
