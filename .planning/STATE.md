@@ -2,31 +2,31 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-24)
+See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 20 — Hub Wisdom Layer (v2.2 Living Wisdom) -- COMPLETE
+**Current focus:** Phase 21 -- Test Infrastructure Refactor (v2.3 Per-Caste Model Routing)
 
 ## Current Position
 
-Phase: 20 of 20 (Hub Wisdom Layer) -- COMPLETE
-Plan: 1 of 1 in current phase
-Status: v2.2 milestone complete
-Last activity: 2026-03-25 — Completed 20-01 (Hub wisdom layer: global/local split + migration + tests)
+Phase: 21 of 24 (Test Infrastructure Refactor)
+Plan: 02 of 2
+Status: Ready to execute
+Last activity: 2026-03-27 -- 21-01 complete (centralized mock profile helper)
 
-Progress: [##########] 100%
+Progress: [===       ] 50%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 42
+- Total plans completed: 43
 - Average duration: 5min
-- Total execution time: 3.7 hours
+- Total execution time: 3.8 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
-- v2.2 wisdom phases: 17-01 + 17-02 + 18-01 + 19-01 + 20-01 completed
-- Trend: Stable -- v2.2 milestone complete
+- v2.2 completed 4 phases, 5 plans
+- v2.3: 4 phases planned, Phase 21 plan 1 complete (2 plans remaining)
 
 *Updated after each plan completion*
 
@@ -34,27 +34,13 @@ Progress: [##########] 100%
 
 ### Decisions
 
-- [v2.2]: Focus exclusively on wisdom systems (QUEEN.md + hive brain) — ceremony/verification improvements deferred to v2.3
-- [v2.2]: QUEEN.md should populate automatically during colony work — user never touches it
-- [v2.2]: Local wisdom first (phases 17-18), then cross-colony (19), then hub-level (20)
-- [v2.1 feedback]: QUEEN.md and hive brain are template-only in practice — never populated with real data
-- [17-01]: v2 format detection via '## Build Learnings' header presence -- no metadata version parsing needed
-- [17-01]: v1 backward compat maps 6 sections to 2 v2 keys (codebase_patterns, user_prefs)
-- [17-01]: New write subcommands use threshold 0 -- every build writes, no observation counting
-- [17-01]: Build learnings grouped by phase subsections for readability
-- [17-02]: Step 3c placement after all instinct creation ensures newly created instincts are swept for promotion
-- [17-02]: Validation entries left as real seed content documenting the v1-to-v2 migration
-- [18-01]: Filter AFTER _extract_wisdom() to avoid dual-function drift with queen.sh
-- [18-01]: Renamed QUEEN WISDOM header from "Eternal Guidance" to "Colony Experience"
-- [18-01]: Entry-only filtering via grep for '^(- |### )' -- simple and reliable
-- [19-01]: Domain tags sourced from registry.json (not instinct.domain) for hive promotion
-- [19-01]: Domain auto-detection based on file presence (package.json -> node, etc.)
-- [19-01]: Hive seeding is NON-BLOCKING -- init completes even if hive is empty
-- [19-01]: Confidence threshold 0.5 for hive seeding
-- [20-01]: Global QUEEN wisdom trimmed before local in budget enforcement (local more relevant)
-- [20-01]: Same-path detection when HOME == AETHER_ROOT to avoid double-loading
-- [20-01]: v1 migration preserves entry lines only, strips description paragraphs
-- [20-01]: Global QUEEN.md should NOT have Build Learnings (colony-specific content)
+- [v2.3]: Phase 1 must complete before any model-profiles.yaml changes -- 184 hardcoded model names in tests will break otherwise
+- [v2.3]: Use Approach A (agent frontmatter) for MVP routing -- simpler than Task tool model param, zero playbook changes needed
+- [v2.3]: Aether routes by slot name (opus/sonnet), never by actual model name -- keeps dual-mode support clean
+- [v2.3]: Specialist castes stay on `inherit` -- Tracker, Auditor, Gatekeeper, etc. don't need explicit routing
+- [v2.2]: Focus exclusively on wisdom systems -- ceremony/verification improvements deferred to v2.3
+- [v2.3/21-01]: No caching in mock-profiles helper -- each function call reads fresh YAML so tests break intentionally if YAML changes
+- [v2.3/21-01]: buildMockProfiles uses spread merge for workerModels/modelMetadata, full replacement for taskRouting
 
 ### Pending Todos
 
@@ -62,11 +48,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- ~~Hive brain has subcommands but no confirmed cross-colony data flow~~ RESOLVED (19-01): End-to-end cross-colony flow wired and tested
-- First blocker resolved: QUEEN.md wisdom promotion now wired into continue playbooks (17-02)
+- GLM-5 constraint passing through subagent spawning is unverified -- if Claude Code does not forward temperature/top_p/max_tokens, reasoning castes may loop on GLM-5
+- Task tool `model` parameter vs frontmatter precedence untested -- if Task param does not override frontmatter, Approach B cannot coexist with Approach A
+- Oracle and Architect castes lack dedicated agent files -- their work runs through Queen or direct CLI, which may use the wrong model
 
 ## Session Continuity
 
-Last session: 2026-03-25
-Stopped at: Completed 20-01-PLAN.md (Hub wisdom layer: global/local split + v1 migration + 7 tests) -- Phase 20 complete, v2.2 milestone complete
+Last session: 2026-03-27
+Stopped at: Completed 21-01, ready for 21-02
 Resume file: None
