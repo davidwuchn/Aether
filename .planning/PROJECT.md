@@ -2,30 +2,18 @@
 
 ## What This Is
 
-Aether is a multi-agent colony orchestration system for AI-assisted development. It provides 44 slash commands, 22 specialized worker agents, 28 skills (10 colony + 18 domain), and a living pheromone signaling system. Distributed as `aether-colony` on npm, it works with Claude Code and OpenCode.
+Aether is a multi-agent colony orchestration system for AI-assisted development. It provides 44 slash commands, 24 specialized worker agents, 28 skills (10 colony + 18 domain), a living pheromone signaling system, and intelligent colony initialization with repo scanning and charter management. Distributed as `aether-colony` on npm, it works with Claude Code and OpenCode.
 
 ## Core Value
 
 The system must reliably interpret a user request, decompose it into executable work, verify outputs, and ship correct work with minimal user back-and-forth — not just look autonomous, but actually deliver.
-
-## Current Milestone: v2.1 Production Hardening
-
-**Goal:** Address Oracle audit findings, make Aether genuinely production-ready — deeper planning, verified features, accurate docs, great first-user experience.
-
-**Target areas:**
-- Fix reliability gaps found by Oracle (silent failures, state desync, dead code)
-- Deepen planning quality (per-phase research, not just quick decomposition)
-- Verify every feature works end-to-end (skills, oracle, hive, pheromones)
-- Update all documentation to match reality (README, CLAUDE.md, docs/)
-- Modularize aether-utils.sh (extract unused code into optional modules)
-- Publish and verify clean install experience
 
 ## Requirements
 
 ### Validated
 
 - Colony lifecycle works (init, plan, build, continue, seal, entomb) — existing
-- 22 worker agents defined with caste roles — existing
+- 24 worker agents defined with caste roles — existing (updated from 22 in v2.4)
 - State management with file locking and atomic writes — existing
 - Pheromone signal storage (FOCUS/REDIRECT/FEEDBACK) — existing
 - NPM distribution via `aether-colony` package — existing
@@ -40,10 +28,19 @@ The system must reliably interpret a user request, decompose it into executable 
 - ✓ Fresh install hardened — lifecycle smoke test + content-aware validate-package.sh — v1.3
 - ✓ Documentation accuracy — all docs match verified behavior — v1.3
 - ✓ 537+ tests passing (AVA + bash) — v1.3
+- ✓ QUEEN.md structured wisdom (4-section template, auto-populated by builds) — v2.2
+- ✓ Cross-colony hive brain with domain-scoped retrieval — v2.2
+- ✓ Per-caste model routing via slots (opus/sonnet/haiku) — v2.3
+- ✓ Oracle and Architect agents with wisdom pipeline wiring — v2.4
+- ✓ Fuzzy dedup for instincts + deterministic fallback learning extraction — v2.4
+- ✓ Repo scanning module — tech stack, directory, git, survey, complexity in <2s — v2.5
+- ✓ Charter management — colony-name + charter-write populating QUEEN.md v2 sections — v2.5
+- ✓ Smart init — scan-assemble-approve-create flow with re-init safety — v2.5
+- ✓ Intelligence enrichment — prior colony context, pheromone suggestions, governance inference — v2.5
 
 ### Active
 
-(Defined in REQUIREMENTS.md for v2.1)
+(No active milestone — planning next)
 
 ### Out of Scope
 
@@ -52,22 +49,25 @@ The system must reliably interpret a user request, decompose it into executable 
 - Multi-repo colony coordination — future architecture work
 - Performance optimization (state caching, lock backoff) — defer unless blocking
 - Agent Teams inter-worker communication — subagents can't communicate mid-execution
-- Per-worker model routing — Claude Code Task tool doesn't support per-subagent env vars
+- LLM-generated prompts — non-deterministic and untestable; bash + jq assembly is deterministic
+- Full deep survey on every init — too slow; lightweight scan + suggestion instead
 
 ## Context
 
-- Aether is at v2.0.0, published on npm as `aether-colony`
-- v2.0 shipped: Skills system (28 skills), oracle distribution fix, v2 release
-- v1.3 shipped: Pheromone integration, learning pipeline, XML exchange, install hardening
-- 44 Claude commands, 44 OpenCode commands, 22 agents, 178 subcommands (76 unused per Oracle audit)
-- 11,272 lines in aether-utils.sh with rising bug-fix ratio (33.8% → 45.8%)
-- Oracle audit (82% confidence, 55 findings) identified: silent error suppression (338 instances), state desync risks, 43% dead code, documentation drift
-- Bug-fix ratio improving overall (17.5% Feb → 11.6% Mar) but spikes late in each period
-- 572+ tests passing (1 pre-existing failure in context-continuity)
+- Aether is at v2.5.0, shipped v2.5 Smart Init on 2026-03-27
+- v2.5 shipped: Smart init (repo scanning, charter management, approval flow, intelligence enrichment), 50 new tests
+- v2.4 shipped: Oracle + Architect agents, wisdom pipeline wiring, fuzzy dedup, deterministic fallback
+- v2.3 shipped: Per-caste model routing, model-slot CLI, 24 agents configured
+- v2.2 shipped: QUEEN.md structured wisdom, cross-colony hive brain, wisdom injection
+- v2.1 shipped: Error handling hardened, monolith modularized (10 modules), state API centralized
+- ~44 Claude commands, ~44 OpenCode commands, 24 agents, ~150+ subcommands across 10 domain modules
+- aether-utils.sh dispatcher + 10 domain modules (scan.sh added in v2.5)
+- 616+ tests passing, all green
+- Previous user feedback (QUEEN.md dead, init mechanical) addressed by v2.2-v2.5 milestones
 
 ## Constraints
 
-- **Testing**: All changes must maintain 537+ passing tests; new features need tests
+- **Testing**: All changes must maintain 616+ passing tests; new features need tests
 - **Compatibility**: Must work with bash 4+, Node 16+, jq 1.6+
 - **Distribution**: Changes must pass `bin/validate-package.sh` (content-aware) before publish
 - **No breaking changes**: Existing colonies using Aether must not break on update
@@ -82,10 +82,15 @@ The system must reliably interpret a user request, decompose it into executable 
 | Clean before integrating | Test data must be purged before pheromone integration can be validated | ✓ Good — Phase 1 first, integration phases after |
 | Principle-based agent protocols | Workers are LLMs — they understand intent, don't need 100-line rule sets | ✓ Good — 35 lines per agent, all effective |
 | Define "influence" structurally | Signal in prompt + agent has protocol = maximum testable without live LLM | ✓ Good — pragmatic definition, fully tested |
-
 | Oracle distribution fix | oracle.sh excluded from npm by .npmignore blanket rule | ✓ Good — moved to .aether/utils/oracle/, position-aware HUB_EXCLUDE |
-| Extract modules not rewrite | 76 unused subcommands should be modularized, not deleted | — Pending |
-| Deepen planning quality | Aether plans too quickly vs GSD's per-phase research depth | — Pending |
+| Extract modules not rewrite | 76 unused subcommands should be modularized, not deleted | ✓ Good — 9→10 domain modules extracted, 55% reduction |
+| Deepen planning quality | Aether plans too quickly vs GSD's per-phase research depth | ✓ Good — Step 3.6 research scout + 16K builder context |
+| Focus v2.2 on wisdom systems only | User test showed QUEEN.md and hive are dead features; ceremony/verification issues deferred | ✓ Good — v2.4 picks up where v2.2 left off |
+| Per-caste model routing via slots | GLM-5 needs tight constraints for reasoning castes; opus/sonnet slots provide clean routing | ✓ Good — 24 agents configured, caste table static |
+| Smart init as update-not-reset | Re-running init should update Queen file, not destroy colony state | ✓ Good — re-init skips template writes, charter-write updates in-place |
+| Add governance to QUEEN.md | QUEEN.md should be a full colony charter (intent, vision, governance) not just wisdom | ✓ Good — charter-write populates existing v2 sections, no new headers |
+| Intelligent colonize prompting | Users forget to colonize; system should suggest it at appropriate times | ✓ Good — scan detects stale/missing survey, suggests colonize in init prompt |
+| Deterministic prompt generation | Colony prompts must be testable and reproducible | ✓ Good — bash + jq assembly, 12 tested pattern checks |
 
 ---
-*Last updated: 2026-03-23 after v2.1 milestone start*
+*Last updated: 2026-03-27 after v2.5 milestone*
