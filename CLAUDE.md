@@ -12,7 +12,7 @@
 |------|--------------|
 | Version | v2.0.0 |
 | Slash commands | ~44 (Claude) + ~44 (OpenCode) |
-| Agent definitions | 22 |
+| Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
 | aether-utils.sh | ~5,200 lines (dispatcher), ~150 subcommands across all modules |
 | Utils | ~29 scripts (9 domain modules + infrastructure + XML) |
@@ -49,7 +49,7 @@
 │   .aether/dreams/      ← LOCAL ONLY (excluded by .npmignore)    │
 │                                                                  │
 │   .claude/commands/ant/ ← 44 slash commands (Claude Code)       │
-│   .claude/agents/ant/   ← 22 agent definitions                  │
+│   .claude/agents/ant/   ← 24 agent definitions                  │
 │   .opencode/commands/ant/ ← 44 slash commands (OpenCode)        │
 │   .opencode/agents/     ← Agent definitions (OpenCode)          │
 │                                                                  │
@@ -165,7 +165,7 @@ aether update      # or /ant:update
 │   ├── build.md         # Build orchestrator (loads split playbooks)
 │   ├── continue.md      # Continue orchestrator (loads split playbooks)
 │   └── ...
-├── agents/ant/          # 22 agent definitions
+├── agents/ant/          # 24 agent definitions
 │   ├── aether-builder.md
 │   ├── aether-watcher.md
 │   ├── aether-scout.md
@@ -207,7 +207,7 @@ Consolidated guidelines in `.claude/rules/`:
 
 ---
 
-## The 22 Agents
+## The 24 Agents
 
 | Tier | Agent | Role |
 |------|-------|------|
@@ -216,6 +216,7 @@ Consolidated guidelines in `.claude/rules/`:
 | Orchestration | Queen | Orchestrates phases, spawns workers |
 | Orchestration | Scout | Researches, gathers information |
 | Orchestration | Route-Setter | Plans phases, breaks down goals |
+| Orchestration | Architect | Architecture design, structural planning |
 | Surveyor | surveyor-nest | Maps directory structure |
 | Surveyor | surveyor-disciplines | Documents conventions |
 | Surveyor | surveyor-pathogens | Identifies tech debt |
@@ -231,6 +232,7 @@ Consolidated guidelines in `.claude/rules/`:
 | Niche | Includer | Accessibility audits |
 | Niche | Measurer | Performance analysis (NEW) |
 | Niche | Sage | Wisdom synthesis |
+| Niche | Oracle | Deep research, actionable recommendations |
 | Niche | Ambassador | External integrations |
 | Niche | Chronicler | Documentation |
 

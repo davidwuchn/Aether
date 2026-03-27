@@ -19,9 +19,11 @@ Caste                Slot     Active
 ────────────────────────────────────
 [reasoning]
   Archaeologist      opus     yes
+  Architect          opus     yes
   Auditor            opus     yes
   Gatekeeper         opus     yes
   Measurer           opus     yes
+  Oracle             opus     yes
   Queen              opus     yes
   Route-setter       opus     yes
   Sage               opus     yes
@@ -89,7 +91,7 @@ System Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Utils: ✓ Operational
 Proxy: {status from Step 2}
-Castes: 22 defined (8 opus, 11 sonnet, 3 inherit)
+Castes: 24 defined (10 opus, 11 sonnet, 3 inherit)
 Routing: Per-caste via agent frontmatter model: field
 ```
 

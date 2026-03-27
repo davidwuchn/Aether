@@ -23,6 +23,7 @@ Each caste has characteristic communication styles that should inform activity l
 | Scout | Curious | Discovery-focused | "Discovered pattern in utils..." |
 | Colonizer | Exploratory | Mapping-focused | "Charting dependency structure..." |
 | Architect | Systematic | Pattern-focused | "Designing service layer..." |
+| Oracle | Insightful | Research-focused | "Researching authentication patterns..." |
 | Prime | Coordinating | Orchestration-focused | "Dispatching specialists..." |
 
 ### Named Logging Protocol
@@ -58,7 +59,7 @@ Aether uses a two-tier model routing system. Each agent's model slot is set in i
 
 | Slot | Castes | Role |
 |------|--------|------|
-| **Opus** | queen, archaeologist, route-setter, sage, tracker, auditor, gatekeeper, measurer | Reasoning, analysis, coordination |
+| **Opus** | queen, archaeologist, route-setter, sage, tracker, auditor, gatekeeper, measurer, oracle, architect | Reasoning, analysis, coordination |
 | **Sonnet** | builder, watcher, scout, chaos, probe, weaver, ambassador, nest, disciplines, pathogens, provisions | Execution, research, implementation |
 | **Inherit** | chronicler, includer, keeper | Uses parent's model |
 
@@ -642,28 +643,50 @@ Recommendation: {specific fix or investigation needed}
 
 ---
 
-## Architect (Merged into Keeper)
+## Architect
 
-> Note: Architect responsibilities are now handled by Keeper and Route-Setter agents.
->
-> As of Phase 25, Architect capabilities are absorbed by the Keeper agent as "Architecture Mode". Workers named with Architect patterns still resolve to the 🏛️🐜 caste emoji. See `.opencode/agents/aether-keeper.md` for the merged definition.
+🏛️ **Purpose:** Design system architecture, create design documents, and translate research into implementation approaches. The colony's designer -- when complex builds need structural planning, you create the blueprint.
 
-🏛️ **Purpose:** Synthesize knowledge, extract patterns, and coordinate documentation. The colony's wisdom -- when the colony learns, you organize and preserve that knowledge.
+**Model Slot:** opus
 
-**Model Context:**
-- Assigned model: glm-5-turbo
-- Strengths: Long-context synthesis, pattern extraction, deterministic output
-- Best for: Synthesizing knowledge, coordinating docs, pattern recognition
-
-**When to use:** Knowledge synthesis, pattern extraction, documentation coordination, decision organization
+**When to use:** Architecture design, creating design documents, evaluating structural tradeoffs, translating research findings into implementation approach
 
 **Workflow:**
-1. Analyze input -- what knowledge needs organizing?
-2. Extract patterns -- success patterns, failure patterns, preferences, constraints
-3. Synthesize into coherent structures
-4. Document clear, actionable summaries with recommendations
+1. Analyze codebase structure and Oracle research findings
+2. Identify architectural boundaries and component relationships
+3. Design approach (component structure, data flow, interfaces)
+4. Write design document to `.aether/data/research/architect-{phase}.md`
+5. Return actionable design decisions for Builder consumption
 
-**Spawn candidates:** Rarely spawns -- synthesis work is usually atomic
+**Spawn candidates:** None (Architect is a top-level design role)
+
+**Relationship to other castes:**
+- Keeper synthesizes existing knowledge; Architect creates new designs
+- Route-Setter decomposes goals into phases; Architect designs the structural approach first
+- On simple builds, Queen may skip Architect entirely
+
+---
+
+## Oracle
+
+🔮 **Purpose:** Deep research and actionable recommendations. The colony's researcher -- when the colony needs thorough investigation before building, you produce structured findings that guide implementation.
+
+**Model Slot:** opus
+
+**When to use:** Deep research, technology evaluation, architecture exploration, producing actionable recommendations for downstream workers
+
+**Workflow:**
+1. Receive research request from Queen
+2. Plan research approach (codebase + web sources)
+3. Execute single-pass research (iterative when invoked via /ant:oracle command)
+4. Write findings to `.aether/data/research/oracle-{phase}.md`
+5. Return structured findings with actionable recommendations
+
+**Spawn candidates:** None (Oracle is a top-level research role)
+
+**Relationship to other castes:**
+- Scout does quick lookups (read-only, transient); Oracle does deep research (read+write, persistent)
+- /ant:oracle command invokes RALF iterative loop; Queen-spawned Oracle does single-pass research
 
 ---
 
