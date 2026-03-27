@@ -11,22 +11,22 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 Phase: 22 of 24 (Per-Caste Model Routing)
 Plan: 03 of 3
-Status: Ready to execute
-Last activity: 2026-03-27 -- 22-02 complete (agent frontmatter: 8 opus, 11 sonnet, 3 inherit; mirror synced)
+Status: Complete
+Last activity: 2026-03-27 -- 22-03 complete (documentation rewrite: workers.md + verify-castes.md)
 
-Progress: [====      ] 66%
+Progress: [======    ] 100%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 47
+- Total plans completed: 48
 - Average duration: 5min
 - Total execution time: 3.9 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
 - v2.2 completed 4 phases, 5 plans
-- v2.3: 4 phases planned, Phase 21 complete, Phase 22 Plan 02 complete (agent frontmatter model slots)
+- v2.3: 4 phases planned, Phase 21 complete, Phase 22 complete (3/3 plans: YAML routing config, agent frontmatter, documentation)
 
 *Updated after each plan completion*
 
@@ -47,6 +47,7 @@ Progress: [====      ] 66%
 - [v2.3/22-01]: keeper placed on inherit tier (3 inherit castes: chronicler, includer, keeper) -- CONTEXT.md listed only 2, needs update
 - [v2.3/22-01]: Slot-based worker_models: castes store slot names (opus/sonnet/inherit), model_slots section provides resolution table
 - [v2.3/22-02]: Agent frontmatter model: field activates Claude Code native routing -- 8 opus, 11 sonnet, 3 inherit across 22 agents
+- [v2.3/22-03]: OpenCode verify-castes mirror updated alongside Claude Code version for sync policy parity
 
 ### Pending Todos
 
@@ -61,5 +62,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 22-02 (Phase 22 agent frontmatter: model slot assignments synced to mirror)
+Stopped at: Completed 22-03 (Phase 22 documentation rewrite: workers.md + verify-castes.md)
 Resume file: None
