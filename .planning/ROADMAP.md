@@ -52,8 +52,8 @@
 **Milestone Goal:** Reasoning-heavy castes use GLM-5 via the opus slot while execution castes stay on GLM-5-turbo via sonnet, using model-profiles.yaml as the single source of truth.
 
 - [x] **Phase 21: Test Infrastructure Refactor** - Centralize test mocks to read from model-profiles.yaml so tests survive YAML changes (completed 2026-03-27)
-- [ ] **Phase 22: Config Foundation & Core Routing** - Map castes to model slots via agent frontmatter, update settings and YAML config
-- [ ] **Phase 23: Tooling & Overrides** - Slot resolution functions, CLI subcommand, and build-time model override flag
+- [x] **Phase 22: Config Foundation & Core Routing** - Map castes to model slots via agent frontmatter, update settings and YAML config (completed 2026-03-27)
+- [x] **Phase 23: Tooling & Overrides** - Slot resolution functions, CLI subcommand, and build-time model override flag (completed 2026-03-27)
 - [ ] **Phase 24: Safety & Verification** - Spawn-tree tracking, verify-castes display, GLM-5 loop warnings, config swap docs
 
 ## Phase Details
@@ -94,7 +94,9 @@
   2. The `getModelSlotForCaste()` function in bin/lib/model-profiles.js returns the correct slot for all 22 castes when reading from model-profiles.yaml
   3. Passing `--model opus` to `/ant:build <phase>` forces all workers in that build to use the opus slot regardless of their default assignment
   4. Invalid slot names (e.g., `--model gpt-4`) produce a clear error listing the valid options (opus, sonnet, haiku, inherit)
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 23-01-PLAN.md — Add getModelSlotForCaste and validateSlot to model-profiles.js (TDD)
+  - [ ] 23-02-PLAN.md — Add model-slot CLI subcommand and update build override validation
 
 ### Phase 24: Safety & Verification
 **Goal**: Users can verify which model slot each caste uses at runtime, spawned workers show their slot in the spawn tree, and GLM-5 loop risk is documented in reasoning caste agent definitions
@@ -105,7 +107,9 @@
   2. `/ant:verify-castes` prints a table mapping every caste to its assigned model slot, with reasoning castes visually distinguished from execution castes
   3. The queen, archaeologist, and route-setter agent definitions contain a safety note warning about GLM-5 loop risk when generation constraints are not enforced
   4. A user reading workers.md or verify-castes.md can follow step-by-step instructions to swap between Claude API and GLM proxy modes
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 24-01-PLAN.md — Auto-resolve model slot in spawn-tree entries and add GLM-5 loop warnings to opus-caste agents
+  - [ ] 24-02-PLAN.md — Reformat verify-castes to 3-column table and consolidate config swap docs
 
 ## Progress
 
@@ -134,7 +138,7 @@ Phases execute in numeric order: 21 -> 22 -> 23 -> 24
 | 18. Local Wisdom Injection | v2.2 | Complete | Complete | 2026-03-25 |
 | 19. Cross-Colony Hive | v2.2 | Complete | Complete | 2026-03-25 |
 | 20. Hub Wisdom Layer | v2.2 | Complete | Complete | 2026-03-25 |
-| 21. Test Infrastructure Refactor | v2.3 | Complete    | 2026-03-27 | - |
-| 22. Config Foundation & Core Routing | v2.3 | 0/3 | Not started | - |
-| 23. Tooling & Overrides | v2.3 | 0/? | Not started | - |
-| 24. Safety & Verification | v2.3 | 0/? | Not started | - |
+| 21. Test Infrastructure Refactor | v2.3 | Complete | Complete | 2026-03-27 |
+| 22. Config Foundation & Core Routing | v2.3 | Complete | Complete | 2026-03-27 |
+| 23. Tooling & Overrides | v2.3 | Complete | Complete | 2026-03-27 |
+| 24. Safety & Verification | v2.3 | 0/2 | Not started | - |
