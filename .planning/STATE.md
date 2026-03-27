@@ -10,21 +10,22 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 30 of 32 (Charter Management)
-Plan: 1 of 2 complete
-Status: 30-01 charter functions complete -- ready for 30-02
-Last activity: 2026-03-27 — 30-01 charter-write and colony-name subcommands (2 tasks, 2 commits, 616 tests passing)
+Plan: 2 of 2 complete
+Status: Phase 30 complete -- charter functions implemented and tested
+Last activity: 2026-03-27 -- 30-02 charter management tests (12 tests, 1 commit, 615+ tests passing)
 
-Progress: [███░░░░░░] 23%
+Progress: [███░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 62
+- Total plans completed: 63
 - Average duration: 5min
-- Total execution time: 5.1 hours
+- Total execution time: 5.3 hours
 
 **Recent Trend:**
 - v2.4: 4 phases completed (25-28), 8 plans total, all shipped 2026-03-27
+- v2.5: Phase 30 complete (2 plans), Phase 31 in progress
 - v2.3: 4 phases completed (21-24), 10 plans total
 - v2.2: 4 phases completed (17-20), 5 plans total
 
@@ -48,6 +49,9 @@ Recent decisions affecting v2.5 work:
 - [v2.5]: assert_json_has_field from test-helpers.sh only supports top-level keys -- use jq -e for nested paths
 - [v2.5]: macOS sed lacks \u Unicode escape -- use awk for title case conversion
 - [v2.5]: Charter entries counted in METADATA stats to prevent drift on repeated re-inits
+- [v2.5]: xml-utils.sh requires exchange/ directory at source time -- test setup must copy both utils/ and exchange/
+- [v2.5]: macOS head -n -1 not portable -- use sed '$d' for stripping last line from sed range extraction
+- [v2.5]: json_err writes error JSON to stderr -- error path tests must capture stderr (2>&1)
 
 ### Pending Todos
 
@@ -61,5 +65,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 30-01 charter functions (2 tasks, 2 commits, charter-write + colony-name subcommands)
+Stopped at: Completed 30-02 charter tests (12 tests, 1 commit, CHARTER-01/02/03 verified)
 Resume file: None
