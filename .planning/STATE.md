@@ -10,23 +10,23 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 22 of 24 (Per-Caste Model Routing)
-Plan: 01 of --
-Status: Ready to plan
-Last activity: 2026-03-27 -- 21-03 complete (integration test gap closure, helper accessors)
+Plan: 02 of 3
+Status: Ready to execute
+Last activity: 2026-03-27 -- 22-01 complete (config foundation: slot-based YAML, REQUIREMENTS.md aligned, spawn-with-model.sh deprecated)
 
-Progress: [===       ] 54%
+Progress: [===       ] 55%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 45
+- Total plans completed: 46
 - Average duration: 5min
-- Total execution time: 3.8 hours
+- Total execution time: 3.9 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
 - v2.2 completed 4 phases, 5 plans
-- v2.3: 4 phases planned, Phase 21 complete (test infrastructure refactor done)
+- v2.3: 4 phases planned, Phase 21 complete, Phase 22 Plan 01 complete (config foundation done)
 
 *Updated after each plan completion*
 
@@ -44,6 +44,8 @@ Progress: [===       ] 54%
 - [v2.3/21-02]: Soft-gate regression test logs violations without failing -- avoids false positives from legitimate test inputs
 - [v2.3/21-02]: Module-level YAML-derived constants (BUILDER_MODEL, ALT_MODEL) at file top avoid repeated helper calls
 - [v2.3/21-03]: Loop-based provider verification in integration tests -- automatically covers new models added to YAML
+- [v2.3/22-01]: keeper placed on inherit tier (3 inherit castes: chronicler, includer, keeper) -- CONTEXT.md listed only 2, needs update
+- [v2.3/22-01]: Slot-based worker_models: castes store slot names (opus/sonnet/inherit), model_slots section provides resolution table
 
 ### Pending Todos
 
@@ -58,5 +60,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 21-03 (Phase 21 gap closure complete)
+Stopped at: Completed 22-01 (Phase 22 config foundation: slot-based YAML, REQUIREMENTS.md aligned)
 Resume file: None
