@@ -9,23 +9,23 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 31 of 32 (init.md Smart Init Rewrite) -- PHASE COMPLETE
-Plan: 2 of 2 complete
-Status: Plan 31-02 complete -- 7 integration tests for smart init flow bash components
-Last activity: 2026-03-27 -- 31-02 smart init flow integration tests (2 tasks, 1 commit, 616 tests passing)
+Phase: 32 of 32 (Intelligence Enhancements) -- IN PROGRESS
+Plan: 1 of 3 complete
+Status: Plan 32-01 complete -- intelligence sub-scan functions in scan.sh
+Last activity: 2026-03-27 -- 32-01 intelligence sub-scans (2 tasks, 2 commits, 616 tests passing)
 
-Progress: [██████░░░] 53%
+Progress: [██████░░░] 56%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 65
+- Total plans completed: 66
 - Average duration: 5min
-- Total execution time: 5.5 hours
+- Total execution time: 5.6 hours
 
 **Recent Trend:**
 - v2.4: 4 phases completed (25-28), 8 plans total, all shipped 2026-03-27
-- v2.5: Phase 30 complete (2 plans), Phase 31 complete (2 plans)
+- v2.5: Phase 30 complete (2 plans), Phase 31 complete (2 plans), Phase 32 in progress (1/3 plans)
 - v2.3: 4 phases completed (21-24), 10 plans total
 - v2.2: 4 phases completed (17-20), 5 plans total
 
@@ -55,6 +55,10 @@ Recent decisions affecting v2.5 work:
 - [v2.5]: Re-init mode skips all template writes (COLONY_STATE, constraints, runtime files) -- only charter-write + session-init to preserve state
 - [v2.5]: Max 2 revision rounds for init approval prompt -- forces final approve/cancel decision after edits
 - [v2.5]: Scan failure degrades gracefully with fallback values -- init never stops because init-research fails
+- [v2.5]: Max 3 prior colonies shown in colony_context (most recent first by directory name sort)
+- [v2.5]: Pheromone suggestions use 10 deterministic pattern checks, not LLM inference
+- [v2.5]: Governance rules focus on process/standards (TDD, linting, CI), not technology choices
+- [v2.5]: Legacy manifest formats (phases_completed as array) handled via jq type check
 
 ### Pending Todos
 
@@ -68,5 +72,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 31-02 smart init flow integration tests (2 tasks, 1 commit, 616 tests passing)
+Stopped at: Completed 32-01 intelligence sub-scans (2 tasks, 2 commits, 616 tests passing)
 Resume file: None
