@@ -186,22 +186,181 @@ _scan_git_history() {
     '{is_git_repo: true, commit_count: $commit_count, recent_commits: $recent_commits}'
 }
 
-# Scan survey status -- returns whether a territory survey exists and is stale
-# STUB: Plan 29-02 will implement real scanning logic
+# Scan survey status -- check territory survey freshness (SCAN-02)
+# Usage: _scan_survey_status <repo_root>
+# Returns: raw JSON via stdout
 _scan_survey_status() {
-  json_ok '{"has_survey":false,"is_stale":false}'
+  local root="${1:-.}"
+  local survey_dir="$root/.aether/data/survey"
+  local state_file="$root/.aether/data/COLONY_STATE.json"
+
+  # Check if survey directory exists
+  if [[ ! -d "$survey_dir" ]]; then
+    jq -n '{has_survey: false, is_stale: false, suggestion: {action: "colonize", reason: "No territory survey found. Run /ant:colonize to map the codebase before planning."}}'
+    return
+  fi
+
+  # Check survey completeness (7 required docs)
+  local required="PROVISIONS.md TRAILS.md BLUEPRINT.md CHAMBERS.md DISCIPLINES.md SENTINEL-PROTOCOLS.md PATHOGENS.md"
+  local missing=""
+  for doc in $required; do
+    [[ ! -f "$survey_dir/$doc" ]] && missing="$missing $doc"
+  done
+
+  if [[ -n "$missing" ]]; then
+    local missing_json
+    missing_json=$(echo "$missing" | jq -R 'split(" ") | map(select(length > 0))')
+    jq -n \
+      --argjson missing "$missing_json" \
+      '{has_survey: true, is_stale: false, is_complete: false, missing: $missing, suggestion: {action: "colonize", reason: "Survey is incomplete (missing documents). Run /ant:colonize --force-resurvey to remap."}}'
+    return
+  fi
+
+  # Check staleness from COLONY_STATE.json territory_surveyed field
+  local surveyed_at=""
+  if [[ -f "$state_file" ]]; then
+    surveyed_at=$(jq -r '.territory_surveyed // empty' "$state_file" 2>/dev/null || echo "")
+  fi
+
+  if [[ -z "$surveyed_at" ]]; then
+    # No timestamp in state -- fall back to file modification times
+    local oldest_ts
+    if [[ "$(uname)" == "Linux" ]]; then
+      oldest_ts=$(find "$survey_dir" -name "*.md" -exec stat -c %Y {} \; 2>/dev/null | sort -n | head -1)
+    else
+      oldest_ts=$(find "$survey_dir" -name "*.md" -exec stat -f %m {} \; 2>/dev/null | sort -n | head -1)
+    fi
+    if [[ -n "$oldest_ts" ]]; then
+      local now_ts
+      now_ts=$(date +%s)
+      local age_days=$(( (now_ts - oldest_ts) / 86400 ))
+      if [[ "$age_days" -gt 7 ]]; then
+        jq -n \
+          --argjson age "$age_days" \
+          '{has_survey: true, is_stale: true, age_days: $age, suggestion: {action: "colonize", reason: "Survey is \($age) days old. Run /ant:colonize --force-resurvey for fresh data."}}'
+        return
+      fi
+    fi
+  else
+    # Parse ISO-8601 timestamp and compare
+    local surveyed_epoch
+    if [[ "$(uname)" == "Linux" ]]; then
+      surveyed_epoch=$(date -d "$surveyed_at" "+%s" 2>/dev/null || echo 0)
+    else
+      surveyed_epoch=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$surveyed_at" "+%s" 2>/dev/null || echo 0)
+    fi
+    local now_epoch
+    now_epoch=$(date +%s)
+    local age_days=$(( (now_epoch - surveyed_epoch) / 86400 ))
+    if [[ "$age_days" -gt 7 ]]; then
+      jq -n \
+        --argjson age "$age_days" \
+        --arg surveyed_at "$surveyed_at" \
+        '{has_survey: true, is_stale: true, age_days: $age, surveyed_at: $surveyed_at, suggestion: {action: "colonize", reason: "Survey is \($age) days old. Run /ant:colonize --force-resurvey for fresh data."}}'
+      return
+    fi
+  fi
+
+  # Survey is fresh and complete
+  jq -n '{has_survey: true, is_stale: false, is_complete: true}'
 }
 
-# Scan prior colonies -- returns active colony state and archived colonies
-# STUB: Plan 29-02 will implement real scanning logic
+# Scan prior colonies -- detect active colony state and archived colonies
+# Usage: _scan_prior_colonies <repo_root>
+# Returns: raw JSON via stdout
 _scan_prior_colonies() {
-  json_ok '{"has_active_colony":false,"active_goal":"","archived_colonies":[]}'
+  local root="${1:-.}"
+  local chambers_dir="$root/.aether/chambers"
+  local state_file="$root/.aether/data/COLONY_STATE.json"
+
+  local colonies="[]"
+  local has_active="false"
+  local active_goal=""
+
+  # Check for active colony
+  if [[ -f "$state_file" ]]; then
+    local goal state
+    goal=$(jq -r '.goal // empty' "$state_file" 2>/dev/null || echo "")
+    state=$(jq -r '.state // empty' "$state_file" 2>/dev/null || echo "")
+    if [[ -n "$goal" && "$state" != "SEALED" ]]; then
+      has_active="true"
+      active_goal="$goal"
+    fi
+  fi
+
+  # Check for archived colonies in chambers
+  if [[ -d "$chambers_dir" ]]; then
+    for chamber in "$chambers_dir"/*/; do
+      [[ -d "$chamber" ]] || continue
+      local chamber_name
+      chamber_name=$(basename "$chamber")
+
+      # Skip hidden dirs
+      [[ "$chamber_name" == .* ]] && continue
+
+      local chamber_state="$chamber/COLONY_STATE.json"
+      [[ -f "$chamber_state" ]] || continue
+
+      local chamber_goal chamber_date
+      chamber_goal=$(jq -r '.goal // "unknown"' "$chamber_state" 2>/dev/null || echo "unknown")
+      chamber_date=$(jq -r '.initialized_at // "unknown"' "$chamber_state" 2>/dev/null || echo "unknown")
+
+      colonies=$(echo "$colonies" | jq \
+        --arg name "$chamber_name" \
+        --arg goal "$chamber_goal" \
+        --arg date "$chamber_date" \
+        '. + [{name: $name, goal: $goal, initialized_at: $date}]')
+    done
+  fi
+
+  jq -n \
+    --argjson has_active "$has_active" \
+    --arg active_goal "$active_goal" \
+    --argjson colonies "$colonies" \
+    '{has_active_colony: $has_active, active_goal: $active_goal, archived_colonies: $colonies}'
 }
 
-# Scan complexity -- returns size classification and metrics
-# STUB: Plan 29-02 will implement real scanning logic
+# Scan complexity -- estimate repo complexity (SCAN-03)
+# Usage: _scan_complexity <repo_root>
+# Returns: raw JSON via stdout
 _scan_complexity() {
-  json_ok '{"size":"small","metrics":{"file_count":0,"max_directory_depth":0,"dependency_count":0}}'
+  local root="${1:-.}"
+  local exclude_flags
+  exclude_flags=$(_scan_find_exclude_flags)
+
+  # File count (excluding common directories)
+  local file_count
+  file_count=$(find "$root" -maxdepth 5 -type f $exclude_flags 2>/dev/null | wc -l | tr -d ' ')
+
+  # Max directory depth
+  local max_depth
+  max_depth=$(find "$root" -type d $exclude_flags 2>/dev/null | awk -F/ '{print NF-2}' | sort -rn | head -1)
+  [[ -z "$max_depth" || "$max_depth" == "0" ]] && max_depth=1
+
+  # Dependency count from package manifests
+  local dep_count=0
+  if [[ -f "$root/package.json" ]]; then
+    dep_count=$(jq '[.dependencies // {}, .devDependencies // {}] | add | keys | length' "$root/package.json" 2>/dev/null || echo 0)
+  elif [[ -f "$root/Cargo.toml" ]]; then
+    dep_count=$(grep -c '^\[' "$root/Cargo.toml" 2>/dev/null || echo 0)
+  elif [[ -f "$root/go.mod" ]]; then
+    dep_count=$(grep -c '^[a-z]' "$root/go.mod" 2>/dev/null || echo 0)
+  fi
+
+  # Classification thresholds
+  local size="small"
+  if [[ "$file_count" -gt 500 ]] || [[ "$max_depth" -gt 8 ]] || [[ "$dep_count" -gt 50 ]]; then
+    size="large"
+  elif [[ "$file_count" -gt 100 ]] || [[ "$max_depth" -gt 5 ]] || [[ "$dep_count" -gt 15 ]]; then
+    size="medium"
+  fi
+
+  jq -n \
+    --arg size "$size" \
+    --argjson file_count "$file_count" \
+    --argjson max_depth "$max_depth" \
+    --argjson dep_count "$dep_count" \
+    '{size: $size, metrics: {file_count: $file_count, max_directory_depth: $max_depth, dependency_count: $dep_count}}'
 }
 
 # Main entry point: scan repo and produce structured research JSON
