@@ -9,23 +9,23 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 25 — Agent Definitions (Oracle + Architect)
-Plan: 2/2 complete (both executed)
-Status: Phase 25 complete — ready for Phase 26 (Build Pipeline Wiring)
-Last activity: 2026-03-27 — 25-02 complete (Oracle + Architect wired into build flow, docs updated to 24 agents)
+Phase: 26 — Wisdom Pipeline Wiring
+Plan: 1/1 complete (26-01 executed)
+Status: Phase 26 plan 01 complete — hive-promote wired into continue, consolidated wisdom summary added
+Last activity: 2026-03-27 — 26-01 complete (hive-promote in continue-advance, wisdom summary in continue-finalize)
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 53
+- Total plans completed: 54
 - Average duration: 5min
-- Total execution time: 4.3 hours
+- Total execution time: 4.4 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
 - v2.2 completed 4 phases, 5 plans
 - v2.3: 4 phases planned, Phase 21 complete, Phase 22 complete (3/3 plans), Phase 23 complete (2/2 plans), Phase 24 complete (2/2 plans: safety warnings + spawn-tree resolution + caste table + config swap)
-- v2.4: Roadmap created, 4 phases planned (25-28), 11 requirements mapped, Phase 25 complete (2/2 plans: agent defs + build wiring)
+- v2.4: Roadmap created, 4 phases planned (25-28), 11 requirements mapped, Phase 25 complete (2/2 plans: agent defs + build wiring), Phase 26 in progress (1/1 plans: hive-promote + wisdom summary)
 
 *Updated after each plan completion*
 
@@ -41,6 +41,9 @@ Last activity: 2026-03-27 — 25-02 complete (Oracle + Architect wired into buil
 - [v2.4/25-02]: Oracle spawns before Architect, both before workers — non-blocking failures (log warning, continue build)
 - [v2.4/25-02]: Architect in Orchestration tier, Oracle in Niche tier in CLAUDE.md agent table
 - [v2.4/25-02]: Pre-worker specialist spawn pattern: Oracle (research) -> Architect (design) -> Workers (implementation)
+- [v2.4/26-01]: Cross-stage echo pattern for hive_promoted_count and hive_error since shell vars don't persist between Bash tool invocations
+- [v2.4/26-01]: hive-promote runs in continue-advance (not finalize) -- finalize only consumes results for summary line
+- [v2.4/26-01]: Confidence threshold >= 0.8 for hive promotion in continue, matching seal.md pattern
 - [v2.3]: Phase 1 must complete before any model-profiles.yaml changes -- 184 hardcoded model names in tests will break otherwise
 - [v2.3]: Use Approach A (agent frontmatter) for MVP routing -- simpler than Task tool model param, zero playbook changes needed
 - [v2.3]: Aether routes by slot name (opus/sonnet), never by actual model name -- keeps dual-mode support clean
@@ -76,5 +79,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 25-02 (Oracle + Architect wired into build flow)
+Stopped at: Completed 26-01 (hive-promote + wisdom summary wired into continue flow)
 Resume file: None
