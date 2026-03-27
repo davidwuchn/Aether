@@ -5,28 +5,28 @@
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 23 -- Tooling Overrides (v2.3)
+**Current focus:** Phase 24 -- Safety Verification (v2.3)
 
 ## Current Position
 
-Phase: 23 of 24 (Tooling Overrides)
-Plan: 01 of 2
+Phase: 24 of 24 (Safety Verification)
+Plan: 02 of 2
 Status: Complete
-Last activity: 2026-03-27 -- 23-01 complete (slot resolution and validation functions)
+Last activity: 2026-03-27 -- 24-02 complete (compact caste table + config swap docs)
 
-Progress: [======    ] 50%
+Progress: [=========] 88%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 49
+- Total plans completed: 51
 - Average duration: 5min
-- Total execution time: 4.0 hours
+- Total execution time: 4.2 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
 - v2.2 completed 4 phases, 5 plans
-- v2.3: 4 phases planned, Phase 21 complete, Phase 22 complete (3/3 plans), Phase 23 in progress (1/2 plans: slot functions)
+- v2.3: 4 phases planned, Phase 21 complete, Phase 22 complete (3/3 plans), Phase 23 complete (2/2 plans), Phase 24 complete (2/2 plans: safety warnings + spawn-tree resolution + caste table + config swap)
 
 *Updated after each plan completion*
 
@@ -50,6 +50,10 @@ Progress: [======    ] 50%
 - [v2.3/22-03]: OpenCode verify-castes mirror updated alongside Claude Code version for sync policy parity
 - [v2.3/23-01]: getModelSlotForCaste returns DEFAULT_SLOT ('inherit') for missing castes -- silent fallback, no console warnings
 - [v2.3/23-01]: validateSlot uses {valid, error} return pattern for centralized slot-name validation
+- [v2.3/24-01]: Spawn-tree auto-resolution uses bash $0 subprocess to model-slot get -- avoids tight coupling between spawn.sh and model-slot modules
+- [v2.3/24-01]: GLM-5 safety warnings in XML-style glm_safety blocks for machine-parseability
+- [v2.3/24-02]: Static caste table in command files -- avoids dynamic resolution failure modes
+- [v2.3/24-02]: Claude API as explicit default in all config swap docs, GLM proxy opt-in
 
 ### Pending Todos
 
@@ -64,5 +68,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 23-01 (slot resolution and validation functions)
+Stopped at: Completed 24-02 (compact caste table + config swap docs)
 Resume file: None
