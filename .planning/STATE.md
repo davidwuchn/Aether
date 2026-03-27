@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 29 of 32 (Repo Scanning Module)
-Plan: 1 of 3 complete
-Status: Plan 29-02 ready
-Last activity: 2026-03-27 — 29-01 scan.sh module skeleton complete
+Plan: 2 of 3 complete
+Status: Plan 29-03 ready
+Last activity: 2026-03-27 — 29-02 scan implementations complete (6 functions, 1.037s perf)
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 59
+- Total plans completed: 60
 - Average duration: 5min
-- Total execution time: 4.8 hours
+- Total execution time: 4.9 hours
 
 **Recent Trend:**
 - v2.4: 4 phases completed (25-28), 8 plans total, all shipped 2026-03-27
@@ -41,6 +41,9 @@ Recent decisions affecting v2.5 work:
 - [v2.5]: scan.sh is a new bash utils module (10th domain module) -- init-research subcommand provides structured JSON research data
 - [v2.5]: Prompt generation is deterministic bash+jq assembly within init.md, NOT LLM-generated
 - [v2.5]: Approval loop is LLM-mediated (Claude Code is the UI) -- display Markdown, wait for user response, continue
+- [v2.5]: Sub-scan functions return raw JSON via stdout, entry point _scan_init_research wraps final assembly in json_ok
+- [v2.5]: Complexity thresholds: large (500+ files OR 8+ depth OR 50+ deps), medium (100+ OR 5+ OR 15+), small otherwise
+- [v2.5]: Survey staleness uses 7-day window with COLONY_STATE.json timestamp as primary, file mtime as fallback
 
 ### Pending Todos
 
@@ -50,10 +53,9 @@ None yet.
 
 - Approval loop UX is unvalidated -- the LLM-mediated approval pattern needs user testing (flagged in research)
 - Token budget impact of charter content is uncertain -- research recommends 500-char cap for smart-init content to avoid crowding colony-earned wisdom
-- scan.sh performance on large repos unvalidated -- 2-second target may need tuning
 
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 29-01 scan.sh module skeleton (2 tasks, 2 commits)
+Stopped at: Completed 29-02 scan implementations (2 tasks, 2 commits)
 Resume file: None
