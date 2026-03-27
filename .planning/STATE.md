@@ -10,14 +10,14 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 ## Current Position
 
 Phase: 28 — Integration Validation
-Plan: 1/3 complete (28-01 executed)
-Status: 28-01 complete -- fixed 7 pre-existing test failures (agent count 22->24, spawn-tree data pollution), 616 tests passing
-Last activity: 2026-03-27 — 28-01 complete (test baseline repair: agent count assertions + spawn-tree cleanup)
+Plan: 2/3 complete (28-01, 28-02 executed)
+Status: 28-02 complete -- wisdom pipeline E2E tests (4 tests), 616 tests passing, full pipeline validated
+Last activity: 2026-03-27 — 28-02 complete (wisdom pipeline E2E: memory-capture -> hive-read)
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 56
+- Total plans completed: 57
 - Average duration: 5min
 - Total execution time: 4.8 hours
 
@@ -25,7 +25,7 @@ Last activity: 2026-03-27 — 28-01 complete (test baseline repair: agent count 
 - v2.1 completed 8 phases, 39 plans in ~3 hours
 - v2.2 completed 4 phases, 5 plans
 - v2.3: 4 phases planned, Phase 21 complete, Phase 22 complete (3/3 plans), Phase 23 complete (2/2 plans), Phase 24 complete (2/2 plans: safety warnings + spawn-tree resolution + caste table + config swap)
-- v2.4: Roadmap created, 4 phases planned (25-28), 11 requirements mapped, Phase 25 complete (2/2 plans: agent defs + build wiring), Phase 26 complete (1/1 plans: hive-promote + wisdom summary), Phase 27 complete (2/2 plans: fuzzy dedup + fallback extraction), Phase 28 in progress (1/3 plans: test baseline repair)
+- v2.4: Roadmap created, 4 phases planned (25-28), 11 requirements mapped, Phase 25 complete (2/2 plans: agent defs + build wiring), Phase 26 complete (1/1 plans: hive-promote + wisdom summary), Phase 27 complete (2/2 plans: fuzzy dedup + fallback extraction), Phase 28 in progress (2/3 plans: test baseline repair + wisdom pipeline E2E)
 
 *Updated after each plan completion*
 
@@ -70,6 +70,7 @@ Last activity: 2026-03-27 — 28-01 complete (test baseline repair: agent count 
 - [v2.4/27-02]: Used jq for file grouping/sorting instead of bash associative arrays (bash 3.2 compatibility on macOS)
 - [v2.4/27-02]: Cross-stage echo pattern for fallback_count (same as hive_promoted_count) since shell vars don't persist between Bash tool invocations
 - [v2.4/28-01]: Sonnet tier has 11 castes (not 13 as initially assumed) -- verified against model-profiles.yaml, test assertions must match actual data
+- [v2.4/28-02]: Enhanced parseLastJson with 3-level fallback (last-line, full-output, backward-brace-scan) for pretty-printed multi-line JSON from subprocess commands
 
 ### Pending Todos
 
@@ -84,5 +85,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 28-01 (test baseline repair: agent count 22->24, spawn-tree cleanup)
+Stopped at: Completed 28-02 (wisdom pipeline E2E tests: 4 tests, full pipeline validated)
 Resume file: None
