@@ -602,12 +602,39 @@ On the first message of a new conversation, check if `.aether/data/session.json`
 
 ---
 
+## Wisdom Pipeline
+
+The Wisdom Pipeline is the core learning loop of Aether v2.4. Colony work produces
+observations that flow through the system and become reusable wisdom.
+
+### Pipeline Stages
+
+| Stage | Subcommand | Output |
+|-------|-----------|--------|
+| 1. Observe | `memory-capture "learning"` | Records observation to learning-observations.json |
+| 2. Auto-promote | (internal: `learning-promote-auto`) | Triggers after threshold (2 observations for patterns) |
+| 3. Instinct | `instinct-create` | Stores in COLONY_STATE.json with confidence score |
+| 4. QUEEN.md | `queen-promote` | Writes to QUEEN.md Patterns/Philosophies section |
+| 5. Inject | `colony-prime` prompt_section | QUEEN.md wisdom + instincts injected into worker context |
+| 6. Hive store | `hive-promote` | Abstracts instinct, stores in hive wisdom.json (confidence >= 0.8) |
+| 7. Hive read | `hive-read` | Retrieves cross-colony wisdom scoped by domain |
+
+### Key Thresholds
+
+- **Auto-promotion:** Pattern observations need 2 captures to trigger; confidence starts at 0.75
+- **Hive promotion:** Instincts with confidence >= 0.8 are promoted to Hive Brain at `/ant:seal`
+- **Cross-colony boost:** Multi-repo confirmation raises confidence (2 repos = 0.70, 4+ = 0.95)
+
+See [Hive Brain](#hive-brain-cross-colony-wisdom) for cross-colony wisdom details.
+
+---
+
 ## The Core Insight
 
 The system's pieces are now **connected**:
 - Pheromones update context (colony-prime injects signals into worker prompts)
 - Decisions become pheromones (auto-emit during builds)
-- Learnings become instincts (observation to promotion pipeline)
+- Learnings become instincts (observation to promotion pipeline -- see Wisdom Pipeline above)
 - Midden affects behavior (threshold auto-REDIRECT)
 - Hive Brain crosses colony boundaries (domain-scoped wisdom -> colony-prime)
 - Instincts promote to hive at seal (confidence >= 0.8 -> hive-promote)
