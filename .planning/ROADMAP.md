@@ -6,7 +6,8 @@
 - ✅ **v2.1 Production Hardening** — Phases 9-16 (shipped 2026-03-24)
 - ✅ **v2.2 Living Wisdom** — Phases 17-20 (shipped 2026-03-25)
 - ✅ **v2.3 Per-Caste Model Routing** — Phases 21-24 (shipped 2026-03-27)
-- 🔄 **v2.4 Living Wisdom** — Phases 25-28 (in progress)
+- ✅ **v2.4 Living Wisdom** — Phases 25-28 (shipped 2026-03-27)
+- 📋 **v2.5 Smart Init** — Phases 29-32 (planned)
 
 ## Phases
 
@@ -59,108 +60,101 @@
 </details>
 
 <details>
-<summary>v2.4 Living Wisdom (Phases 25-28) — IN PROGRESS</summary>
+<summary>v2.4 Living Wisdom (Phases 25-28) — SHIPPED 2026-03-27</summary>
 
-- [x] **Phase 25: Agent Definitions (Oracle + Architect)** — AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05 (completed 2026-03-27)
-- [x] **Phase 26: Wisdom Pipeline Wiring** — PIPE-01, PIPE-02, PIPE-04 (completed 2026-03-27)
-- [x] **Phase 27: Deterministic Fallback + Dedup** — PIPE-03, VAL-02 (completed 2026-03-27)
-- [ ] **Phase 28: Integration Validation** — VAL-01
+- [x] **Phase 25: Agent Definitions (Oracle + Architect)** — completed 2026-03-27
+- [x] **Phase 26: Wisdom Pipeline Wiring** — completed 2026-03-27
+- [x] **Phase 27: Deterministic Fallback + Dedup** — completed 2026-03-27
+- [x] **Phase 28: Integration Validation** — completed 2026-03-27
 
 </details>
 
+### 📋 v2.5 Smart Init (Planned)
+
+**Milestone Goal:** Make `/ant:init` an intelligent first step -- research the repo, generate a structured colony prompt, show it for approval, and manage the Queen file as a living colony charter.
+
+- [ ] **Phase 29: Repo Scanning Module** — SCAN-01, SCAN-02, SCAN-03
+- [ ] **Phase 30: Charter Management** — CHARTER-01, CHARTER-02, CHARTER-03
+- [ ] **Phase 31: Init.md Smart Init Rewrite** — PROMPT-01, PROMPT-02, PROMPT-03
+- [ ] **Phase 32: Intelligence Enhancements** — INTEL-01, INTEL-02, INTEL-03
+
 ## Phase Details
 
-### Phase 25: Agent Definitions (Oracle + Architect)
-
-**Requirements:** AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05
-**Research needed:** No — all 22 existing agents follow identical structure
-**Depends on:** Nothing (purely additive)
-
-Create dedicated agent definition files for Oracle and Architect castes, filling the two documented gaps in the agent roster. Both get opus model slot routing for reasoning depth. Oracle is spawnable by Queen during builds (not just via /ant:oracle command). Architect has a design-create mode for writing architecture docs.
-
-**Plans:** 2/2 plans complete
+### Phase 29: Repo Scanning Module
+**Goal**: System scans repo key files, directory structure, and git history before initialization, producing structured research data in under 2 seconds
+**Depends on**: Nothing (foundation for all smart init features)
+**Requirements**: SCAN-01, SCAN-02, SCAN-03
+**Success Criteria** (what must be TRUE):
+  1. Running `aether init-research` in a repo outputs JSON containing tech stack detection, directory structure summary, git history summary, and prior colony detection
+  2. The scan completes in under 2 seconds on a medium-sized repo (hundreds of files)
+  3. When no territory survey exists or the survey is stale, the output includes a suggestion to run `/ant:colonize` with the reason
+  4. The output includes a repo complexity estimate (small/medium/large) derived from file count, directory depth, and dependency count
+**Plans:** 3 plans
 
 Plans:
-- [ ] 25-01-PLAN.md — Create Oracle + Architect agent definitions and mirrors (6 new files)
-- [ ] 25-02-PLAN.md — Wire agents into build flow and update documentation (5 files modified)
-
-**Success criteria:**
-1. `aether-oracle.md` exists in `.claude/agents/ant/` with `model: opus` frontmatter and proper role/execution_flow/pheromone_protocol sections
-2. `aether-architect.md` exists in `.claude/agents/ant/` with `model: opus` frontmatter, design-create mode, and distinct role from Keeper and Route-Setter
-3. Both agent files are mirrored to `.opencode/agents/` and `.aether/agents-claude/` with structural parity
-4. Queen's build-wave playbook references Oracle as a spawnable worker caste (not only slash-command-triggered)
-5. Agent count in workers.md and CLAUDE.md updated from 22 to 24
+- [ ] 29-01-PLAN.md — Create scan.sh module skeleton with stub functions and dispatch wiring
+- [ ] 29-02-PLAN.md — Implement all six scan functions (tech stack, directory, git, survey, colonies, complexity)
+- [ ] 29-03-PLAN.md — Add bash integration tests and verify 2-second performance target
 
 ---
 
-### Phase 26: Wisdom Pipeline Wiring
-
-**Requirements:** PIPE-01, PIPE-02, PIPE-04
-**Research needed:** Moderate — continue-advance.md is 434 lines; insertion points must be verified
-**Depends on:** Phase 25 (agents must exist before pipeline references them)
-
-Wire the existing wisdom functions into the continue-advance flow so that wisdom accumulates automatically during colony work. Add Step 3d to call `hive-promote` after instinct promotion (PIPE-01 already exists in continue-finalize.md Step 2.1.7). Both steps are non-blocking (failures logged but never stop the continue flow). Add consolidated wisdom summary line replacing scattered echo feedback.
-
-**Plans:** 1/1 plans complete
+### Phase 30: Charter Management
+**Goal**: Colony charter content (intent, vision, governance, goals) populates QUEEN.md through existing v2 sections without creating new headers
+**Depends on**: Nothing (independent of scan module, uses existing queen.sh patterns)
+**Requirements**: CHARTER-01, CHARTER-02, CHARTER-03
+**Success Criteria** (what must be TRUE):
+  1. Calling the charter write function with intent and vision content writes tagged `[charter]` entries to the QUEEN.md `## User Preferences` section
+  2. Calling the charter write function with governance rules and goals writes tagged `[charter]` entries to the QUEEN.md `## Codebase Patterns` section
+  3. Running the charter write function on a colony that already has charter content updates entries in-place without removing existing wisdom, instincts, learnings, pheromones, or phase progress
+  4. No new `## ` headers are created in QUEEN.md -- all 7+ downstream consumers continue to parse correctly after charter writes
+**Plans**: TBD
 
 Plans:
-- [ ] 26-01-PLAN.md — Add hive-promote Step 3d to continue-advance and consolidated wisdom summary to continue-finalize
-
-**Success criteria:**
-1. After running `/ant:continue`, the QUEEN.md `## Build Learnings` section contains new entries from the completed phase
-2. After running `/ant:continue` with high-confidence instincts (>= 0.8), `~/.aether/hive/wisdom.json` receives new entries
-3. Continue output displays a wisdom summary line (e.g., "3 learnings recorded, 1 instinct promoted to hive")
-4. Pipeline steps are non-blocking — if queen-write-learnings or hive-promote fail, continue completes normally with a logged warning
+- [ ] 30-01: Add charter write functions to queen.sh (write to User Preferences and Codebase Patterns sections with [charter] tags)
+- [ ] 30-02: Add re-init safety (update-only, never reset colony state) and colony-name helper subcommand
+- [ ] 30-03: Add tests for charter management (first init, re-init safety, no new headers)
 
 ---
 
-### Phase 27: Deterministic Fallback + Dedup
-
-**Requirements:** PIPE-03, VAL-02
-**Research needed:** Moderate — git-diff-based extraction quality is unvalidated
-**Depends on:** Phase 26 (pipeline must be wired before fallback can push data through it)
-
-Add a deterministic fallback for builder learning extraction. When AI agents skip learning output, extract learnings from git diff + test results. Also add content normalization to instinct deduplication so semantically similar instincts consolidate (not just SHA-256 exact match).
-
-**Plans:** 2/2 plans complete
+### Phase 31: Init.md Smart Init Rewrite
+**Goal**: `/ant:init` generates a structured colony initialization prompt from research data, displays it for user approval, and creates colony files only after approval
+**Depends on**: Phase 29 (scan data), Phase 30 (charter write functions)
+**Requirements**: PROMPT-01, PROMPT-02, PROMPT-03
+**Success Criteria** (what must be TRUE):
+  1. When a user runs `/ant:init "build a REST API"`, the system displays a structured approval prompt containing charter, pheromone, and context sections assembled from scan research data
+  2. The user can edit any section of the displayed prompt (charter text, pheromone signals, context notes) and approve or reject in a single interaction
+  3. After approval, the system creates colony files with the approved charter written to QUEEN.md using existing sections (no new headers)
+  4. Running `/ant:init` on an already-initialized colony updates the charter content without resetting colony state, wisdom, instincts, learnings, pheromones, or phase progress
+**Plans**: TBD
 
 Plans:
-- [ ] 27-01-PLAN.md — Add text normalization and fuzzy dedup to instinct-create (VAL-02)
-- [ ] 27-02-PLAN.md — Add git-diff-based fallback extraction and wire into continue (PIPE-03)
-
-**Success criteria:**
-1. When a builder produces synthesis JSON without `learning.patterns_observed`, the fallback extracts at least one learning from git diff and writes it to COLONY_STATE
-2. Creating an instinct similar to an existing one (same topic, different wording) consolidates into a single entry with incremented confidence, not a duplicate
-3. Content normalization handles common variations: whitespace, casing, punctuation, synonym substitution at the word level
-4. The fallback path is testable with a mock git diff producing deterministic learnings
+- [ ] 31-01: Refactor init.md to scan -> generate prompt -> display -> approve -> charter flow
+- [ ] 31-02: Implement deterministic prompt assembly (bash+jq) and approval loop (LLLM-mediated, single interaction)
+- [ ] 31-03: Add tests for init flow (first init, re-init, prompt generation determinism)
 
 ---
 
-### Phase 28: Integration Validation
-
-**Requirements:** VAL-01
-**Research needed:** No — follows established colony lifecycle test patterns
-**Depends on:** Phases 25, 26, 27 (validates the full chain)
-
-Write an end-to-end integration test that verifies the complete wisdom flow: build produces work, continue extracts learnings, QUEEN.md gets populated, hive brain receives promoted instincts. Also fix 7 pre-existing test failures from Phase 25 agent count change and spawn-tree data pollution.
-
-**Plans:** 2 plans
+### Phase 32: Intelligence Enhancements
+**Goal**: Init prompt enriched with prior colony context, research-derived pheromone suggestions, and inferred governance from codebase patterns
+**Depends on**: Phase 29 (scan data), Phase 31 (init.md rewrite must exist to inject intelligence into)
+**Requirements**: INTEL-01, INTEL-02, INTEL-03
+**Success Criteria** (what must be TRUE):
+  1. When prior colonies exist in chambers/tunnels, the approval prompt includes a "Prior Context" section summarizing completion reports and existing QUEEN.md charter content
+  2. The approval prompt includes suggested FOCUS and REDIRECT pheromone signals derived from research findings (e.g., test config present suggests FOCUS on testing, security issues suggest REDIRECT patterns)
+  3. When a CONTRIBUTING.md, test config, or similar governance files are detected, the approval prompt includes inferred governance suggestions (e.g., "TDD required" from test config, contribution rules from CONTRIBUTING.md)
+**Plans**: TBD
 
 Plans:
-- [ ] 28-01-PLAN.md — Fix 7 pre-existing test failures (agent count, caste tiers, spawn-tree data pollution)
-- [ ] 28-02-PLAN.md — Write E2E wisdom pipeline integration test (VAL-01)
-
-**Success criteria:**
-1. Integration test passes: memory-capture -> auto-promote -> QUEEN.md -> instinct-create -> colony-prime -> hive-promote -> hive-read
-2. All 594+ tests pass (0 failures)
-3. `bin/validate-package.sh` passes
+- [ ] 32-01: Add prior colony context inheritance (read completion reports and existing QUEEN.md charter content)
+- [ ] 32-02: Add pheromone suggestion engine (derive FOCUS/REDIRECT from research findings)
+- [ ] 32-03: Add governance inference (detect codebase patterns that imply governance rules) and integration tests
 
 ---
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 25 -> 26 -> 27 -> 28
+Phases execute in numeric order: 29 -> 30 -> 31 -> 32
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -188,25 +182,30 @@ Phases execute in numeric order: 25 -> 26 -> 27 -> 28
 | 22. Config Foundation & Core Routing | v2.3 | Complete | Complete | 2026-03-27 |
 | 23. Tooling & Overrides | v2.3 | Complete | Complete | 2026-03-27 |
 | 24. Safety & Verification | v2.3 | 2/2 | Complete | 2026-03-27 |
-| 25. Agent Definitions (Oracle + Architect) | v2.4 | Complete    | 2026-03-27 | — |
-| 26. Wisdom Pipeline Wiring | v2.4 | Complete    | 2026-03-27 | — |
-| 27. Deterministic Fallback + Dedup | v2.4 | Complete    | 2026-03-27 | — |
-| 28. Integration Validation | v2.4 | 0 | Pending | — |
+| 25. Agent Definitions (Oracle + Architect) | v2.4 | Complete | Complete | 2026-03-27 |
+| 26. Wisdom Pipeline Wiring | v2.4 | Complete | Complete | 2026-03-27 |
+| 27. Deterministic Fallback + Dedup | v2.4 | Complete | Complete | 2026-03-27 |
+| 28. Integration Validation | v2.4 | Complete | Complete | 2026-03-27 |
+| 29. Repo Scanning Module | v2.5 | 0/3 | Not started | - |
+| 30. Charter Management | v2.5 | 0/3 | Not started | - |
+| 31. Init.md Smart Init Rewrite | v2.5 | 0/3 | Not started | - |
+| 32. Intelligence Enhancements | v2.5 | 0/3 | Not started | - |
 
 ## Coverage Matrix
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AGNT-01 (Oracle agent file) | 25 | Pending |
-| AGNT-02 (Architect agent file) | 25 | Pending |
-| AGNT-03 (Agent mirrors) | 25 | Pending |
-| AGNT-04 (Oracle spawnable by Queen) | 25 | Pending |
-| AGNT-05 (Architect design-create mode) | 25 | Pending |
-| PIPE-01 (queen-write-learnings in continue) | 26 | Pending |
-| PIPE-02 (hive-promote in continue) | 26 | Pending |
-| PIPE-04 (Visible wisdom feedback) | 26 | Pending |
-| PIPE-03 (Deterministic fallback) | 27 | Pending |
-| VAL-02 (Content normalization dedup) | 27 | Pending |
-| VAL-01 (E2E integration test) | 28 | Pending |
+| SCAN-01 (Structured research scan <2s) | 29 | Pending |
+| SCAN-02 (Colonize suggestion when stale) | 29 | Pending |
+| SCAN-03 (Repo complexity estimation) | 29 | Pending |
+| PROMPT-01 (Deterministic prompt generation) | 31 | Pending |
+| PROMPT-02 (Display prompt for review) | 31 | Pending |
+| PROMPT-03 (User can edit before approve) | 31 | Pending |
+| CHARTER-01 (First init populates User Preferences) | 30 | Pending |
+| CHARTER-02 (First init populates Codebase Patterns) | 30 | Pending |
+| CHARTER-03 (Re-init updates without resetting) | 30 | Pending |
+| INTEL-01 (Inherit prior colony context) | 32 | Pending |
+| INTEL-02 (Suggest pheromones from research) | 32 | Pending |
+| INTEL-03 (Infer governance from patterns) | 32 | Pending |
 
-**Coverage: 11/11 requirements mapped (100%)**
+**Coverage: 12/12 requirements mapped (100%)**
