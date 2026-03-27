@@ -61,7 +61,7 @@
 <details>
 <summary>v2.4 Living Wisdom (Phases 25-28) — IN PROGRESS</summary>
 
-- [ ] **Phase 25: Agent Definitions (Oracle + Architect)** — AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05
+- [x] **Phase 25: Agent Definitions (Oracle + Architect)** — AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05 (completed 2026-03-27)
 - [ ] **Phase 26: Wisdom Pipeline Wiring** — PIPE-01, PIPE-02, PIPE-04
 - [ ] **Phase 27: Deterministic Fallback + Dedup** — PIPE-03, VAL-02
 - [ ] **Phase 28: Integration Validation** — VAL-01
@@ -78,7 +78,7 @@
 
 Create dedicated agent definition files for Oracle and Architect castes, filling the two documented gaps in the agent roster. Both get opus model slot routing for reasoning depth. Oracle is spawnable by Queen during builds (not just via /ant:oracle command). Architect has a design-create mode for writing architecture docs.
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 25-01-PLAN.md — Create Oracle + Architect agent definitions and mirrors (6 new files)
@@ -99,7 +99,12 @@ Plans:
 **Research needed:** Moderate — continue-advance.md is 434 lines; insertion points must be verified
 **Depends on:** Phase 25 (agents must exist before pipeline references them)
 
-Wire the existing wisdom functions into the continue-advance flow so that wisdom accumulates automatically during colony work. Add Step 2.6 to call `queen-write-learnings` after learning extraction, and Step 3d to call `hive-promote` after instinct promotion. Both steps are non-blocking (failures logged but never stop the continue flow). Add visible feedback so users see when wisdom is written.
+Wire the existing wisdom functions into the continue-advance flow so that wisdom accumulates automatically during colony work. Add Step 3d to call `hive-promote` after instinct promotion (PIPE-01 already exists in continue-finalize.md Step 2.1.7). Both steps are non-blocking (failures logged but never stop the continue flow). Add consolidated wisdom summary line replacing scattered echo feedback.
+
+**Plans:** 1/1 plan
+
+Plans:
+- [ ] 26-01-PLAN.md — Add hive-promote Step 3d to continue-advance and consolidated wisdom summary to continue-finalize
 
 **Success criteria:**
 1. After running `/ant:continue`, the QUEEN.md `## Build Learnings` section contains new entries from the completed phase
@@ -172,8 +177,8 @@ Phases execute in numeric order: 25 -> 26 -> 27 -> 28
 | 22. Config Foundation & Core Routing | v2.3 | Complete | Complete | 2026-03-27 |
 | 23. Tooling & Overrides | v2.3 | Complete | Complete | 2026-03-27 |
 | 24. Safety & Verification | v2.3 | 2/2 | Complete | 2026-03-27 |
-| 25. Agent Definitions (Oracle + Architect) | v2.4 | 2 | Planned | — |
-| 26. Wisdom Pipeline Wiring | v2.4 | 0 | Pending | — |
+| 25. Agent Definitions (Oracle + Architect) | v2.4 | Complete    | 2026-03-27 | — |
+| 26. Wisdom Pipeline Wiring | v2.4 | 0/1 | Pending | — |
 | 27. Deterministic Fallback + Dedup | v2.4 | 0 | Pending | — |
 | 28. Integration Validation | v2.4 | 0 | Pending | — |
 

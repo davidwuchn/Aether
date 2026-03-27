@@ -182,6 +182,72 @@ Update COLONY_STATE.json:
    This step is NON-BLOCKING -- if queen-promote-instinct fails for any entry, log and continue.
    The dedup check inside queen-promote-instinct ensures idempotency (safe to run repeatedly).
 
+3d. **Hive Promotion (NON-BLOCKING):**
+
+   After QUEEN.md promotion, promote abstracted instincts to the cross-colony hive.
+
+   Run using the Bash tool with description "Promoting high-confidence instincts to hive...":
+   ```bash
+   # Get instincts with confidence >= 0.8
+   high_conf_instincts=$(jq -r '.memory.instincts[] | select(.confidence >= 0.8) | @base64' .aether/data/COLONY_STATE.json 2>/dev/null || echo "")
+
+   # Derive source repo name from current directory
+   source_repo="$(pwd)"
+
+   # Read domain tags from registry (NOT from instinct.domain which is a category, not a repo domain)
+   repo_domain_tags=$(jq -r --arg repo "$(pwd)" \
+     '[.repos[] | select(.path == $repo) | .domain_tags // []] | .[0] // [] | join(",")' \
+     "$HOME/.aether/registry.json" 2>/dev/null || echo "")
+
+   hive_promoted_count=0
+   hive_errors=0
+   for encoded in $high_conf_instincts; do
+     [[ -z "$encoded" ]] && continue
+
+     # Extract trigger and action fields from the instinct object
+     trigger=$(echo "$encoded" | base64 -d | jq -r '.trigger // empty')
+     action=$(echo "$encoded" | base64 -d | jq -r '.action // empty')
+     confidence=$(echo "$encoded" | base64 -d | jq -r '.confidence // 0.7')
+
+     [[ -z "$trigger" || -z "$action" ]] && continue
+
+     # Strip leading "When " or "when " from trigger to avoid "When When..." stutter
+     trigger_clean=$(echo "$trigger" | sed 's/^[Ww]hen //')
+
+     # Build the promotion text in "When {trigger}: {action}" format
+     promote_text="When ${trigger_clean}: ${action}"
+
+     # Build hive-promote args with --text and --source-repo (required)
+     promote_args=(hive-promote --text "$promote_text" --source-repo "$source_repo" --confidence "$confidence")
+     [[ -n "$repo_domain_tags" ]] && promote_args+=(--domain "$repo_domain_tags")
+
+     # Call hive-promote which orchestrates abstract + store
+     result=$(bash .aether/aether-utils.sh "${promote_args[@]}" 2>/dev/null || echo '{}')
+     was_promoted=$(echo "$result" | jq -r '.result.action // "skipped"' 2>/dev/null || echo "skipped")
+
+     if [[ "$was_promoted" == "promoted" || "$was_promoted" == "merged" ]]; then
+       hive_promoted_count=$((hive_promoted_count + 1))
+     else
+       hive_errors=$((hive_errors + 1))
+     fi
+   done
+
+   if [[ "$hive_promoted_count" -gt 0 ]]; then
+     echo "Hive promotion: $hive_promoted_count instinct(s) promoted to cross-colony hive"
+   fi
+
+   # Store results for cross-stage summary line
+   echo "hive_promoted_count=$hive_promoted_count"
+   hive_error=$([[ $hive_errors -gt 0 ]] && echo 'true' || echo 'false')
+   echo "hive_error=$hive_error"
+   ```
+
+   This step promotes high-confidence instincts to the cross-colony hive. It runs every /ant:continue and is idempotent -- hive-store deduplicates via SHA-256, so re-promoting existing instincts is safe.
+
+   NON-BLOCKING: hive promotion failures never stop the continue flow.
+
+   **Cross-stage variable passing:** The `hive_promoted_count` and `hive_error` values are output via echo for cross-stage capture. **IMPORTANT:** When executing continue-finalize.md after this step, Claude must capture these echoed values from the advance output and pass them as variables when running the finalize wisdom summary code. Shell variables do not persist between Bash tool invocations, so this explicit capture-and-forward step is required.
+
 4. **Advance state:**
    - Set `current_phase` to next phase number
    - Set `state` to `"READY"`

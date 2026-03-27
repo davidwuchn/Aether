@@ -5,28 +5,27 @@
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 24 -- Safety Verification (v2.3)
+**Current focus:** v2.4 Living Wisdom
 
 ## Current Position
 
-Phase: 24 of 24 (Safety Verification)
-Plan: 02 of 2
-Status: Complete
-Last activity: 2026-03-27 -- 24-02 complete (compact caste table + config swap docs)
-
-Progress: [=========] 88%
+Phase: 25 — Agent Definitions (Oracle + Architect)
+Plan: 2/2 complete (both executed)
+Status: Phase 25 complete — ready for Phase 26 (Build Pipeline Wiring)
+Last activity: 2026-03-27 — 25-02 complete (Oracle + Architect wired into build flow, docs updated to 24 agents)
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 51
+- Total plans completed: 53
 - Average duration: 5min
-- Total execution time: 4.2 hours
+- Total execution time: 4.3 hours
 
 **Recent Trend:**
 - v2.1 completed 8 phases, 39 plans in ~3 hours
 - v2.2 completed 4 phases, 5 plans
 - v2.3: 4 phases planned, Phase 21 complete, Phase 22 complete (3/3 plans), Phase 23 complete (2/2 plans), Phase 24 complete (2/2 plans: safety warnings + spawn-tree resolution + caste table + config swap)
+- v2.4: Roadmap created, 4 phases planned (25-28), 11 requirements mapped, Phase 25 complete (2/2 plans: agent defs + build wiring)
 
 *Updated after each plan completion*
 
@@ -34,6 +33,14 @@ Progress: [=========] 88%
 
 ### Decisions
 
+- [v2.4]: 4-phase structure: agents first (independent), pipeline wiring (highest value), fallback+dedup (depends on pipeline), integration validation (depends on all)
+- [v2.4]: Phase numbering continues from v2.3 end (phase 24) — v2.4 starts at phase 25
+- [v2.4/25-01]: Oracle output convention: .aether/data/research/oracle-{phase_id}.md -- shared research directory with Architect
+- [v2.4/25-01]: Architect output convention: .aether/data/research/architect-{phase_id}.md -- write-to-research-dir, must-not-modify-source-code boundary
+- [v2.4/25-01]: Oracle distinguished from Scout by Write capability + deeper research + actionable recommendations; Architect distinguished from Keeper by creating new designs vs synthesizing knowledge
+- [v2.4/25-02]: Oracle spawns before Architect, both before workers — non-blocking failures (log warning, continue build)
+- [v2.4/25-02]: Architect in Orchestration tier, Oracle in Niche tier in CLAUDE.md agent table
+- [v2.4/25-02]: Pre-worker specialist spawn pattern: Oracle (research) -> Architect (design) -> Workers (implementation)
 - [v2.3]: Phase 1 must complete before any model-profiles.yaml changes -- 184 hardcoded model names in tests will break otherwise
 - [v2.3]: Use Approach A (agent frontmatter) for MVP routing -- simpler than Task tool model param, zero playbook changes needed
 - [v2.3]: Aether routes by slot name (opus/sonnet), never by actual model name -- keeps dual-mode support clean
@@ -46,7 +53,7 @@ Progress: [=========] 88%
 - [v2.3/21-03]: Loop-based provider verification in integration tests -- automatically covers new models added to YAML
 - [v2.3/22-01]: keeper placed on inherit tier (3 inherit castes: chronicler, includer, keeper) -- CONTEXT.md listed only 2, needs update
 - [v2.3/22-01]: Slot-based worker_models: castes store slot names (opus/sonnet/inherit), model_slots section provides resolution table
-- [v2.3/22-02]: Agent frontmatter model: field activates Claude Code native routing -- 8 opus, 11 sonnet, 3 inherit across 22 agents
+- [v2.3/22-02]: Agent frontmatter model: field activates Claude Code native routing -- 10 opus, 11 sonnet, 3 inherit across 24 agents
 - [v2.3/22-03]: OpenCode verify-castes mirror updated alongside Claude Code version for sync policy parity
 - [v2.3/23-01]: getModelSlotForCaste returns DEFAULT_SLOT ('inherit') for missing castes -- silent fallback, no console warnings
 - [v2.3/23-01]: validateSlot uses {valid, error} return pattern for centralized slot-name validation
@@ -61,12 +68,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- GLM-5 constraint passing through subagent spawning is unverified -- if Claude Code does not forward temperature/top_p/max_tokens, reasoning castes may loop on GLM-5
-- Task tool `model` parameter vs frontmatter precedence untested -- if Task param does not override frontmatter, Approach B cannot coexist with Approach A
-- Oracle and Architect castes lack dedicated agent files -- their work runs through Queen or direct CLI, which may use the wrong model
+- Builder learning extraction quality is unvalidated — git-diff-based fallback is the biggest uncertainty in v2.4
+- Hive brain is a chicken-and-egg problem — first colony to use the pipeline will not benefit from cross-colony wisdom (expected behavior)
+- GLM-5 constraint passing through subagent spawning is unverified — deferred (not blocking v2.4)
+- Task tool `model` parameter vs frontmatter precedence untested — deferred (not blocking v2.4)
 
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 24-02 (compact caste table + config swap docs)
+Stopped at: Completed 25-02 (Oracle + Architect wired into build flow)
 Resume file: None
