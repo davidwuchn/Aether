@@ -5,27 +5,27 @@
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** v2.5 Smart Init -- Phase 30: Charter Management
+**Current focus:** v2.5 Smart Init -- Phase 31: init.md Smart Init Rewrite
 
 ## Current Position
 
-Phase: 30 of 32 (Charter Management)
-Plan: 2 of 2 complete
-Status: Phase 30 complete -- charter functions implemented and tested
-Last activity: 2026-03-27 -- 30-02 charter management tests (12 tests, 1 commit, 615+ tests passing)
+Phase: 31 of 32 (init.md Smart Init Rewrite)
+Plan: 1 of 2 complete
+Status: Plan 31-01 complete -- init.md rewritten with scan-assemble-approve-create flow
+Last activity: 2026-03-27 -- 31-01 smart init rewrite (2 tasks, 2 commits, 616 tests passing)
 
-Progress: [███░░░░░░] 25%
+Progress: [███░░░░░░] 26%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
-- Total plans completed: 63
+- Total plans completed: 64
 - Average duration: 5min
-- Total execution time: 5.3 hours
+- Total execution time: 5.4 hours
 
 **Recent Trend:**
 - v2.4: 4 phases completed (25-28), 8 plans total, all shipped 2026-03-27
-- v2.5: Phase 30 complete (2 plans), Phase 31 in progress
+- v2.5: Phase 30 complete (2 plans), Phase 31 in progress (1/2 plans complete)
 - v2.3: 4 phases completed (21-24), 10 plans total
 - v2.2: 4 phases completed (17-20), 5 plans total
 
@@ -52,6 +52,9 @@ Recent decisions affecting v2.5 work:
 - [v2.5]: xml-utils.sh requires exchange/ directory at source time -- test setup must copy both utils/ and exchange/
 - [v2.5]: macOS head -n -1 not portable -- use sed '$d' for stripping last line from sed range extraction
 - [v2.5]: json_err writes error JSON to stderr -- error path tests must capture stderr (2>&1)
+- [v2.5]: Re-init mode skips all template writes (COLONY_STATE, constraints, runtime files) -- only charter-write + session-init to preserve state
+- [v2.5]: Max 2 revision rounds for init approval prompt -- forces final approve/cancel decision after edits
+- [v2.5]: Scan failure degrades gracefully with fallback values -- init never stops because init-research fails
 
 ### Pending Todos
 
@@ -65,5 +68,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-27
-Stopped at: Completed 30-02 charter tests (12 tests, 1 commit, CHARTER-01/02/03 verified)
+Stopped at: Completed 31-01 smart init rewrite (2 tasks, 2 commits, 616 tests passing)
 Resume file: None
