@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "archived_at_count": 1,
+  "archived_at_count": 2,
   "signals": [
     {
       "id": "sig_redirect_001",
@@ -29,6 +29,23 @@
         "global": true
       },
       "archived_at": "2026-03-20T19:50:49Z"
+    },
+    {
+      "id": "sig_focus_1773991045_1869",
+      "type": "FOCUS",
+      "priority": "normal",
+      "source": "test",
+      "created_at": "2026-03-20T07:17:25Z",
+      "expires_at": "2026-03-21T07:17:25Z",
+      "active": false,
+      "strength": 0.8,
+      "reason": "test",
+      "content": {
+        "text": "Focus on error handling in auth module"
+      },
+      "content_hash": "623f01cf9eb62f6a8bdb1f2b3ea0c3318741f478c578928c3fc2371ec2173a10",
+      "reinforcement_count": 0,
+      "archived_at": "2026-03-27T14:47:05Z"
     }
   ],
   "entries": [

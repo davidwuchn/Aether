@@ -1246,18 +1246,20 @@ async function updateRepo(repoPath, sourceVersion, opts) {
   // Target directories for git safety checks
   const targetDirs = ['.aether', '.claude/commands/ant', '.claude/agents/ant', '.claude/rules', '.opencode/commands/ant', '.opencode/agents'];
 
-  // Git safety: check for dirty files in target directories (skip in dry-run mode)
+  // Use UpdateTransaction for two-phase commit with automatic rollback
+  const transaction = new UpdateTransaction(repoPath, { sourceVersion, quiet, force });
+
+  // Git safety: only warn about dirty files the update would actually overwrite
   let dirtyFiles = [];
-  if (isGitRepo(repoPath)) {
-    dirtyFiles = getGitDirtyFiles(repoPath, targetDirs);
-    if (dirtyFiles.length > 0 && !force) {
+  if (isGitRepo(repoPath) && !force) {
+    const wouldOverwrite = new Set(transaction.getConflictingFiles());
+    const allDirty = getGitDirtyFiles(repoPath, targetDirs);
+    dirtyFiles = allDirty.filter(f => wouldOverwrite.has(f));
+    if (dirtyFiles.length > 0) {
       return { status: 'dirty', files: dirtyFiles };
     }
     // Note: --force handling is now done via checkpoint stash in UpdateTransaction
   }
-
-  // Use UpdateTransaction for two-phase commit with automatic rollback
-  const transaction = new UpdateTransaction(repoPath, { sourceVersion, quiet, force });
 
   try {
     const result = await transaction.execute(sourceVersion, { dryRun });
@@ -2003,7 +2005,7 @@ casteModelsCmd
       const proxyStatus = formatProxyStatusColored(proxyHealth, c) + c.dim(` @ ${proxyConfig.endpoint}`);
       console.log(`Proxy: ${proxyStatus}`);
       if (!proxyHealth?.healthy) {
-        console.log(c.warning('Warning: Using default model (kimi-k2.5) for all castes'));
+        console.log(c.warning('Warning: Using default model (glm-5-turbo) for all castes'));
       }
       console.log('');
     }

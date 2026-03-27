@@ -368,6 +368,42 @@
     "decisions": [],
     "instincts": [
       {
+        "id": "instinct_1774619576",
+        "trigger": "when working on documentation",
+        "action": "Updated project documentation",
+        "confidence": 0.8999999999999999,
+        "status": "hypothesis",
+        "domain": "documentation",
+        "source": "fallback-phase-4",
+        "evidence": [
+          "Modified 5 files in .planning (231+/0- lines)"
+        ],
+        "tested": false,
+        "created_at": "2026-03-27T13:52:56Z",
+        "last_applied": "2026-03-27T13:59:04Z",
+        "applications": 4,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774619578",
+        "trigger": "when working on testing",
+        "action": "Added tests, improving test coverage",
+        "confidence": 0.8999999999999999,
+        "status": "hypothesis",
+        "domain": "testing",
+        "source": "fallback-phase-4",
+        "evidence": [
+          "Modified 1 files in tests/integration (221+/0- lines)"
+        ],
+        "tested": false,
+        "created_at": "2026-03-27T13:52:58Z",
+        "last_applied": "2026-03-27T13:59:04Z",
+        "applications": 4,
+        "successes": 0,
+        "failures": 0
+      },
+      {
         "id": "instinct_inherited_1",
         "trigger": "bash accumulation loops with pipes",
         "action": "Use process substitution not pipes for accumulation loops",
@@ -397,6 +433,42 @@
         "created_at": "2026-03-22T19:48:49Z",
         "last_applied": null,
         "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774619575",
+        "trigger": "when working on source",
+        "action": "Extended or modified .aether/utils module code",
+        "confidence": 0.7999999999999999,
+        "status": "hypothesis",
+        "domain": "source",
+        "source": "fallback-phase-4",
+        "evidence": [
+          "Modified 3 files in .aether/utils (341+/0- lines)"
+        ],
+        "tested": false,
+        "created_at": "2026-03-27T13:52:55Z",
+        "last_applied": "2026-03-27T13:53:40Z",
+        "applications": 3,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774618130",
+        "trigger": "test",
+        "action": "test",
+        "confidence": 0.7,
+        "status": "hypothesis",
+        "domain": "workflow",
+        "source": "",
+        "evidence": [
+          ""
+        ],
+        "tested": false,
+        "created_at": "2026-03-27T13:28:50Z",
+        "last_applied": "2026-03-27T13:31:14Z",
+        "applications": 2,
         "successes": 0,
         "failures": 0
       },
@@ -489,6 +561,24 @@
         "applications": 0,
         "successes": 0,
         "failures": 0
+      },
+      {
+        "id": "instinct_1774619944",
+        "trigger": "when working on source",
+        "action": "Extended or modified bin module code",
+        "confidence": 0.5,
+        "status": "hypothesis",
+        "domain": "source",
+        "source": "fallback-phase-4",
+        "evidence": [
+          "Modified 2 files in bin (54+/0- lines)"
+        ],
+        "tested": false,
+        "created_at": "2026-03-27T13:59:04Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
       }
     ]
   },
@@ -512,5 +602,6 @@
     "2026-03-23T16:01:40Z|milestone_reached|seal|Achieved Crowned Anthill milestone"
   ],
   "milestone": "Crowned Anthill",
-  "milestone_updated_at": "2026-03-23T16:01:40Z"
+  "milestone_updated_at": "2026-03-23T16:01:40Z",
+  "colony_name": "Aether Colony"
 }

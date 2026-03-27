@@ -30,6 +30,7 @@ This only applies to genuinely new conversations, not after /clear.
 | `/ant:continue` | Verify work, extract learnings, advance |
 | `/ant:run` | Autopilot -- builds, verifies, learns, and advances through phases automatically |
 | `/ant:preferences` | Add or list user preferences in hub QUEEN.md |
+| `/ant:help` | Command reference and system overview |
 
 ### Pheromone Signals
 | Command | Priority | Purpose |
@@ -47,6 +48,9 @@ This only applies to genuinely new conversations, not after /clear.
 | `/ant:flag "<title>"` | Create a flag |
 | `/ant:history` | Browse colony events |
 | `/ant:watch` | Live tmux monitoring |
+| `/ant:pheromones` | View and manage active pheromone signals |
+| `/ant:memory-details` | Show detailed colony memory — wisdom, pending promotions, recent failures |
+| `/ant:verify-castes` | Verify colony caste assignments and system status |
 
 ### Session Management
 | Command | Purpose |
@@ -76,6 +80,9 @@ This only applies to genuinely new conversations, not after /clear.
 | `/ant:organize` | Codebase hygiene report |
 | `/ant:council` | Intent clarification |
 | `/ant:skill-create "<topic>"` | Create custom domain skill with Oracle research |
+| `/ant:insert-phase` | Insert a corrective phase into the active plan |
+| `/ant:tunnels` | Browse archived colonies, compare chambers |
+| `/ant:migrate-state` | One-time state migration from v1 to v2.0 format |
 
 ### Data & Exchange
 | Command | Purpose |
