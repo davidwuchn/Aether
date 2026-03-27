@@ -1106,7 +1106,7 @@ case "$cmd" in
       {"name": "activity-log", "description": "Append an entry to the activity log"},
       {"name": "activity-log-init", "description": "Initialize the activity log file"},
       {"name": "activity-log-read", "description": "Read recent activity log entries"},
-      {"name": "generate-commit-message", "description": "Generate a commit message from git diff"},
+      {"name": "generate-commit-message", "description": "Generate a commit message (types: milestone, pause, fix, contextual, seal)"},
       {"name": "version-check", "description": "Check if Aether version meets requirement"},
       {"name": "registry-add", "description": "Register a repo with Aether (supports --tags, --goal, --active)"},
       {"name": "registry-list", "description": "List all registered repos with metadata"},
@@ -2190,7 +2190,7 @@ EOF
   generate-commit-message)
     # Generate an intelligent commit message from colony context
     # Usage: generate-commit-message <type> <phase_id> <phase_name> [summary|ai_description] [plan_num]
-    # Types: "milestone" | "pause" | "fix" | "contextual"
+    # Types: "milestone" | "pause" | "fix" | "contextual" | "seal"
     # Returns: {"message": "...", "body": "...", "files_changed": N, ...}
 
     msg_type="${1:-milestone}"
@@ -2256,6 +2256,28 @@ Files: ${files_changed} files changed"
 
         # Return enhanced JSON with additional metadata
         json_ok "{\"message\":\"$message\",\"body\":\"$body\",\"files_changed\":$files_changed,\"subsystem\":\"$subsystem\",\"scope\":\"${phase_id}.${plan_num}\"}"
+        exit 0
+        ;;
+      seal)
+        # Format: aether-seal: <goal summary>
+        # Usage: generate-commit-message seal <total_phases> <goal> [colony_age_days]
+        # phase_id = total_phases, phase_name = goal, summary = colony_age_days
+        seal_total="$phase_id"
+        seal_goal="$phase_name"
+        seal_age="${summary:-}"
+
+        message="aether-seal: ${seal_goal}"
+
+        # Build body with colony summary (use literal \n for JSON)
+        body="Crowned Anthill reached. ${seal_total} phases completed."
+        [[ -n "$seal_age" ]] && body="${body} Colony age: ${seal_age} days."
+
+        # Truncate message before JSON
+        if [[ ${#message} -gt 72 ]]; then
+          message="${message:0:69}..."
+        fi
+
+        json_ok "{\"message\":\"$message\",\"body\":\"$body\",\"files_changed\":$files_changed}"
         exit 0
         ;;
       *)
