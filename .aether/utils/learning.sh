@@ -1382,11 +1382,107 @@ _instinct_read() {
 }
 
 # ============================================================================
+# _normalize_text
+# Canonical text form for fuzzy comparison: lowercase, strip punctuation,
+# collapse whitespace, synonym substitution, stop word removal
+# Usage: _normalize_text "When Implementing Tests"
+# Output: stdout (e.g., "writing testing")
+# ============================================================================
+_normalize_text() {
+    local text="$1"
+
+    # Guard: empty input
+    [[ -z "$text" ]] && echo "" && return 0
+
+    # Lowercase
+    text=$(echo "$text" | tr '[:upper:]' '[:lower:]')
+
+    # Strip punctuation (keep alphanumeric, spaces, hyphens)
+    text=$(echo "$text" | tr -cd '[:alnum:][:space:]-')
+
+    # Collapse whitespace
+    text=$(echo "$text" | awk '{$1=$1};1')
+
+    # Synonym substitution + stop word removal via awk
+    text=$(echo "$text" | awk 'BEGIN {
+        syn["implementing"] = "writing"; syn["creating"] = "writing"; syn["building"] = "writing";
+        syn["tests"] = "testing"; syn["checking"] = "testing"; syn["verifying"] = "testing";
+        syn["fixing"] = "resolving"; syn["repairing"] = "resolving"; syn["patching"] = "resolving"
+    }
+    {
+        n = split($0, words, " ")
+        out = 0
+        for (i = 1; i <= n; i++) {
+            w = words[i]
+            if (w == "") continue
+            if (w in syn) w = syn[w]
+            # Stop words: when, while, during, before, after
+            if (w == "when" || w == "while" || w == "during" || w == "before" || w == "after") continue
+            printf "%s%s", (out > 0 ? " " : ""), w
+            out++
+        }
+        printf "\n"
+    }')
+
+    echo "$text"
+}
+
+# ============================================================================
+# _jaccard_similarity
+# Word-level Jaccard similarity between two strings
+# Usage: _jaccard_similarity "when writing tests" "when implementing tests"
+# Output: stdout (e.g., "0.80")
+# ============================================================================
+_jaccard_similarity() {
+    local text_a="$1"
+    local text_b="$2"
+
+    # Normalize both texts
+    local norm_a norm_b
+    norm_a=$(_normalize_text "$text_a")
+    norm_b=$(_normalize_text "$text_b")
+
+    # Guard: empty after normalization
+    [[ -z "$norm_a" || -z "$norm_b" ]] && echo "0.00" && return 0
+
+    # Compute Jaccard via awk using NUL delimiter between the two texts
+    # Both texts are already normalized (no newlines, no special chars)
+    printf '%s\037%s\n' "$norm_a" "$norm_b" | awk -F'\037' '
+    {
+        split($1, a_words, " ")
+        split($2, b_words, " ")
+
+        # Build set A
+        for (i in a_words) if (a_words[i] != "") set_a[a_words[i]] = 1
+
+        # Build set B
+        for (i in b_words) if (b_words[i] != "") set_b[b_words[i]] = 1
+
+        # Compute intersection and union
+        intersection = 0
+        union = 0
+        for (key in set_a) {
+            union++
+            if (key in set_b) intersection++
+        }
+        for (key in set_b) {
+            if (!(key in set_a)) union++
+        }
+
+        # Guard: avoid division by zero
+        if (union == 0) { printf "0.00\n"; exit }
+
+        printf "%.2f\n", intersection / union
+    }'
+}
+
+# ============================================================================
 # _instinct_create
 # Create or update an instinct in COLONY_STATE.json
 # Migrated to state-api facade: uses _state_read_field for reads, _state_mutate for atomic writes
 # Usage: instinct-create --trigger "when X" --action "do Y" --confidence 0.5 --domain "architecture" --source "phase-3" --evidence "observation"
 # Deduplicates: if trigger+action matches existing instinct, boosts confidence instead
+# Fuzzy dedup: if trigger AND action both have >= 0.80 Jaccard similarity, merges into best match
 # Cap: max 30 instincts, evicts lowest confidence when exceeded
 # ============================================================================
 _instinct_create() {

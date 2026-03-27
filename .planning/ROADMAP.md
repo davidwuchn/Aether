@@ -62,7 +62,7 @@
 <summary>v2.4 Living Wisdom (Phases 25-28) — IN PROGRESS</summary>
 
 - [x] **Phase 25: Agent Definitions (Oracle + Architect)** — AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05 (completed 2026-03-27)
-- [ ] **Phase 26: Wisdom Pipeline Wiring** — PIPE-01, PIPE-02, PIPE-04
+- [x] **Phase 26: Wisdom Pipeline Wiring** — PIPE-01, PIPE-02, PIPE-04 (completed 2026-03-27)
 - [ ] **Phase 27: Deterministic Fallback + Dedup** — PIPE-03, VAL-02
 - [ ] **Phase 28: Integration Validation** — VAL-01
 
@@ -101,7 +101,7 @@ Plans:
 
 Wire the existing wisdom functions into the continue-advance flow so that wisdom accumulates automatically during colony work. Add Step 3d to call `hive-promote` after instinct promotion (PIPE-01 already exists in continue-finalize.md Step 2.1.7). Both steps are non-blocking (failures logged but never stop the continue flow). Add consolidated wisdom summary line replacing scattered echo feedback.
 
-**Plans:** 1/1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 26-01-PLAN.md — Add hive-promote Step 3d to continue-advance and consolidated wisdom summary to continue-finalize
@@ -121,6 +121,12 @@ Plans:
 **Depends on:** Phase 26 (pipeline must be wired before fallback can push data through it)
 
 Add a deterministic fallback for builder learning extraction. When AI agents skip learning output, extract learnings from git diff + test results. Also add content normalization to instinct deduplication so semantically similar instincts consolidate (not just SHA-256 exact match).
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 27-01-PLAN.md — Add text normalization and fuzzy dedup to instinct-create (VAL-02)
+- [ ] 27-02-PLAN.md — Add git-diff-based fallback extraction and wire into continue (PIPE-03)
 
 **Success criteria:**
 1. When a builder produces synthesis JSON without `learning.patterns_observed`, the fallback extracts at least one learning from git diff and writes it to COLONY_STATE
@@ -178,7 +184,7 @@ Phases execute in numeric order: 25 -> 26 -> 27 -> 28
 | 23. Tooling & Overrides | v2.3 | Complete | Complete | 2026-03-27 |
 | 24. Safety & Verification | v2.3 | 2/2 | Complete | 2026-03-27 |
 | 25. Agent Definitions (Oracle + Architect) | v2.4 | Complete    | 2026-03-27 | — |
-| 26. Wisdom Pipeline Wiring | v2.4 | 0/1 | Pending | — |
+| 26. Wisdom Pipeline Wiring | v2.4 | Complete    | 2026-03-27 | — |
 | 27. Deterministic Fallback + Dedup | v2.4 | 0 | Pending | — |
 | 28. Integration Validation | v2.4 | 0 | Pending | — |
 
