@@ -1239,3 +1239,47 @@ MIGRATEEOF
 
     json_ok '{"migrated":true,"target":"'"$qm_target"'","format":"v2"}'
 }
+
+# ============================================================================
+# _colony_name()
+# Derive human-readable colony name from repo context
+# Fallback chain: COLONY_STATE.json -> package.json -> directory basename
+# Usage: colony-name
+# Returns: {"ok":true,"result":{"name":"Aether Colony","source":"colony_state"}}
+# ============================================================================
+_colony_name() {
+    local name=""
+    local source="directory"
+
+    # 1. Check COLONY_STATE.json for pre-set colony_name
+    if [[ -f "$DATA_DIR/COLONY_STATE.json" ]]; then
+        local preset
+        preset=$(jq -r '.colony_name // empty' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null || echo "")
+        if [[ -n "$preset" ]]; then
+            name="$preset"
+            source="colony_state"
+        fi
+    fi
+
+    # 2. Fall back to package.json name
+    if [[ -z "$name" ]] && [[ -f "$AETHER_ROOT/package.json" ]]; then
+        local pkg_name
+        pkg_name=$(jq -r '.name // empty' "$AETHER_ROOT/package.json" 2>/dev/null || echo "")
+        if [[ -n "$pkg_name" ]]; then
+            # Strip @scope/ prefix
+            name="${pkg_name#@*/}"
+            source="package_json"
+        fi
+    fi
+
+    # 3. Fall back to directory basename
+    if [[ -z "$name" ]]; then
+        name="$(basename "$AETHER_ROOT")"
+        source="directory"
+    fi
+
+    # Convert kebab-case to title case
+    name=$(echo "$name" | sed 's/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)};1')
+
+    json_ok "{\"name\":\"$name\",\"source\":\"$source\"}"
+}

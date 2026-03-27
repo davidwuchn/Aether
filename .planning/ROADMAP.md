@@ -73,7 +73,7 @@
 
 **Milestone Goal:** Make `/ant:init` an intelligent first step -- research the repo, generate a structured colony prompt, show it for approval, and manage the Queen file as a living colony charter.
 
-- [ ] **Phase 29: Repo Scanning Module** — SCAN-01, SCAN-02, SCAN-03
+- [x] **Phase 29: Repo Scanning Module** — SCAN-01, SCAN-02, SCAN-03 (completed 2026-03-27)
 - [ ] **Phase 30: Charter Management** — CHARTER-01, CHARTER-02, CHARTER-03
 - [ ] **Phase 31: Init.md Smart Init Rewrite** — PROMPT-01, PROMPT-02, PROMPT-03
 - [ ] **Phase 32: Intelligence Enhancements** — INTEL-01, INTEL-02, INTEL-03
@@ -89,7 +89,7 @@
   2. The scan completes in under 2 seconds on a medium-sized repo (hundreds of files)
   3. When no territory survey exists or the survey is stale, the output includes a suggestion to run `/ant:colonize` with the reason
   4. The output includes a repo complexity estimate (small/medium/large) derived from file count, directory depth, and dependency count
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 29-01-PLAN.md — Create scan.sh module skeleton with stub functions and dispatch wiring
@@ -107,12 +107,11 @@ Plans:
   2. Calling the charter write function with governance rules and goals writes tagged `[charter]` entries to the QUEEN.md `## Codebase Patterns` section
   3. Running the charter write function on a colony that already has charter content updates entries in-place without removing existing wisdom, instincts, learnings, pheromones, or phase progress
   4. No new `## ` headers are created in QUEEN.md -- all 7+ downstream consumers continue to parse correctly after charter writes
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 30-01: Add charter write functions to queen.sh (write to User Preferences and Codebase Patterns sections with [charter] tags)
-- [ ] 30-02: Add re-init safety (update-only, never reset colony state) and colony-name helper subcommand
-- [ ] 30-03: Add tests for charter management (first init, re-init safety, no new headers)
+- [ ] 30-01-PLAN.md — Implement colony-name helper and charter-write function with dispatch wiring
+- [ ] 30-02-PLAN.md — Add integration tests for charter management (first init, re-init safety, no new headers)
 
 ---
 
@@ -186,8 +185,8 @@ Phases execute in numeric order: 29 -> 30 -> 31 -> 32
 | 26. Wisdom Pipeline Wiring | v2.4 | Complete | Complete | 2026-03-27 |
 | 27. Deterministic Fallback + Dedup | v2.4 | Complete | Complete | 2026-03-27 |
 | 28. Integration Validation | v2.4 | Complete | Complete | 2026-03-27 |
-| 29. Repo Scanning Module | v2.5 | 0/3 | Not started | - |
-| 30. Charter Management | v2.5 | 0/3 | Not started | - |
+| 29. Repo Scanning Module | v2.5 | Complete    | 2026-03-27 | - |
+| 30. Charter Management | v2.5 | 0/2 | Not started | - |
 | 31. Init.md Smart Init Rewrite | v2.5 | 0/3 | Not started | - |
 | 32. Intelligence Enhancements | v2.5 | 0/3 | Not started | - |
 
