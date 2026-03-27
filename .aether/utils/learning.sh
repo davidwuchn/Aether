@@ -1406,8 +1406,12 @@ _normalize_text() {
     # Synonym substitution + stop word removal via awk
     text=$(echo "$text" | awk 'BEGIN {
         syn["implementing"] = "writing"; syn["creating"] = "writing"; syn["building"] = "writing";
+        syn["implement"] = "writing"; syn["create"] = "writing"; syn["build"] = "writing";
+        syn["write"] = "writing";
         syn["tests"] = "testing"; syn["checking"] = "testing"; syn["verifying"] = "testing";
-        syn["fixing"] = "resolving"; syn["repairing"] = "resolving"; syn["patching"] = "resolving"
+        syn["fixing"] = "resolving"; syn["repairing"] = "resolving"; syn["patching"] = "resolving";
+        syn["fix"] = "resolving"; syn["repair"] = "resolving"; syn["patch"] = "resolving";
+        syn["resolve"] = "resolving"
     }
     {
         n = split($0, words, " ")
@@ -1540,6 +1544,91 @@ _instinct_create() {
       ic_new_conf=$(_state_read_field "$(printf '[(.memory.instincts // [])[] | select(.trigger == "%s" and .action == "%s")] | first | .confidence // 0' "$ic_trigger" "$ic_action")")
       json_ok "{\"instinct_id\":\"existing\",\"action\":\"updated\",\"confidence\":$ic_new_conf}"
     else
+      # --- Fuzzy dedup: check for semantically similar instinct ---
+      ic_all_instincts=$(_state_read_field '.memory.instincts // []')
+      ic_fuzzy_match=""
+
+      if [[ -n "$ic_all_instincts" && "$ic_all_instincts" != "null" && "$ic_all_instincts" != "[]" ]]; then
+        ic_best_sim="0.00"
+        ic_best_id=""
+        ic_best_conf=""
+
+        # Iterate over existing instincts to find best fuzzy match
+        while IFS= read -r ic_line; do
+          [[ -z "$ic_line" ]] && continue
+          ic_ex_trigger=$(echo "$ic_line" | jq -r '.trigger // empty')
+          ic_ex_action=$(echo "$ic_line" | jq -r '.action // empty')
+          ic_ex_id=$(echo "$ic_line" | jq -r '.id // empty')
+          ic_ex_conf=$(echo "$ic_line" | jq -r '.confidence // 0')
+
+          [[ -z "$ic_ex_trigger" || -z "$ic_ex_action" || "$ic_ex_trigger" == "null" || "$ic_ex_action" == "null" ]] && continue
+
+          # Compute Jaccard similarity for trigger and action independently
+          ic_trig_sim=$(_jaccard_similarity "$ic_trigger" "$ic_ex_trigger")
+          ic_act_sim=$(_jaccard_similarity "$ic_action" "$ic_ex_action")
+
+          # Both must exceed 0.80 threshold
+          if (( $(echo "$ic_trig_sim >= 0.80" | bc -l) )) && (( $(echo "$ic_act_sim >= 0.80" | bc -l) )); then
+            # Pick highest similarity; tie-break by higher confidence
+            ic_combined=$(echo "$ic_trig_sim + $ic_act_sim" | bc -l)
+            ic_best_combined=$(echo "${ic_best_sim:-0} + 0" | bc -l)
+            ic_best_conf_num="${ic_best_conf:-0}"
+            if (( $(echo "$ic_combined > $ic_best_combined" | bc -l) )) || \
+               (( $(echo "$ic_combined == $ic_best_combined && $ic_ex_conf >= $ic_best_conf_num" | bc -l) )); then
+              ic_best_sim="$ic_combined"
+              ic_best_id="$ic_ex_id"
+              ic_best_conf="$ic_ex_conf"
+              ic_fuzzy_match="$ic_line"
+            fi
+          fi
+        done < <(echo "$ic_all_instincts" | jq -c '.[]')
+      fi
+
+      if [[ -n "$ic_fuzzy_match" ]]; then
+        # Merge into best matching instinct
+        ic_ex_conf_num=$(echo "$ic_fuzzy_match" | jq -r '.confidence // 0')
+        ic_ex_evidence=$(echo "$ic_fuzzy_match" | jq -c '.evidence // []')
+        ic_ex_trigger=$(echo "$ic_fuzzy_match" | jq -r '.trigger')
+        ic_ex_action=$(echo "$ic_fuzzy_match" | jq -r '.action')
+
+        # Average confidences (use printf to ensure leading zero for valid JSON)
+        ic_new_conf=$(printf "%.2f" "$(echo "scale=4; ($ic_ex_conf_num + $ic_confidence) / 2" | bc -l)")
+        # Keep longer trigger
+        ic_merged_trigger="$ic_ex_trigger"
+        [[ ${#ic_trigger} -gt ${#ic_merged_trigger} ]] && ic_merged_trigger="$ic_trigger"
+        # Keep longer action
+        ic_merged_action="$ic_ex_action"
+        [[ ${#ic_action} -gt ${#ic_merged_action} ]] && ic_merged_action="$ic_action"
+
+        # Build evidence array: existing + new
+        if [[ "$ic_evidence" != "" && "$ic_evidence" != "null" ]]; then
+          ic_merged_evidence=$(echo "$ic_ex_evidence" | jq --arg ev "$ic_evidence" '. + [$ev]')
+        else
+          ic_merged_evidence="$ic_ex_evidence"
+        fi
+
+        IC_FUZZY_ID="$ic_best_id" IC_MERGED_TRIGGER="$ic_merged_trigger" IC_MERGED_ACTION="$ic_merged_action" \
+        IC_NEW_CONF="$ic_new_conf" IC_MERGED_EVIDENCE="$ic_merged_evidence" IC_NOW="$ic_now" \
+          _state_mutate '
+            .memory.instincts = [
+              (.memory.instincts // [])[] |
+              if .id == env.IC_FUZZY_ID then
+                .trigger = env.IC_MERGED_TRIGGER |
+                .action = env.IC_MERGED_ACTION |
+                .confidence = (env.IC_NEW_CONF | tonumber) |
+                .evidence = (env.IC_MERGED_EVIDENCE | fromjson) |
+                .applications = ((.applications // 0) + 1) |
+                .last_applied = env.IC_NOW
+              else
+                .
+              end
+            ]
+          ' >/dev/null
+
+        json_ok "{\"instinct_id\":\"$ic_best_id\",\"action\":\"merged\",\"confidence\":$ic_new_conf}"
+        exit 0
+      fi
+
       # Create new instinct via _state_mutate (handles locking and backup)
       IC_ID="$ic_id" IC_TRIGGER="$ic_trigger" IC_ACTION="$ic_action" IC_CONFIDENCE="$ic_confidence" \
       IC_DOMAIN="$ic_domain" IC_SOURCE="$ic_source" IC_EVIDENCE="$ic_evidence" IC_NOW="$ic_now" \
