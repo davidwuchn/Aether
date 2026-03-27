@@ -74,7 +74,7 @@
 **Milestone Goal:** Make `/ant:init` an intelligent first step -- research the repo, generate a structured colony prompt, show it for approval, and manage the Queen file as a living colony charter.
 
 - [x] **Phase 29: Repo Scanning Module** — SCAN-01, SCAN-02, SCAN-03 (completed 2026-03-27)
-- [ ] **Phase 30: Charter Management** — CHARTER-01, CHARTER-02, CHARTER-03
+- [x] **Phase 30: Charter Management** — CHARTER-01, CHARTER-02, CHARTER-03 (completed 2026-03-27)
 - [ ] **Phase 31: Init.md Smart Init Rewrite** — PROMPT-01, PROMPT-02, PROMPT-03
 - [ ] **Phase 32: Intelligence Enhancements** — INTEL-01, INTEL-02, INTEL-03
 
@@ -107,7 +107,7 @@ Plans:
   2. Calling the charter write function with governance rules and goals writes tagged `[charter]` entries to the QUEEN.md `## Codebase Patterns` section
   3. Running the charter write function on a colony that already has charter content updates entries in-place without removing existing wisdom, instincts, learnings, pheromones, or phase progress
   4. No new `## ` headers are created in QUEEN.md -- all 7+ downstream consumers continue to parse correctly after charter writes
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 30-01-PLAN.md — Implement colony-name helper and charter-write function with dispatch wiring
@@ -124,12 +124,11 @@ Plans:
   2. The user can edit any section of the displayed prompt (charter text, pheromone signals, context notes) and approve or reject in a single interaction
   3. After approval, the system creates colony files with the approved charter written to QUEEN.md using existing sections (no new headers)
   4. Running `/ant:init` on an already-initialized colony updates the charter content without resetting colony state, wisdom, instincts, learnings, pheromones, or phase progress
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 31-01: Refactor init.md to scan -> generate prompt -> display -> approve -> charter flow
-- [ ] 31-02: Implement deterministic prompt assembly (bash+jq) and approval loop (LLLM-mediated, single interaction)
-- [ ] 31-03: Add tests for init flow (first init, re-init, prompt generation determinism)
+- [ ] 31-01-PLAN.md — Rewrite init.md with scan-assemble-approve-create flow (Claude + OpenCode mirrors)
+- [ ] 31-02-PLAN.md — Integration tests for smart init flow components
 
 ---
 
@@ -186,7 +185,7 @@ Phases execute in numeric order: 29 -> 30 -> 31 -> 32
 | 27. Deterministic Fallback + Dedup | v2.4 | Complete | Complete | 2026-03-27 |
 | 28. Integration Validation | v2.4 | Complete | Complete | 2026-03-27 |
 | 29. Repo Scanning Module | v2.5 | Complete    | 2026-03-27 | - |
-| 30. Charter Management | v2.5 | 0/2 | Not started | - |
+| 30. Charter Management | v2.5 | Complete    | 2026-03-27 | - |
 | 31. Init.md Smart Init Rewrite | v2.5 | 0/3 | Not started | - |
 | 32. Intelligence Enhancements | v2.5 | 0/3 | Not started | - |
 
