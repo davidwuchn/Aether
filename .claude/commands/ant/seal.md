@@ -126,7 +126,8 @@ if [[ "$phases_completed" -ge 3 ]]; then
 
   # Display spawn notification
   echo ""
-  echo "📜🐜 Sage $sage_name spawning — Analyzing colony trends and patterns..."
+  echo "━━━ 📜🐜 S A G E ━━━"
+  echo "──── 📜🐜 Spawning $sage_name — Colony analytics review ────"
 fi
 ```
 
@@ -342,6 +343,31 @@ Log the seal ceremony to activity log:
 bash .aether/aether-utils.sh activity-log "MODIFIED" "Queen" "Colony sealed - wisdom review completed"
 ```
 
+### Step 4.5: Increment Colony Version
+
+Before writing the Crowned Anthill milestone, increment `colony_version` in COLONY_STATE.json.
+
+```bash
+# Read current colony_version (default to 0 for backward compat with older colonies)
+current_colony_version=$(jq -r '.colony_version // 0' .aether/data/COLONY_STATE.json 2>/dev/null || echo 0)
+# Guard against non-integer values (floats, strings)
+[[ "$current_colony_version" =~ ^[0-9]+$ ]] || current_colony_version=0
+new_colony_version=$(( current_colony_version + 1 ))
+
+# Write incremented value back — guard against empty output destroying the file
+updated=$(jq --argjson v "$new_colony_version" '.colony_version = $v' .aether/data/COLONY_STATE.json 2>/dev/null)
+if [[ -n "$updated" && ${#updated} -gt 10 ]]; then
+  echo "$updated" > .aether/data/COLONY_STATE.json
+else
+  echo "Warning: jq update failed — colony_version defaults to 1, state file unchanged"
+  new_colony_version=1
+fi
+```
+
+Use `new_colony_version` as `{colony_version}` throughout the rest of the seal ceremony (e.g., display as "Crowned Anthill v{colony_version}").
+
+**Error handling:** If jq fails or produces empty/short output, COLONY_STATE.json is NOT overwritten and `new_colony_version` defaults to 1. Never let version increment failures block the seal.
+
 ### Step 5: Update Milestone to Crowned Anthill
 
 Update COLONY_STATE.json:
@@ -405,7 +431,6 @@ bash .aether/aether-utils.sh spawn-log "Queen" "chronicler" "$chronicler_name" "
 ```
 ━━━ 📝🐜 C H R O N I C L E R ━━━
 ──── 📝🐜 Spawning {chronicler_name} — documentation coverage audit ────
-📝 Chronicler {chronicler_name} spawning — Surveying documentation coverage...
 ```
 
 **Spawn Chronicler using Task tool:**
@@ -596,11 +621,12 @@ Display the ASCII art ceremony:
 Below the ASCII art, display:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   C R O W N E D   A N T H I L L
+   C R O W N E D   A N T H I L L   v{colony_version}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Goal: {goal}
 Phases: {phases_completed} of {total_phases} completed
+Milestone: Crowned Anthill v{colony_version}
 {If incomplete_warning is not empty: display it}
 Wisdom Promoted: {promotion_summary}
 

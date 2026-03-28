@@ -5,7 +5,7 @@
 **Announce the verification wave:**
 ```
 ━━━ 👁️🐜 V E R I F I C A T I O N ━━━
-──── 👁️🐜 Spawning {watcher_name} ────
+──── 👁️🐜 Spawning {watcher_name} — Independent verification ────
 ```
 
 > **Platform note**: In Claude Code, use `Task tool with subagent_type`. In OpenCode, use the equivalent agent spawning mechanism for your platform (e.g., invoke the agent definition from `.opencode/agents/`).
@@ -132,7 +132,6 @@ For failed verification:
    ```
    ━━━ 📊🐜 M E A S U R E R ━━━
    ──── 📊🐜 Spawning {measurer_name} — establishing performance baselines ────
-   📊 Measurer {measurer_name} spawning — Establishing performance baselines for {phase_name}...
    ```
 
 4. **Get files to measure:**

@@ -417,6 +417,28 @@
       "colonies": [
         "1774650429"
       ]
+    },
+    {
+      "content_hash": "sha256:e989c50720e671042655ed2d71a922eea8221c07062af11ec1a21d8ec74cefb1",
+      "content": "Shell functions that set traps must compose with _aether_exit_cleanup to avoid orphaning file locks and temp files when the function exits abnormally",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-28T00:14:50Z",
+      "last_seen": "2026-03-28T00:14:50Z",
+      "colonies": [
+        "1774650429"
+      ]
+    },
+    {
+      "content_hash": "sha256:e36583d85746ec2f71eb8668c1a714190acb783b7d6d989af9734f57bcf1a07a",
+      "content": "Shell functions that embed user-derived values in JSON output strings must use jq for safe construction to prevent JSON injection from special characters",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-28T00:14:54Z",
+      "last_seen": "2026-03-28T00:14:54Z",
+      "colonies": [
+        "1774650429"
+      ]
     }
   ]
 }

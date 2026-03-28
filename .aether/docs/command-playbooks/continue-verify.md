@@ -177,7 +177,11 @@ Continue to Phase 5: Secrets Scan.
    a. Generate Probe name and dispatch:
    Run using the Bash tool with description "Generating Probe name...": `probe_name=$(bash .aether/aether-utils.sh generate-ant-name "probe") && bash .aether/aether-utils.sh spawn-log "Queen" "probe" "$probe_name" "Coverage improvement: ${coverage_percent}%" && echo "{\"name\":\"$probe_name\"}"`
 
-   b. Display: `🧪🐜 Probe {probe_name} spawning — Coverage at {coverage_percent}%, generating tests for uncovered paths...`
+   b. Display:
+   ```
+   ━━━ 🧪🐜 P R O B E ━━━
+   ──── 🧪🐜 Spawning {probe_name} — Coverage improvement ────
+   ```
 
    d. Determine uncovered files:
    Run using the Bash tool with description "Getting modified source files...": `modified_source_files=$(git diff --name-only HEAD~1 2>/dev/null || git diff --name-only) && source_files=$(echo "$modified_source_files" | grep -v "\.test\." | grep -v "\.spec\." | grep -v "__tests__") && echo "$source_files"`

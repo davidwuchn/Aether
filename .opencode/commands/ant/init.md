@@ -129,9 +129,9 @@ Strip `(Colony: ...)` suffixes using sed. If grep finds nothing, variables remai
 
 Display a brief header:
 ```
-------------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    A E T H E R   C O L O N Y   I N I T
-------------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 If re-init mode, display:
@@ -218,14 +218,14 @@ No pheromone suggestions yet -- use /ant:focus and /ant:redirect to guide the co
 
 End with clear instructions:
 ```
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Review the prompt above. You can:
   - Edit any section (just describe your changes)
   - Say "approve" or "looks good" to proceed
   - Say "cancel" to abort
 
 If you don't respond, the colony will not be initialized.
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 **STOP HERE.** Wait for the user's response. Do NOT proceed to Step 6 until the user responds.
@@ -346,9 +346,9 @@ Implementation notes:
 Display the success header and result block:
 
 ```
-------------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    A E T H E R   C O L O N Y
-------------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Queen has set the colony's intention
 
@@ -361,9 +361,9 @@ Queen has set the colony's intention
 
 State persisted -- safe to /clear, then run /ant:plan
 
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    Next Up
---------------------------------------------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    /ant:plan                 Generate execution plan
    /ant:status               Check colony state
    /ant:focus                Set initial focus

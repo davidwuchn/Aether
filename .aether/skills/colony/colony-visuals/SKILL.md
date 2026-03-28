@@ -73,3 +73,40 @@ Ensure columns are padded for alignment. Never use unaligned or ragged tables.
 - **Bold** for labels and headings.
 - *Italic* for supplementary notes.
 - Use color sparingly and consistently -- green for success, red for errors, yellow for warnings.
+
+## Emoji Reference Map
+
+This is the canonical reference for emoji usage across all Aether commands. All commands must use these emojis consistently for the concepts listed below.
+
+| Emoji | Concept | Used In |
+|-------|---------|---------|
+| 🔨 | Builder ant | build.md, workers.md |
+| 👁️ | Watcher ant | build.md, continue.md |
+| 🎲 | Chaos ant | build.md |
+| 🔍 | Scout ant | build.md |
+| 🏺 | Archaeologist / Seal | archaeology.md, seal.md |
+| 🔮 | Oracle ant | oracle.md, build.md |
+| 🏛️ | Architect ant | build.md |
+| 🔌 | Ambassador ant | build.md |
+| 📊 | Measurer ant / Status | measurer, status.md |
+| 🧪 | Probe / Tests | continue.md |
+| 🔄 | Weaver / Refresh | continue.md |
+| 📦 | Gatekeeper / Package | continue.md |
+| 👥 | Auditor | continue.md |
+| 🚩 | Flag / Blocker | flags.md |
+| 💭 | Dream | dream.md |
+| 🥚 | Queen / Init | lay-eggs.md |
+| 📋 | Plan / List | plan.md |
+| ✅ | Pass / Success | verification |
+| ❌ | Fail / Error | verification |
+| ⚠️ | Warning | gates |
+| ⛔ | Hard block | gates |
+| 💾 | Save / Persist | pause.md |
+| 🎯 | Focus signal | pheromones |
+| 🚫 | Redirect signal | pheromones |
+| 💬 | Feedback signal | pheromones |
+| 📜 | Sage ant | seal.md |
+| 📝 | Chronicler ant | seal.md |
+| 🖼️ | Visual checkpoint | build-complete.md |
+
+> **Canonical reference:** When adding emoji to any user-facing command output, use this table as the definitive guide. Do not introduce new emoji for concepts already covered here. If a new concept requires an emoji, add it to this table first.

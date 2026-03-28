@@ -18,6 +18,8 @@ Communication style, expertise level, and decision-making patterns observed from
 
 Validated approaches that work in this codebase, and anti-patterns to avoid. Includes architecture conventions, naming patterns, error handling style, and technology-specific insights. Tagged [repo] for project-specific or [general] for cross-colony patterns.
 
+- **1774650429** (2026-03-28T00:14:55Z): Shell functions that embed user-derived values in JSON output strings must use jq for safe construction to prevent JSON injection from special characters
+- **1774650429** (2026-03-28T00:14:51Z): Shell functions that set traps must compose with _aether_exit_cleanup to avoid orphaning file locks and temp files when the function exits abnormally
 - **1774650429** (2026-03-27T23:20:16Z): Test fixtures with hardcoded dates will break as calendar time advances — use dynamic date computation with cross-platform fallbacks instead
 - **1774650429** (2026-03-27T23:14:32Z): Chaos resilience moderate: 5 scenarios tested on pheromone-expire date fix, 3 resilient, 2 findings (static fallback staleness, double date failure)
 - **1774645519** (2026-03-27T21:50:42Z): Inserted phase 5 (Stabilize caste emojis in spawn and phase displays): Add caste emojis to all ant spawn announcements and phase header displays across all commands — every spawn shows its caste emoji and phase headers include visual emoji markers
@@ -48,12 +50,16 @@ High-confidence behavioral patterns that have been validated through repeated co
 - [instinct] **testing** (0.85): When codebase changes, then always run full test suite after module extraction
 
 - [instinct] **testing** (0.8): When test fixtures use hardcoded dates, then replace with dynamic cross-platform date computation to prevent time-based test degradation
+- [instinct] **code-style** (0.8): When shell functions set EXIT/TERM traps, then compose trap with _aether_exit_cleanup to preserve lock and temp file cleanup on abnormal exit
 ---
 
 ## Evolution Log
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-03-28T00:15:09Z | instinct | promoted_instinct | code-style: compose trap with _aether_exit_cleanup to preserve... |
+| 2026-03-28T00:14:55Z | 1774650429 | promoted_pattern | Added: Shell functions that embed user-derived values in ... |
+| 2026-03-28T00:14:51Z | 1774650429 | promoted_pattern | Added: Shell functions that set traps must compose with _... |
 | 2026-03-27T23:20:27Z | instinct | promoted_instinct | testing: replace with dynamic cross-platform date computati... |
 | 2026-03-27T23:20:16Z | 1774650429 | promoted_pattern | Added: Test fixtures with hardcoded dates will break as c... |
 | 2026-03-27T23:14:32Z | 1774650429 | promoted_pattern | Added: Chaos resilience moderate: 5 scenarios tested on p... |
@@ -80,13 +86,13 @@ High-confidence behavioral patterns that have been validated through repeated co
 {
   "version": "2.0.0",
   "wisdom_version": "2.0",
-  "last_evolved": "2026-03-27T23:20:27Z",
+  "last_evolved": "2026-03-28T00:15:09Z",
   "colonies_contributed": ["1774645519"],
   "stats": {
     "total_user_prefs": 2,
-    "total_codebase_patterns": 10,
+    "total_codebase_patterns": 12,
     "total_build_learnings": 1,
-    "total_instincts": 2
+    "total_instincts": 3
   },
   "evolution_log": [{"timestamp": "2026-03-24T23:40:00Z", "action": "migrate", "wisdom_type": "system", "content_hash": "v1-to-v2-migration", "colony": "system"}, {"timestamp": "2026-03-20T12:37:32Z", "action": "promote", "wisdom_type": "pattern", "content_hash": "sha256:f8aa50cfda0f37cac6cabba140bb99f1d75aa6d01a7100fe7a5ccddc2b3a017b", "colony": "1771335865738"}]
 }

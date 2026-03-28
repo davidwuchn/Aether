@@ -186,7 +186,11 @@ If no CRITICAL issues, continue to Step 1.7.1.
    b. **Generate Weaver name and dispatch:**
    Run using the Bash tool with description "Generating Weaver name...": `weaver_name=$(bash .aether/aether-utils.sh generate-ant-name "weaver") && bash .aether/aether-utils.sh spawn-log "Queen" "weaver" "$weaver_name" "Proactive refactoring" && echo "{\"name\":\"$weaver_name\"}"`
 
-   c. **Display:** `🔄🐜 Weaver {weaver_name} spawning — Refactoring complex code...`
+   c. **Display:**
+   ```
+   ━━━ 🔄🐜 W E A V E R ━━━
+   ──── 🔄🐜 Spawning {weaver_name} — Proactive refactoring ────
+   ```
 
    e. **Spawn Weaver agent:**
 
@@ -299,7 +303,11 @@ Continue to Step 1.9.
 1. Generate Gatekeeper name and log spawn:
 Run using the Bash tool with description "Generating Gatekeeper name...": `gatekeeper_name=$(bash .aether/aether-utils.sh generate-ant-name "gatekeeper") && bash .aether/aether-utils.sh spawn-log "Queen" "gatekeeper" "$gatekeeper_name" "Supply chain security audit" && echo "{\"name\":\"$gatekeeper_name\"}"`
 
-2. Display: `📦🐜 Gatekeeper {name} spawning — Scanning dependencies for CVEs and license compliance...`
+2. Display:
+```
+━━━ 📦🐜 G A T E K E E P E R ━━━
+──── 📦🐜 Spawning {gatekeeper_name} — Supply chain security audit ────
+```
 
 4. Spawn Gatekeeper agent:
 
@@ -388,7 +396,11 @@ Continue to Step 1.9.
 1. Generate Auditor name and log spawn:
 Run using the Bash tool with description "Generating Auditor name...": `auditor_name=$(bash .aether/aether-utils.sh generate-ant-name "auditor") && bash .aether/aether-utils.sh spawn-log "Queen" "auditor" "$auditor_name" "Code quality audit" && echo "{\"name\":\"$auditor_name\"}"`
 
-2. Display: `👥🐜 Auditor {name} spawning — Reviewing code with multi-lens analysis...`
+2. Display:
+```
+━━━ 👥🐜 A U D I T O R ━━━
+──── 👥🐜 Spawning {auditor_name} — Code quality audit ────
+```
 
 4. Get modified files for audit context:
 Run using the Bash tool with description "Getting modified files...": `modified_files=$(git diff --name-only HEAD~1 2>/dev/null || git diff --name-only) && echo "$modified_files"`

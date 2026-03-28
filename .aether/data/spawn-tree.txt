@@ -10,3 +10,11 @@
 2026-03-27T23:10:22Z|Vigil-86|completed|All criteria pass, quality 9/10, recommend proceed
 2026-03-27T23:10:31Z|Queen|chaos|Snap-1|Resilience testing of Phase 1 work|sonnet|spawned
 2026-03-27T23:14:29Z|Snap-1|completed|5 scenarios: 2 findings (medium: static fallback dates expire 2026-03-29, low: double date failure), 3 resilient
+2026-03-27T23:28:25Z|Queen|gatekeeper|Secure-14|Supply chain security audit|opus|spawned
+2026-03-27T23:28:26Z|Queen|auditor|Verify-73|Code quality audit|opus|spawned
+2026-03-27T23:32:43Z|Verify-73|completed|{"findings":{"critical":0,"high":2,"medium":5,"low":4,"info":3},"score":56}
+2026-03-27T23:33:11Z|Secure-14|completed|{"security":{"critical":0,"high":0,"medium":2,"low":0}}
+2026-03-27T23:59:18Z|Queen|gatekeeper|{"ok":true,"result":"Bar-98"}|Supply chain security audit|opus|spawned
+2026-03-27T23:59:19Z|Queen|auditor|{"ok":true,"result":"Verify-88"}|Code quality audit|opus|spawned
+2026-03-28T00:07:14Z|Bar-98|completed|{"security":{"critical":0,"high":0}}
+2026-03-28T00:07:15Z|Verify-88|completed|{"findings":{"critical":0,"high":3,"medium":5,"low":4,"info":3},"score":57}

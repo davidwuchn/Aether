@@ -47,7 +47,10 @@ git log --format="%ai %s" --after="{start_date}" | awk '{print $1}' | sort | uni
 
 **Churn hotspots — files changed most frequently:**
 ```bash
-git log --format='%H' --after="{start_date}" -- {scope} | while read hash; do git diff-tree --no-commit-id -r --name-only $hash; done | sort | uniq -c | sort -rn | head -20
+# Use process substitution (< <(...)) instead of piping to while-read.
+# Pipe-to-while runs the loop body in a subshell, losing any variables set inside it.
+# Process substitution keeps the loop in the current shell so accumulated state is visible.
+while read hash; do git diff-tree --no-commit-id -r --name-only "$hash"; done < <(git log --format='%H' --after="{start_date}" -- {scope}) | sort | uniq -c | sort -rn | head -20
 ```
 
 Or a simpler form:
@@ -98,6 +101,21 @@ Calculate: commit count ÷ file size (in lines) as a churn ratio. Use Bash to co
 wc -l {file_path}
 ```
 
+**Project-level churn summary (Gini coefficient):**
+Compute a single aggregate metric that captures whether churn is evenly distributed or concentrated in a few files. A Gini coefficient near 0 means churn is spread uniformly; near 1 means a small fraction of files account for almost all changes.
+
+1. Collect per-file change counts from the churn query above.
+2. Sort the counts in ascending order.
+3. Compute cumulative proportions of both files (x-axis) and changes (y-axis) — this is the Lorenz curve.
+4. Gini = 1 − 2 × (area under the Lorenz curve), approximated with the trapezoid rule.
+
+Record the totals for `churn_summary`:
+- `total_files_changed` — distinct files touched in the window
+- `total_file_changes` — sum of all per-file change counts
+- `churn_gini_coefficient` — Gini value (0.0–1.0)
+- `first_half_changes` and `second_half_changes` — totals from the two equal time-window halves
+- `trend` — "improving" if `second_half_changes < first_half_changes`, "degrading" if higher, "flat" if within 10%
+
 **Knowledge concentration analysis:**
 A knowledge silo exists when one author accounts for >70% of commits to a file or directory. Extract per-author percentages from `git shortlog` output.
 
@@ -116,6 +134,33 @@ Split the analysis window into equal halves and compare:
 - Churn distribution: did the same files churn in both halves or different ones?
 
 Use Bash to run the same queries against two date ranges and compare the numbers. Note the trend direction: improving, degrading, flat, or insufficient data.
+
+**Per-week commit breakdown and outlier detection:**
+
+Extract per-week commit counts:
+```bash
+git log --format='%Y-W%V' --after="{start}" | sort | uniq -c
+```
+
+Compute mean, standard deviation, and z-scores using awk to flag outlier weeks (z-score > 2):
+```bash
+git log --format='%Y-W%V' --after="{start}" | sort | uniq -c | awk '
+BEGIN { n=0; sum=0; sum2=0 }
+{ count[NR]=$1; week[NR]=$2; sum+=$1; sum2+=$1*$1; n++ }
+END {
+  mean=sum/n;
+  variance=sum2/n - mean*mean;
+  stddev=sqrt(variance);
+  cv=(mean>0 ? stddev/mean : 0);
+  printf "mean=%.2f stddev=%.2f cv=%.2f\n", mean, stddev, cv;
+  for (i=1; i<=n; i++) {
+    z=(stddev>0 ? (count[i]-mean)/stddev : 0);
+    if (z>2 || z<-2) printf "OUTLIER %s count=%d z=%.2f\n", week[i], count[i], z;
+  }
+}'
+```
+
+Populate `weekly_commits` with `{"week": "YYYY-WWW", "count": N}` objects, set `std_deviation`, `coefficient_of_variation`, and list any outlier week labels in `outlier_weeks`. Keep the first-half/second-half comparison alongside — both views are reported.
 
 ### Step 5: Cross-Reference Findings
 Look for correlations between metrics.
@@ -199,6 +244,14 @@ Return structured JSON at task completion:
       "data_source": "git log --format='' --name-only --after=2024-06-01 -- src/auth/ | grep session.js | wc -l"
     }
   ],
+  "churn_summary": {
+    "total_files_changed": 12,
+    "total_file_changes": 183,
+    "churn_gini_coefficient": 0.62,
+    "first_half_changes": 104,
+    "second_half_changes": 79,
+    "trend": "improving"
+  },
   "knowledge_concentration": [
     {
       "file": "src/auth/session.js",
@@ -220,7 +273,14 @@ Return structured JSON at task completion:
     "commits_per_week_first_half": 8.3,
     "commits_per_week_second_half": 5.1,
     "trend": "degrading",
-    "trend_confidence": "medium"
+    "trend_confidence": "medium",
+    "weekly_commits": [
+      {"week": "2026-W05", "count": 12},
+      {"week": "2026-W06", "count": 7}
+    ],
+    "std_deviation": 2.4,
+    "coefficient_of_variation": 0.31,
+    "outlier_weeks": ["2026-W05"]
   },
   "correlations": [
     {

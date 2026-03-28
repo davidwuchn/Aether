@@ -222,8 +222,8 @@ Display to user:
 
    Display:
    ```
-   🏺🐜 Archaeologist {archaeologist_name} spawning
-       Scanning history of files to be modified...
+   ━━━ 🏺🐜 A R C H A E O L O G I S T ━━━
+   ──── 🏺🐜 Spawning {archaeologist_name} — Pre-build history scan ────
    ```
 
    > **Platform note**: In Claude Code, use `Task tool with subagent_type`. In OpenCode, use the equivalent agent spawning mechanism for your platform (e.g., invoke the agent definition from `.opencode/agents/`).

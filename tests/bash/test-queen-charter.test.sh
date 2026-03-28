@@ -711,6 +711,90 @@ test_charter_write_queen_missing() {
 }
 
 # ============================================================================
+# Test 13: charter-write reports sections_failed when section headers missing
+# ============================================================================
+test_charter_write_missing_sections() {
+    local tmp_dir
+    tmp_dir=$(setupCharterTest)
+    local queen_file="$tmp_dir/.aether/QUEEN.md"
+
+    # Replace QUEEN.md with a minimal version that has NO User Preferences
+    # or Codebase Patterns headers, so _insert_section_entries returns 1.
+    # Keeps Evolution Log (with separator row) so ev_separator grep doesn't fail.
+    cat > "$queen_file" << 'MINIMALQUEEN'
+# QUEEN.md -- Colony Wisdom
+
+> Last evolved: 2026-01-01T00:00:00Z
+> Wisdom version: 2.0.0
+
+---
+
+## Build Learnings
+
+*No build learnings recorded yet.*
+
+---
+
+## Evolution Log
+
+| Date | Source | Type | Details |
+|------|--------|------|---------|
+| 2026-01-01T00:00:00Z | system | initialized | QUEEN.md created from template |
+
+---
+
+<!-- METADATA
+{
+  "version": "2.0.0",
+  "last_evolved": "2026-01-01T00:00:00Z",
+  "stats": {
+    "total_user_prefs": 0,
+    "total_codebase_patterns": 0,
+    "total_build_learnings": 0,
+    "total_instincts": 0
+  }
+}
+-->
+MINIMALQUEEN
+
+    # Capture stdout; stderr is suppressed (warnings go to stderr)
+    local output
+    output=$(AETHER_ROOT="$tmp_dir" DATA_DIR="$tmp_dir/.aether/data" \
+        bash "$tmp_dir/.aether/aether-utils.sh" charter-write \
+        --intent "Test intent" \
+        --vision "Test vision" \
+        --governance "Test governance" \
+        --goals "Test goals" 2>/dev/null || true)
+
+    # The call should succeed (written > 0 means json_ok is used)
+    local ok
+    ok=$(echo "$output" | jq -r '.ok' 2>/dev/null || echo "unknown")
+    if [[ "$ok" != "true" ]]; then
+        test_fail "ok = true (entries counted but sections missing)" "ok = $ok, output = $output"
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+
+    # sections_failed must be > 0
+    local sections_failed
+    sections_failed=$(echo "$output" | jq -r '.result.sections_failed' 2>/dev/null || echo "missing")
+    if [[ "$sections_failed" == "missing" || "$sections_failed" == "null" ]]; then
+        test_fail "result.sections_failed present in output" "sections_failed = $sections_failed, output = $output"
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+
+    if [[ "$sections_failed" -le 0 ]]; then
+        test_fail "sections_failed > 0 when section headers missing" "sections_failed = $sections_failed"
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+
+    rm -rf "$tmp_dir"
+    return 0
+}
+
+# ============================================================================
 # Run all tests
 # ============================================================================
 log_info "Running Charter Management integration tests"
@@ -727,5 +811,6 @@ run_test test_charter_write_metadata_stats "charter-write: METADATA stats accura
 run_test test_charter_write_colony_name_persisted "charter-write: colony_name persisted in COLONY_STATE.json"
 run_test test_charter_write_content_truncation "charter-write: content truncated to 200 chars + ..."
 run_test test_charter_write_queen_missing "charter-write: E_FILE_NOT_FOUND when QUEEN.md missing"
+run_test test_charter_write_missing_sections "charter-write: sections_failed > 0 when section headers absent"
 
 test_summary

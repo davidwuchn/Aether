@@ -3,7 +3,7 @@
   "goal": "Comprehensive audit of today's session work — verify QUEEN.md, pheromone system, wisdom pipeline, charter-write, and all colony lifecycle changes are functioning correctly",
   "colony_name": "Aether Colony",
   "state": "READY",
-  "current_phase": 2,
+  "current_phase": 3,
   "session_id": "session_1774650429_217110",
   "initialized_at": "2026-03-27T22:27:09Z",
   "build_started_at": null,
@@ -65,7 +65,7 @@
         "id": 2,
         "name": "Verify today new test files and implementations",
         "description": "Confirm all 5 new test files pass: charter-write, colony-version template, emoji-audit, midden-bridge, seal-version-increment.",
-        "status": "pending",
+        "status": "completed",
         "tasks": [
           {
             "id": "2.1",
@@ -82,7 +82,7 @@
               "41 tests pass"
             ],
             "depends_on": [],
-            "status": "pending"
+            "status": "completed"
           },
           {
             "id": "2.2",
@@ -100,7 +100,7 @@
               "Re-init removes old entries"
             ],
             "depends_on": [],
-            "status": "pending"
+            "status": "completed"
           },
           {
             "id": "2.3",
@@ -116,7 +116,7 @@
               "test-seal-version-increment passes 9/9"
             ],
             "depends_on": [],
-            "status": "pending"
+            "status": "completed"
           }
         ],
         "success_criteria": [
@@ -338,6 +338,28 @@
           }
         ],
         "timestamp": "2026-03-27T23:19:58Z"
+      },
+      {
+        "id": "learning_1774656672",
+        "phase": 2,
+        "phase_name": "Verify today new test files and implementations",
+        "learnings": [
+          {
+            "claim": "Shell functions that set traps must compose with _aether_exit_cleanup to avoid orphaning file locks and temp files when the function exits abnormally",
+            "status": "validated",
+            "tested": true,
+            "evidence": "Auditor found queen.sh:406 and midden.sh:280 traps overwrote _aether_exit_cleanup — fixed by composing cleanup in trap handler",
+            "disproven_by": null
+          },
+          {
+            "claim": "Shell functions that embed user-derived values in JSON output strings must use jq for safe construction to prevent JSON injection from special characters",
+            "status": "validated",
+            "tested": true,
+            "evidence": "Auditor found queen.sh:1291 colony_name and queen.sh:642 promote output interpolated user input without escaping — fixed with jq -n --arg",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-28T00:11:12Z"
       }
     ],
     "decisions": [],
@@ -355,6 +377,24 @@
         ],
         "tested": false,
         "created_at": "2026-03-27T23:20:13Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774656672",
+        "trigger": "shell functions set EXIT/TERM traps",
+        "action": "compose trap with _aether_exit_cleanup to preserve lock and temp file cleanup on abnormal exit",
+        "confidence": 0.8,
+        "status": "hypothesis",
+        "domain": "code-style",
+        "source": "phase-2",
+        "evidence": [
+          "Auditor caught queen.sh and midden.sh trap overrides orphaning cleanup — fixed by composing"
+        ],
+        "tested": false,
+        "created_at": "2026-03-28T00:11:12Z",
         "last_applied": null,
         "applications": 0,
         "successes": 0,
@@ -395,6 +435,42 @@
         "applications": 0,
         "successes": 0,
         "failures": 0
+      },
+      {
+        "id": "instinct_1774656892",
+        "trigger": "working on pattern patterns",
+        "action": "Shell functions that set traps must compose with _aether_exit_cleanup to avoid orphaning file locks and temp files when the function exits abnormally",
+        "confidence": 0.70,
+        "status": "hypothesis",
+        "domain": "pattern",
+        "source": "promoted_from_learning",
+        "evidence": [
+          ""
+        ],
+        "tested": false,
+        "created_at": "2026-03-28T00:14:51Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774656895",
+        "trigger": "working on pattern patterns",
+        "action": "Shell functions that embed user-derived values in JSON output strings must use jq for safe construction to prevent JSON injection from special characters",
+        "confidence": 0.70,
+        "status": "hypothesis",
+        "domain": "pattern",
+        "source": "promoted_from_learning",
+        "evidence": [
+          ""
+        ],
+        "tested": false,
+        "created_at": "2026-03-28T00:14:55Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
       }
     ]
   },
@@ -408,7 +484,8 @@
     "2026-03-27T22:27:09Z|colony_initialized|init|Colony initialized with goal: Comprehensive audit of today's session work — verify QUEEN.md, pheromone system, wisdom pipeline, charter-write, and all colony lifecycle changes are functioning correctly",
     "2026-03-27T22:52:12Z|plan_generated|plan|Generated 6 phases with 92% confidence",
     "2026-03-27T22:56:12Z|phase_started|build|Phase 1: Fix failing test 42: eternal promotion strength check started",
-    "2026-03-27T23:19:58Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
+    "2026-03-27T23:19:58Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
+    "2026-03-28T00:11:12Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3"
   ],
   "milestone": null,
   "milestone_updated_at": null

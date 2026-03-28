@@ -297,7 +297,6 @@ If `is_integration_phase` is `"true"`:
    ```
    ━━━ 🔌🐜 A M B A S S A D O R ━━━
    ──── 🔌🐜 Spawning {ambassador_name} — external integration design ────
-   🔌 Ambassador {ambassador_name} spawning — Designing integration for {matched_keyword}...
    ```
 
 2. **Spawn Ambassador using Task tool:**

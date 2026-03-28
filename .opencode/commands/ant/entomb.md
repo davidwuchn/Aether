@@ -31,6 +31,12 @@ Stop here.
 
 Extract: `goal`, `state`, `current_phase`, `plan.phases`, `memory.decisions`, `memory.phase_learnings`.
 
+Read `colony_version` for display (default to 1 for backward compat with older colonies):
+```bash
+colony_version=$(jq -r '.colony_version // 1' .aether/data/COLONY_STATE.json 2>/dev/null || echo 1)
+[[ "$colony_version" =~ ^[0-9]+$ ]] || colony_version=1
+```
+
 **Precondition 1: All phases must be completed**
 
 Check if all phases in `plan.phases` have `status: "completed"`:
@@ -91,6 +97,7 @@ Display:
 ══════════════════════════════════════════════════ 🏺
 
 Goal: {goal}
+Version: v{colony_version}
 Phases: {completed}/{total} completed
 Milestone: {milestone}
 
@@ -319,7 +326,7 @@ This handoff serves as the record of the entombed colony.
    C O L O N Y   E N T O M B E D
 ══════════════════════════════════════════════════ 🏺
 
-✅ Colony archived successfully
+✅ Entombed v{colony_version}
 
 👑 Goal: {goal}
 📍 Phases: {completed} completed

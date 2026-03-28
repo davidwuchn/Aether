@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <colony-archive
     xmlns="http://aether.colony/schemas/archive/1.0"
-    colony_id="add-commit-message-synthesis-and-push-prompts-to-aether-phase-completion-and-seal-workflows"
-    sealed_at="2026-03-27T19:12:02Z"
+    colony_id="add-versioning-to-the-seal-entomb-lifecycle-and-enforce-consistent-emoji-usage-across-all-user-facing-commands"
+    sealed_at="2026-03-27T19:55:31Z"
     version="1.0.0"
     pheromone_count="60">
 <pheromones xmlns="http://aether.colony/schemas/pheromones"
             xmlns:ph="http://aether.colony/schemas/pheromones"
             version="1.0.0"
-            generated_at="2026-03-27T19:11:58Z"
+            generated_at="2026-03-27T19:55:27Z"
             colony_id="aether-dev">
   <metadata>
     <source type="system">aether-pheromone-converter</source>
@@ -633,7 +633,7 @@
           type="FOCUS"
           priority="normal"
           source="system:init"
-          created_at="2026-03-27T18:52:35Z"
+          created_at="2026-03-27T19:16:31Z"
           expires_at="2026-04-26T18:52:35Z"
           active="true">
     <content>
@@ -644,7 +644,7 @@
           type="FOCUS"
           priority="normal"
           source="system:init"
-          created_at="2026-03-27T18:52:36Z"
+          created_at="2026-03-27T19:16:31Z"
           expires_at="2026-04-26T18:52:36Z"
           active="true">
     <content>
@@ -655,7 +655,7 @@
           type="FOCUS"
           priority="normal"
           source="system:init"
-          created_at="2026-03-27T18:52:36Z"
+          created_at="2026-03-27T19:16:32Z"
           expires_at="2026-04-26T18:52:36Z"
           active="true">
     <content>
@@ -679,7 +679,7 @@
   <metadata>
     <version>1.0.0</version>
     <created>2026-02-17T23:51:49Z</created>
-    <modified>2026-03-27T19:12:02Z</modified>
+    <modified>2026-03-27T19:55:31Z</modified>
     <colony_id></colony_id>
   </metadata>
   <philosophies>
@@ -689,7 +689,7 @@
 </queen-wisdom>
 <colony-registry xmlns="http://aether.colony/schemas/registry/1.0"
                  version="1.0.0"
-                 generated_at="2026-03-27T19:12:02Z">
+                 generated_at="2026-03-27T19:55:31Z">
   <colony id="Remove Aether developing Aether self-reference while preserving findings" status="active" created_at="2026-02-15T15:59:13Z">
     <name>Remove Aether developing Aether self-reference while preserving findings</name>
   </colony>

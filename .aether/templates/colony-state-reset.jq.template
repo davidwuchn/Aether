@@ -3,6 +3,7 @@
 # Version: 1.0
 
 .goal = null |
+.colony_version = 0 |
 .state = "IDLE" |
 .current_phase = 0 |
 .plan.phases = [] |

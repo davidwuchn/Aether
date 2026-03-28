@@ -166,6 +166,14 @@ Output header:
 🔄 Rollback: `git stash pop` (stash) or `git reset --hard {ref}` (commit)
 ```
 
+Run using the Bash tool with description "Showing phase progress...":
+```bash
+progress_bar=$(bash .aether/aether-utils.sh generate-progress-bar "$current_phase" "$total_phases" 20 2>/dev/null || echo "")
+if [[ -n "$progress_bar" ]]; then
+  echo "[Phase ${current_phase}/${total_phases}] ${progress_bar}"
+fi
+```
+
 ### Step 4: Load Constraints
 
 Read `.aether/data/constraints.json` if it exists.
@@ -719,7 +727,7 @@ Repeat Step 5.1-5.2 for each subsequent wave, waiting for previous wave to compl
 **Announce the verification wave:**
 ```
 ━━━ 👁️🐜 V E R I F I C A T I O N ━━━
-──── 👁️🐜 Spawning {watcher_name} ────
+──── 👁️🐜 Spawning {watcher_name} — Independent verification ────
 ```
 
 Spawn the Watcher using Task tool with `subagent_type="aether-watcher"`, include `description: "👁️ Watcher {Watcher-Name}: Independent verification"` (DO NOT use run_in_background - task blocks until complete):

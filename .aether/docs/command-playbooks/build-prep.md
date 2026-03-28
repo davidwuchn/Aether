@@ -244,3 +244,11 @@ Output header:
 📍 Phase {id}: {name}
 💾 Git checkpoint saved
 ```
+
+Run using the Bash tool with description "Showing phase progress...":
+```bash
+progress_bar=$(bash .aether/aether-utils.sh generate-progress-bar "$current_phase" "$total_phases" 20 2>/dev/null || echo "")
+if [[ -n "$progress_bar" ]]; then
+  echo "[Phase ${current_phase}/${total_phases}] ${progress_bar}"
+fi
+```

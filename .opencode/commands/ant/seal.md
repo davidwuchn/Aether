@@ -127,6 +127,31 @@ Create archive manifest file `$archive_dir/manifest.json`:
 }
 ```
 
+### Step 4.5: Increment Colony Version
+
+Before writing the Crowned Anthill milestone, increment `colony_version` in COLONY_STATE.json.
+
+```bash
+# Read current colony_version (default to 0 for backward compat with older colonies)
+current_colony_version=$(jq -r '.colony_version // 0' .aether/data/COLONY_STATE.json 2>/dev/null || echo 0)
+# Guard against non-integer values (floats, strings)
+[[ "$current_colony_version" =~ ^[0-9]+$ ]] || current_colony_version=0
+new_colony_version=$(( current_colony_version + 1 ))
+
+# Write incremented value back — guard against empty output destroying the file
+updated=$(jq --argjson v "$new_colony_version" '.colony_version = $v' .aether/data/COLONY_STATE.json 2>/dev/null)
+if [[ -n "$updated" && ${#updated} -gt 10 ]]; then
+  echo "$updated" > .aether/data/COLONY_STATE.json
+else
+  echo "Warning: jq update failed — colony_version defaults to 1, state file unchanged"
+  new_colony_version=1
+fi
+```
+
+Use `new_colony_version` as `{colony_version}` throughout the rest of the seal ceremony (e.g., display as "Crowned Anthill v{colony_version}").
+
+**Error handling:** If jq fails or produces empty/short output, COLONY_STATE.json is NOT overwritten and `new_colony_version` defaults to 1. Never let version increment failures block the seal.
+
 ### Step 5: Update Milestone to Crowned Anthill
 
 Update COLONY_STATE.json:
@@ -183,6 +208,11 @@ high_conf_instincts=$(jq -r '.memory.instincts[] | select(.confidence >= 0.8) | 
 # Derive source repo name from current directory
 source_repo="$(pwd)"
 
+# Read domain tags from registry (NOT from instinct.domain which is a category, not a repo domain)
+repo_domain_tags=$(jq -r --arg repo "$(pwd)" \
+  '[.repos[] | select(.path == $repo) | .domain_tags // []] | .[0] // [] | join(",")' \
+  "$HOME/.aether/registry.json" 2>/dev/null || echo "")
+
 hive_promoted_count=0
 hive_errors=0
 for encoded in $high_conf_instincts; do
@@ -192,7 +222,6 @@ for encoded in $high_conf_instincts; do
   trigger=$(echo "$encoded" | base64 -d | jq -r '.trigger // empty')
   action=$(echo "$encoded" | base64 -d | jq -r '.action // empty')
   confidence=$(echo "$encoded" | base64 -d | jq -r '.confidence // 0.7')
-  domain=$(echo "$encoded" | base64 -d | jq -r '.domain // empty')
 
   [[ -z "$trigger" || -z "$action" ]] && continue
 
@@ -204,7 +233,7 @@ for encoded in $high_conf_instincts; do
 
   # Build hive-promote args with --text and --source-repo (required)
   promote_args=(hive-promote --text "$promote_text" --source-repo "$source_repo" --confidence "$confidence")
-  [[ -n "$domain" ]] && promote_args+=(--domain "$domain")
+  [[ -n "$repo_domain_tags" ]] && promote_args+=(--domain "$repo_domain_tags")
 
   # Call hive-promote which orchestrates abstract + store
   result=$(bash .aether/aether-utils.sh "${promote_args[@]}" 2>/dev/null || echo '{}')
@@ -282,14 +311,14 @@ fi
 Output:
 ```
 🏺 ════════════════════════════════════════════════════
-   C R O W N E D   A N T H I L L
+   C R O W N E D   A N T H I L L   v{colony_version}
 ══════════════════════════════════════════════════ 🏺
 
 ✅ Colony archived successfully!
 
 👑 Goal: {goal (truncated to 60 chars)}
 📍 Phases: {total_phases} completed
-🏆 Milestone: Crowned Anthill
+🏆 Milestone: Crowned Anthill v{colony_version}
 
 📦 Archive Location: {archive_dir}
    - COLONY_STATE.json

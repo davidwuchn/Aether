@@ -42,6 +42,7 @@ CURRENT_LOCK=${CURRENT_LOCK:-""}
 [[ -f "$SCRIPT_DIR/utils/learning.sh" ]] && source "$SCRIPT_DIR/utils/learning.sh"
 [[ -f "$SCRIPT_DIR/utils/pheromone.sh" ]] && source "$SCRIPT_DIR/utils/pheromone.sh"
 [[ -f "$SCRIPT_DIR/utils/scan.sh" ]] && source "$SCRIPT_DIR/utils/scan.sh"
+[[ -f "$SCRIPT_DIR/utils/emoji-audit.sh" ]] && source "$SCRIPT_DIR/utils/emoji-audit.sh"
 
 # Fallback error constants if error-handler.sh wasn't sourced
 # This prevents "unbound variable" errors in older installations
@@ -971,7 +972,7 @@ get_wisdom_threshold() {
     philosophy:propose) echo 1 ;;
     philosophy:auto) echo 3 ;;
     pattern:propose) echo 1 ;;
-    pattern:auto) echo 2 ;;
+    pattern:auto) echo 1 ;;
     redirect:propose) echo 1 ;;
     redirect:auto) echo 2 ;;
     stack:propose) echo 1 ;;
@@ -992,7 +993,7 @@ get_wisdom_thresholds_json() {
   "build_learning": {"propose": 0, "auto": 0},
   "instinct": {"propose": 0, "auto": 0},
   "philosophy": {"propose": 1, "auto": 3},
-  "pattern": {"propose": 1, "auto": 2},
+  "pattern": {"propose": 1, "auto": 1},
   "redirect": {"propose": 1, "auto": 2},
   "stack": {"propose": 1, "auto": 2},
   "decree": {"propose": 0, "auto": 0},
@@ -1013,7 +1014,7 @@ case "$cmd" in
     cat <<'HELP_EOF'
 {
   "ok": true,
-  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","model-slot","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","midden-review","midden-acknowledge","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote","init-research","charter-write","colony-name"],
+  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","model-profile","model-get","model-list","model-slot","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","midden-review","midden-acknowledge","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote","init-research","charter-write","colony-name","emoji-audit"],
   "sections": {
     "Core": [
       {"name": "help", "description": "List all available commands with sections"},
@@ -1158,6 +1159,9 @@ case "$cmd" in
     ],
     "Smart Init": [
       {"name": "init-research", "description": "Scan repo and produce structured research JSON for smart init"}
+    ],
+    "Emoji Audit": [
+      {"name": "emoji-audit", "description": "Audit emoji usage in command files against the canonical colony-visuals reference map"}
     ],
     "Deprecated": [
       {"name": "checkpoint-check", "description": "Check dirty files against allowlist [DEPRECATED]"},
@@ -3988,6 +3992,8 @@ NODESCRIPT
 
   midden-write) _midden_write "$@" ;;
 
+  midden-ingest-errors) _midden_ingest_errors "$@" ;;
+
   # ============================================================================
   # XML Exchange Commands
   # ============================================================================
@@ -5415,6 +5421,11 @@ DRYRUN_EOF
   # ── Smart Init ─────────────────────────────────────────────────────────────
   init-research)
     _scan_init_research "$@"
+    ;;
+
+  # ── Emoji Audit ─────────────────────────────────────────────────────────────
+  emoji-audit)
+    _emoji_audit_main "${1:-$(pwd)}"
     ;;
 
   *)

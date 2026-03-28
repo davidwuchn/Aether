@@ -6,6 +6,24 @@
 # All shared infrastructure (json_ok, json_err, atomic_write, acquire_lock,
 # release_lock, LOCK_DIR, DATA_DIR, SCRIPT_DIR, error constants) is available.
 
+_midden_try_write() {
+    # Helper: write updated JSON to midden file with retry
+    # Usage: _midden_try_write <updated_json> <midden_file>
+    # Returns: 0 on success, 1 on failure
+    local mtw_json="$1"
+    local mtw_file="$2"
+    local mtw_tmp="${mtw_file}.tmp.$$"
+
+    if ! { printf '%s\n' "$mtw_json" > "$mtw_tmp" && mv "$mtw_tmp" "$mtw_file"; }; then
+      # Silent retry (once)
+      if ! { printf '%s\n' "$mtw_json" > "$mtw_tmp" && mv "$mtw_tmp" "$mtw_file"; }; then
+        echo "Warning: Midden write failed after retry -- entry may not have been saved." >&2
+        return 1
+      fi
+    fi
+    return 0
+}
+
 _midden_write() {
     # Write a warning/observation to the midden for later review
     # Usage: midden-write <category> <message> <source>
@@ -19,7 +37,7 @@ _midden_write() {
     # Graceful degradation: if no message, return success but note it
     if [[ -z "$mw_message" ]]; then
       json_ok "{\"success\":true,\"warning\":\"no_message_provided\",\"entry_id\":null}"
-      exit 0
+      return 0
     fi
 
     mw_midden_dir="$DATA_DIR/midden"
@@ -52,13 +70,7 @@ _midden_write() {
       ' "$mw_midden_file" 2>/dev/null)
 
       if [[ -n "$mw_updated_midden" ]]; then
-        mw_tmp="${mw_midden_file}.tmp.$$"
-        if ! { printf '%s\n' "$mw_updated_midden" > "$mw_tmp" && mv "$mw_tmp" "$mw_midden_file"; }; then
-          # Silent retry (once)
-          if ! { printf '%s\n' "$mw_updated_midden" > "$mw_tmp" && mv "$mw_tmp" "$mw_midden_file"; }; then
-            echo "Warning: Midden write failed after retry -- entry may not have been saved." >&2
-          fi
-        fi
+        _midden_try_write "$mw_updated_midden" "$mw_midden_file"
         release_lock 2>/dev/null || true
         json_ok "{\"success\":true,\"entry_id\":\"$mw_entry_id\",\"category\":\"$mw_category\",\"midden_total\":$(jq '.entries | length' "$mw_midden_file" 2>/dev/null || echo 0)}"
       else
@@ -74,13 +86,7 @@ _midden_write() {
       ' "$mw_midden_file" 2>/dev/null)
 
       if [[ -n "$mw_updated_midden" ]]; then
-        mw_tmp="${mw_midden_file}.tmp.$$"
-        if ! { printf '%s\n' "$mw_updated_midden" > "$mw_tmp" && mv "$mw_tmp" "$mw_midden_file"; }; then
-          # Silent retry (once)
-          if ! { printf '%s\n' "$mw_updated_midden" > "$mw_tmp" && mv "$mw_tmp" "$mw_midden_file"; }; then
-            echo "Warning: Midden write failed after retry -- entry may not have been saved." >&2
-          fi
-        fi
+        _midden_try_write "$mw_updated_midden" "$mw_midden_file"
         json_ok "{\"success\":true,\"entry_id\":\"$mw_entry_id\",\"category\":\"$mw_category\",\"warning\":\"lock_unavailable\"}"
       else
         json_ok "{\"success\":true,\"warning\":\"jq_processing_failed\",\"entry_id\":null}"
@@ -98,7 +104,7 @@ _midden_recent_failures() {
 
     if [[ ! -f "$midden_file" ]]; then
       echo '{"count":0,"failures":[]}'
-      exit 0
+      return 0
     fi
 
     # Extract failures from .entries[], sort by timestamp descending, limit results
@@ -112,7 +118,7 @@ _midden_recent_failures() {
     else
       echo "$result"
     fi
-    exit 0
+    return 0
 }
 
 _midden_review() {
@@ -137,7 +143,7 @@ _midden_review() {
 
     if [[ ! -f "$mr_midden_file" ]]; then
       json_ok '{"unacknowledged_count":0,"categories":{},"entries":[]}'
-      exit 0
+      return 0
     fi
 
     # Build jq filter based on options
@@ -173,7 +179,66 @@ _midden_review() {
     else
       json_ok "$mr_result"
     fi
-    exit 0
+    return 0
+}
+
+_midden_ingest_errors() {
+    # Ingest entries from errors.log into midden
+    # Usage: midden-ingest-errors [--dry-run]
+    # Returns: JSON with count of ingested entries
+    # After ingestion, moves errors.log to errors.log.ingested
+
+    mie_dry_run=false
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --dry-run) mie_dry_run=true; shift ;;
+        *) shift ;;
+      esac
+    done
+
+    mie_errors_file="$DATA_DIR/errors.log"
+
+    # No errors.log → nothing to ingest
+    if [[ ! -f "$mie_errors_file" ]]; then
+      json_ok '{"ingested":0}'
+      return 0
+    fi
+
+    # Empty file → nothing to ingest
+    if [[ ! -s "$mie_errors_file" ]]; then
+      json_ok '{"ingested":0}'
+      return 0
+    fi
+
+    mie_count=0
+
+    # Read line by line (avoid pipe-to-while subshell)
+    while IFS= read -r mie_line; do
+      # Skip blank lines
+      [[ -z "$mie_line" ]] && continue
+
+      # Parse timestamp from [YYYY-...Z] prefix
+      mie_timestamp=""
+      mie_message="$mie_line"
+      if [[ "$mie_line" =~ ^\[([^\]]+)\]\ (.*) ]]; then
+        mie_timestamp="${BASH_REMATCH[1]}"
+        mie_message="${BASH_REMATCH[2]}"
+      fi
+
+      mie_count=$((mie_count + 1))
+
+      if [[ "$mie_dry_run" == "false" ]]; then
+        _midden_write "error_log" "$mie_message" "error-handler" >/dev/null 2>&1 || true
+      fi
+    done < "$mie_errors_file"
+
+    # Move the file (not dry-run only)
+    if [[ "$mie_dry_run" == "false" && "$mie_count" -gt 0 ]]; then
+      mv "$mie_errors_file" "${mie_errors_file}.ingested"
+    fi
+
+    json_ok "{\"ingested\":$mie_count}"
+    return 0
 }
 
 _midden_acknowledge() {
@@ -269,5 +334,5 @@ _midden_acknowledge() {
     release_lock 2>/dev/null || true
 
     json_ok "{\"acknowledged\":true,\"count\":$ma_count,\"reason\":$(echo "$ma_reason" | jq -Rs '.')}"
-    exit 0
+    return 0
 }

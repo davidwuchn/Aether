@@ -64,6 +64,12 @@ Stop here.
 
 Extract: `goal`, `state`, `current_phase`, `plan.phases`, `milestone`, `version`, `initialized_at`, `memory.decisions`, `memory.phase_learnings`, `memory.instincts`.
 
+Read `colony_version` for display (default to 1 for backward compat with older colonies):
+```bash
+colony_version=$(jq -r '.colony_version // 1' .aether/data/COLONY_STATE.json 2>/dev/null || echo 1)
+[[ "$colony_version" =~ ^[0-9]+$ ]] || colony_version=1
+```
+
 ### Step 2: Seal-First Enforcement
 
 Check `milestone` in COLONY_STATE.json.
@@ -92,6 +98,7 @@ Show what will be archived:
 ENTOMB COLONY
 
 Goal: {goal}
+Version: v{colony_version}
 Milestone: Crowned Anthill
 Phases: {phases_completed} of {total_phases}
 
@@ -424,7 +431,7 @@ Display:
    C O L O N Y   E N T O M B E D
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Colony archived successfully
+Entombed v{colony_version}
 
 Goal: {goal}
 Phases: {completed} completed

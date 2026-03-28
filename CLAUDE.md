@@ -14,8 +14,8 @@
 | Slash commands | ~44 (Claude) + ~44 (OpenCode) |
 | Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
-| aether-utils.sh | ~5,200 lines (dispatcher), ~150 subcommands across all modules |
-| Utils | ~29 scripts (9 domain modules + infrastructure + XML) |
+| aether-utils.sh | ~5,200 lines (dispatcher), ~151 subcommands across all modules |
+| Utils | ~30 scripts (9 domain modules + infrastructure + XML + emoji-audit) |
 | Tests | 580+ passing |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
@@ -146,7 +146,7 @@ aether update      # or /ant:update
 ├── exchange/            # XML exchange modules (pheromone-xml, wisdom-xml)
 ├── agents-claude/       # Claude agent mirror used for packaging
 ├── data/                # LOCAL ONLY (never distributed)
-│   ├── COLONY_STATE.json
+│   ├── COLONY_STATE.json  # includes colony_version (seal/entomb lifecycle counter)
 │   ├── pheromones.json
 │   ├── constraints.json
 │   ├── midden/          # Failure tracking
@@ -567,6 +567,9 @@ bash bin/validate-package.sh
 
 # See what npm would package
 npm pack --dry-run
+
+# Audit emoji usage in command files against canonical reference map
+bash .aether/aether-utils.sh emoji-audit
 ```
 
 ---
