@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v2.6
+milestone_name: Bugfix & Hardening
+status: executing
+stopped_at: Completed 33-04-PLAN.md (Phase 33 complete)
+last_updated: "2026-03-29T07:16:13.269Z"
+last_activity: 2026-03-29 -- Phase 34 execution started
+progress:
+  total_phases: 6
+  completed_phases: 1
+  total_plans: 9
+  completed_plans: 6
+  percent: 16
+---
+
 # Project State
 
 ## Project Reference
@@ -5,25 +21,27 @@
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** v2.6 Bugfix & Hardening -- Phase 34
+**Current focus:** Phase 34 — cross-colony-isolation
 
 ## Current Position
 
-Phase: 34 of 38 (Cross-Colony Isolation)
-Plan: 2 of 5
-Status: Phase 34 plan 02 complete
-Last activity: 2026-03-29 -- Completed 34-02 (hub lock isolation)
+Phase: 34 (cross-colony-isolation) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 34
+Last activity: 2026-03-29 -- Phase 34 execution started
 
-Progress: [##........] 24% (v2.6: 6/24 plans estimated)
+Progress: [##........] 16% (v2.6: 4/24 plans estimated)
 
 ## Performance Metrics
 
 **Velocity (from v2.1-v2.5):**
-- Total plans completed: 88 (82 from v2.1-v2.5 + 6 from v2.6)
+
+- Total plans completed: 86 (82 from v2.1-v2.5 + 4 from v2.6)
 - Average duration: 5min
 - Total execution time: ~7 hours
 
 **Milestone History:**
+
 - v1.3: 8 phases (1-8), 17 plans -- shipped 2026-03-19
 - v2.1: 8 phases (9-16), 39 plans -- shipped 2026-03-24
 - v2.2: 4 phases (17-20), 5 plans -- shipped 2026-03-25
@@ -38,16 +56,13 @@ Progress: [##........] 24% (v2.6: 6/24 plans estimated)
 | 33-02 | json_ok escaping + sanitize-on-read | 35min | 3 | 13 |
 | 33-03 | lock safety + atomic write hardening | 27min | 2 | 3 |
 | 33-04 | data safety tests + status display | 11min | 2 | 2 |
-| 34-02 | hub lock isolation | 8min | 2 | 2 |
 
-*Updated after 34-02 completion*
+*Updated after 33-04 completion*
 
 ## Accumulated Context
 
 ### Decisions
 
-- acquire_lock_at/release_lock_at complement (not replace) existing acquire_lock/release_lock for hub-level locking
-- Colony tag in lock filenames enables stuck-lock debugging across colonies
 - Use `jq -n --arg` for strings and `--argjson` for numbers/booleans in json_ok construction
 - Drop `^` and `$` regex anchors when switching to `grep -F` since fixed-string mode treats them as literals
 - Ant names are unique per swarm, so `grep -F` without anchors is safe for timing file lookups
@@ -68,5 +83,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-29
-Stopped at: Completed 34-02-PLAN.md (hub lock isolation)
-Resume file: .planning/phases/34-cross-colony-isolation/34-02-SUMMARY.md
+Stopped at: Completed 33-04-PLAN.md (Phase 33 complete)
+Resume file: .planning/phases/33-input-escaping-atomic-write-safety/33-04-SUMMARY.md

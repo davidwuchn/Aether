@@ -9,6 +9,7 @@
 
 Communication style, expertise level, and decision-making patterns observed from the user (the Queen). These shape how the colony communicates and what it prioritizes. User decisions are the most important wisdom.
 
+- **test-colony** (2026-03-29T06:03:45Z): test content
 
 - [charter] **Intent**: Comprehensive audit of today's session work — verify QUEEN.md, pheromone system, wisdom pipeline, charter-write, and all colony lifecycle changes are functioning correctly (Colony: Aether Colony)
 - [charter] **Vision**: Confirm that everything built across three colonies today (versioning, seal audit fixes, visual consistency) works end-to-end with no regressions, silent failures, or data loss (Colony: Aether Colony)
@@ -99,6 +100,7 @@ High-confidence behavioral patterns that have been validated through repeated co
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-03-29T06:03:45Z | test-colony | promoted_decree | Added: test content... |
 | 2026-03-29T02:47:07Z | 1774204068 | promoted_pattern | Added: Separate infrastructure from state using distinct ... |
 | 2026-03-29T02:47:00Z | 1774204068 | promoted_pattern | Added: Watcher independently catches state-path bugs that... |
 | 2026-03-29T02:46:52Z | 1774178419 | promoted_pattern | Added: TDD with parallel background agents speeds up Phas... |
@@ -167,10 +169,10 @@ High-confidence behavioral patterns that have been validated through repeated co
 {
   "version": "2.0.0",
   "wisdom_version": "2.0",
-  "last_evolved": "2026-03-29T02:47:07Z",
+  "last_evolved": "2026-03-29T06:03:45Z",
   "colonies_contributed": ["1774645519"],
   "stats": {
-    "total_user_prefs": 2,
+    "total_user_prefs": 3,
     "total_codebase_patterns": 44,
     "total_build_learnings": 3,
     "total_instincts": 9
