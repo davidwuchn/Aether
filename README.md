@@ -12,6 +12,8 @@
 Spawn a colony of 24 AI specialists that self-organize around your goal using pheromone signals.
 1,000+ weekly installs.
 
+*The whole is greater than the sum of its ants.*
+
 ```bash
 npm install -g aether-colony
 ```
@@ -22,19 +24,37 @@ npm install -g aether-colony
   <img src="./AetherAnts.png" alt="Aether Colony" width="640" />
 </p>
 
+```
+         👑 Queen (you)
+          │
+          │  set the goal, steer with pheromone signals
+          ▼
+    ┌─────────────────────────────────────────┐
+    │         Colony self-organizes            │
+    │                                         │
+    │  🔨 Builders      write code (TDD)      │
+    │  👁️ Watchers      verify & test          │
+    │  🔍 Scouts        research first         │
+    │  🐛 Trackers      investigate bugs       │
+    │  🗺️ Colonizers    explore codebases      │
+    │  📋 Route-setters plan phases            │
+    │  🏺 Archaeologists excavate git history  │
+    │  🎲 Chaos Ants    resilience testing     │
+    │  📚 Keepers       preserve knowledge     │
+    │  🔮 Oracle        deep research          │
+    │  ...and 24 specialists total             │
+    └─────────────────────────────────────────┘
+```
+
 ## The Problem
 
 AI coding assistants work sequentially — one agent does everything: research, code, test, review. When it hits something complex, it either guesses or asks you. There's no specialization, no parallel work, no memory across sessions.
 
 ## The Solution
 
-Aether brings **ant colony intelligence** to AI-assisted development. Instead of one AI doing everything, you get a colony of specialists that self-organize:
+Aether brings **ant colony intelligence** to AI-assisted development. Instead of one AI doing everything, you get a colony of specialists that self-organize around your goal.
 
-- **Builders** write code (TDD-first)
-- **Watchers** verify and test
-- **Scouts** research before building
-- **Chaos Ants** probe edge cases
-- **24 specialists total** — each with a clear role
+Workers spawn workers dynamically (max depth 3, max 10 per phase). When a Builder hits something complex, it spawns a Scout to research. When code is written, a Watcher spawns to verify. The colony adapts to the problem.
 
 You steer the colony with **pheromone signals**, not micromanagement:
 
