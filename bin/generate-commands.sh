@@ -1,17 +1,16 @@
 #!/bin/bash
-# generate-commands.sh - Sync checks for commands and agents
+# generate-commands.sh - Validate YAML source -> generated command file sync
 #
-# This script helps keep command/agent surfaces in sync between platforms.
-# Currently it provides a simple diff-based sync, with plans for full
-# YAML-based generation in the future.
+# This script validates that generated .md files (.claude/commands/ant/*.md and
+# .opencode/commands/ant/*.md) match the output from YAML sources (.aether/commands/*.yaml).
 #
 # Usage:
-#   ./bin/generate-commands.sh [check|sync|diff]
+#   ./bin/generate-commands.sh [check|diff|help]
 #
 # Commands:
-#   check  - Check if commands are in sync (exit 1 if not)
-#   sync   - Copy Claude Code commands to OpenCode (with tool name translation)
+#   check  - Validate generated files match YAML sources
 #   diff   - Show differences between command sets
+#   help   - Show this help message
 
 set -e
 
@@ -144,98 +143,35 @@ check_sync() {
     return 0
 }
 
-# Check content-level sync using checksums (Pass 2)
-# Compares each matching file pair by SHA-1 hash and reports diffs
-check_content() {
-    log_info "Checking content-level sync (checksums)..."
+# Check YAML generation sync (Pass 2)
+# Validates that generated .md files match YAML sources
+check_yaml_generation() {
+    log_info "Checking YAML generation sync..."
 
-    local drift_count=0
-    local error_count=0
-    local match_count=0
-    local drift_files=""
-    local error_files=""
-
-    # Use null delimiter for safe iteration (handles filenames with spaces)
-    while IFS= read -r -d '' claude_file; do
-        local file
-        file=$(basename "$claude_file")
-        local opencode_file="$OPENCODE_DIR/$file"
-
-        # Skip if OpenCode file doesn't exist (already caught by Pass 1)
-        if [[ ! -f "$opencode_file" ]]; then
-            continue
-        fi
-
-        # Compute hashes with error handling
-        local claude_hash opencode_hash
-        claude_hash=$(compute_hash "$claude_file")
-        if [[ $? -ne 0 ]]; then
-            log_error "Cannot hash $claude_file ($claude_hash)"
-            error_files="${error_files}  ${file} (${claude_hash})\n"
-            error_count=$((error_count + 1))
-            continue
-        fi
-
-        opencode_hash=$(compute_hash "$opencode_file")
-        if [[ $? -ne 0 ]]; then
-            log_error "Cannot hash $opencode_file ($opencode_hash)"
-            error_files="${error_files}  ${file} (${opencode_hash})\n"
-            error_count=$((error_count + 1))
-            continue
-        fi
-
-        if [[ "$claude_hash" != "$opencode_hash" ]]; then
-            drift_count=$((drift_count + 1))
-            drift_files="${drift_files}  ${file}\n"
-
-            log_warn "Content drift: $file"
-            echo "  Claude:  $claude_hash"
-            echo "  OpenCode: $opencode_hash"
-
-            # PLAN-006 fix #12 - improved diff error handling
-            echo "  ---"
-            local diff_output
-            if diff_output=$(diff -u "$claude_file" "$opencode_file" 2>&1); then
-                # Files are same (shouldn't happen if hashes differ, but handle it)
-                echo "$diff_output" | head -20
-            else
-                local diff_exit=$?
-                if [[ "$diff_output" == *"diff:"* && "$diff_output" == *"No such file"* ]]; then
-                    log_error "diff failed: $diff_output"
-                else
-                    # Normal diff output (exit 1 means files differ)
-                    echo "$diff_output" | head -20
-                fi
-            fi
-            echo "  ---"
-            echo ""
-        else
-            match_count=$((match_count + 1))
-        fi
-    done < <(find "$CLAUDE_DIR" -name "*.md" -type f -print0 2>/dev/null | sort -z)
-
-    # Report results
-    if [[ "$error_count" -gt 0 ]]; then
-        echo ""
-        log_error "Hash errors in $error_count file(s):"
-        echo -e "$error_files"
-    fi
-
-    if [[ "$drift_count" -gt 0 ]]; then
-        echo ""
-        log_warn "Content drift detected in $drift_count file(s) (non-blocking):"
-        echo -e "$drift_files"
-        # Content drift is advisory — structural sync is what matters
-        log_info "Content checksum comparison completed ($match_count matched, $drift_count drifted)"
-    else
-        log_info "All file contents match (checksums verified: $match_count files)"
-    fi
-
-    if [[ "$error_count" -gt 0 ]]; then
+    # Verify YAML source directory exists
+    local yaml_dir="$PROJECT_DIR/.aether/commands"
+    if [[ ! -d "$yaml_dir" ]]; then
+        log_error "YAML source directory not found: $yaml_dir"
         return 1
     fi
 
-    return 0
+    local yaml_count
+    yaml_count=$(find "$yaml_dir" -name "*.yaml" | wc -l | tr -d ' ')
+    if [[ "$yaml_count" -eq 0 ]]; then
+        log_error "No YAML source files found in $yaml_dir"
+        return 1
+    fi
+
+    log_info "Found $yaml_count YAML source files"
+
+    # Run generator in check mode
+    if node "$PROJECT_DIR/bin/generate-commands.js" --check; then
+        log_info "Generated files match YAML sources ($yaml_count commands)"
+        return 0
+    else
+        log_error "Generated files are out of date. Run 'npm run generate' to update."
+        return 1
+    fi
 }
 
 # Check agent sync strategy:
@@ -318,6 +254,13 @@ check_agent_sync() {
 show_diff() {
     log_info "Comparing command sets..."
 
+    local yaml_dir="$PROJECT_DIR/.aether/commands"
+    local yaml_count=0
+    if [[ -d "$yaml_dir" ]]; then
+        yaml_count=$(find "$yaml_dir" -name "*.yaml" | wc -l | tr -d ' ')
+    fi
+    echo "YAML source files: $yaml_count"
+
     # Use null delimiter for safe iteration (handles filenames with spaces)
     while IFS= read -r -d '' claude_file; do
         local file
@@ -341,24 +284,26 @@ show_diff() {
 
 # Display help
 show_help() {
-    echo "Aether Command Sync Tool"
+    echo "Aether YAML Generation Validation Tool"
     echo ""
     echo "Usage: $0 [command]"
     echo ""
     echo "Commands:"
-    echo "  check   Check if commands are in sync"
+    echo "  check   Validate generated .md files match YAML sources"
     echo "  diff    Show differences between command sets"
     echo "  help    Show this help message"
     echo ""
     echo "Directories:"
-    echo "  Claude Code: $CLAUDE_DIR"
-    echo "  OpenCode:    $OPENCODE_DIR"
-    echo "  Claude agents: $CLAUDE_AGENT_DIR"
+    echo "  YAML sources:    $PROJECT_DIR/.aether/commands"
+    echo "  Claude output:   $CLAUDE_DIR"
+    echo "  OpenCode output: $OPENCODE_DIR"
+    echo "  Claude agents:   $CLAUDE_AGENT_DIR"
     echo "  OpenCode agents: $OPENCODE_AGENT_DIR"
-    echo "  Aether mirror agents: $AETHER_AGENT_MIRROR_DIR"
+    echo "  Aether mirror:   $AETHER_AGENT_MIRROR_DIR"
     echo ""
-    echo "Note: command/agent specs are maintained manually."
-    echo "Use this tool to verify structural and mirror sync constraints."
+    echo "Note: Command specs are maintained in .aether/commands/*.yaml."
+    echo "Run 'npm run generate' to regenerate .md files from YAML sources."
+    echo "Use this tool to verify generated files are up to date."
 }
 
 # Main
@@ -366,8 +311,8 @@ case "${1:-check}" in
     check)
         # Pass 1: file count + name check
         check_sync
-        # Pass 2: content-level checksum comparison
-        check_content
+        # Pass 2: YAML generation check
+        check_yaml_generation
         # Pass 3: agent sync policy checks
         check_agent_sync
         ;;
