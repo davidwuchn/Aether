@@ -1,12 +1,10 @@
 const test = require('ava');
 const proxyquire = require('proxyquire');
 
-const { getModelNames, getDefaultModelForCaste } = require('../helpers/mock-profiles');
-
-// Module-level constants derived from YAML via helper
-const BUILDER_MODEL = getDefaultModelForCaste('builder');
-const ALT_MODEL = getModelNames()[0];  // glm-5
-const LIGHT_MODEL = getModelNames()[2]; // glm-4.5-air
+// Hardcoded model names for testing (model routing archived — no YAML to read)
+const BUILDER_MODEL = 'test-builder-model';
+const ALT_MODEL = 'test-alt-model';
+const LIGHT_MODEL = 'test-light-model';
 
 // ============================================================================
 // Mock Data Helpers

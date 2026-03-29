@@ -3,11 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { getDefaultModelForCaste, getModelNames } = require('../helpers/mock-profiles');
-
-// Module-level constants derived from YAML via helper
-const BUILDER_MODEL = getDefaultModelForCaste('builder');
-const ALT_MODEL = getModelNames()[0];  // glm-5
+// Hardcoded model names for testing (model routing archived — no YAML to read)
+const BUILDER_MODEL = 'test-builder-model';
+const ALT_MODEL = 'test-alt-model';
 
 // Import the module under test
 const {
