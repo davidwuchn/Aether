@@ -79,6 +79,18 @@
 
 </details>
 
+<details>
+<summary>v2.6 Bugfix & Hardening (Phases 33-38) -- IN PROGRESS</summary>
+
+- [x] Phase 33: Data Safety Hardening (4/4 plans) -- completed 2026-03-29
+- [x] Phase 34: Colony Isolation (5/5 plans) -- completed 2026-03-29
+- [ ] Phase 35: Colony Depth & Model Routing (1/4 plans) -- in progress
+- [ ] Phase 36: TBD
+- [ ] Phase 37: TBD
+- [ ] Phase 38: TBD
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -115,3 +127,6 @@
 | 30. Charter Management | v2.5 | 2/2 | Complete | 2026-03-27 |
 | 31. Init.md Smart Init Rewrite | v2.5 | 2/2 | Complete | 2026-03-27 |
 | 32. Intelligence Enhancements | v2.5 | 3/3 | Complete | 2026-03-27 |
+| 33. Data Safety Hardening | v2.6 | 4/4 | Complete | 2026-03-29 |
+| 34. Colony Isolation | v2.6 | 5/5 | Complete | 2026-03-29 |
+| 35. Colony Depth & Model Routing | v2.6 | 1/4 | In Progress | - |
