@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Completed 34-05-PLAN.md
-last_updated: "2026-03-29T08:09:46.420Z"
+stopped_at: Completed 35-04-PLAN.md
+last_updated: "2026-03-29T09:54:35.400Z"
 last_activity: 2026-03-29
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 12
   percent: 80
 ---
 
@@ -63,6 +63,7 @@ Progress: [██████░░] 80% (34-01, 34-02, 34-03, 34-04 complete)
 
 *Updated during Phase 34 execution*
 | Phase 34 P05 | 6min | 1 tasks | 1 files |
+| Phase 35 P04 | 6min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,9 @@ Progress: [██████░░] 80% (34-01, 34-02, 34-03, 34-04 complete)
 - data-safety-stats subcommand returns zero defaults when no stats file exists
 - Integration tests use temp directory isolation with AETHER_ROOT override
 - [Phase 34]: Colony isolation integration tests verify COLONY_DATA_DIR resolution, auto-migration, lock tagging, name sanitization, and backward compatibility
+- [Phase 35]: Used DEPTH CHECK guard clause pattern at top of each gated spawn step for consistency
+- [Phase 35]: Inserted depth display as Step 2.5.5 in status.md to avoid renumbering existing non-sequential steps
+- [Phase 35]: Depth read uses graceful fallback to standard when colony-depth get fails
 
 ### Pending Todos
 
@@ -103,6 +107,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-29T08:02:32.351Z
-Stopped at: Completed 34-05-PLAN.md
+Last session: 2026-03-29T09:54:35.394Z
+Stopped at: Completed 35-04-PLAN.md
 Resume file: None
