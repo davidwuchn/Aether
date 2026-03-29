@@ -112,6 +112,25 @@ ls -1 .aether/dreams/*.md 2>/dev/null | sort | tail -1 | sed 's/.*\/\([0-9]\{4\}
 
 Format the timestamp as: YYYY-MM-DD HH:MM
 
+### Step 2.5.5: Colony Depth
+
+Run using the Bash tool with description "Reading colony depth...":
+```bash
+depth_result=$(bash .aether/aether-utils.sh colony-depth get 2>/dev/null || echo '{"ok":true,"result":{"depth":"standard","source":"default"}}')
+colony_depth=$(echo "$depth_result" | jq -r '.result.depth // "standard"')
+depth_source=$(echo "$depth_result" | jq -r '.result.source // "default"')
+echo "colony_depth=$colony_depth"
+echo "depth_source=$depth_source"
+```
+
+Store `colony_depth` and `depth_source` for the dashboard display.
+
+Depth label mapping:
+- light -> "Builder only (fastest)"
+- standard -> "Builder + Scout (balanced)"
+- deep -> "Builder + Scout + Oracle (thorough)"
+- full -> "All agents (most thorough)"
+
 From state, extract:
 
 **Phase info:**
@@ -240,6 +259,7 @@ Output format:
 ⚠️  Escalated: {escalated_count} task(s) awaiting your decision
 {end if}
 🏆 Milestone: <milestone> (<version>)
+🔬 Depth: {colony_depth} — {label}{if depth_source == "default": " (default)"}
 💭 Dreams: <dream_count> recorded (latest: <latest_dream>)
 🗺️ Survey: <survey_docs> docs (<survey_age_days>d old, <fresh|stale|missing>)
 
