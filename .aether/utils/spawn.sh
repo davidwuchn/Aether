@@ -30,8 +30,8 @@ _spawn_log() {
     echo "[$ts] ⚡ SPAWN $parent_emoji $parent_id -> $emoji $child_name ($child_caste): $task_summary [model: $model]" >> "$DATA_DIR/activity.log"
     # Log to spawn tree file for visualization (NEW FORMAT: includes model field)
     echo "$ts_full|$parent_id|$child_caste|$child_name|$task_summary|$model|$status" >> "$DATA_DIR/spawn-tree.txt"
-    # Return emoji-formatted result for display
-    json_ok "\"⚡ $emoji $child_name spawned\""
+    # Return emoji-formatted result for display (jq-safe: child_name may contain JSON-special chars)
+    json_ok "$(jq -n --arg msg "⚡ $emoji $child_name spawned" '$msg')"
 }
 
 _spawn_complete() {
@@ -60,8 +60,8 @@ _spawn_complete() {
           ' >/dev/null 2>&1 || _aether_log_error "Failed to log spawn failure to colony state"
       fi
     fi
-    # Return emoji-formatted result for display
-    json_ok "\"$status_icon $emoji $ant_name: ${summary:-$status}\""
+    # Return emoji-formatted result for display (jq-safe: ant_name/summary may contain JSON-special chars)
+    json_ok "$(jq -n --arg msg "$status_icon $emoji $ant_name: ${summary:-$status}" '$msg')"
 }
 
 _spawn_can_spawn() {
@@ -131,13 +131,13 @@ _spawn_get_depth() {
 
     # Check if spawn tree exists
     if [[ ! -f "$DATA_DIR/spawn-tree.txt" ]]; then
-      json_ok "{\"ant\":\"$ant_name\",\"depth\":1,\"found\":false}"
+      json_ok "$(jq -n --arg ant "$ant_name" '{ant: $ant, depth: 1, found: false}')"
       exit 0
     fi
 
     # Check if ant exists in spawn tree (gracefully handle missing ants)
     if ! grep -qF "|$ant_name|" "$DATA_DIR/spawn-tree.txt" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist; -F: ant_name may contain regex metacharacters
-      json_ok "{\"ant\":\"$ant_name\",\"depth\":1,\"found\":false}"
+      json_ok "$(jq -n --arg ant "$ant_name" '{ant: $ant, depth: 1, found: false}')"
       exit 0
     fi
 
@@ -164,7 +164,7 @@ _spawn_get_depth() {
       fi
     done
 
-    json_ok "{\"ant\":\"$ant_name\",\"depth\":$depth,\"found\":true}"
+    json_ok "$(jq -n --arg ant "$ant_name" --argjson depth "$depth" '{ant: $ant, depth: $depth, found: true}')"
 }
 
 _spawn_can_spawn_swarm() {
@@ -189,7 +189,9 @@ _spawn_can_spawn_swarm() {
       remaining=0
     fi
 
-    json_ok "{\"can_spawn\":$can,\"current\":$current,\"cap\":$swarm_cap,\"remaining\":$remaining,\"swarm_id\":\"$swarm_id\"}"
+    json_ok "$(jq -n --argjson can_spawn "$can" --argjson current "$current" \
+      --argjson cap "$swarm_cap" --argjson remaining "$remaining" --arg swarm_id "$swarm_id" \
+      '{can_spawn: $can_spawn, current: $current, cap: $cap, remaining: $remaining, swarm_id: $swarm_id}')"
 }
 
 _spawn_tree_load() {

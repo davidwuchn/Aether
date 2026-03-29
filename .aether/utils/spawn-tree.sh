@@ -83,21 +83,21 @@ get_spawn_depth() {
   local ant_name="${1:-}"
 
   if [[ -z "$ant_name" || "$ant_name" == "Queen" ]]; then
-    echo "{\"ant\":\"${ant_name:-Queen}\",\"depth\":0}"
+    jq -n --arg ant "${ant_name:-Queen}" '{ant: $ant, depth: 0}'
     return 0
   fi
 
   local file_path="${SPAWN_TREE_FILE}"
 
   if [[ ! -f "$file_path" ]]; then
-    echo "{\"ant\":\"$ant_name\",\"depth\":1,\"found\":false}"
+    jq -n --arg ant "$ant_name" '{ant: $ant, depth: 1, found: false}'
     return 0
   fi
 
   # Check if ant exists
   # -F: ant_name may contain regex metacharacters (dots, plus, brackets, etc.)
   if ! grep -qF "|$ant_name|" "$file_path" 2>/dev/null; then
-    echo "{\"ant\":\"$ant_name\",\"depth\":1,\"found\":false}"
+    jq -n --arg ant "$ant_name" '{ant: $ant, depth: 1, found: false}'
     return 0
   fi
 
@@ -120,7 +120,7 @@ get_spawn_depth() {
     ((safety++))
   done
 
-  echo "{\"ant\":\"$ant_name\",\"depth\":$depth,\"found\":true}"
+  jq -n --arg ant "$ant_name" --argjson depth "$depth" '{ant: $ant, depth: $depth, found: true}'
 }
 
 # Get list of active spawns
@@ -172,8 +172,8 @@ get_spawn_children() {
     return 0
   fi
 
-  local children_json="["
-  local first=true
+  # Collect children names safely, then build JSON array via jq
+  local -a children_arr=()
 
   # Find all spawns where parent matches
   while IFS= read -r line || [[ -n "$line" ]]; do
@@ -188,18 +188,16 @@ get_spawn_children() {
       child_name=$(echo "$line" | cut -d'|' -f4)
 
       if [[ "$parent" == "$ant_name" ]]; then
-        if [[ "$first" == "true" ]]; then
-          first=false
-        else
-          children_json+=","
-        fi
-        children_json+="\"$child_name\""
+        children_arr+=("$child_name")
       fi
     fi
   done < "$file_path"
 
-  children_json+="]"
-  echo "$children_json"
+  if [[ ${#children_arr[@]} -eq 0 ]]; then
+    echo "[]"
+  else
+    printf '%s\n' "${children_arr[@]}" | jq -R . | jq -s .
+  fi
 }
 
 # Get full lineage from ant up to Queen
@@ -215,16 +213,14 @@ get_spawn_lineage() {
   fi
 
   if [[ ! -f "$file_path" ]]; then
-    echo "[\"$ant_name\",\"Queen\"]"
+    jq -n --arg ant "$ant_name" '[$ant, "Queen"]'
     return 0
   fi
 
-  # Build lineage array (ant first, then ancestors)
-  local lineage=""
+  # Build lineage array (ant first, then ancestors) using jq for safe JSON escaping
+  local -a lineage_arr=("$ant_name")
   local current="$ant_name"
   local safety=0
-
-  lineage="\"$current\""
 
   while [[ $safety -lt 5 ]]; do
     # Find who spawned this ant
@@ -232,16 +228,17 @@ get_spawn_lineage() {
     parent=$(grep -F "|$current|" "$file_path" 2>/dev/null | grep "|spawned$" | head -1 | cut -d'|' -f2 || echo "")
 
     if [[ -z "$parent" || "$parent" == "Queen" ]]; then
-      lineage+=",\"Queen\""
+      lineage_arr+=("Queen")
       break
     fi
 
-    lineage+=",\"$parent\""
+    lineage_arr+=("$parent")
     current="$parent"
     ((safety++))
   done
 
-  echo "[$lineage]"
+  # Build JSON array safely via jq
+  printf '%s\n' "${lineage_arr[@]}" | jq -R . | jq -s .
 }
 
 # Reconstruct full tree as JSON
