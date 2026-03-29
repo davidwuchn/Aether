@@ -51,6 +51,7 @@ Carry these values forward when produced:
 - `visual_mode`
 - `verbose_mode`
 - `suggest_enabled`
+- `colony_depth`
 - `prompt_section`
 - `wave_results`
 - `verification_status`

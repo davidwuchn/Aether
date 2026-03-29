@@ -147,6 +147,35 @@ If `cli_depth_override` is set:
    - Stop here
 3. If valid: Display `Colony depth: {level}`
 
+**Read colony depth:**
+
+Run using the Bash tool with description "Reading colony depth...":
+```bash
+depth_result=$(bash .aether/aether-utils.sh colony-depth get 2>/dev/null || echo '{"ok":true,"result":{"depth":"standard","source":"default"}}')
+colony_depth=$(echo "$depth_result" | jq -r '.result.depth // "standard"')
+depth_source=$(echo "$depth_result" | jq -r '.result.source // "default"')
+echo "colony_depth=$colony_depth"
+echo "depth_source=$depth_source"
+```
+
+Store `colony_depth` as cross-stage state for use by build-wave.md and build-verify.md.
+
+Display depth with label:
+```
+Depth: {colony_depth} ({label})
+```
+
+Where label maps:
+- light -> "Builder only -- fastest"
+- standard -> "Builder + Scout -- balanced"
+- deep -> "Builder + Scout + Oracle -- thorough"
+- full -> "All agents -- most thorough"
+
+If `colony_depth` is "standard" and `depth_source` is "default" (user never explicitly set it), also display:
+```
+(Tip: use --depth deep for Oracle research, or --depth light for fast builds)
+```
+
 **Auto-upgrade old state:**
 If `version` field is missing, "1.0", or "2.0":
 1. Preserve: `goal`, `state`, `current_phase`, `plan.phases`

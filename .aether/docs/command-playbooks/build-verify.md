@@ -244,6 +244,11 @@ For failed verification:
 
 ### Step 5.6: Spawn Chaos Ant for Resilience Testing
 
+**DEPTH CHECK: Skip if colony depth is not "full".**
+
+- If `colony_depth` is not "full": Display `Chaos testing skipped (depth: {colony_depth})` and skip to Step 5.7 (Process Chaos Ant Results -- which will be a no-op).
+- If `colony_depth` is "full": Proceed with existing Chaos spawn logic below.
+
 **After the Watcher completes, spawn a Chaos Ant to probe the phase work for edge cases and boundary conditions.**
 
 Generate a chaos ant name and dispatch:

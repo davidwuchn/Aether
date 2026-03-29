@@ -129,6 +129,11 @@ No phase research found -- plan was generated before research feature
 
 **Conditional step — only fires when the phase modifies existing files.**
 
+**DEPTH CHECK: Also skip at "light" depth regardless of file modification.**
+
+If `colony_depth` is "light": Skip this step silently, proceed to Step 4.2.
+Otherwise: Apply existing file-modification conditional below.
+
 1. **Detect existing-file modification:**
    Examine each task in the phase. Look at task descriptions, constraints, and hints for signals:
    - Keywords: "update", "modify", "add to", "integrate into", "extend", "change", "refactor", "fix"

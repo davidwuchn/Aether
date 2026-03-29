@@ -33,7 +33,7 @@ Analyze the phase tasks:
 
 2. **Assign castes:**
    - Implementation tasks → 🔨🐜 Builder
-   - Research/docs tasks → 🔍🐜 Scout
+   - Research/docs tasks → 🔍🐜 Scout (**only if `colony_depth` is "standard", "deep", or "full"**; at "light" depth, reassign to Builder or skip)
    - Testing/validation → 👁️🐜 Watcher (ALWAYS spawn at least one)
    - Resilience testing → 🎲🐜 Chaos (ALWAYS spawn one after Watcher)
 
@@ -56,9 +56,9 @@ Wave 2  — After Wave 1
 
 Verification
   👁️🐜 {Watcher-Name}  Verify all work independently
-  🎲🐜 {Chaos-Name}   Resilience testing (after Watcher)
+  {if colony_depth == "full": 🎲🐜 {Chaos-Name}   Resilience testing (after Watcher)}
 
-Total: {N} Builders + 1 Watcher + 1 Chaos + 1 Oracle + 1 Architect = {N+4} spawns
+Total: {N} Builders + 1 Watcher{if colony_depth == "full": " + 1 Chaos"}{if colony_depth in ["deep","full"]: " + 1 Oracle + 1 Architect"} = {total} spawns
 ```
 
 **Caste Emoji Legend:**
@@ -77,6 +77,12 @@ Total: {N} Builders + 1 Watcher + 1 Chaos + 1 Oracle + 1 Architect = {N+4} spawn
 - 🔌🐜 Ambassador (blue if color enabled) — external integration specialist
 
 ### Step 5.0.1: Oracle Research Step (Non-Blocking)
+
+**DEPTH CHECK: Skip if colony depth is "light" or "standard".**
+
+The `colony_depth` value is available from build-prep.md cross-stage state.
+- If `colony_depth` is "light" or "standard": Display `Oracle skipped (depth: {colony_depth})` and skip to Step 5.0.5.
+- If `colony_depth` is "deep" or "full": Proceed with existing Oracle spawn logic below.
 
 **Oracle runs BEFORE worker waves. Failure is non-blocking -- the build continues with a warning.**
 
@@ -145,6 +151,12 @@ Total: {N} Builders + 1 Watcher + 1 Chaos + 1 Oracle + 1 Architect = {N+4} spawn
    Run using the Bash tool with description "Recording oracle completion...": `bash .aether/aether-utils.sh spawn-complete "{oracle_name}" "{status}" "{summary}"`
 
 ### Step 5.0.2: Architect Design Step (Non-Blocking)
+
+**DEPTH CHECK: Skip if colony depth is "light" or "standard".**
+
+Architect depends on Oracle findings. If Oracle was skipped, Architect must also be skipped.
+- If `colony_depth` is "light" or "standard": Display `Architect skipped (depth: {colony_depth})` and skip to Step 5.0.5.
+- If `colony_depth` is "deep" or "full": Proceed with existing Architect spawn logic below.
 
 **Architect runs AFTER Oracle, BEFORE worker waves. Failure is non-blocking -- the build continues with a warning.**
 
