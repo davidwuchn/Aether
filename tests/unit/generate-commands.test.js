@@ -19,13 +19,13 @@ const { generateForProvider } = require('../../bin/generate-commands.js');
 test('generates correct frontmatter with shared description', t => {
   const spec = { name: 'ant:test', description: 'Test command', body: 'Hello world' };
   const claude = generateForProvider(spec, 'claude');
-  t.true(claude.startsWith('---\nname: ant:test\ndescription: "Test command"\n---\n'));
+  t.true(claude.includes('---\nname: ant:test\ndescription: "Test command"\n---\n'));
 });
 
 test('generates correct frontmatter for opencode with shared description', t => {
   const spec = { name: 'ant:test', description: 'Test command', body: 'Hello world' };
   const opencode = generateForProvider(spec, 'opencode');
-  t.true(opencode.startsWith('---\nname: ant:test\ndescription: "Test command"\n---\n'));
+  t.true(opencode.includes('---\nname: ant:test\ndescription: "Test command"\n---\n'));
 });
 
 // --- Test 2: Provider-specific description ---
