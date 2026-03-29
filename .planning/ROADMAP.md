@@ -84,7 +84,7 @@
 
 **Milestone Goal:** Fix critical data-corruption bugs, harden infrastructure, clear high-priority TODOs.
 
-- [ ] **Phase 33: Input Escaping & Atomic Write Safety** - Fix ant_name injection in grep/JSON, jq-escape all dynamic values, release locks on validation failure
+- [x] **Phase 33: Input Escaping & Atomic Write Safety** - Fix ant_name injection in grep/JSON, jq-escape all dynamic values, release locks on validation failure (completed 2026-03-29)
 - [ ] **Phase 34: Cross-Colony Isolation** - Eliminate information bleed between colonies via proper name extraction, lock scoping, and file namespacing
 - [ ] **Phase 35: Colony Depth & Model Routing** - Depth selector gates Oracle/Scout spawns; model routing either wired end-to-end or dead code removed
 - [ ] **Phase 36: YAML Command Generator** - Single YAML source produces both Claude and OpenCode command markdown
@@ -198,7 +198,7 @@
 | 30. Charter Management | v2.5 | 2/2 | Complete | 2026-03-27 |
 | 31. Init.md Smart Init Rewrite | v2.5 | 2/2 | Complete | 2026-03-27 |
 | 32. Intelligence Enhancements | v2.5 | 3/3 | Complete | 2026-03-27 |
-| 33. Input Escaping & Atomic Write Safety | v2.6 | 0/4 | Planned | - |
+| 33. Input Escaping & Atomic Write Safety | v2.6 | Complete    | 2026-03-29 | - |
 | 34. Cross-Colony Isolation | v2.6 | 0/TBD | Not started | - |
 | 35. Colony Depth & Model Routing | v2.6 | 0/TBD | Not started | - |
 | 36. YAML Command Generator | v2.6 | 0/TBD | Not started | - |
