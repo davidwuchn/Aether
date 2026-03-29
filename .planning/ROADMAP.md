@@ -117,7 +117,14 @@
   2. `LOCK_DIR` in hive.sh is passed as a function parameter, never mutated as a global variable
   3. Shared data files (pheromones.json, learning-observations.json, session.json, run-state.json) include colony namespace so two colonies writing concurrently do not overwrite each other
   4. Existing single-colony workflows still work identically (no regression)
-**Plans**: TBD
+**Plans:** 5 plans
+
+Plans:
+- [ ] 34-01-PLAN.md — Replace all 13 session_id splitting locations with colony-name subcommand (3 shell + 9 playbook + 1 OpenCode)
+- [ ] 34-02-PLAN.md — Add acquire_lock_at/release_lock_at to file-lock.sh and refactor hive.sh to eliminate LOCK_DIR mutation
+- [ ] 34-03-PLAN.md — Add COLONY_DATA_DIR resolution + auto-migration infrastructure, update aether-utils.sh file references
+- [ ] 34-04-PLAN.md — Update all 15 utils/ modules to use COLONY_DATA_DIR for per-colony file references
+- [ ] 34-05-PLAN.md — Integration tests for colony isolation (COLONY_DATA_DIR, migration, lock tagging, backwards compat)
 
 ### Phase 35: Colony Depth & Model Routing
 **Goal**: Colony operators can control how deeply the system investigates (gating expensive agent spawns) and model routing is either functional end-to-end or honestly removed
