@@ -253,20 +253,24 @@ _swarm_display_init() {
     display_file="$DATA_DIR/swarm-display.json"
     ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    atomic_write "$display_file" "{
-  \"swarm_id\": \"$swarm_id\",
-  \"timestamp\": \"$ts\",
-  \"active_ants\": [],
-  \"summary\": { \"total_active\": 0, \"by_caste\": {}, \"by_zone\": {} },
-  \"chambers\": {
-    \"fungus_garden\": {\"activity\": 0, \"icon\": \"🍄\"},
-    \"nursery\": {\"activity\": 0, \"icon\": \"🥚\"},
-    \"refuse_pile\": {\"activity\": 0, \"icon\": \"🗑️\"},
-    \"throne_room\": {\"activity\": 0, \"icon\": \"👑\"},
-    \"foraging_trail\": {\"activity\": 0, \"icon\": \"🌿\"}
-  }
-}"
-    json_ok "{\"swarm_id\":\"$swarm_id\",\"initialized\":true}"
+    # Build initial display JSON safely via jq (swarm_id may contain JSON-special chars)
+    local init_json
+    init_json=$(jq -n --arg sid "$swarm_id" --arg ts "$ts" \
+      --arg e1 "🍄" --arg e2 "🥚" --arg e3 "🗑️" --arg e4 "👑" --arg e5 "🌿" '{
+      swarm_id: $sid,
+      timestamp: $ts,
+      active_ants: [],
+      summary: { total_active: 0, by_caste: {}, by_zone: {} },
+      chambers: {
+        fungus_garden: {activity: 0, icon: $e1},
+        nursery: {activity: 0, icon: $e2},
+        refuse_pile: {activity: 0, icon: $e3},
+        throne_room: {activity: 0, icon: $e4},
+        foraging_trail: {activity: 0, icon: $e5}
+      }
+    }')
+    atomic_write "$display_file" "$init_json"
+    json_ok "$(jq -n --arg sid "$swarm_id" '{swarm_id: $sid, initialized: true}')"
 }
 
 # ============================================================================
@@ -381,7 +385,9 @@ _swarm_display_update() {
 
     # Get emoji for response
     emoji=$(get_caste_emoji "$caste")
-    json_ok "{\"updated\":true,\"ant\":\"$ant_name\",\"caste\":\"$caste\",\"emoji\":\"$emoji\",\"chamber\":\"$chamber\",\"progress\":$progress}"
+    json_ok "$(jq -n --arg ant "$ant_name" --arg caste "$caste" --arg emoji "$emoji" \
+      --arg chamber "$chamber" --argjson progress "$progress" \
+      '{updated: true, ant: $ant, caste: $caste, emoji: $emoji, chamber: $chamber, progress: $progress}')"
 }
 
 # ============================================================================
@@ -902,7 +908,8 @@ _swarm_timing_start() {
     fi
     echo "$ant_name|$ts|$ts_iso" >> "$timing_file"
 
-    json_ok "{\"ant\":\"$ant_name\",\"started_at\":\"$ts_iso\",\"timestamp\":$ts}"
+    json_ok "$(jq -n --arg ant "$ant_name" --arg started_at "$ts_iso" --argjson timestamp "$ts" \
+      '{ant: $ant, started_at: $started_at, timestamp: $timestamp}')"
 }
 
 # ============================================================================
@@ -918,7 +925,7 @@ _swarm_timing_get() {
 
     # -F: ant_name may contain regex metacharacters; ^ anchor dropped (ant names are unique per swarm)
     if [[ ! -f "$timing_file" ]] || ! grep -qF "$ant_name|" "$timing_file" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist
-      json_ok "{\"ant\":\"$ant_name\",\"started_at\":null,\"elapsed_seconds\":0,\"elapsed_formatted\":\"00:00\"}"
+      json_ok "$(jq -n --arg ant "$ant_name" '{ant: $ant, started_at: null, elapsed_seconds: 0, elapsed_formatted: "00:00"}')"
       exit 0
     fi
 
@@ -935,7 +942,9 @@ _swarm_timing_get() {
     secs=$((elapsed % 60))
     formatted=$(printf "%02d:%02d" $mins $secs)
 
-    json_ok "{\"ant\":\"$ant_name\",\"started_at\":\"$start_iso\",\"elapsed_seconds\":$elapsed,\"elapsed_formatted\":\"$formatted\"}"
+    json_ok "$(jq -n --arg ant "$ant_name" --arg started_at "$start_iso" \
+      --argjson elapsed "$elapsed" --arg formatted "$formatted" \
+      '{ant: $ant, started_at: $started_at, elapsed_seconds: $elapsed, elapsed_formatted: $formatted}')"
 }
 
 # ============================================================================
@@ -964,7 +973,8 @@ _swarm_timing_eta() {
 
     # -F: ant_name may contain regex metacharacters; ^ anchor dropped (ant names are unique per swarm)
     if [[ ! -f "$timing_file" ]] || ! grep -qF "$ant_name|" "$timing_file" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist
-      json_ok "{\"ant\":\"$ant_name\",\"percent\":$percent,\"eta_seconds\":null,\"eta_formatted\":\"--:--\"}"
+      json_ok "$(jq -n --arg ant "$ant_name" --argjson percent "$percent" \
+        '{ant: $ant, percent: $percent, eta_seconds: null, eta_formatted: "--:--"}')"
       exit 0
     fi
 
@@ -988,5 +998,7 @@ _swarm_timing_eta() {
       eta_formatted=$(printf "%02d:%02d" $mins $secs)
     fi
 
-    json_ok "{\"ant\":\"$ant_name\",\"percent\":$percent,\"eta_seconds\":$eta_seconds,\"eta_formatted\":\"$eta_formatted\"}"
+    json_ok "$(jq -n --arg ant "$ant_name" --argjson percent "$percent" \
+      --argjson eta "$eta_seconds" --arg eta_fmt "$eta_formatted" \
+      '{ant: $ant, percent: $percent, eta_seconds: $eta, eta_formatted: $eta_fmt}')"
 }
