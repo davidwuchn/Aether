@@ -115,3 +115,4 @@
 | 30. Charter Management | v2.5 | 2/2 | Complete | 2026-03-27 |
 | 31. Init.md Smart Init Rewrite | v2.5 | 2/2 | Complete | 2026-03-27 |
 | 32. Intelligence Enhancements | v2.5 | 3/3 | Complete | 2026-03-27 |
+| 37. XML Core Integration | v2.6 | 1/3 | In Progress | -- |

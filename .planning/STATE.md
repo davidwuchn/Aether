@@ -9,11 +9,11 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 32 of 32 — all milestones through v2.5 complete
-Status: v2.5 Smart Init shipped 2026-03-27
-Last activity: 2026-03-27 — milestone v2.5 archived
+Phase: 37 of 37 (xml-core-integration) — Plan 02 complete
+Status: Executing plan 02
+Last activity: 2026-03-29 — 37-02 init chamber XML import
 
-Progress: [█████████] 100% (v1.3 through v2.5)
+Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in progress
 
 ## Performance Metrics
 
@@ -38,6 +38,10 @@ Progress: [█████████] 100% (v1.3 through v2.5)
 
 All v2.5 decisions archived to PROJECT.md Key Decisions table.
 
+- [37-02] Import step placed after colony creation so data files exist as targets
+- [37-02] xmllint required before offering import (hard dependency of pheromone-import-xml)
+- [37-02] All three data types imported together, no cherry-picking (per D-09)
+
 ### Pending Todos
 
 None.
@@ -48,6 +52,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-27
-Stopped at: v2.5 milestone complete, archived
+Last session: 2026-03-29
+Stopped at: Completed 37-02-PLAN.md
 Resume file: None
