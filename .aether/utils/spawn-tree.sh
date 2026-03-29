@@ -95,7 +95,8 @@ get_spawn_depth() {
   fi
 
   # Check if ant exists
-  if ! grep -q "|$ant_name|" "$file_path" 2>/dev/null; then
+  # -F: ant_name may contain regex metacharacters (dots, plus, brackets, etc.)
+  if ! grep -qF "|$ant_name|" "$file_path" 2>/dev/null; then
     echo "{\"ant\":\"$ant_name\",\"depth\":1,\"found\":false}"
     return 0
   fi
@@ -108,7 +109,7 @@ get_spawn_depth() {
   while [[ $safety -lt 5 ]]; do
     # Find who spawned this ant
     local parent
-    parent=$(grep "|$current|" "$file_path" 2>/dev/null | grep "|spawned$" | head -1 | cut -d'|' -f2 || echo "")
+    parent=$(grep -F "|$current|" "$file_path" 2>/dev/null | grep "|spawned$" | head -1 | cut -d'|' -f2 || echo "")
 
     if [[ -z "$parent" || "$parent" == "Queen" ]]; then
       break
@@ -228,7 +229,7 @@ get_spawn_lineage() {
   while [[ $safety -lt 5 ]]; do
     # Find who spawned this ant
     local parent
-    parent=$(grep "|$current|" "$file_path" 2>/dev/null | grep "|spawned$" | head -1 | cut -d'|' -f2 || echo "")
+    parent=$(grep -F "|$current|" "$file_path" 2>/dev/null | grep "|spawned$" | head -1 | cut -d'|' -f2 || echo "")
 
     if [[ -z "$parent" || "$parent" == "Queen" ]]; then
       lineage+=",\"Queen\""

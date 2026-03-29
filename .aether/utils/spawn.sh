@@ -136,7 +136,7 @@ _spawn_get_depth() {
     fi
 
     # Check if ant exists in spawn tree (gracefully handle missing ants)
-    if ! grep -q "|$ant_name|" "$DATA_DIR/spawn-tree.txt" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist
+    if ! grep -qF "|$ant_name|" "$DATA_DIR/spawn-tree.txt" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist; -F: ant_name may contain regex metacharacters
       json_ok "{\"ant\":\"$ant_name\",\"depth\":1,\"found\":false}"
       exit 0
     fi
@@ -149,7 +149,7 @@ _spawn_get_depth() {
     while true; do
       # Format: timestamp|parent|caste|child_name|task|spawned
       # SUPPRESS:OK -- read-default: returns fallback on failure
-      parent=$(grep "|$current_ant|" "$DATA_DIR/spawn-tree.txt" 2>/dev/null | grep "|spawned$" | head -1 | cut -d'|' -f2 || echo "")
+      parent=$(grep -F "|$current_ant|" "$DATA_DIR/spawn-tree.txt" 2>/dev/null | grep "|spawned$" | head -1 | cut -d'|' -f2 || echo "")
 
       if [[ -z "$parent" || "$parent" == "Queen" ]]; then
         break
@@ -177,7 +177,8 @@ _spawn_can_spawn_swarm() {
     current=0
     if [[ -f "$DATA_DIR/spawn-tree.txt" ]]; then
       # SUPPRESS:OK -- existence-test: grep returns 1 when no matches
-      current=$(grep -c "|swarm:$swarm_id$" "$DATA_DIR/spawn-tree.txt" 2>/dev/null) || current=0
+      # -F: swarm_id may contain regex metacharacters; anchor $ dropped (swarm_id is unique, no substring collision risk)
+      current=$(grep -cF "|swarm:$swarm_id" "$DATA_DIR/spawn-tree.txt" 2>/dev/null) || current=0
     fi
 
     if [[ $current -lt $swarm_cap ]]; then

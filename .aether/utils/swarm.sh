@@ -893,7 +893,8 @@ _swarm_timing_start() {
 
     # Remove any existing entry for this ant and append new one
     if [[ -f "$timing_file" ]]; then
-      grep -v "^$ant_name|" "$timing_file" > "${timing_file}.tmp" 2>/dev/null || true  # SUPPRESS:OK -- read-default: file may not exist
+      # -F: ant_name may contain regex metacharacters; ^ anchor dropped (ant names are unique per swarm, no substring collision)
+      grep -vF "$ant_name|" "$timing_file" > "${timing_file}.tmp" 2>/dev/null || true  # SUPPRESS:OK -- read-default: file may not exist
       mv "${timing_file}.tmp" "$timing_file"
     fi
     echo "$ant_name|$ts|$ts_iso" >> "$timing_file"
@@ -912,13 +913,14 @@ _swarm_timing_get() {
 
     timing_file="$DATA_DIR/timing.log"
 
-    if [[ ! -f "$timing_file" ]] || ! grep -q "^$ant_name|" "$timing_file" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist
+    # -F: ant_name may contain regex metacharacters; ^ anchor dropped (ant names are unique per swarm)
+    if [[ ! -f "$timing_file" ]] || ! grep -qF "$ant_name|" "$timing_file" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist
       json_ok "{\"ant\":\"$ant_name\",\"started_at\":null,\"elapsed_seconds\":0,\"elapsed_formatted\":\"00:00\"}"
       exit 0
     fi
 
     # Read start time
-    start_line=$(grep "^$ant_name|" "$timing_file" | tail -1)
+    start_line=$(grep -F "$ant_name|" "$timing_file" | tail -1)
     start_ts=$(echo "$start_line" | cut -d'|' -f2)
     start_iso=$(echo "$start_line" | cut -d'|' -f3)
 
@@ -957,13 +959,14 @@ _swarm_timing_eta() {
 
     timing_file="$DATA_DIR/timing.log"
 
-    if [[ ! -f "$timing_file" ]] || ! grep -q "^$ant_name|" "$timing_file" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist
+    # -F: ant_name may contain regex metacharacters; ^ anchor dropped (ant names are unique per swarm)
+    if [[ ! -f "$timing_file" ]] || ! grep -qF "$ant_name|" "$timing_file" 2>/dev/null; then  # SUPPRESS:OK -- existence-test: file may not exist
       json_ok "{\"ant\":\"$ant_name\",\"percent\":$percent,\"eta_seconds\":null,\"eta_formatted\":\"--:--\"}"
       exit 0
     fi
 
     # Read start time
-    start_ts=$(grep "^$ant_name|" "$timing_file" | tail -1 | cut -d'|' -f2)
+    start_ts=$(grep -F "$ant_name|" "$timing_file" | tail -1 | cut -d'|' -f2)
     now=$(date +%s)
     elapsed=$((now - start_ts))
 
