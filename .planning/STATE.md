@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 34 - Cross-Colony Isolation
 
 ## Current Position
 
-Phase: 32 of 32 — all milestones through v2.5 complete
-Status: v2.5 Smart Init shipped 2026-03-27
-Last activity: 2026-03-27 — milestone v2.5 archived
+Phase: 34-cross-colony-isolation, Plan 03 of 5
+Status: COLONY_DATA_DIR infrastructure complete, per-colony file isolation working
+Last activity: 2026-03-29 — 34-03: Per-colony data directory infrastructure
 
-Progress: [█████████] 100% (v1.3 through v2.5)
+Progress: [████░░░░] 60% (34-01, 34-02, 34-03 complete)
 
 ## Performance Metrics
 
@@ -29,12 +29,20 @@ Progress: [█████████] 100% (v1.3 through v2.5)
 - v2.3: 4 phases (21-24), 10 plans — shipped 2026-03-27
 - v2.4: 4 phases (25-28), 8 plans — shipped 2026-03-27
 - v2.5: 4 phases (29-32), 10 plans — shipped 2026-03-27
+- v2.6: Phase 33, 5 plans — shipped 2026-03-27
+- v2.7: Phase 34, in progress (3/5 plans complete)
 
-*Updated after v2.5 milestone completion*
+*Updated after 34-03 completion*
 
 ## Accumulated Context
 
 ### Decisions
+
+**From 34-03:**
+- COLONY_STATE.json remains at DATA_DIR root as the colony identification anchor
+- Per-colony files use COLONY_DATA_DIR, shared files use DATA_DIR
+- Migration uses presence-based detection (no version field)
+- Migration function intentionally uses DATA_DIR for source paths
 
 All v2.5 decisions archived to PROJECT.md Key Decisions table.
 
@@ -48,6 +56,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-27
-Stopped at: v2.5 milestone complete, archived
+Last session: 2026-03-29
+Stopped at: 34-03 complete, COLONY_DATA_DIR infrastructure working
 Resume file: None
