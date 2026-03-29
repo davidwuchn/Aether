@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 ## Current Position
 
 Phase: 33 of 38 (Input Escaping & Atomic Write Safety)
-Plan: 3 of 4
-Status: Plan 03 complete
-Last activity: 2026-03-29 -- Completed 33-03 (lock safety & atomic write hardening)
+Plan: 4 of 4
+Status: Phase 33 complete (all 4 plans)
+Last activity: 2026-03-29 -- Completed 33-04 (data safety tests + status display)
 
-Progress: [##........] 12% (v2.6: 3/24 plans estimated)
+Progress: [##........] 16% (v2.6: 4/24 plans estimated)
 
 ## Performance Metrics
 
 **Velocity (from v2.1-v2.5):**
-- Total plans completed: 85 (82 from v2.1-v2.5 + 3 from v2.6)
+- Total plans completed: 86 (82 from v2.1-v2.5 + 4 from v2.6)
 - Average duration: 5min
 - Total execution time: ~7 hours
 
@@ -35,9 +35,11 @@ Progress: [##........] 12% (v2.6: 3/24 plans estimated)
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 33-01 | grep-F + json_ok escaping | 23min | 2 | 4 |
+| 33-02 | json_ok escaping + sanitize-on-read | 35min | 3 | 13 |
 | 33-03 | lock safety + atomic write hardening | 27min | 2 | 3 |
+| 33-04 | data safety tests + status display | 11min | 2 | 2 |
 
-*Updated after 33-03 completion*
+*Updated after 33-04 completion*
 
 ## Accumulated Context
 
@@ -49,10 +51,12 @@ Progress: [##........] 12% (v2.6: 3/24 plans estimated)
 - Trap-based lock cleanup is the standard pattern; explicit release_lock kept as defense-in-depth
 - Safety stats are best-effort and never fail the calling operation
 - Safety stats stored in .aether/data/safety-stats.json (local-only)
+- data-safety-stats subcommand returns zero defaults when no stats file exists
+- Integration tests use temp directory isolation with AETHER_ROOT override
 
 ### Pending Todos
 
-None.
+- Add Data Safety display step to .claude/commands/ant/status.md (requires command file edit permission)
 
 ### Blockers/Concerns
 
@@ -61,5 +65,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-29
-Stopped at: Completed 33-03-PLAN.md
-Resume file: .planning/phases/33-input-escaping-atomic-write-safety/33-03-SUMMARY.md
+Stopped at: Completed 33-04-PLAN.md (Phase 33 complete)
+Resume file: .planning/phases/33-input-escaping-atomic-write-safety/33-04-SUMMARY.md
