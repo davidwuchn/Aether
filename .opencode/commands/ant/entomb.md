@@ -230,10 +230,19 @@ fi
 If xml_ok is true, store for display:
 ```bash
 xml_pheromone_count=$(echo "$xml_result" | jq -r '.result.pheromone_count // 0' 2>/dev/null)
-xml_archive_line="XML Archive: colony-archive.xml (${xml_pheromone_count} active signals)"
+xml_exchange_count=$(find .aether/exchange -maxdepth 1 -name "*.xml" 2>/dev/null | wc -l | tr -d ' ')
+xml_archive_line="XML Archive: colony-archive.xml (${xml_pheromone_count} signals) + ${xml_exchange_count} exchange file(s)"
 ```
 
 **Critical behavior:** If XML export fails, entomb STOPS. The chamber directory is removed (cleanup). The colony state is NOT reset. The user sees a clear error and can retry after fixing the issue.
+
+**Copy exchange XML files to chamber (per D-04, D-05):**
+```bash
+xml_archived=0
+for xml_file in .aether/exchange/*.xml; do
+  [[ -f "$xml_file" ]] && cp "$xml_file" ".aether/chambers/$chamber_name/" && xml_archived=$((xml_archived + 1))
+done
+```
 
 ### Step 7: Verify Chamber Integrity
 
@@ -295,6 +304,11 @@ fi
 Remove backup after successful reset:
 ```bash
 rm -f .aether/data/COLONY_STATE.json.bak
+```
+
+Clean up exchange XML files (now archived in chamber per D-06):
+```bash
+rm -f .aether/exchange/*.xml 2>/dev/null || true
 ```
 
 ### Step 8.5: Write Final Handoff

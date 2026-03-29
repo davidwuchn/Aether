@@ -592,9 +592,31 @@ if command -v xmllint >/dev/null 2>&1; then
   else
     pher_export_line="Signal Export: failed (non-blocking)"
   fi
+
+  # Export standalone queen-wisdom.xml for cross-colony wisdom sharing
+  wisdom_result=$(bash .aether/aether-utils.sh wisdom-export-xml ".aether/exchange/queen-wisdom.xml" 2>&1)
+  wisdom_ok=$(echo "$wisdom_result" | jq -r '.ok // false' 2>/dev/null)
+  if [[ "$wisdom_ok" == "true" ]]; then
+    wisdom_count=$(echo "$wisdom_result" | jq -r '.result.entries // 0' 2>/dev/null)
+    wisdom_export_line="Wisdom Export: queen-wisdom.xml (${wisdom_count} entries)"
+  else
+    wisdom_export_line="Wisdom Export: failed (non-blocking)"
+  fi
+
+  # Export standalone colony-registry.xml for lineage tracking
+  registry_result=$(bash .aether/aether-utils.sh registry-export-xml ".aether/exchange/colony-registry.xml" 2>&1)
+  registry_ok=$(echo "$registry_result" | jq -r '.ok // false' 2>/dev/null)
+  if [[ "$registry_ok" == "true" ]]; then
+    registry_count=$(echo "$registry_result" | jq -r '.result.colonies // 0' 2>/dev/null)
+    registry_export_line="Registry Export: colony-registry.xml (${registry_count} colonies)"
+  else
+    registry_export_line="Registry Export: failed (non-blocking)"
+  fi
 else
   xml_export_line="XML Archive: skipped (xmllint not available)"
   pher_export_line="Signal Export: skipped (xmllint not available)"
+  wisdom_export_line="Wisdom Export: skipped (xmllint not available)"
+  registry_export_line="Registry Export: skipped (xmllint not available)"
 fi
 ```
 
@@ -634,6 +656,8 @@ Wisdom Promoted: {promotion_summary}
 Seal Document: .aether/CROWNED-ANTHILL.md
 {xml_export_line}
 {pher_export_line}
+{wisdom_export_line}
+{registry_export_line}
 
 The colony stands crowned and sealed.
 Its wisdom lives on in QUEEN.md.

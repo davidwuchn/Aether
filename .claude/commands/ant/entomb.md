@@ -279,6 +279,15 @@ done
 
 # Archive dreams directory (optional — may not exist)
 [[ -d ".aether/dreams" ]] && cp -r ".aether/dreams" "$chamber_dir/dreams" 2>/dev/null || true
+
+# Archive XML exchange files to chamber (per D-04, D-05)
+xml_archived=0
+for xml_file in .aether/exchange/*.xml; do
+  [[ -f "$xml_file" ]] && cp "$xml_file" "$chamber_dir/" && xml_archived=$((xml_archived + 1))
+done
+if [[ "$xml_archived" -gt 0 ]]; then
+  echo "XML Archive: ${xml_archived} exchange file(s) copied to chamber"
+fi
 ```
 
 Do NOT copy: `.aether/data/backups/`, `.aether/data/locks/`, `.aether/data/midden/`, `.aether/data/survey/`.
@@ -307,7 +316,8 @@ fi
 If xml_ok is true, store for display:
 ```bash
 xml_pheromone_count=$(echo "$xml_result" | jq -r '.result.pheromone_count // 0' 2>/dev/null)
-xml_archive_line="XML Archive: colony-archive.xml (${xml_pheromone_count} active signals)"
+xml_exchange_count=$(find .aether/exchange -maxdepth 1 -name "*.xml" 2>/dev/null | wc -l | tr -d ' ')
+xml_archive_line="XML Archive: colony-archive.xml (${xml_pheromone_count} signals) + ${xml_exchange_count} exchange file(s)"
 ```
 
 **Critical behavior:** If XML export fails, entomb STOPS. The chamber directory is removed (cleanup). The colony state is NOT reset. The user sees a clear error and can retry after fixing the issue.
@@ -401,6 +411,11 @@ rm -f .aether/data/session.json
 Clean up seal document (it's now in the chamber):
 ```bash
 rm -f .aether/CROWNED-ANTHILL.md
+```
+
+Clean up exchange XML files (now archived in chamber per D-06):
+```bash
+rm -f .aether/exchange/*.xml 2>/dev/null || true
 ```
 
 ### Step 11: Write HANDOFF.md
