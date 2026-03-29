@@ -19,7 +19,7 @@ Requirements for v2.6 Bugfix & Hardening. Each maps to roadmap phases.
 - [ ] **INFRA-01**: Colony depth selector (light/standard/deep/full) stored in COLONY_STATE.json, gating Oracle and Scout spawns in build playbooks, default standard
 - [ ] **INFRA-02**: Model routing verified end-to-end — either wired into agent spawning or dead code removed with decision documented
 - [x] **INFRA-03**: YAML command generator produces both Claude and OpenCode command markdown from single YAML source files
-- [ ] **INFRA-04**: XML system integrated into core commands (seal auto-exports, entomb archives XML, init can import)
+- [x] **INFRA-04**: XML system integrated into core commands (seal auto-exports, entomb archives XML, init can import)
 
 ### Maintenance
 
@@ -79,7 +79,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 35 | Pending |
 | INFRA-02 | Phase 35 | Pending |
 | INFRA-03 | Phase 36 | Complete |
-| INFRA-04 | Phase 37 | Pending |
+| INFRA-04 | Phase 37 | Complete |
 | MAINT-01 | Phase 38 | Pending |
 | MAINT-02 | Phase 38 | Pending |
 | MAINT-03 | Phase 38 | Pending |
