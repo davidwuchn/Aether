@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.3
+milestone_name: milestone
+status: v2.5 Smart Init shipped 2026-03-27
+stopped_at: Completed 35-02-PLAN.md
+last_updated: "2026-03-29T09:12:16.618Z"
+last_activity: 2026-03-27 — milestone v2.5 archived
+progress:
+  total_phases: 22
+  completed_phases: 6
+  total_plans: 21
+  completed_plans: 43
+  percent: 100
+---
+
 # Project State
 
 ## Project Reference
@@ -13,16 +29,18 @@ Phase: 32 of 32 — all milestones through v2.5 complete
 Status: v2.5 Smart Init shipped 2026-03-27
 Last activity: 2026-03-27 — milestone v2.5 archived
 
-Progress: [█████████] 100% (v1.3 through v2.5)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity (from v2.1):**
+
 - Total plans completed: 82 (across v2.1-v2.5)
 - Average duration: 5min
 - Total execution time: ~7 hours
 
 **Milestone History:**
+
 - v1.3: 8 phases (1-8), 17 plans — shipped 2026-03-19
 - v2.1: 8 phases (9-16), 39 plans — shipped 2026-03-24
 - v2.2: 4 phases (17-20), 5 plans — shipped 2026-03-25
@@ -38,6 +56,8 @@ Progress: [█████████] 100% (v1.3 through v2.5)
 
 All v2.5 decisions archived to PROJECT.md Key Decisions table.
 
+- [Phase 35]: Deleted cli-override.test.js and mock-profiles.js (dead model routing code not in original plan but broken and blocking)
+
 ### Pending Todos
 
 None.
@@ -48,6 +68,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-27
-Stopped at: v2.5 milestone complete, archived
+Last session: 2026-03-29T09:12:16.615Z
+Stopped at: Completed 35-02-PLAN.md
 Resume file: None
