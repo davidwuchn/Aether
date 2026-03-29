@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Completed 33-04-PLAN.md (Phase 33 complete)
-last_updated: "2026-03-29T07:16:13.269Z"
-last_activity: 2026-03-29 -- Phase 34 execution started
+stopped_at: 34-03 complete, continuing with 34-04
+last_updated: "2026-03-29T07:40:00.000Z"
+last_activity: 2026-03-29 -- Phase 34 wave 3 starting
 progress:
   total_phases: 6
   completed_phases: 1
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 34 — cross-colony-isolation
+**Current focus:** Phase 34 — Cross-Colony Isolation
 
 ## Current Position
 
 Phase: 34 (cross-colony-isolation) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 34
-Last activity: 2026-03-29 -- Phase 34 execution started
+Plan: 3 of 5 (34-03 complete, 34-04 + 34-05 remaining)
+Status: Executing Phase 34, Wave 3
+Last activity: 2026-03-29 -- continuing with waves 3+4
 
-Progress: [##........] 16% (v2.6: 4/24 plans estimated)
+Progress: [█████░░░] 60% (34-01, 34-02, 34-03 complete)
 
 ## Performance Metrics
 
@@ -42,13 +42,13 @@ Progress: [##........] 16% (v2.6: 4/24 plans estimated)
 
 **Milestone History:**
 
-- v1.3: 8 phases (1-8), 17 plans -- shipped 2026-03-19
-- v2.1: 8 phases (9-16), 39 plans -- shipped 2026-03-24
-- v2.2: 4 phases (17-20), 5 plans -- shipped 2026-03-25
-- v2.3: 4 phases (21-24), 10 plans -- shipped 2026-03-27
-- v2.4: 4 phases (25-28), 8 plans -- shipped 2026-03-27
-- v2.5: 4 phases (29-32), 10 plans -- shipped 2026-03-27
-- v2.6: 6 phases (33-38), TBD plans -- in progress
+- v1.3: 8 phases (1-8), 17 plans — shipped 2026-03-19
+- v2.1: 8 phases (9-16), 39 plans — shipped 2026-03-24
+- v2.2: 4 phases (17-20), 5 plans — shipped 2026-03-25
+- v2.3: 4 phases (21-24), 10 plans — shipped 2026-03-27
+- v2.4: 4 phases (25-28), 8 plans — shipped 2026-03-27
+- v2.5: 4 phases (29-32), 10 plans — shipped 2026-03-27
+- v2.6: 6 phases (33-38), TBD plans — in progress
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -57,12 +57,19 @@ Progress: [##........] 16% (v2.6: 4/24 plans estimated)
 | 33-03 | lock safety + atomic write hardening | 27min | 2 | 3 |
 | 33-04 | data safety tests + status display | 11min | 2 | 2 |
 
-*Updated after 33-04 completion*
+*Updated during Phase 34 execution*
 
 ## Accumulated Context
 
 ### Decisions
 
+**From 34-03:**
+- COLONY_STATE.json remains at DATA_DIR root as the colony identification anchor
+- Per-colony files use COLONY_DATA_DIR, shared files use DATA_DIR
+- Migration uses presence-based detection (no version field)
+- Migration function intentionally uses DATA_DIR for source paths
+
+**From Phase 33:**
 - Use `jq -n --arg` for strings and `--argjson` for numbers/booleans in json_ok construction
 - Drop `^` and `$` regex anchors when switching to `grep -F` since fixed-string mode treats them as literals
 - Ant names are unique per swarm, so `grep -F` without anchors is safe for timing file lookups
@@ -83,5 +90,5 @@ None active.
 ## Session Continuity
 
 Last session: 2026-03-29
-Stopped at: Completed 33-04-PLAN.md (Phase 33 complete)
-Resume file: .planning/phases/33-input-escaping-atomic-write-safety/33-04-SUMMARY.md
+Stopped at: 34-03 complete, continuing with 34-04 (utils modules migration)
+Resume file: .planning/phases/34-cross-colony-isolation/34-03-SUMMARY.md

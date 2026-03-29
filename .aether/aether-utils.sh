@@ -17,6 +17,7 @@ trap 'if type error_handler &>/dev/null; then error_handler ${LINENO} "$BASH_COM
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AETHER_ROOT="${AETHER_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd 2>/dev/null || echo "$SCRIPT_DIR")}"  # SUPPRESS:OK -- read-default: directory may not exist
 DATA_DIR="${DATA_DIR:-$AETHER_ROOT/.aether/data}"
+COLONY_DATA_DIR="$DATA_DIR"  # Default, overridden by _resolve_colony_data_dir
 
 # Initialize lock state before sourcing (file-lock.sh trap needs these)
 LOCK_ACQUIRED=${LOCK_ACQUIRED:-false}
@@ -154,6 +155,153 @@ _cleanup_orphaned_temp_files() {
 }
 # Run orphan cleanup on startup (silent — matches cleanup_locks behavior)
 type cleanup_temp_files &>/dev/null && _cleanup_orphaned_temp_files
+
+# --- Per-colony data directory resolution ---
+# Resolves COLONY_DATA_DIR from COLONY_STATE.json colony_name field.
+# If colony exists: $DATA_DIR/colonies/{sanitized-name}/
+# If pre-init (no COLONY_STATE.json or no colony_name): $DATA_DIR (unchanged)
+_resolve_colony_data_dir() {
+    # Pre-init: no COLONY_STATE.json means no colony yet
+    if [[ ! -f "$DATA_DIR/COLONY_STATE.json" ]]; then
+        COLONY_DATA_DIR="$DATA_DIR"
+        return 0
+    fi
+
+    # Read colony name from state (fast path: direct jq, avoids subprocess)
+    local raw_name
+    raw_name=$(jq -r '.colony_name // empty' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null) || true
+
+    # No colony_name field yet -- might be a very old state file
+    if [[ -z "$raw_name" ]]; then
+        COLONY_DATA_DIR="$DATA_DIR"
+        return 0
+    fi
+
+    # Sanitize for filesystem: lowercase, non-alphanumeric to hyphens, trim
+    local sanitized
+    sanitized=$(echo "$raw_name" | tr '[:upper:]' '[:lower:]' | tr -cs '[:alnum:]' '-' | sed 's/^-//;s/-$//')
+
+    # Empty after sanitization (pathological input) -- fail loudly per locked decision
+    if [[ -z "$sanitized" ]]; then
+        echo "ERROR: Colony name '$raw_name' sanitizes to empty string. Fix COLONY_STATE.json colony_name field." >&2
+        return 1
+    fi
+
+    COLONY_DATA_DIR="$DATA_DIR/colonies/$sanitized"
+    mkdir -p "$COLONY_DATA_DIR" || {
+        echo "ERROR: Cannot create colony data directory: $COLONY_DATA_DIR" >&2
+        return 1
+    }
+
+    # Auto-migrate flat files on first access
+    # NOTE: Migration moves files from DATA_DIR root to COLONY_DATA_DIR.
+    # This is safe because all per-colony file references use COLONY_DATA_DIR.
+    _maybe_migrate_colony_data "$COLONY_DATA_DIR"
+}
+
+# Auto-migrate flat files from DATA_DIR root to colony subdirectory
+# Uses presence-based detection per locked decision (no version field)
+_maybe_migrate_colony_data() {
+    local colony_dir="$1"
+
+    # Already migrated? Check if colony dir has any colony-specific files
+    if [[ -f "$colony_dir/pheromones.json" ]] || [[ -f "$colony_dir/session.json" ]] || [[ -f "$colony_dir/flags.json" ]]; then
+        return 0
+    fi
+
+    # Check for old-style flat files that need migration
+    local needs_migration=false
+    for f in pheromones.json learning-observations.json session.json run-state.json flags.json constraints.json; do
+        if [[ -f "$DATA_DIR/$f" ]]; then
+            needs_migration=true
+            break
+        fi
+    done
+    [[ "$needs_migration" == "false" ]] && return 0
+
+    # Migration lock -- prevents concurrent migration attempts
+    local migration_lock="$DATA_DIR/.migration.lock"
+    if ! (set -o noclobber; echo $$ > "$migration_lock") 2>/dev/null; then
+        # Another process is migrating -- wait briefly then check if done
+        sleep 1
+        if [[ -f "$colony_dir/pheromones.json" ]] || [[ -f "$colony_dir/session.json" ]]; then
+            rm -f "$migration_lock" 2>/dev/null || true
+            return 0
+        fi
+        echo "ERROR: Migration in progress by another process. If stuck, remove: $migration_lock" >&2
+        return 1
+    fi
+
+    # Ensure colony dir exists
+    mkdir -p "$colony_dir" || {
+        rm -f "$migration_lock"
+        echo "ERROR: Auto-migration failed: cannot create $colony_dir. Fix permissions and retry." >&2
+        return 1
+    }
+
+    # Move per-colony files (with .bak.N companions)
+    local per_colony_files=(
+        pheromones.json learning-observations.json session.json run-state.json
+        constraints.json flags.json activity.log rolling-summary.log
+        error-patterns.json signatures.json view-state.json
+        watch-progress.txt watch-status.txt spawn-tree.txt
+        learnings.json learning-deferred.json
+        last-build-claims.json last-build-result.json
+        safety-stats.json completion-report.md timing.log
+        AUDIT-REPORT.md checkpoint-allowlist.json
+        swarm-activity.log
+    )
+
+    local moved=0
+    for f in "${per_colony_files[@]}"; do
+        if [[ -f "$DATA_DIR/$f" ]]; then
+            mv "$DATA_DIR/$f" "$colony_dir/$f" || {
+                rm -f "$migration_lock"
+                echo "ERROR: Migration failed moving $f. Partial migration -- fix manually." >&2
+                return 1
+            }
+            moved=$((moved + 1))
+            # Move companion .bak.N files
+            for bak in "$DATA_DIR/$f".bak.*; do
+                [[ -f "$bak" ]] && mv "$bak" "$colony_dir/" 2>/dev/null || true
+            done
+        fi
+    done
+
+    # Move per-colony directories
+    for d in midden spawn-tree-archive swarm-archive; do
+        if [[ -d "$DATA_DIR/$d" ]]; then
+            mv "$DATA_DIR/$d" "$colony_dir/$d" || {
+                rm -f "$migration_lock"
+                echo "ERROR: Migration failed moving directory $d. Partial migration -- fix manually." >&2
+                return 1
+            }
+            moved=$((moved + 1))
+        fi
+    done
+
+    # Move swarm-*.json files (dynamic names)
+    for f in "$DATA_DIR"/swarm-*.json; do
+        [[ -f "$f" ]] && mv "$f" "$colony_dir/" 2>/dev/null && moved=$((moved + 1)) || true
+    done
+
+    # Move activity-phase-*.log files
+    for f in "$DATA_DIR"/activity-phase-*.log; do
+        [[ -f "$f" ]] && mv "$f" "$colony_dir/" 2>/dev/null && moved=$((moved + 1)) || true
+    done
+
+    rm -f "$migration_lock"
+    return 0
+}
+
+# Resolve COLONY_DATA_DIR at startup (AFTER file-lock.sh is sourced, BEFORE dispatch)
+# If resolution fails (permissions/migration error), propagate the error and abort
+# Export both variables so child processes (e.g. validate-state all spawning subcommands) inherit them
+_resolve_colony_data_dir || {
+    echo "FATAL: Colony data directory resolution failed. Cannot continue." >&2
+    exit 1
+}
+export DATA_DIR COLONY_DATA_DIR
 
 # --- Caste emoji helper ---
 get_caste_emoji() {
@@ -1237,14 +1385,14 @@ HELP_EOF
         ')"
         ;;
       constraints)
-        [[ -f "$DATA_DIR/constraints.json" ]] || json_err "$E_FILE_NOT_FOUND" "constraints.json not found" '{"file":"constraints.json"}'
+        [[ -f "$COLONY_DATA_DIR/constraints.json" ]] || json_err "$E_FILE_NOT_FOUND" "constraints.json not found" '{"file":"constraints.json"}'
         json_ok "$(jq '
           def arr(f): if has(f) and (.[f]|type) == "array" then "pass" else "fail: \(f) not array" end;
           {file:"constraints.json", checks:[
             arr("focus"),
             arr("constraints")
           ]} | . + {pass: (([.checks[] | select(. == "pass")] | length) == (.checks | length))}
-        ' "$DATA_DIR/constraints.json")"
+        ' "$COLONY_DATA_DIR/constraints.json")"
         ;;
       all)
         results=()
@@ -1564,8 +1712,8 @@ HELP_EOF
       exit 0
     fi
 
-    log_file="$DATA_DIR/activity.log"
-    mkdir -p "$DATA_DIR"
+    log_file="$COLONY_DATA_DIR/activity.log"
+    mkdir -p "$COLONY_DATA_DIR"
     ts=$(date -u +"%H:%M:%S")
     emoji=$(get_caste_emoji "$caste")
     echo "[$ts] $emoji $action $caste: $description" >> "$log_file"
@@ -1581,14 +1729,14 @@ HELP_EOF
       json_warn "W_DEGRADED" "Activity logging disabled: $(type _feature_reason &>/dev/null && _feature_reason activity_log || echo 'unknown')"
       exit 0
     fi
-    log_file="$DATA_DIR/activity.log"
-    mkdir -p "$DATA_DIR"
-    archive_file="$DATA_DIR/activity-phase-${phase_num}.log"
+    log_file="$COLONY_DATA_DIR/activity.log"
+    mkdir -p "$COLONY_DATA_DIR"
+    archive_file="$COLONY_DATA_DIR/activity-phase-${phase_num}.log"
     # Copy current log to per-phase archive (preserve combined log intact)
     if [ -f "$log_file" ] && [ -s "$log_file" ]; then
       # Handle retry scenario: don't overwrite existing archive
       if [ -f "$archive_file" ]; then
-        archive_file="$DATA_DIR/activity-phase-${phase_num}-$(date -u +%s).log"
+        archive_file="$COLONY_DATA_DIR/activity-phase-${phase_num}-$(date -u +%s).log"
       fi
       cp "$log_file" "$archive_file"
     fi
@@ -1612,7 +1760,7 @@ HELP_EOF
       exit 0
     fi
 
-    log_file="$DATA_DIR/activity.log"
+    log_file="$COLONY_DATA_DIR/activity.log"
     [[ -f "$log_file" ]] || json_err "$E_FILE_NOT_FOUND" "activity.log not found" '{"file":"activity.log"}'
     if [ -n "$caste_filter" ]; then
       content=$(grep -F "$caste_filter" "$log_file" | tail -20)
@@ -1633,7 +1781,7 @@ HELP_EOF
     message="${2:-Working...}"
     phase="${3:-1}"
     total="${4:-1}"
-    mkdir -p "$DATA_DIR"
+    mkdir -p "$COLONY_DATA_DIR"
 
     # Calculate bar width (30 chars)
     bar_width=30
@@ -1660,7 +1808,7 @@ HELP_EOF
     fi
 
     # Write progress file
-    cat > "$DATA_DIR/watch-progress.txt" << EOF
+    cat > "$COLONY_DATA_DIR/watch-progress.txt" << EOF
        .-.
       (o o)  AETHER COLONY
       | O |  Progress
@@ -1686,8 +1834,8 @@ EOF
     severity="${3:-warning}"
     [[ -z "$pattern_name" || -z "$description" ]] && json_err "$E_VALIDATION_FAILED" "Usage: error-flag-pattern <pattern_name> <description> [severity]"
 
-    patterns_file="$DATA_DIR/error-patterns.json"
-    mkdir -p "$DATA_DIR"
+    patterns_file="$COLONY_DATA_DIR/error-patterns.json"
+    mkdir -p "$COLONY_DATA_DIR"
 
     if [[ ! -f "$patterns_file" ]]; then
       atomic_write "$patterns_file" '{"patterns":[],"version":1}' || json_err "$E_UNKNOWN" "Failed to initialize error patterns file"
@@ -1740,7 +1888,7 @@ EOF
     _deprecation_warning "error-patterns-check"
     # Check for known error patterns in a file or codebase
     # Returns patterns that should be avoided
-    global_file="$DATA_DIR/error-patterns.json"
+    global_file="$COLONY_DATA_DIR/error-patterns.json"
 
     if [[ ! -f "$global_file" ]]; then
       json_ok '{"patterns":[],"count":0}'
@@ -1842,7 +1990,7 @@ EOF
     fi
 
     # Read signature details from signatures.json
-    signatures_file="$DATA_DIR/signatures.json"
+    signatures_file="$COLONY_DATA_DIR/signatures.json"
     if [[ ! -f "$signatures_file" ]]; then
       json_ok '{"found":false,"signature":null}'
       exit 0
@@ -1895,7 +2043,7 @@ EOF
     [[ ! -d "$target_dir" ]] && json_err "$E_FILE_NOT_FOUND" "Directory not found: $target_dir"
 
     # Path to signatures file
-    signatures_file="$DATA_DIR/signatures.json"
+    signatures_file="$COLONY_DATA_DIR/signatures.json"
     [[ ! -f "$signatures_file" ]] && json_err "$E_FILE_NOT_FOUND" "Signatures file not found"
 
     # Read high-confidence signatures (confidence >= 0.7) using jq -c for compact single-line output
@@ -3188,8 +3336,8 @@ NODESCRIPT
   view-state-init)
     # Initialize view state file with default structure
     # Usage: view-state-init
-    mkdir -p "$DATA_DIR"
-    view_state_file="$DATA_DIR/view-state.json"
+    mkdir -p "$COLONY_DATA_DIR"
+    view_state_file="$COLONY_DATA_DIR/view-state.json"
 
     if [[ ! -f "$view_state_file" ]]; then
       atomic_write "$view_state_file" '{
@@ -3217,7 +3365,7 @@ NODESCRIPT
     # Usage: view-state-get [view_name] [key]
     view_name="${1:-}"
     key="${2:-}"
-    view_state_file="$DATA_DIR/view-state.json"
+    view_state_file="$COLONY_DATA_DIR/view-state.json"
 
     if [[ ! -f "$view_state_file" ]]; then
       # Auto-initialize if not exists
@@ -3244,7 +3392,7 @@ NODESCRIPT
     value="${3:-}"
     [[ -z "$view_name" || -z "$key" ]] && json_err "$E_VALIDATION_FAILED" "Usage: view-state-set <view_name> <key> <value>"
 
-    view_state_file="$DATA_DIR/view-state.json"
+    view_state_file="$COLONY_DATA_DIR/view-state.json"
 
     if [[ ! -f "$view_state_file" ]]; then
       bash "$0" view-state-init >/dev/null 2>&1 || _aether_log_error "Could not initialize view state display"
@@ -3274,7 +3422,7 @@ NODESCRIPT
     item="${2:-}"
     [[ -z "$view_name" || -z "$item" ]] && json_err "$E_VALIDATION_FAILED" "Usage: view-state-toggle <view_name> <item>"
 
-    view_state_file="$DATA_DIR/view-state.json"
+    view_state_file="$COLONY_DATA_DIR/view-state.json"
 
     if [[ ! -f "$view_state_file" ]]; then
       bash "$0" view-state-init >/dev/null 2>&1 || _aether_log_error "Could not initialize view state display"
@@ -3312,7 +3460,7 @@ NODESCRIPT
     item="${2:-}"
     [[ -z "$view_name" || -z "$item" ]] && json_err "$E_VALIDATION_FAILED" "Usage: view-state-expand <view_name> <item>"
 
-    view_state_file="$DATA_DIR/view-state.json"
+    view_state_file="$COLONY_DATA_DIR/view-state.json"
 
     if [[ ! -f "$view_state_file" ]]; then
       bash "$0" view-state-init >/dev/null 2>&1 || _aether_log_error "Could not initialize view state display"
@@ -3334,7 +3482,7 @@ NODESCRIPT
     item="${2:-}"
     [[ -z "$view_name" || -z "$item" ]] && json_err "$E_VALIDATION_FAILED" "Usage: view-state-collapse <view_name> <item>"
 
-    view_state_file="$DATA_DIR/view-state.json"
+    view_state_file="$COLONY_DATA_DIR/view-state.json"
 
     if [[ ! -f "$view_state_file" ]]; then
       bash "$0" view-state-init >/dev/null 2>&1 || _aether_log_error "Could not initialize view state display"
@@ -3573,7 +3721,7 @@ NODESCRIPT
         ;;
 
       constraint)
-        ir_constraints_file="$DATA_DIR/constraints.json"
+        ir_constraints_file="$COLONY_DATA_DIR/constraints.json"
         if [[ ! -f "$ir_constraints_file" ]]; then
           atomic_write "$ir_constraints_file" '{"version":"1.0","focus":[],"constraints":[]}' || json_err "$E_UNKNOWN" "Failed to initialize constraints file"
         fi
@@ -3820,7 +3968,7 @@ NODESCRIPT
 
   checkpoint-check)
     _deprecation_warning "checkpoint-check"
-    allowlist_file="$DATA_DIR/checkpoint-allowlist.json"
+    allowlist_file="$COLONY_DATA_DIR/checkpoint-allowlist.json"
 
     if [[ ! -f "$allowlist_file" ]]; then
       json_err "$E_FILE_NOT_FOUND" "Allowlist not found" "{\"path\":\"$allowlist_file\"}"
@@ -4195,7 +4343,7 @@ NODESCRIPT
     #   rolling-summary add <event_type> <summary> [source]
     #   rolling-summary read [--json]
     rs_action="${1:-read}"
-    rs_file="$DATA_DIR/rolling-summary.log"
+    rs_file="$COLONY_DATA_DIR/rolling-summary.log"
 
     case "$rs_action" in
       add)
@@ -4204,7 +4352,7 @@ NODESCRIPT
         rs_source="${4:-system}"
         [[ -z "$rs_event" || -z "$rs_summary" ]] && json_err "$E_VALIDATION_FAILED" "Usage: rolling-summary add <event_type> <summary> [source]"
 
-        mkdir -p "$DATA_DIR"
+        mkdir -p "$COLONY_DATA_DIR"
         touch "$rs_file"
 
         rs_clean_summary=$(printf '%s' "$rs_summary" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//' | sed 's/|/\\/g' | cut -c1-180)
@@ -4286,9 +4434,9 @@ NODESCRIPT
 
     # MIGRATE: direct COLONY_STATE.json access -- use _state_read_field instead
     cc_state_file="$DATA_DIR/COLONY_STATE.json"
-    cc_flags_file="$DATA_DIR/flags.json"
-    cc_pher_file="$DATA_DIR/pheromones.json"
-    cc_roll_file="$DATA_DIR/rolling-summary.log"
+    cc_flags_file="$COLONY_DATA_DIR/flags.json"
+    cc_pher_file="$COLONY_DATA_DIR/pheromones.json"
+    cc_roll_file="$COLONY_DATA_DIR/rolling-summary.log"
     cc_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
     if [[ ! -f "$cc_state_file" ]]; then
@@ -4669,17 +4817,17 @@ NODESCRIPT
     rule_count=0
     signal_count=0
 
-    if [[ -f "$DATA_DIR/spawn-tree.txt" ]]; then
-      spawn_count=$(grep -c "|spawned$" "$DATA_DIR/spawn-tree.txt" 2>/dev/null || echo 0)  # SUPPRESS:OK -- read-default: count defaults to 0 if file missing
+    if [[ -f "$COLONY_DATA_DIR/spawn-tree.txt" ]]; then
+      spawn_count=$(grep -c "|spawned$" "$COLONY_DATA_DIR/spawn-tree.txt" 2>/dev/null || echo 0)  # SUPPRESS:OK -- read-default: count defaults to 0 if file missing
     fi
 
-    if [[ -f "$DATA_DIR/midden/midden.json" ]]; then
+    if [[ -f "$COLONY_DATA_DIR/midden/midden.json" ]]; then
       # SUPPRESS:OK -- read-default: query may return empty
-      failure_count=$(jq '[.entries[]? | select(.category == "failure")] | length' "$DATA_DIR/midden/midden.json" 2>/dev/null || echo 0)
+      failure_count=$(jq '[.entries[]? | select(.category == "failure")] | length' "$COLONY_DATA_DIR/midden/midden.json" 2>/dev/null || echo 0)
       if [[ "$failure_count" == "0" ]]; then
         # Backward compatibility for older midden schema
         # SUPPRESS:OK -- read-default: file may not exist yet
-        failure_count=$(jq '[.signals[]? | select(.type == "failure")] | length' "$DATA_DIR/midden/midden.json" 2>/dev/null || echo 0)
+        failure_count=$(jq '[.signals[]? | select(.type == "failure")] | length' "$COLONY_DATA_DIR/midden/midden.json" 2>/dev/null || echo 0)
       fi
     fi
 
@@ -4687,8 +4835,8 @@ NODESCRIPT
       rule_count=$(grep -c "^-" "$AETHER_ROOT/.aether/QUEEN.md" 2>/dev/null || echo 0)  # SUPPRESS:OK -- read-default: count defaults to 0 if file missing
     fi
 
-    if [[ -f "$DATA_DIR/pheromones.json" ]]; then
-      signal_count=$(jq '.signals | length' "$DATA_DIR/pheromones.json" 2>/dev/null || echo 0)  # SUPPRESS:OK -- read-default: file may not exist yet
+    if [[ -f "$COLONY_DATA_DIR/pheromones.json" ]]; then
+      signal_count=$(jq '.signals | length' "$COLONY_DATA_DIR/pheromones.json" 2>/dev/null || echo 0)  # SUPPRESS:OK -- read-default: file may not exist yet
     fi
 
     raw_score=$(( (spawn_count * 2) + (failure_count * 5) + signal_count - (rule_count / 2) ))
@@ -4705,9 +4853,9 @@ NODESCRIPT
     # Returns: JSON with wisdom, pending, recent_failures, and last_activity
 
     queen_file="$AETHER_ROOT/.aether/QUEEN.md"
-    observations_file="$DATA_DIR/learning-observations.json"
-    deferred_file="$DATA_DIR/learning-deferred.json"
-    midden_file="$DATA_DIR/midden/midden.json"
+    observations_file="$COLONY_DATA_DIR/learning-observations.json"
+    deferred_file="$COLONY_DATA_DIR/learning-deferred.json"
+    midden_file="$COLONY_DATA_DIR/midden/midden.json"
 
     # Initialize result structure
     wisdom_total=0
@@ -4980,7 +5128,7 @@ EOF
     _dc_constraint_count=0
 
     # --- 1. Pheromones ---
-    _dc_phero_file="$DATA_DIR/pheromones.json"
+    _dc_phero_file="$COLONY_DATA_DIR/pheromones.json"
     if [[ -f "$_dc_phero_file" ]] && jq -e . "$_dc_phero_file" >/dev/null 2>&1; then  # SUPPRESS:OK -- validation: testing JSON validity
       _dc_phero_count=$(jq --arg cpat "$_dc_pheromone_content_pat" --arg ipat "$_dc_pheromone_id_pat" '
         [.signals // [] | .[] | select(
@@ -4998,7 +5146,7 @@ EOF
     fi
 
     # --- 3. Learning observations ---
-    _dc_obs_file="$DATA_DIR/learning-observations.json"
+    _dc_obs_file="$COLONY_DATA_DIR/learning-observations.json"
     if [[ -f "$_dc_obs_file" ]] && jq -e . "$_dc_obs_file" >/dev/null 2>&1; then  # SUPPRESS:OK -- validation: testing JSON validity
       _dc_obs_count=$(jq --arg cpat "$_dc_obs_colony_pat" '
         [.observations // [] | .[] | select(.colony_id // "" | test($cpat))] | length
@@ -5006,7 +5154,7 @@ EOF
     fi
 
     # --- 4. Midden ---
-    _dc_midden_file="$DATA_DIR/midden/midden.json"
+    _dc_midden_file="$COLONY_DATA_DIR/midden/midden.json"
     _dc_midden_signal_count=0
     _dc_midden_entry_count=0
     if [[ -f "$_dc_midden_file" ]] && jq -e . "$_dc_midden_file" >/dev/null 2>&1; then  # SUPPRESS:OK -- validation: testing JSON validity
@@ -5022,14 +5170,14 @@ EOF
     fi
 
     # --- 5. Spawn tree ---
-    _dc_spawn_file="$DATA_DIR/spawn-tree.txt"
+    _dc_spawn_file="$COLONY_DATA_DIR/spawn-tree.txt"
     if [[ -f "$_dc_spawn_file" ]]; then
       # SUPPRESS:OK -- existence-test: grep returns 1 when no matches
       _dc_spawn_count=$(grep -cE "$_dc_spawn_name_pat" "$_dc_spawn_file" 2>/dev/null) || _dc_spawn_count=0
     fi
 
     # --- 6. Constraints ---
-    _dc_constraint_file="$DATA_DIR/constraints.json"
+    _dc_constraint_file="$COLONY_DATA_DIR/constraints.json"
     if [[ -f "$_dc_constraint_file" ]] && jq -e . "$_dc_constraint_file" >/dev/null 2>&1; then  # SUPPRESS:OK -- validation: testing JSON validity
       _dc_constraint_count=$(jq --arg cpat "$_dc_constraint_pat" '
         [.focus // [] | .[] | select(
@@ -5218,7 +5366,7 @@ DRYRUN_EOF
     fi
 
     _ap_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    _ap_state_file="$DATA_DIR/run-state.json"
+    _ap_state_file="$COLONY_DATA_DIR/run-state.json"
 
     _ap_state=$(jq -n \
       --arg version "1.0" \
@@ -5265,7 +5413,7 @@ DRYRUN_EOF
       esac
     done
 
-    _ap_state_file="$DATA_DIR/run-state.json"
+    _ap_state_file="$COLONY_DATA_DIR/run-state.json"
 
     if [[ ! -f "$_ap_state_file" ]]; then
       json_err "$E_FILE_NOT_FOUND" "run-state.json not found — autopilot not active"
@@ -5311,7 +5459,7 @@ DRYRUN_EOF
   autopilot-status)
     # Return current autopilot state
     # Usage: autopilot-status
-    _ap_state_file="$DATA_DIR/run-state.json"
+    _ap_state_file="$COLONY_DATA_DIR/run-state.json"
 
     if [[ ! -f "$_ap_state_file" ]]; then
       json_ok '{"status":"not_active"}'
@@ -5335,7 +5483,7 @@ DRYRUN_EOF
       esac
     done
 
-    _ap_state_file="$DATA_DIR/run-state.json"
+    _ap_state_file="$COLONY_DATA_DIR/run-state.json"
 
     if [[ ! -f "$_ap_state_file" ]]; then
       json_err "$E_FILE_NOT_FOUND" "run-state.json not found — autopilot not active"
@@ -5378,7 +5526,7 @@ DRYRUN_EOF
       json_err "$E_VALIDATION_FAILED" "autopilot-check-replan --interval must be > 0 (got $_ap_interval)"
     fi
 
-    _ap_state_file="$DATA_DIR/run-state.json"
+    _ap_state_file="$COLONY_DATA_DIR/run-state.json"
 
     if [[ ! -f "$_ap_state_file" ]]; then
       json_err "$E_FILE_NOT_FOUND" "run-state.json not found — autopilot not active"
