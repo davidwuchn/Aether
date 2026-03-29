@@ -33,16 +33,16 @@ _autofix_checkpoint() {
         stash_name="aether-checkpoint: $label"
         # Only stash Aether-managed directories, never touch user files
         if git stash push -m "$stash_name" -- $target_dirs >/dev/null 2>&1; then  # SUPPRESS:OK -- existence-test: stash operation may fail
-          json_ok "{\"type\":\"stash\",\"ref\":\"$stash_name\"}"
+          json_ok "$(jq -n --arg ref "$stash_name" '{type: "stash", ref: $ref}')"
         else
           # Stash failed (possibly due to conflicts), record commit hash
           hash=$(git rev-parse HEAD 2>/dev/null || echo "unknown")  # SUPPRESS:OK -- read-default: may not have commits yet
-          json_ok "{\"type\":\"commit\",\"ref\":\"$hash\"}"
+          json_ok "$(jq -n --arg ref "$hash" '{type: "commit", ref: $ref}')"
         fi
       else
         # No changes in Aether-managed directories, just record commit hash
         hash=$(git rev-parse HEAD 2>/dev/null || echo "unknown")  # SUPPRESS:OK -- read-default: may not have commits yet
-        json_ok "{\"type\":\"commit\",\"ref\":\"$hash\"}"
+        json_ok "$(jq -n --arg ref "$hash" '{type: "commit", ref: $ref}')"
       fi
     else
       json_ok '{"type":"none","ref":null}'
@@ -110,7 +110,8 @@ _swarm_findings_init() {
   "solution": null
 }
 EOF
-    json_ok "{\"swarm_id\":\"$swarm_id\",\"file\":\"$findings_file\"}"
+    json_ok "$(jq -n --arg swarm_id "$swarm_id" --arg file "$findings_file" \
+      '{swarm_id: $swarm_id, file: $file}')"
 }
 
 # ============================================================================
