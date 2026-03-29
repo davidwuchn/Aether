@@ -531,7 +531,8 @@ Work:
 **Approach Change Logging:**
 If you try an approach that doesn't work and switch to a different approach, log it:
 ```bash
-colony_name=$(jq -r '.session_id | split("_")[1] // "unknown"' .aether/data/COLONY_STATE.json 2>/dev/null || echo "unknown")
+colony_name=$(bash .aether/aether-utils.sh colony-name 2>/dev/null | jq -r '.result.name // ""')
+[[ -z "$colony_name" ]] && colony_name="unknown"
 phase_num=$(jq -r '.phase.number // "unknown"' .aether/data/COLONY_STATE.json 2>/dev/null || echo "unknown")
 
 cat >> .aether/midden/approach-changes.md << EOF
@@ -594,7 +595,8 @@ Where `tool_count` comes from the worker's returned JSON `tool_count` field, and
 
 After displaying a failed worker, run using the Bash tool with description "Logging failure to midden...":
 ```bash
-colony_name=$(jq -r '.session_id | split("_")[1] // "unknown"' .aether/data/COLONY_STATE.json 2>/dev/null || echo "unknown")
+colony_name=$(bash .aether/aether-utils.sh colony-name 2>/dev/null | jq -r '.result.name // ""')
+[[ -z "$colony_name" ]] && colony_name="unknown"
 phase_num=$(jq -r '.phase.number // "unknown"' .aether/data/COLONY_STATE.json 2>/dev/null || echo "unknown")
 
 # Append to build-failures.md

@@ -79,7 +79,8 @@ Update COLONY_STATE.json:
 
    Run using the Bash tool with description "Recording learning observations...":
    ```bash
-   colony_name=$(jq -r '.session_id | split("_")[1] // "unknown"' .aether/data/COLONY_STATE.json 2>/dev/null || echo "unknown")
+   colony_name=$(bash .aether/aether-utils.sh colony-name 2>/dev/null | jq -r '.result.name // ""')
+   [[ -z "$colony_name" ]] && colony_name="unknown"
 
    # Get learnings from the current phase
    current_phase_learnings=$(jq -r --argjson phase "$current_phase" '.memory.phase_learnings[] | select(.phase == $phase)' .aether/data/COLONY_STATE.json 2>/dev/null || echo "")
