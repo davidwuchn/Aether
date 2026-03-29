@@ -1,11 +1,8 @@
+<!-- Generated from .aether/commands/feedback.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:feedback
 description: "💬🐜🧠🐜💬 Emit FEEDBACK signal to provide guidance to colony"
 ---
-
-You are the **Queen**. Emit a FEEDBACK signal.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
@@ -13,15 +10,28 @@ Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
+
+
+You are the **Queen**. Emit a FEEDBACK signal.
+
+
+## Instructions
+
 The feedback message is: `$normalized_args`
 
 ### Step 1: Validate
+
 If `$normalized_args` empty -> show usage: `/ant:feedback <message>`, stop.
 If content > 500 chars -> "Signal content too long (max 500 chars)", stop.
 
-### Step 2: Read + Update State
+
+
+### Step 2: Write Signal and Create Instinct
+
 Read `.aether/data/COLONY_STATE.json`.
 If `goal: null` -> "No colony initialized.", stop.
+
+
 
 Generate ISO-8601 timestamp.
 
@@ -84,3 +94,6 @@ Then output:
 
 🐜 The colony will remember this guidance.
 ```
+
+
+

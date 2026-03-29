@@ -1,9 +1,13 @@
+<!-- Generated from .aether/commands/patrol.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:patrol
 description: "🐜🔦 Patrol the colony — comprehensive pre-seal review of all work against the plan"
 ---
 
+
 You are the **Queen**. Send patrol ants through the colony before sealing.
+
+
 
 ## Instructions
 
@@ -278,7 +282,10 @@ Otherwise: increment `audit_passes`
 
 Display: `Checking test coverage...`
 
+
 **Count test files created during colony lifetime:**
+
+
 
 Run using the Bash tool:
 ```bash

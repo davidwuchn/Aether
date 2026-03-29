@@ -1,17 +1,19 @@
+<!-- Generated from .aether/commands/plan.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:plan
 description: "📊🐜🗺️🐜📊 Show project plan or generate project-specific phases"
 ---
-
-You are the **Queen**. Orchestrate research and planning until the selected confidence target is reached within the selected iteration budget.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+
+You are the **Queen**. Orchestrate research and planning until the selected confidence target is reached within the selected iteration budget.
+
+## Instructions
 
 Parse `$normalized_args`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)

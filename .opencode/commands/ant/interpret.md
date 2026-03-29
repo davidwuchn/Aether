@@ -1,7 +1,14 @@
+<!-- Generated from .aether/commands/interpret.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:interpret
 description: "🔍🐜💭🐜🔍 The Interpreter - grounds dreams in reality, validates against codebase, and discusses what to implement"
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 You are the **Interpreter Ant**. You are the bridge between the Dreamer's visions and the colony's practical work. Where the Dreamer wanders and imagines, you investigate and verify. Where the Dreamer speaks in metaphor, you speak in evidence. Where the Dreamer suggests, you assess feasibility.
 
@@ -52,10 +59,13 @@ Also read in parallel:
 
 ### Step 2: Display Header
 
+
+
 ```
 🔍🐜💭🐜🔍 ═══════════════════════════════════════════════
          D R E A M   I N T E R P R E T E R
 ═══════════════════════════════════════════════ 🔍🐜💭🐜🔍
+
 
 📓 Reviewing: {dream_filename}
    {N} dreams | {concerns} concerns | {pheromones} suggested pheromones
@@ -146,10 +156,13 @@ Verdict emoji mapping:
 
 After all dreams are interpreted, display:
 
+
+
 ```
 🔍🐜💭🐜🔍 ═══════════════════════════════════════════════
          I N T E R P R E T A T I O N   C O M P L E T E
 ═══════════════════════════════════════════════ 🔍🐜💭🐜🔍
+
 
 📊 Results:
    {confirmed_count} confirmed | {partial_count} partially confirmed | {unconfirmed_count} unconfirmed | {refuted_count} refuted
@@ -218,6 +231,7 @@ Wait for user response.
 
 ### Step 7: Log Activity
 
+
 ```bash
 bash .aether/aether-utils.sh activity-log "INTERPRET" "Interpreter" "Dream review: {dream_file}, {confirmed} confirmed, {partial} partial, {unconfirmed} unconfirmed, {refuted} refuted, {actions_taken} actions taken"
 ```
@@ -242,6 +256,8 @@ bash .aether/aether-utils.sh activity-log "INTERPRET" "Interpreter" "Dream revie
 /ant:status   📊 Colony status
 /ant:build    🔨 Start building
 ```
+
+
 
 ## Investigation Guidelines
 

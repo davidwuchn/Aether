@@ -1,9 +1,13 @@
+<!-- Generated from .aether/commands/feedback.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:feedback
 description: "Emit FEEDBACK signal to provide guidance to colony"
 ---
 
+
 You are the **Queen**. Emit a FEEDBACK pheromone signal.
+
+
 
 ## Instructions
 
@@ -14,14 +18,17 @@ The feedback message is: `$ARGUMENTS`
 If `$ARGUMENTS` empty -> show usage: `/ant:feedback <message>`, stop.
 If content > 500 chars -> "Signal content too long (max 500 chars)", stop.
 
+
 Parse optional flags from `$ARGUMENTS`:
 - `--ttl <value>`: signal lifetime (e.g., `2h`, `1d`, `7d`). Default: `phase_end`.
 - Strip flags from content before using it as the feedback message.
+
 
 ### Step 2: Write Signal and Create Instinct
 
 Read `.aether/data/COLONY_STATE.json`.
 If `goal: null` -> "No colony initialized.", stop.
+
 
 Run using the Bash tool with description "Recording colony feedback...":
 ```bash
@@ -74,6 +81,9 @@ FEEDBACK signal emitted
 Instinct created: [0.7] <domain>: <action summary>
 ```
 
+
+
+
 ### Step 5: Next Up
 
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
@@ -83,3 +93,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

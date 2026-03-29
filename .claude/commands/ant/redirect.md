@@ -1,9 +1,13 @@
+<!-- Generated from .aether/commands/redirect.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:redirect
 description: "Emit REDIRECT signal to warn colony away from patterns"
 ---
 
+
 You are the **Queen**. Emit a REDIRECT pheromone signal.
+
+
 
 ## Instructions
 
@@ -14,14 +18,17 @@ The pattern to avoid is: `$ARGUMENTS`
 If `$ARGUMENTS` empty -> show usage: `/ant:redirect <pattern to avoid>`, stop.
 If content > 500 chars -> "Redirect content too long (max 500 chars)", stop.
 
+
 Parse optional flags from `$ARGUMENTS`:
 - `--ttl <value>`: signal lifetime (e.g., `2h`, `1d`, `7d`). Default: `phase_end`.
 - Strip flags from content before using it as the pattern.
+
 
 ### Step 2: Write Signal
 
 Read `.aether/data/COLONY_STATE.json`.
 If `goal: null` -> "No colony initialized.", stop.
+
 
 Run using the Bash tool with description "Setting colony redirect...":
 ```bash
@@ -54,6 +61,9 @@ REDIRECT signal emitted
   Active signals: <focus_count> FOCUS, <redirect_count> REDIRECT, <feedback_count> FEEDBACK
 ```
 
+
+
+
 ### Step 5: Next Up
 
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
@@ -63,3 +73,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

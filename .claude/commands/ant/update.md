@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/update.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:update
 description: "🔄🐜📦🐜🔄 Update Aether safely from the global hub (transactional)"
@@ -94,7 +95,10 @@ This command handles:
 
 ### Step 5: Clear Version Cache
 
+
 Run using the Bash tool:
+
+
 
 ```bash
 rm -f .aether/data/.version-check-cache
@@ -114,6 +118,7 @@ Colony data (.aether/data/) untouched.
 Note: version labels are treated as identifiers, not strict upgrade/downgrade ordering.
 ```
 
+
 ### Next Up
 
 Generate the state-based Next Up block by running:
@@ -124,3 +129,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

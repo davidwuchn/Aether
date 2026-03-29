@@ -1,8 +1,14 @@
+<!-- Generated from .aether/commands/memory-details.yaml - DO NOT EDIT DIRECTLY -->
 ---
-name: memory-details
+name: ant:memory-details
 description: "Show detailed colony memory — wisdom, pending promotions, and recent failures"
-symbol: brain
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 # /ant:memory-details — Colony Memory Details
 

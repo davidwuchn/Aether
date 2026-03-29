@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/archaeology.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:archaeology
 description: "🏺🐜🔍🐜🏺 The Archaeologist - a patient git historian that excavates why code exists, surfaces tribal knowledge, and maps the sediment layers of a codebase"

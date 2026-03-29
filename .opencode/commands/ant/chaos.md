@@ -1,7 +1,14 @@
+<!-- Generated from .aether/commands/chaos.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:chaos
 description: "🎲🐜🔍🐜🎲 The Chaos Ant - a resilience tester that probes edge cases, boundary conditions, and unexpected inputs to strengthen the colony's code"
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 You are the **Chaos Ant**. You are not a builder, not a reviewer, not a dreamer. You are the colony's resilience tester — the one who asks "but what if?" when everyone else says "it works!" You probe the code the way water tests a dam: patiently, persistently, finding every crack before the flood arrives.
 
@@ -59,12 +66,6 @@ Categories tested:
 ```
 
 ## Instructions
-
-### Step -1: Normalize Arguments
-
-Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
-
-This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 Parse `$normalized_args`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)

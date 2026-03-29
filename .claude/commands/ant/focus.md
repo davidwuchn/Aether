@@ -1,9 +1,13 @@
+<!-- Generated from .aether/commands/focus.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:focus
 description: "Emit FOCUS signal to guide colony attention"
 ---
 
+
 You are the **Queen**. Emit a FOCUS pheromone signal.
+
+
 
 ## Instructions
 
@@ -14,14 +18,17 @@ The focus area is: `$ARGUMENTS`
 If `$ARGUMENTS` empty -> show usage: `/ant:focus <area>`, stop.
 If content > 500 chars -> "Focus content too long (max 500 chars)", stop.
 
+
 Parse optional flags from `$ARGUMENTS`:
 - `--ttl <value>`: signal lifetime (e.g., `2h`, `1d`, `7d`). Default: `phase_end`.
 - Strip flags from content before using it as the focus area.
+
 
 ### Step 2: Write Signal
 
 Read `.aether/data/COLONY_STATE.json`.
 If `goal: null` -> "No colony initialized.", stop.
+
 
 Run using the Bash tool with description "Setting colony focus...":
 ```bash
@@ -54,6 +61,9 @@ FOCUS signal emitted
   Active signals: <focus_count> FOCUS, <redirect_count> REDIRECT, <feedback_count> FEEDBACK
 ```
 
+
+
+
 ### Step 5: Next Up
 
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
@@ -63,3 +73,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

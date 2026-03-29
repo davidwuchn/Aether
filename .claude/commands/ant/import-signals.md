@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/import-signals.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:import-signals
 description: "Import pheromone signals from another colony's XML export"
@@ -44,6 +45,7 @@ Parse the returned JSON:
 
 ### Step 3: Confirm
 
+
 Output (4-5 lines, no banners):
 ```
 Pheromone signals imported
@@ -54,6 +56,9 @@ Pheromone signals imported
 Note: On signal ID collision, current colony signals take priority.
 ```
 
+
+
+
 ### Step 4: Next Up
 
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
@@ -63,3 +68,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

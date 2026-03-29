@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/migrate-state.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:migrate-state
 description: "🚚🐜📦🐜🚚 One-time state migration from v1 to v2.0 format"
@@ -113,11 +114,14 @@ Format the JSON with 2-space indentation for readability.
 
 Output header:
 
+
 ```
 🚚🐜📦🐜🚚 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    S T A T E   M I G R A T I O N   C O M P L E T E
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🚚🐜📦🐜🚚
 ```
+
+
 
 Then output a migration summary:
 
@@ -152,6 +156,7 @@ All commands now use consolidated state format.
 - All 12+ ant commands will be updated to use the new single-file format
 - The backup directory preserves original files for rollback if needed
 
+
 ---
 
 ## Step 7: Next Up
@@ -163,3 +168,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

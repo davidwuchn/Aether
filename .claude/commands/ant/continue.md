@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/continue.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:continue
 description: "➡️🐜🚪🐜➡️ Detect build completion, reconcile state, and advance to next phase"

@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/dream.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:dream
 description: "💭🐜🌙🐜💭 The Dreamer - a philosophical wanderer that observes, imagines, and writes wisdom about the codebase"
@@ -35,7 +36,9 @@ Parse `$ARGUMENTS`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)
 - Otherwise: set `visual_mode = true`
 
+
 ### Step 0.5: Initialize Visual Mode (if enabled)
+
 
 ### Step 1: Awaken — Load Context
 
@@ -56,10 +59,13 @@ Read these files in parallel to understand the world you're dreaming about:
 - Read the most recent dream file if one exists (to avoid repeating yourself)
 
 Display awakening:
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💭🐜🌙🐜💭  T H E   D R E A M E R   A W A K E N S
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
 
 Colony: {goal}
 Phase:  {current_phase}/{total_phases} — {phase_name}
@@ -187,10 +193,13 @@ Concerns raised: {count}
 
 Output to the terminal:
 
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💭🐜🌙🐜💭  D R E A M   C O M P L E T E
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
 
 📓 {N} dreams recorded → .aether/dreams/{filename}.md
 
@@ -214,10 +223,13 @@ Colony status: /ant:status
 
 ### Step 6: Log Activity
 
+
 Run using the Bash tool with description "Logging dream activity...":
+
 ```bash
 bash .aether/aether-utils.sh activity-log "DREAM" "Dreamer" "Dream session: {N} observations, {concerns} concerns, {pheromones} pheromone suggestions"
 ```
+
 
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
 ```bash
@@ -226,6 +238,7 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+
 
 ## Dream Categories
 

@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/phase.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:phase
 description: "📝🐜📍🐜📝 Show phase details - Queen reviews phase status, tasks, and caste assignment"
 ---
-
-You are the **Queen Ant Colony**. Display phase details from the project plan.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen Ant Colony**. Display phase details from the project plan.
+
+## Instructions
 
 The argument is: `$normalized_args`
 
@@ -40,11 +41,13 @@ Find the phase by ID in `plan.phases`.
 
 Output this header:
 
+
+
 ```
 📝🐜📍🐜📝 ═══════════════════════════════════════════════════
    P H A S E   {id}   D E T A I L S
 ═══════════════════════════════════════════════════ 📝🐜📍🐜📝
-```
+
 
 Then display:
 
@@ -61,12 +64,18 @@ Then display:
 ✅ Success Criteria:
    • <criterion>
 
-─────────────────────────────────────────────────────
+───────────────────────────────────────────────────
+
+
 🐜 Next Steps:
+
+───────────────────────────────────────────────────
    /ant:build <id>       🔨 Phase <id>: <phase_name>
    /ant:phase <next_id>  📋 Phase <next_id>: <next_phase_name> (only if not last phase)
    /ant:status           📊 Colony status
 ```
+
+
 
 Status icons: `[ ]` pending, `[~]` in_progress, `[✓]` completed
 
@@ -74,50 +83,31 @@ Status icons: `[ ]` pending, `[~]` in_progress, `[✓]` completed
 
 Output this header:
 
+
+
 ```
 📝🐜📍🐜📝 ═══════════════════════════════════════════════════
    A L L   P H A S E S
 ═══════════════════════════════════════════════════ 📝🐜📍🐜📝
+
+
+For each phase in `plan.phases`, display:
+```
+[{id}] {name} [{status}]
+   {short_description}
 ```
 
-Then display all phases as a summary:
-
+Display phases grouped by status:
 ```
-👑 Goal: "<goal>"
-
-   {icon} Phase <id>: <name>
-         <completed>/<total> tasks | <status>
-
-(repeat for each phase)
-
-─────────────────────────────────────────────────────
-Legend: [✓] completed  [~] in progress  [ ] pending
-
-🐜 /ant:phase <id> for details
+✓ Completed
+   [{id}] {name}
+~ In Progress
+   [{id}] {name}
+[ ] Pending
+   [{id}] {name}
 ```
 
-### Step 4: Update Handoff (Optional)
-
-After displaying phase details, offer to update the handoff document with review notes:
-
-Use AskUserQuestion:
+Display completion progress:
 ```
-Update handoff with phase review notes?
-
-1. Yes — add notes about blockers or decisions
-2. No — continue without updating
+📊 Overall: {completed_count}/{total_count} phases complete
 ```
-
-If option 1 selected:
-Use AskUserQuestion to collect notes, then append to handoff:
-
-```bash
-cat >> .aether/HANDOFF.md << 'HANDOFF_EOF'
-
-## Phase {id} Review Notes
-- Reviewed: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-- Notes: {user_notes}
-HANDOFF_EOF
-```
-
-Display: `Handoff updated with review notes.`

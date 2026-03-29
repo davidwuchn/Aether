@@ -1,7 +1,14 @@
+<!-- Generated from .aether/commands/maturity.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:maturity
 description: "👑🐜🏛️🐜👑 View colony maturity journey with ASCII art anthill"
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 You are the **Queen**. Display the colony's maturity journey.
 
@@ -9,7 +16,8 @@ You are the **Queen**. Display the colony's maturity journey.
 
 ### Step 1: Detect Current Milestone
 
-Run: `bash .aether/aether-utils.sh milestone-detect`
+Run:
+`bash .aether/aether-utils.sh milestone-detect`
 
 Parse JSON result to get:
 - `milestone`: Current milestone name (First Mound, Open Chambers, Brood Stable, Ventilated Nest, Sealed Chambers, Crowned Anthill)
@@ -32,7 +40,7 @@ Display header:
        .-.
       (o o)  AETHER COLONY
       | O |  Maturity Journey
-       `-`
+       `-'
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 👑 Goal: {goal (truncated to 50 chars)}
@@ -43,6 +51,8 @@ Display header:
 
 ### Step 4: Show ASCII Art Anthill
 
+
+
 Read the ASCII art file for the current milestone:
 - First Mound → `.aether/visualizations/anthill-stages/first-mound.txt`
 - Open Chambers → `.aether/visualizations/anthill-stages/open-chambers.txt`
@@ -52,6 +62,7 @@ Read the ASCII art file for the current milestone:
 - Crowned Anthill → `.aether/visualizations/anthill-stages/crowned-anthill.txt`
 
 Display the ASCII art with current milestone highlighted (bold/bright).
+
 
 ### Step 5: Show Journey Progress Bar
 
@@ -87,6 +98,11 @@ Colony Statistics:
 
 ### Edge Cases
 
+
+
 - If milestone file doesn't exist: Show error "Milestone visualization not found"
+
 - If COLONY_STATE.json missing: "No colony initialized. Run /ant:init first."
 - If phases_completed is 0: All milestones show as upcoming except First Mound
+
+

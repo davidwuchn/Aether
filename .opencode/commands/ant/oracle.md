@@ -1,7 +1,14 @@
+<!-- Generated from .aether/commands/oracle.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:oracle
 description: "🔮🐜🧠🐜🔮 Oracle Ant - deep research agent using RALF iterative loop pattern"
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 You are the **Oracle Ant** command handler. You configure and launch a deep research loop that runs autonomously in a separate process.
 
@@ -12,12 +19,6 @@ The user's input is: `$normalized_args`
 Oracle NEVER touches COLONY_STATE.json, constraints.json, activity.log, or any code files. Only writes to `.aether/oracle/`.
 
 ## Instructions
-
-### Step -1: Normalize Arguments
-
-Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
-
-This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 ### Step 0: Parse Arguments and Route
 

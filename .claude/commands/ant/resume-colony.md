@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/resume-colony.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:resume-colony
 description: "🚦➡️🐜💨💨 Resume colony from saved session - restores all state"

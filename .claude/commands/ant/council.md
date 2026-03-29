@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/council.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:council
 description: "📜🐜🏛️🐜📜 Convene council for intent clarification via multi-choice questions"
@@ -11,9 +12,11 @@ Parse `$ARGUMENTS`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)
 - Otherwise: set `visual_mode = true`
 
+
 ### Step 0: Initialize Visual Mode (if enabled)
 
 If `visual_mode` is true, run using the Bash tool with description "Initializing council display...":
+
 ### Step 1: Read Current State
 
 Read `.aether/data/COLONY_STATE.json`.
@@ -33,10 +36,13 @@ Capture the current state for context:
 
 ### Step 2: Display Council Header
 
+
 ```
 📜🐜🏛️🐜📜 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-              A N T   C O U N C I L
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 📜🐜🏛️🐜📜
+             A N T   C O U N C I L
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 📜🐜🏛️🐜📜
+
+
 
 👑 Queen convenes the council for guidance
 
@@ -283,6 +289,7 @@ If `prior_state` was PLANNING:
    Planning will continue with new guidance.
 ```
 
+
 ### Step 9: Next Up
 
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
@@ -292,3 +299,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

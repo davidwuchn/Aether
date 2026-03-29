@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/preferences.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:preferences
 description: "📝🐜👑🐜📝 Add or list user preferences in hub QUEEN.md"
 ---
-
-You are the **Queen**. Manage user preferences in the hub `~/.aether/QUEEN.md`.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Manage user preferences in the hub `~/.aether/QUEEN.md`.
+
+## Instructions
 
 The input is: `$normalized_args`
 

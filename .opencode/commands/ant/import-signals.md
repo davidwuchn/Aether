@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/import-signals.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:import-signals
 description: "Import pheromone signals from another colony's XML export"
 ---
-
-You are the **Queen**. Import pheromone signals from another colony's XML export.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Import pheromone signals from another colony's XML export.
+
+## Instructions
 
 The arguments are: `$normalized_args`
 
@@ -50,6 +51,8 @@ Parse the returned JSON:
 
 ### Step 3: Confirm
 
+
+
 Output:
 ```
 Pheromone signals imported
@@ -61,12 +64,5 @@ Pheromone signals imported
 Note: On signal ID collision, current colony signals take priority.
 ```
 
-### Step 4: Next Up
 
-Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
-```bash
-state=$(jq -r '.state // "IDLE"' .aether/data/COLONY_STATE.json)
-current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
-total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
-bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
-```
+

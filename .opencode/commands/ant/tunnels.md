@@ -1,11 +1,8 @@
+<!-- Generated from .aether/commands/tunnels.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:tunnels
 description: "🕳️🐜🕳️ Explore tunnels (browse archived colonies, compare chambers)"
 ---
-
-You are the **Queen**. Browse the colony history.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
@@ -13,12 +10,9 @@ Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
-### Argument Handling
+You are the **Queen**. Browse the colony history.
 
-- No arguments: Show chamber list (Step 4)
-- One argument: Show single chamber detail (Step 3)
-- Two arguments: Compare two chambers (Step 5)
-- More than two: "Too many arguments. Use: /ant:tunnels [chamber1] [chamber2]"
+## Instructions
 
 ### Step 1: Check for Chambers Directory
 

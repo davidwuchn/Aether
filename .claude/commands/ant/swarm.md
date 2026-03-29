@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/swarm.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:swarm
 description: "🔥🐜🗡️🐜🔥 Real-time colony swarm display + stubborn bug destroyer"

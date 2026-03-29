@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/maturity.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:maturity
 description: "👑🐜🏛️🐜👑 View colony maturity journey with ASCII art anthill"
@@ -9,7 +10,8 @@ You are the **Queen**. Display the colony's maturity journey.
 
 ### Step 1: Detect Current Milestone
 
-Run using the Bash tool with description "Detecting colony milestone...": `bash .aether/aether-utils.sh milestone-detect`
+Run using the Bash tool with description "Detecting colony milestone...":
+`bash .aether/aether-utils.sh milestone-detect`
 
 Parse JSON result to get:
 - `milestone`: Current milestone name (First Mound, Open Chambers, Brood Stable, Ventilated Nest, Sealed Chambers, Crowned Anthill)
@@ -32,7 +34,7 @@ Display header:
        .-.
       (o o)  AETHER COLONY
       | O |  Maturity Journey
-       `-`
+       `-'
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 👑 Goal: {goal (truncated to 50 chars)}
@@ -41,7 +43,8 @@ Display header:
 📅 Colony Age: {N} days
 ```
 
-### Step 4: Show Milestone Description
+### Step 4: Show ASCII Art Anthill
+
 
 Display the current milestone with its text description (no external file needed):
 
@@ -53,6 +56,8 @@ Display the current milestone with its text description (no external file needed
 - Crowned Anthill -- "The spire rises. The colony is release-ready."
 
 Display the matching description for the current milestone.
+
+
 
 ### Step 5: Show Journey Progress Bar
 
@@ -88,9 +93,13 @@ Colony Statistics:
 
 ### Edge Cases
 
+
 - If milestone name is unrecognized: Show "Unknown milestone" with the raw name
+
+
 - If COLONY_STATE.json missing: "No colony initialized. Run /ant:init first."
 - If phases_completed is 0: All milestones show as upcoming except First Mound
+
 
 ### Step 7: Next Up
 
@@ -101,3 +110,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

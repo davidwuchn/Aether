@@ -1,6 +1,7 @@
+<!-- Generated from .aether/commands/help.yaml - DO NOT EDIT DIRECTLY -->
 ---
-name: help
-description: "🐜📖 Aether Colony - command reference and system overview"
+name: ant:help
+description: "Aether Colony - command reference and system overview"
 ---
 
 You are the **Queen Ant Colony**. Display the system overview and available commands.
@@ -12,6 +13,7 @@ Output the following:
 ```
 👑 AETHER QUEEN ANT COLONY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 
   A multi-agent system built on ant colony intelligence.
   Workers self-organize via pheromone signals. You guide with intention.
@@ -42,14 +44,18 @@ STATUS & UPDATES
   /ant:insert-phase      Insert a corrective phase after current phase
   /ant:flags             List active flags (blockers, issues, notes)
   /ant:flag "<title>"    Create a flag (blocker, issue, or note)
+
   /ant:memory-details    Show detailed colony memory — wisdom, promotions, failures
   /ant:maturity          View colony maturity journey and milestone progress
+
 
 SESSION COMMANDS
 
   /ant:pause-colony      Save state and create handoff document
   /ant:resume-colony     Restore from pause (full state + context)
+
   /ant:resume            Quick session restore (memory health + next steps)
+
   /ant:watch             Set up tmux session for live colony visibility
 
 COLONY LIFECYCLE
@@ -61,7 +67,6 @@ COLONY LIFECYCLE
 ADVANCED
 
   /ant:swarm "<bug>"     Parallel scouts investigate stubborn bugs
-  /ant:oracle            Deep research agent using RALF iterative loop
   /ant:organize          Codebase hygiene report (stale files, dead code)
   /ant:council           Convene council for intent clarification
   /ant:dream             Philosophical wanderer — observes and writes wisdom
@@ -69,12 +74,6 @@ ADVANCED
   /ant:chaos             🎲 Resilience testing — adversarial probing of the codebase
   /ant:archaeology       🏺 Git history analysis — excavate patterns from commit history
   /ant:tunnels           Browse archived colonies and compare chambers
-
-MAINTENANCE
-
-  /ant:data-clean        Scan and remove test artifacts from colony data files
-  /ant:migrate-state     One-time state migration from v1 to v2.0 format
-  /ant:verify-castes     Verify colony caste assignments and system status
 
 TYPICAL WORKFLOW
 
@@ -114,7 +113,10 @@ WORKER CASTES
 HOW IT WORKS
 
   Colony Lifecycle:
+
     INIT → PLAN → BUILD → CONTINUE → BUILD → ... → COMPLETE
+
+
 
   Workers spawn sub-workers autonomously (max depth 3).
   Builders receive colony knowledge (instincts, learnings, error patterns).
@@ -136,14 +138,17 @@ HOW IT WORKS
     spawn-tree.txt      Worker spawn hierarchy
     pheromones.json     Active FOCUS/REDIRECT/FEEDBACK signals
     constraints.json    Compatibility mirror for focus/redirect data
+
 ```
+
 
 ### Next Up
 
-Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
+Generate the state-based Next Up block by Run using the Bash tool with description "Generating Next Up suggestions..."::
 ```bash
 state=$(jq -r '.state // "IDLE"' .aether/data/COLONY_STATE.json)
 current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

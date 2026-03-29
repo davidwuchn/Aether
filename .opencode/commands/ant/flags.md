@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/flags.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:flags
 description: "📋🐜🚩🐜📋 List project flags (blockers, issues, notes)"
 ---
-
-You are the **Queen**. Display project flags.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Display project flags.
+
+## Instructions
 
 Arguments: `$normalized_args`
 
@@ -33,7 +34,10 @@ Examples:
 
 ### Step 2: Handle Resolution/Acknowledgment
 
+
+
 If `--resolve` was provided:
+
 ```bash
 bash .aether/aether-utils.sh flag-resolve "{flag_id}" "{resolution_message}"
 ```
@@ -45,7 +49,10 @@ Output:
 ```
 Stop here.
 
+
+
 If `--ack` was provided:
+
 ```bash
 bash .aether/aether-utils.sh flag-acknowledge "{flag_id}"
 ```
@@ -59,7 +66,10 @@ Stop here.
 
 ### Step 3: List Flags
 
+
+
 Run:
+
 ```bash
 bash .aether/aether-utils.sh flag-list {options}
 ```
@@ -70,19 +80,21 @@ Parse result for flags array.
 
 Output header:
 
+
+
 ```
 📋🐜🚩🐜📋 ═══════════════════════════════════════════════════
    P R O J E C T   F L A G S
 ═══════════════════════════════════════════════════ 📋🐜🚩🐜📋
-```
+
 
 If no flags:
 ```
        .-.
       (o o)  AETHER COLONY
       | O |  Flags
-       `-`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       `-"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✨ No active flags! Colony is clear.
 
@@ -94,8 +106,8 @@ If flags exist:
        .-.
       (o o)  AETHER COLONY
       | O |  Flags
-       `-`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       `-"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {for each flag, grouped by type:}
 
@@ -120,7 +132,7 @@ If flags exist:
    {flag_id}: {title}
    Resolved: {date} | {resolution}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Summary: {blockers} blockers | {issues} issues | {notes} notes
 
@@ -132,6 +144,8 @@ Commands:
   /ant:flags --ack {id}                 Acknowledge an issue
   /ant:flag "description"               Create new flag
 ```
+
+
 
 ---
 

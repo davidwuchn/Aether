@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/flag.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:flag
 description: "🚩🐜📋🐜🚩 Create a project-specific flag (blocker, issue, or note)"
 ---
-
-You are the **Queen**. Create a project-specific flag.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Create a project-specific flag.
+
+## Instructions
 
 The flag is: `$normalized_args`
 
@@ -67,23 +68,32 @@ Output header based on flag type:
 
 **For blocker:**
 ```
+
+
 🚩🐜📋🐜🚩 ═══════════════════════════════════════════════════
    B L O C K E R   F L A G   C R E A T E D
 ═══════════════════════════════════════════════════ 🚩🐜📋🐜🚩
+
 ```
 
 **For issue:**
 ```
+
+
 🚩🐜📋🐜🚩 ═══════════════════════════════════════════════════
    I S S U E   F L A G   C R E A T E D
 ═══════════════════════════════════════════════════ 🚩🐜📋🐜🚩
+
 ```
 
 **For note:**
 ```
+
+
 🚩🐜📋🐜🚩 ═══════════════════════════════════════════════════
    N O T E   F L A G   C R E A T E D
 ═══════════════════════════════════════════════════ 🚩🐜📋🐜🚩
+
 ```
 
 Then output based on flag type:
@@ -124,6 +134,8 @@ Then output based on flag type:
 
    Use /ant:flags to view all flags.
 ```
+
+
 
 ---
 

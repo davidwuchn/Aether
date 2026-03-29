@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/init.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:init
 description: "Initialize Aether colony - scan repo, approve charter, create colony"
@@ -12,6 +13,8 @@ The user's goal is: `$ARGUMENTS`
 Parse `$ARGUMENTS`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)
 - Otherwise: set `visual_mode = true`
+
+
 
 <failure_modes>
 ### Colony State Overwrite
@@ -85,7 +88,7 @@ Stop here. Do not proceed.
 
 ### Step 2: Initialize QUEEN.md
 
-Run using the Bash tool:
+Run using the Bash tool with description "Initializing QUEEN.md...":
 ```
 bash .aether/aether-utils.sh queen-init
 ```

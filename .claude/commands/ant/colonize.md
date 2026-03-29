@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/colonize.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:colonize
 description: "📊🐜🗺️🐜📊 Survey territory with 4 parallel scouts for comprehensive colony intelligence"

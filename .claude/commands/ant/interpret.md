@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/interpret.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:interpret
 description: "🔍🐜💭🐜🔍 The Interpreter - grounds dreams in reality, validates against codebase, and discusses what to implement"
@@ -52,10 +53,13 @@ Also read in parallel:
 
 ### Step 2: Display Header
 
+
 ```
 🔍🐜💭🐜🔍 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
          D R E A M   I N T E R P R E T E R
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🔍🐜💭🐜🔍
+
+
 
 📓 Reviewing: {dream_filename}
    {N} dreams | {concerns} concerns | {pheromones} suggested pheromones
@@ -146,10 +150,13 @@ Verdict emoji mapping:
 
 After all dreams are interpreted, display:
 
+
 ```
 🔍🐜💭🐜🔍 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
          I N T E R P R E T A T I O N   C O M P L E T E
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 🔍🐜💭🐜🔍
+
+
 
 📊 Results:
    {confirmed_count} confirmed | {partial_count} partially confirmed | {unconfirmed_count} unconfirmed | {refuted_count} refuted
@@ -218,7 +225,9 @@ Wait for user response.
 
 ### Step 7: Log Activity
 
+
 Run using the Bash tool with description "Logging interpretation activity...":
+
 ```bash
 bash .aether/aether-utils.sh activity-log "INTERPRET" "Interpreter" "Dream review: {dream_file}, {confirmed} confirmed, {partial} partial, {unconfirmed} unconfirmed, {refuted} refuted, {actions_taken} actions taken"
 ```
@@ -244,6 +253,7 @@ bash .aether/aether-utils.sh activity-log "INTERPRET" "Interpreter" "Dream revie
 /ant:build    🔨 Start building
 ```
 
+
 ### Step 9: Next Up
 
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
@@ -253,6 +263,7 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+
 
 ## Investigation Guidelines
 

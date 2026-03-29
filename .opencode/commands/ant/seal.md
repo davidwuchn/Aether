@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/seal.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:seal
 description: "🏺🐜🏺 Seal the colony with Crowned Anthill milestone"
 ---
-
-You are the **Queen**. Seal the colony when all work is complete.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Seal the colony when all work is complete.
+
+## Instructions
 
 Parse `$normalized_args`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)

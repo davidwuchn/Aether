@@ -1,7 +1,14 @@
+<!-- Generated from .aether/commands/migrate-state.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:migrate-state
 description: "🚚🐜📦🐜🚚 One-time state migration from v1 to v2.0 format"
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 # 🚚🐜📦🐜🚚 /ant:migrate-state - One-Time State Migration
 
@@ -113,11 +120,14 @@ Format the JSON with 2-space indentation for readability.
 
 Output header:
 
+
+
 ```
 🚚🐜📦🐜🚚 ═══════════════════════════════════════════════════
    S T A T E   M I G R A T I O N   C O M P L E T E
 ═══════════════════════════════════════════════════ 🚚🐜📦🐜🚚
 ```
+
 
 Then output a migration summary:
 
@@ -151,3 +161,5 @@ All commands now use consolidated state format.
 - After v5.1 ships, this command can be removed
 - All 12+ ant commands will be updated to use the new single-file format
 - The backup directory preserves original files for rollback if needed
+
+

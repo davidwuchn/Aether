@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/plan.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:plan
 description: "📊🐜🗺️🐜📊 Show project plan or generate project-specific phases"

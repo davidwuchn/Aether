@@ -1,13 +1,8 @@
+<!-- Generated from .aether/commands/build.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:build
 description: "🔨🐜🏗️🐜🔨 Build a phase with pure emergence - colony self-organizes and completes tasks"
 ---
-
-You are the **Queen**. You DIRECTLY spawn multiple workers — do not delegate to a single Prime Worker.
-
-The phase to build is: `$normalized_args`
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
@@ -15,6 +10,11 @@ Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
+You are the **Queen**. You DIRECTLY spawn multiple workers — do not delegate to a single Prime Worker.
+
+The phase to build is: `$normalized_args`
+
+## Instructions
 
 ### Step 0.5: Load Colony State
 

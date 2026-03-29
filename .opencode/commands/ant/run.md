@@ -1,17 +1,16 @@
+<!-- Generated from .aether/commands/run.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:run
 description: "🤖🐜🔄🐜🤖 Autopilot — builds, verifies, learns, and advances through phases automatically with smart pausing"
 ---
-
-You are the **Queen**. Execute `/ant:run` — the adaptive autopilot loop.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Execute `/ant:run` — the adaptive autopilot loop.
 
 The arguments are: `$normalized_args`
 

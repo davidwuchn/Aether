@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/entomb.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:entomb
 description: "⚰️🐜⚰️ Entomb completed colony in chambers"

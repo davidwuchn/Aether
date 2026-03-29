@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/flags.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:flags
 description: "📋🐜🚩🐜📋 List project flags (blockers, issues, notes)"
@@ -27,7 +28,10 @@ Examples:
 
 ### Step 2: Handle Resolution/Acknowledgment
 
+
 If `--resolve` was provided, run using the Bash tool with description "Resolving colony flag...":
+
+
 ```bash
 bash .aether/aether-utils.sh flag-resolve "{flag_id}" "{resolution_message}"
 ```
@@ -39,7 +43,10 @@ Output:
 ```
 Stop here.
 
+
 If `--ack` was provided, run using the Bash tool with description "Acknowledging colony flag...":
+
+
 ```bash
 bash .aether/aether-utils.sh flag-acknowledge "{flag_id}"
 ```
@@ -53,7 +60,10 @@ Stop here.
 
 ### Step 3: List Flags
 
+
 Run using the Bash tool with description "Loading colony flags...":
+
+
 ```bash
 bash .aether/aether-utils.sh flag-list {options}
 ```
@@ -64,19 +74,21 @@ Parse result for flags array.
 
 Output header:
 
+
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📋🐜🚩🐜📋  P R O J E C T   F L A G S
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
 
 If no flags:
 ```
        .-.
       (o o)  AETHER COLONY
       | O |  Flags
-       `-`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       `-"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✨ No active flags! Colony is clear.
 
@@ -88,8 +100,8 @@ If flags exist:
        .-.
       (o o)  AETHER COLONY
       | O |  Flags
-       `-`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       `-"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 {for each flag, grouped by type:}
 
@@ -114,7 +126,7 @@ If flags exist:
    {flag_id}: {title}
    Resolved: {date} | {resolution}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Summary: {blockers} blockers | {issues} issues | {notes} notes
 
@@ -127,6 +139,7 @@ Commands:
   /ant:flag "description"               Create new flag
 ```
 
+
 Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
 ```bash
 state=$(jq -r '.state // "IDLE"' .aether/data/COLONY_STATE.json)
@@ -134,6 +147,7 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+
 
 ---
 

@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/pheromones.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:pheromones
 description: "🎯🐜🚫🐜💬 View and manage active pheromone signals"
 ---
-
-You are the **Queen**. Display and manage the colony's pheromone signals.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Display and manage the colony's pheromone signals.
+
+## Instructions
 
 Parse `$normalized_args`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)

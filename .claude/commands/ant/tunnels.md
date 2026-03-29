@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/tunnels.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:tunnels
 description: "🕳️🐜🕳️ Explore tunnels (browse archived colonies, compare chambers)"

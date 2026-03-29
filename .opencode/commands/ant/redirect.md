@@ -1,17 +1,21 @@
+<!-- Generated from .aether/commands/redirect.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:redirect
 description: "⚠️🐜🚧🐜⚠️ Emit REDIRECT signal to warn colony away from patterns"
 ---
-
-You are the **Queen**. Add an AVOID constraint.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+
+
+You are the **Queen**. Add an AVOID constraint.
+
+
+## Instructions
 
 The pattern to avoid is: `$normalized_args`
 
@@ -20,10 +24,14 @@ The pattern to avoid is: `$normalized_args`
 If `$normalized_args` empty -> show usage: `/ant:redirect <pattern to avoid>`, stop.
 If content > 500 chars -> "Redirect content too long (max 500 chars)", stop.
 
-### Step 2: Read + Update Constraints
+
+
+### Step 2: Write Signal
 
 Read `.aether/data/COLONY_STATE.json`.
 If `goal: null` -> "No colony initialized.", stop.
+
+
 
 Read `.aether/data/constraints.json`. If file doesn't exist, create it with:
 ```json
@@ -71,3 +79,6 @@ Then output:
 
 🐜 Colony warned away from this pattern.
 ```
+
+
+

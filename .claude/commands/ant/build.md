@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/build.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:build
 description: "🔨🐜🏗️🐜🔨 Build a phase with pure emergence - colony self-organizes and completes tasks"

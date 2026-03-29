@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/export-signals.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:export-signals
 description: "Export colony pheromone signals to portable XML format"
@@ -31,6 +32,7 @@ Parse the returned JSON:
 
 ### Step 3: Confirm
 
+
 Output (3-5 lines, no banners):
 ```
 Pheromone signals exported to XML
@@ -39,6 +41,9 @@ Pheromone signals exported to XML
 
 Share this file with another colony using /ant:import-signals.
 ```
+
+
+
 
 ### Step 4: Next Up
 
@@ -49,3 +54,4 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
+

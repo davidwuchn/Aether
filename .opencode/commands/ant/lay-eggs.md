@@ -1,19 +1,20 @@
+<!-- Generated from .aether/commands/lay-eggs.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:lay-eggs
 description: "🥚🐜🥚 Set up Aether in this repo — creates .aether/ with all system files"
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 You are the **Queen**. Prepare this repository for Aether colony development.
 
 ## Instructions
 
 This command sets up the `.aether/` directory structure and copies all system files from the global hub. It does NOT start a colony — that's what `/ant:init "goal"` is for.
-
-### Step -1: Normalize Arguments
-
-Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
-
-This ensures arguments work correctly in both Claude Code and OpenCode.
 
 <failure_modes>
 ### Hub Not Found
@@ -44,6 +45,7 @@ Do not touch during lay-eggs:
 - .aether/chambers/ contents (archived colonies — create dir but don't modify files)
 - Source code files
 - .env* files
+- .claude/settings.json
 </read_only>
 
 ### Step 1: Check Hub Availability
@@ -67,7 +69,10 @@ Stop here.
 
 ### Step 2: Check Existing Setup
 
+
+
 Check if `.aether/aether-utils.sh` already exists.
+
 
 **If it exists:**
 ```
@@ -85,7 +90,10 @@ Proceed to Step 3.
 
 ### Step 3: Create Directory Structure
 
+
+
 Run:
+
 ```bash
 mkdir -p \
   .aether/data \
@@ -111,7 +119,10 @@ touch .aether/data/midden/.gitkeep
 
 ### Step 4: Copy System Files from Hub
 
+
+
 Run:
+
 ```bash
 # Core system files
 cp -f ~/.aether/system/aether-utils.sh .aether/ && \
@@ -134,7 +145,10 @@ echo "System files copied."
 
 ### Step 5: Initialize QUEEN.md
 
+
+
 Run: `bash .aether/aether-utils.sh queen-init`
+
 
 Parse the JSON result:
 - If `created` is true: note `QUEEN.md initialized`
@@ -142,15 +156,24 @@ Parse the JSON result:
 
 ### Step 6: Register Repo (Silent)
 
+Attempt to register this repo in the global hub. Silent on failure — registry is optional.
+
+
+
 Run (ignore errors):
+
 ```bash
 bash .aether/aether-utils.sh registry-add "$(pwd)" "$(jq -r '.version // "unknown"' ~/.aether/version.json 2>/dev/null || echo 'unknown')" 2>/dev/null || true
 ```
 
 ### Step 7: Verify Setup
 
+
+
 Run:
+
 ```bash
+# Count what was set up
 dirs=0
 files=0
 for d in .aether/data .aether/docs .aether/utils .aether/templates .aether/schemas .aether/exchange .aether/dreams .aether/chambers; do
@@ -166,25 +189,25 @@ done
 echo "{\"dirs\": $dirs, \"core_files\": $files, \"templates\": $templates, \"utils\": $utils}"
 ```
 
+Parse the JSON output for the display step.
+
 ### Step 8: Display Result
 
+
+
 ```
-🥚 ═══════════════════════════════════════════════════
+🥚 ═══════════════════════════════════════════════════════
    A E T H E R   R E A D Y
-═══════════════════════════════════════════════════ 🥚
+═══════════════════════════════════════════════════════════ 🥚
+
 
    {dirs} directories created
    {core_files} core system files
-   {templates} templates
-   {utils} utility scripts
-   QUEEN.md: {status}
+   {templates} templates ({utils} utils modules)
 
-   .aether/ is set up and ready for colony work.
+To start a colony:
+  /ant:init "your goal here"
 
-──────────────────────────────────────────────────
-🐜 Next Up
-──────────────────────────────────────────────────
-   /ant:init "your goal"   🌱 Start a colony
-   /ant:colonize            🗺️  Analyze existing code first
-   /ant:help                📖 See all commands
+To verify setup:
+  /ant:status
 ```

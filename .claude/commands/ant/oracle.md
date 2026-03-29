@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/oracle.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:oracle
 description: "🔮🐜🧠🐜🔮🐜 Oracle Ant - deep research agent using RALF iterative loop pattern"

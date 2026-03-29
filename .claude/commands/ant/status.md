@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/status.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:status
 description: "📈🐜🏘️🐜📈 Show colony status at a glance"
@@ -105,12 +106,13 @@ Capture:
 - Dream count: number of .md files in .aether/dreams/
 - Latest dream: most recent file by name (files are timestamped: YYYY-MM-DD-HHMM.md)
 
-To get latest dream timestamp, run using the Bash tool with description "Finding latest dream...":
+To get latest dream timestamp, Run using the Bash tool with description "Finding latest dream...":
 ```bash
 ls -1 .aether/dreams/*.md 2>/dev/null | sort | tail -1 | sed 's/.*\/\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)-\([0-9]\{4\}\).*/\1 \2/'
 ```
 
 Format the timestamp as: YYYY-MM-DD HH:MM
+
 
 ### Step 2.5.5: Colony Depth
 
@@ -132,6 +134,7 @@ Depth label mapping:
 - full -> "All agents (most thorough)"
 
 From state, extract:
+
 
 **Phase info:**
 - Current phase number: `current_phase`
@@ -259,7 +262,9 @@ Output format:
 ⚠️  Escalated: {escalated_count} task(s) awaiting your decision
 {end if}
 🏆 Milestone: <milestone> (<version>)
+
 🔬 Depth: {colony_depth} — {label}{if depth_source == "default": " (default)"}
+
 💭 Dreams: <dream_count> recorded (latest: <latest_dream>)
 🗺️ Survey: <survey_docs> docs (<survey_age_days>d old, <fresh|stale|missing>)
 
@@ -295,6 +300,7 @@ Use the `phase_bar` and `task_bar` values computed in Step 2.7 for the actual ba
 📚 Memory Health
    No memory data available. Colony wisdom will accumulate as you complete phases.
 ```
+
 
 **Data Safety:**
 After the Memory Health table, run:
@@ -339,6 +345,7 @@ If all counts are 0:
 🎯 Active Pheromones: None
    Use /ant:focus, /ant:redirect, or /ant:feedback to inject signals
 ```
+
 
 **Edge cases:**
 - No phases yet: show `[░░░░░░░░░░░░░░░░░░░░] 0/0 phases`

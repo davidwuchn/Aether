@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/init.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:init
 description: "Initialize Aether colony - scan repo, approve charter, create colony"
 ---
 
-You are the **Queen Ant Colony**. Initialize the colony with the Queen's intention.
-
-## Instructions
-
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
-This ensures arguments work correctly in both Claude Code and OpenCode.
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen Ant Colony**. Initialize the colony with the Queen's intention.
+
+## Instructions
 
 The user's goal is: `$normalized_args`
 
@@ -19,11 +20,42 @@ Parse `$normalized_args`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)
 - Otherwise: set `visual_mode = true`
 
+
 Note: Use `$normalized_args` instead of `$ARGUMENTS` throughout this command.
 
 ### Step 0: Initialize Visual Mode (if enabled)
 
 If `visual_mode` is true:
+
+
+<failure_modes>
+### Colony State Overwrite
+Re-init mode detects existing COLONY_STATE.json and preserves all state. Charter content is updated in-place via charter-write. Colony state, wisdom, instincts, learnings, pheromones, and phase progress are never reset.
+
+### Write Failure Mid-Init
+If writing COLONY_STATE.json fails partway:
+- Remove the incomplete file (partial state is worse than no state)
+- Report the error
+- Recovery: user can run /ant:init again safely
+</failure_modes>
+
+<success_criteria>
+Command is complete when:
+- User has approved the charter prompt (Charter, Context, Pheromones sections)
+- Charter content is written to QUEEN.md via charter-write
+- COLONY_STATE.json exists and is valid JSON (fresh init only)
+- Session file is written
+- User sees confirmation of colony creation or re-init
+</success_criteria>
+
+<read_only>
+Do not touch during init:
+- .aether/dreams/ (user notes)
+- .aether/chambers/ (archived colonies)
+- .env* files
+- .claude/settings.json
+- .github/workflows/
+</read_only>
 
 ### Step 1: Validate Input
 
@@ -68,7 +100,7 @@ Stop here. Do not proceed.
 
 ### Step 2: Initialize QUEEN.md
 
-Run using the Bash tool:
+Run:
 ```
 bash .aether/aether-utils.sh queen-init
 ```

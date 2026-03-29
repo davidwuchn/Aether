@@ -1,17 +1,21 @@
+<!-- Generated from .aether/commands/patrol.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:patrol
 description: "🐜🔦 Patrol the colony — comprehensive pre-seal review of all work against the plan"
 ---
-
-You are the **Queen**. Run a comprehensive audit of the colony before sealing.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+
+
+You are the **Queen**. Run a comprehensive audit of the colony before sealing.
+
+
+## Instructions
 
 Parse `$normalized_args`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)
@@ -284,7 +288,10 @@ Otherwise: increment `audit_passes`
 
 Display: `Checking test coverage...`
 
+
+
 **Count test files:**
+
 
 Run using the Bash tool:
 ```bash

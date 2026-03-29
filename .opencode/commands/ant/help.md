@@ -1,7 +1,14 @@
+<!-- Generated from .aether/commands/help.yaml - DO NOT EDIT DIRECTLY -->
 ---
-name: help
-description: "🐜📖 Aether Colony - command reference and system overview"
+name: ant:help
+description: "Aether Colony - command reference and system overview"
 ---
+
+### Step -1: Normalize Arguments
+
+Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
+
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
 
 You are the **Queen Ant Colony**. Display the system overview and available commands.
 
@@ -11,6 +18,7 @@ Output the following:
 
 ```
 👑 AETHER QUEEN ANT COLONY
+
 ══════════════════════════════════════════
 
   A multi-agent system built on ant colony intelligence.
@@ -30,6 +38,7 @@ PHEROMONE COMMANDS
   /ant:focus "<area>"    Guide colony attention (priority: normal, expires: phase end)
   /ant:redirect "<pat>"  Warn away from pattern (priority: high, expires: phase end)
   /ant:feedback "<msg>"  Adjust behavior (priority: low, expires: phase end)
+  /ant:pheromones        View and manage active pheromone signals
   /ant:export-signals [path]  Export pheromone signals to portable XML
   /ant:import-signals <file> [colony]  Import signals from another colony's XML
 
@@ -42,15 +51,18 @@ STATUS & UPDATES
   /ant:flags             List active flags (blockers, issues, notes)
   /ant:flag "<title>"    Create a flag (blocker, issue, or note)
 
+
 SESSION COMMANDS
 
   /ant:pause-colony      Save state and create handoff document
   /ant:resume-colony     Restore from pause (full state + context)
+
   /ant:watch             Set up tmux session for live colony visibility
 
 COLONY LIFECYCLE
 
   /ant:seal             Seal colony with Crowned Anthill milestone
+  /ant:entomb           Archive completed colony into chambers
   /ant:history          Browse colony event history
 
 ADVANCED
@@ -62,6 +74,7 @@ ADVANCED
   /ant:interpret         Review dreams — validate against codebase, discuss action
   /ant:chaos             🎲 Resilience testing — adversarial probing of the codebase
   /ant:archaeology       🏺 Git history analysis — excavate patterns from commit history
+  /ant:tunnels           Browse archived colonies and compare chambers
 
 TYPICAL WORKFLOW
 
@@ -101,7 +114,10 @@ WORKER CASTES
 HOW IT WORKS
 
   Colony Lifecycle:
+
+
     LAY-EGGS → INIT → PLAN → BUILD → CONTINUE → BUILD → ... → SEAL → ENTOMB
+
 
   Workers spawn sub-workers autonomously (max depth 3).
   Builders receive colony knowledge (instincts, learnings, error patterns).
@@ -124,6 +140,7 @@ HOW IT WORKS
     pheromones.json     Active FOCUS/REDIRECT/FEEDBACK signals
     constraints.json    Compatibility mirror for focus/redirect data
 
+
 OPENCODE USERS
 
   Argument syntax: OpenCode handles multi-word arguments differently than Claude.
@@ -135,4 +152,6 @@ OPENCODE USERS
 
   Without quotes, only the first word may be captured. This is now handled
   automatically by the normalize-args utility, but quoting is recommended.
+
 ```
+

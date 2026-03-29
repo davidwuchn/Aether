@@ -1,19 +1,23 @@
+<!-- Generated from .aether/commands/data-clean.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:data-clean
 description: "Scan and remove test artifacts from colony data files"
 ---
-
-You are the **Queen Ant Colony**. Run the data cleaner to scan for and remove test/synthetic artifacts from colony data files.
-
-> **Note:** Arguments are unused. This command always scans all data files.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen Ant Colony**. Run the data cleaner to scan for and remove test/synthetic artifacts from colony data files.
+
+
+
+> **Note:** Arguments are unused. This command always scans all data files.
+
+
+## Instructions
 
 ### Step 1: Scan
 
@@ -70,12 +74,4 @@ Removed {total} artifacts:
 Run /ant:status to verify colony state.
 ```
 
-### Step 5: Next Up
 
-Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
-```bash
-state=$(jq -r '.state // "IDLE"' .aether/data/COLONY_STATE.json)
-current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
-total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
-bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
-```

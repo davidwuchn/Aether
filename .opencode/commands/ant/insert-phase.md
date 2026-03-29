@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/insert-phase.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:insert-phase
 description: "➕🐜 Insert a corrective phase into the active plan"
 ---
 
-You are the **Queen**. Insert a new corrective phase without forcing the user to provide flags.
-
-## Instructions
-
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
-Use `$normalized_args` throughout this command.
+This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen**. Insert a new corrective phase without forcing the user to provide flags.
+
+## Instructions
 
 ### Step 1: Validate Colony State
 

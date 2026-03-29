@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/phase.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:phase
 description: "📝🐜📍🐜📝 Show phase details - Queen reviews phase status, tasks, and caste assignment"
@@ -34,11 +35,13 @@ Find the phase by ID in `plan.phases`.
 
 Output this header:
 
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📝🐜📍🐜📝  P H A S E   {id}   D E T A I L S
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+
+
 
 Then display:
 
@@ -55,13 +58,17 @@ Then display:
 ✅ Success Criteria:
    • <criterion>
 
-──────────────────────────────────────────────────
+───────────────────────────────────────────────────
+
 🐜 Next Up
-──────────────────────────────────────────────────
+
+
+───────────────────────────────────────────────────
    /ant:build <id>       🔨 Phase <id>: <phase_name>
    /ant:phase <next_id>  📋 Phase <next_id>: <next_phase_name> (only if not last phase)
    /ant:status           📊 Colony status
 ```
+
 
 After displaying phase details, generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
 ```bash
@@ -71,56 +78,38 @@ total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_phases"
 ```
 
+
 Status icons: `[ ]` pending, `[~]` in_progress, `[✓]` completed
 
 ### Step 3b: List View
 
 Output this header:
 
+
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📝🐜📍🐜📝  A L L   P H A S E S
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+
+For each phase in `plan.phases`, display:
+```
+[{id}] {name} [{status}]
+   {short_description}
 ```
 
-Then display all phases as a summary:
-
+Display phases grouped by status:
 ```
-👑 Goal: "<goal>"
-
-   {icon} Phase <id>: <name>
-         <completed>/<total> tasks | <status>
-
-(repeat for each phase)
-
-─────────────────────────────────────────────────────
-Legend: [✓] completed  [~] in progress  [ ] pending
-
-🐜 /ant:phase <id> for details
+✓ Completed
+   [{id}] {name}
+~ In Progress
+   [{id}] {name}
+[ ] Pending
+   [{id}] {name}
 ```
 
-### Step 4: Update Handoff (Optional)
-
-After displaying phase details, offer to update the handoff document with review notes:
-
-Use AskUserQuestion:
+Display completion progress:
 ```
-Update handoff with phase review notes?
-
-1. Yes — add notes about blockers or decisions
-2. No — continue without updating
+📊 Overall: {completed_count}/{total_count} phases complete
 ```
-
-If option 1 selected:
-Use AskUserQuestion to collect notes, then append to handoff:
-
-```bash
-cat >> .aether/HANDOFF.md << 'HANDOFF_EOF'
-
-## Phase {id} Review Notes
-- Reviewed: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-- Notes: {user_notes}
-HANDOFF_EOF
-```
-
-Display: `Handoff updated with review notes.`

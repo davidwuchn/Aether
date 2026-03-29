@@ -1,17 +1,18 @@
+<!-- Generated from .aether/commands/continue.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:continue
 description: "➡️🐜🚪🐜➡️ Detect build completion, reconcile state, and advance to next phase"
 ---
-
-You are the **Queen Ant Colony**. Reconcile completed work and advance to the next phase.
-
-## Instructions
 
 ### Step -1: Normalize Arguments
 
 Run: `normalized_args=$(bash .aether/aether-utils.sh normalize-args "$@")`
 
 This ensures arguments work correctly in both Claude Code and OpenCode. Use `$normalized_args` throughout this command.
+
+You are the **Queen Ant Colony**. Reconcile completed work and advance to the next phase.
+
+## Instructions
 
 Parse `$normalized_args`:
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)
@@ -1335,7 +1336,7 @@ Clear context now?
    ```
    Please clear your context/conversation, then run: /ant:build {next_id}
    ```
-   
+
    Record the suggestion: Set `context_clear_suggested` to `true` in COLONY_STATE.json.
 
 4. **If option 2 ("No, continue in current context"):**

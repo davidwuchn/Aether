@@ -1,7 +1,7 @@
+<!-- Generated from .aether/commands/resume.yaml - DO NOT EDIT DIRECTLY -->
 ---
-name: resume
+name: ant:resume
 description: "Resume Previous Session"
-symbol: refresh
 ---
 
 # /ant:resume — Resume Previous Session
@@ -24,7 +24,7 @@ Execute the following steps in order when the user runs `/ant:resume`.
 
 ### Step 1: Read Session State
 
-Run using the Bash tool with description "Restoring colony session...":
+Run using the Bash tool with description "Restoring colony session..."::
 ```bash
 bash .aether/aether-utils.sh session-read
 ```
@@ -35,6 +35,7 @@ Parse the JSON result.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 RESUME SESSION
 
 No previous session found.
@@ -42,6 +43,7 @@ No previous session found.
 Start fresh: /ant:init "your goal"
 Or check: /ant:status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 ```
 
 - If `exists` is `true`: extract from the session data:
@@ -85,18 +87,18 @@ Do NOT proceed with stale or fabricated data.
 
 ### Step 3: Read Pheromone Signals
 
-Run using the Bash tool with description "Loading active pheromone signals...":
-```bash
-bash .aether/aether-utils.sh pheromone-read all
-```
 
-Parse the JSON result. Extract `.result.signals` array.
+Use the Read tool to read `.aether/data/constraints.json`.
 
-- If `ok` is `true` and `.result.signals` is non-empty: store signals for dashboard rendering in Step 8
-- If `ok` is `true` and `.result.signals` is empty: no active pheromones (skip in dashboard)
-- If the command fails or returns an error: skip silently (no pheromones active)
+Extract the following top-level keys:
+- `focus` array — active focus signals (if key missing, treat as empty array)
+- `constraints` array — active redirect/constraint signals (if key missing, treat as empty array)
 
-Note: pheromone-read applies decay calculation automatically. The `effective_strength` field reflects current signal strength after time-based decay. Signals below 0.1 effective strength are already filtered out.
+If the file is missing: skip silently (no pheromones active).
+
+Pheromones persist until explicitly cleared — no decay.
+
+
 
 ---
 
@@ -241,6 +243,7 @@ Lead with the next-step recommendation. Context follows underneath ("straight to
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 RESUME SESSION
 
 Next: {recommended}
@@ -278,16 +281,23 @@ Recent Decisions:
 
 {if signals array from Step 3 is not empty:}
 Active Signals:
-{for each signal in signals:}
-  {signal.type}: "{signal.content}" [{signal.effective_strength * 100 | floor}%]
+
+{for each focus signal:}
+  FOCUS: {focus text}
 {end}
+{for each constraint signal:}
+  REDIRECT: {constraint text}
 {end}
+
+
+{end}
+```
 
 ---
 
 ### Step 8.5: Display Memory Health (Secondary)
 
-Run using the Bash tool with description "Loading memory health...":
+Run using the Bash tool with description "Loading memory health..."::
 ```bash
 bash .aether/aether-utils.sh resume-dashboard
 ```
@@ -319,14 +329,14 @@ Session: {session_id}
 
 ### Step 9: Mark Session Resumed
 
-Run using the Bash tool with description "Marking session as resumed...":
+Run using the Bash tool with description "Marking session as resumed..."::
 ```bash
 bash .aether/aether-utils.sh session-mark-resumed
 ```
 
 ### Step 10: Next Up
 
-Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
+Generate the state-based Next Up block by Run using the Bash tool with description "Generating Next Up suggestions..."::
 ```bash
 state=$(jq -r '.state // "IDLE"' .aether/data/COLONY_STATE.json)
 current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
@@ -342,7 +352,10 @@ bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_pha
 |-----------|----------|
 | session.json missing (exists=false) | "No previous session found" — offer /ant:init and /ant:status |
 | COLONY_STATE.json missing or corrupted | Pause, ask user: start fresh or recover |
-| pheromone-read fails | Skip silently (no pheromones) |
+
+| constraints.json missing | Skip silently (no pheromones) |
+
+
 | CONTEXT.md missing | Fall back to COLONY_STATE.json narrative |
 | No plan phases, no generated_at | BLOCK — redirect to /ant:plan |
 | Plan attempted but no phases | BLOCK — redirect to /ant:plan |
@@ -354,7 +367,10 @@ bash .aether/aether-utils.sh print-next-up "$state" "$current_phase" "$total_pha
 
 ## Key Constraints
 
-- Use Read tool for COLONY_STATE.json (not bash cat/jq). Use Bash tool for pheromone-read (applies decay calculation).
+
+- Use Read tool for COLONY_STATE.json and constraints.json (not bash cat/jq).
+
+
 - Use Bash tool only for aether-utils.sh commands and git commands
 - Handle ALL missing/corrupted file cases gracefully
 - Time-agnostic: restore identically regardless of how long ago the session was

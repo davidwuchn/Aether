@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/watch.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:watch
 description: "👁️🔄🐜🏠🔄👁️ Set up tmux session to watch ants working in real-time"

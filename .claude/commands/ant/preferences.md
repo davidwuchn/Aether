@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/preferences.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:preferences
 description: "Add or list user preferences in hub QUEEN.md"

@@ -1,3 +1,4 @@
+<!-- Generated from .aether/commands/chaos.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:chaos
 description: "🎲🐜🔍🐜🎲 The Chaos Ant - a resilience tester that probes edge cases, boundary conditions, and unexpected inputs to strengthen the colony's code"
