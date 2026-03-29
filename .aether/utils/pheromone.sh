@@ -171,6 +171,8 @@ pw_lock_held=false
 if type acquire_lock &>/dev/null; then
   acquire_lock "$pw_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on pheromones.json"
   pw_lock_held=true
+  # Trap ensures lock release on unexpected exit (json_err calls exit 1)
+  trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
 fi
 
 # Initialize pheromones.json if missing
@@ -265,7 +267,7 @@ atomic_write "$pw_file" "$pw_updated" || {
   [[ "$pw_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
   json_err "$E_JSON_INVALID" "Failed to write pheromones.json"
 }
-[[ "$pw_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+[[ "$pw_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; trap - EXIT; }  # SUPPRESS:OK -- cleanup: lock may not be held
 
 # Backward compatibility: also write to constraints.json
 pw_cfile="$DATA_DIR/constraints.json"
@@ -1727,12 +1729,13 @@ if [[ -n "$phe_updated_pheromones" && "$phe_updated_pheromones" != "null" ]]; th
   if type acquire_lock &>/dev/null; then
     acquire_lock "$phe_pheromones_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on pheromones.json"
     phe_lock_held=true
+    trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
   fi
   atomic_write "$phe_pheromones_file" "$phe_updated_pheromones" || {
     [[ "$phe_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
     json_err "$E_JSON_INVALID" "Failed to write pheromones.json"
   }
-  [[ "$phe_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+  [[ "$phe_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; trap - EXIT; }  # SUPPRESS:OK -- cleanup: lock may not be held
 fi
 
 # Append expired signals to midden.json
@@ -1749,12 +1752,13 @@ if [[ -n "$phe_midden_updated" && "$phe_midden_updated" != "null" ]]; then
   if type acquire_lock &>/dev/null; then
     acquire_lock "$phe_midden_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on midden.json"
     phe_midden_lock_held=true
+    trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
   fi
   atomic_write "$phe_midden_file" "$phe_midden_updated" || {
     [[ "$phe_midden_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
     json_err "$E_JSON_INVALID" "Failed to write midden.json"
   }
-  [[ "$phe_midden_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+  [[ "$phe_midden_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; trap - EXIT; }  # SUPPRESS:OK -- cleanup: lock may not be held
 fi
 
 # SUPPRESS:OK -- read-default: query may return empty
@@ -1870,6 +1874,8 @@ es_lock_held=false
 if type acquire_lock &>/dev/null; then
   acquire_lock "$es_memory_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on eternal memory"
   es_lock_held=true
+  # Trap ensures lock release on unexpected exit (json_err calls exit 1)
+  trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
 fi
 
 es_updated=$(jq --argjson entry "$es_entry" '
@@ -1886,7 +1892,7 @@ atomic_write "$es_memory_file" "$es_updated" || {
   json_err "$E_JSON_INVALID" "Failed to write eternal memory"
 }
 
-[[ "$es_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+[[ "$es_lock_held" == "true" ]] && { release_lock 2>/dev/null || true; trap - EXIT; }  # SUPPRESS:OK -- cleanup: lock may not be held
 json_ok "{\"stored\":true,\"signal_id\":\"$es_signal_id\",\"type\":\"$es_type\"}"
 }
 
