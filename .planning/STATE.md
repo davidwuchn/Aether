@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Completed 37-03-PLAN.md
-last_updated: "2026-03-29T13:47:54.735Z"
+stopped_at: Completed 38-01-PLAN.md
+last_updated: "2026-03-29T14:59:06.184Z"
 last_activity: 2026-03-29
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 20
-  completed_plans: 19
+  total_plans: 22
+  completed_plans: 20
   percent: 100
 ---
 
@@ -21,12 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 36 — yaml-command-generator
+**Current focus:** Phase 38 — cleanup-maintenance
 
 ## Current Position
 
-Phase: 38 of 37 (cleanup & maintenance)
-Status: Executing wave 2
+Phase: 38 (cleanup-maintenance) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-03-29
 
 Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in progress
@@ -66,6 +67,7 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 | Phase 36 P01 | 4min | 2 tasks | 2 files |
 | Phase 36 P03 | 14min | 2 tasks | 22 files |
 | Phase 37 P03 | 5min | 2 tasks | 7 files |
+| Phase 38 P01 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -110,6 +112,8 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 - [37-02] xmllint required before offering import (hard dependency of pheromone-import-xml)
 - [37-02] All three data types imported together, no cherry-picking (per D-09)
 - [Phase 37]: Check 7 in validate-package.sh validates exchange shell scripts (.sh), not XML data files
+- [Phase 38]: Pre-existing instinct-confidence test failures (4 tests) deferred as unrelated to spawn-tree.sh changes
+- [Phase 38]: error-codes.md descriptions verified accurate; only last-updated date needed changing
 
 ### Pending Todos
 
@@ -121,6 +125,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-29T13:41:30.941Z
-Stopped at: Completed 37-03-PLAN.md
+Last session: 2026-03-29T14:59:06.180Z
+Stopped at: Completed 38-01-PLAN.md
 Resume file: None

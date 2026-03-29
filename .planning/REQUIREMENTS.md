@@ -24,8 +24,8 @@ Requirements for v2.6 Bugfix & Hardening. Each maps to roadmap phases.
 ### Maintenance
 
 - [ ] **MAINT-01**: Old 2.x npm versions deprecated on registry
-- [ ] **MAINT-02**: Error code reference document generated from error-handler.sh and distributed in docs/
-- [ ] **MAINT-03**: Unused models[] awk array removed from aether-utils.sh
+- [x] **MAINT-02**: Error code reference document generated from error-handler.sh and distributed in docs/
+- [x] **MAINT-03**: Unused models[] awk array removed from aether-utils.sh
 
 ## Future Requirements
 
@@ -81,8 +81,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 36 | Complete |
 | INFRA-04 | Phase 37 | Complete |
 | MAINT-01 | Phase 38 | Pending |
-| MAINT-02 | Phase 38 | Pending |
-| MAINT-03 | Phase 38 | Pending |
+| MAINT-02 | Phase 38 | Complete |
+| MAINT-03 | Phase 38 | Complete |
 
 **Coverage:**
 - v2.6 requirements: 11 total
