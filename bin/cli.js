@@ -22,31 +22,8 @@ const { logError, logActivity } = require('./lib/logger');
 const { UpdateTransaction, UpdateError, UpdateErrorCodes } = require('./lib/update-transaction');
 const { initializeRepo, isInitialized } = require('./lib/init');
 const { syncStateFromPlanning, reconcileStates } = require('./lib/state-sync');
-const { createVerificationReport } = require('./lib/model-verify');
-const {
-  loadModelProfiles,
-  getAllAssignments,
-  getProviderForModel,
-  validateCaste,
-  validateModel,
-  setModelOverride,
-  resetModelOverride,
-  getEffectiveModel,
-  getUserOverrides,
-  getModelMetadata,
-  getProxyConfig,
-} = require('./lib/model-profiles');
-const {
-  checkProxyHealth,
-  verifyModelRouting,
-  formatProxyStatusColored,
-} = require('./lib/proxy-health');
 const { findNestmates, formatNestmates, loadNestmateTodos } = require('./lib/nestmate-loader');
 const { logSpawn, formatSpawnTree } = require('./lib/spawn-logger');
-const {
-  getTelemetrySummary,
-  getModelPerformance,
-} = require('./lib/telemetry');
 
 // Color palette
 const c = require('./lib/colors');
@@ -1044,7 +1021,7 @@ function setupHub() {
       fs.mkdirSync(HUB_SYSTEM_DIR, { recursive: true });
 
       // Move system files to system/
-      const systemFiles = ['aether-utils.sh', 'workers.md', 'model-profiles.yaml'];
+      const systemFiles = ['aether-utils.sh', 'workers.md'];
       const systemDirs = ['docs', 'utils', 'commands', 'agents', 'schemas', 'exchange', 'templates', 'lib'];
 
       for (const file of systemFiles) {
@@ -2152,54 +2129,6 @@ casteModelsCmd
     }
   }));
 
-// Verify-models command - Verify model routing configuration
-program
-  .command('verify-models')
-  .description('Verify model routing configuration is active')
-  .action(wrapCommand(async () => {
-    const repoPath = process.cwd();
-    const report = await createVerificationReport(repoPath);
-
-    console.log('=== Model Routing Verification ===\n');
-
-    // Proxy status
-    console.log(`LiteLLM Proxy: ${report.proxy.running ? '✓ Running' : '✗ Not running'}`);
-    if (report.proxy.running) {
-      console.log(`  Latency: ${report.proxy.latency}ms`);
-    }
-
-    // Environment
-    console.log(`\nEnvironment:`);
-    console.log(`  ANTHROPIC_MODEL: ${report.env.model || '(not set)'}`);
-    console.log(`  ANTHROPIC_BASE_URL: ${report.env.baseUrl || '(not set)'}`);
-
-    // Caste assignments
-    console.log(`\nCaste Model Assignments:`);
-    for (const [caste, info] of Object.entries(report.castes)) {
-      const status = info.assigned ? '✓' : '✗';
-      console.log(`  ${status} ${caste}: ${info.model || 'default'}`);
-    }
-
-    // Model profiles file
-    console.log(`\nModel Profiles File:`);
-    if (report.profilesFile.exists) {
-      console.log(`  ✓ Found: ${report.profilesFile.path}`);
-      const profileCount = Object.keys(report.profilesFile.profiles).length;
-      console.log(`  Profiles: ${profileCount} castes configured`);
-    } else {
-      console.log(`  ✗ Not found: ${report.profilesFile.path}`);
-    }
-
-    // Issues
-    if (report.issues.length > 0) {
-      console.log(`\nIssues Found:`);
-      report.issues.forEach(issue => console.log(`  ⚠ ${issue}`));
-    }
-
-    // Recommendation
-    console.log(`\n${report.recommendation}`);
-  }));
-
 // Spawn-log command - Log a worker spawn event
 program
   .command('spawn-log')
@@ -2329,141 +2258,6 @@ program
     console.log(formatNestmates(nestmates));
   }));
 
-// Telemetry command - View model performance telemetry
-const telemetryCmd = program
-  .command('telemetry')
-  .description('View model performance telemetry')
-  .action(wrapCommand(async () => {
-    // Default action: show summary
-    const repoPath = process.cwd();
-    const summary = getTelemetrySummary(repoPath);
-
-    console.log(c.header('Model Performance Telemetry\n'));
-    console.log(`Total Spawns: ${summary.total_spawns}`);
-    console.log(`Models Used: ${summary.total_models}\n`);
-
-    if (summary.total_spawns === 0) {
-      console.log(c.info('No telemetry data yet. Run some builds to collect data.'));
-      return;
-    }
-
-    console.log('Model Performance:');
-    console.log('─'.repeat(60));
-    for (const [model, stats] of Object.entries(summary.models)) {
-      const rate = (stats.success_rate * 100).toFixed(1);
-      const rateColor = stats.success_rate >= 0.9 ? c.success :
-                       stats.success_rate >= 0.7 ? c.warning : c.error;
-      console.log(`  ${model.padEnd(15)} ${String(stats.total_spawns).padStart(4)} spawns  ${rateColor(rate + '%')} success`);
-    }
-
-    if (summary.recent_decisions.length > 0) {
-      console.log('\nRecent Routing Decisions:');
-      console.log('─'.repeat(60));
-      for (const decision of summary.recent_decisions.slice(-5)) {
-        console.log(`  ${decision.caste.padEnd(10)} → ${decision.selected_model.padEnd(12)} (${decision.source})`);
-      }
-    }
-  }));
-
-// summary subcommand (explicit)
-telemetryCmd
-  .command('summary')
-  .description('Show overall telemetry summary')
-  .action(wrapCommand(async () => {
-    const repoPath = process.cwd();
-    const summary = getTelemetrySummary(repoPath);
-
-    console.log(c.header('Model Performance Telemetry\n'));
-    console.log(`Total Spawns: ${summary.total_spawns}`);
-    console.log(`Models Used: ${summary.total_models}\n`);
-
-    if (summary.total_spawns === 0) {
-      console.log(c.info('No telemetry data yet. Run some builds to collect data.'));
-      return;
-    }
-
-    console.log('Model Performance:');
-    console.log('─'.repeat(60));
-    for (const [model, stats] of Object.entries(summary.models)) {
-      const rate = (stats.success_rate * 100).toFixed(1);
-      const rateColor = stats.success_rate >= 0.9 ? c.success :
-                       stats.success_rate >= 0.7 ? c.warning : c.error;
-      console.log(`  ${model.padEnd(15)} ${String(stats.total_spawns).padStart(4)} spawns  ${rateColor(rate + '%')} success`);
-    }
-
-    if (summary.recent_decisions.length > 0) {
-      console.log('\nRecent Routing Decisions:');
-      console.log('─'.repeat(60));
-      for (const decision of summary.recent_decisions.slice(-5)) {
-        console.log(`  ${decision.caste.padEnd(10)} → ${decision.selected_model.padEnd(12)} (${decision.source})`);
-      }
-    }
-  }));
-
-// model subcommand
-telemetryCmd
-  .command('model <model-name>')
-  .description('Show detailed performance for a specific model')
-  .action(wrapCommand(async (modelName) => {
-    const repoPath = process.cwd();
-    const performance = getModelPerformance(repoPath, modelName);
-
-    if (!performance) {
-      console.log(c.warning(`No data for model: ${modelName}`));
-      return;
-    }
-
-    console.log(c.header(`Model Performance: ${modelName}\n`));
-    console.log(`Total Spawns: ${performance.total_spawns}`);
-    console.log(`Success Rate: ${(performance.success_rate * 100).toFixed(1)}%`);
-    console.log(`  ✓ Completed: ${performance.successful_completions}`);
-    console.log(`  ✗ Failed: ${performance.failed_completions}`);
-    console.log(`  🚫 Blocked: ${performance.blocked}`);
-
-    if (Object.keys(performance.by_caste).length > 0) {
-      console.log('\nPerformance by Caste:');
-      console.log('─'.repeat(50));
-      for (const [caste, stats] of Object.entries(performance.by_caste)) {
-        const casteRate = stats.spawns > 0 ? (stats.success / stats.spawns * 100).toFixed(1) : '0.0';
-        console.log(`  ${caste.padEnd(12)} ${String(stats.spawns).padStart(4)} spawns  ${casteRate}% success`);
-      }
-    }
-  }));
-
-// performance subcommand
-telemetryCmd
-  .command('performance')
-  .description('Show models ranked by performance')
-  .action(wrapCommand(async () => {
-    const repoPath = process.cwd();
-    const summary = getTelemetrySummary(repoPath);
-
-    console.log(c.header('Model Performance Ranking\n'));
-
-    if (summary.total_spawns === 0) {
-      console.log(c.info('No telemetry data yet. Run some builds to collect data.'));
-      return;
-    }
-
-    // Sort models by success rate
-    const ranked = Object.entries(summary.models)
-      .map(([model, stats]) => ({ model, ...stats }))
-      .sort((a, b) => b.success_rate - a.success_rate);
-
-    console.log(`${'Rank'.padEnd(6)} ${'Model'.padEnd(15)} ${'Spawns'.padStart(6)} ${'Success'.padStart(8)} ${'Rate'.padStart(6)}`);
-    console.log('─'.repeat(60));
-
-    ranked.forEach((m, i) => {
-      const rank = `${i + 1}.`.padEnd(6);
-      const rate = (m.success_rate * 100).toFixed(1);
-      const rateColor = m.success_rate >= 0.9 ? c.success :
-                       m.success_rate >= 0.7 ? c.warning : c.error;
-      console.log(`${rank} ${m.model.padEnd(15)} ${String(m.total_spawns).padStart(6)} ${String(m.successful_completions || 0).padStart(8)} ${rateColor(rate.padStart(5) + '%')}`);
-    });
-
-    console.log('\n' + c.dim('Tip: Use "aether telemetry model <name>" for detailed stats'));
-  }));
-
 // Context command - Show auto-loaded context
 program
   .command('context')
@@ -2534,8 +2328,7 @@ program
       console.log('Next steps:');
       console.log('  1. Define your colony goal in .aether/data/COLONY_STATE.json');
       console.log('  2. Run: aether sync-state');
-      console.log('  3. Run: aether verify-models');
-      console.log('  4. Start building: /ant:init');
+      console.log('  3. Start building: /ant:init');
     }
   }));
 
@@ -2547,7 +2340,6 @@ program.on('--help', () => {
   console.log('  install              Install slash-commands and set up distribution hub');
   console.log('  update               Update current repo from hub');
   console.log('  sync-state           Synchronize COLONY_STATE.json with .planning/STATE.md');
-  console.log('  verify-models        Verify model routing configuration');
   console.log('  version              Show installed version');
   console.log('  uninstall            Remove slash-commands (preserves project state and hub)');
   console.log('');
