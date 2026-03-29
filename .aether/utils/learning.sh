@@ -575,7 +575,7 @@ _learning_display_proposals() {
       # Process each proposal using index to avoid subshell issues
       for ((j=0; j<type_count; j++)); do
         proposal=$(echo "$type_proposals" | jq -c ".[$j]")
-        content=$(echo "$proposal" | jq -r '.content')
+        content=$(sanitize_read_value "$(echo "$proposal" | jq -r '.content')")
         count=$(echo "$proposal" | jq -r '.observation_count')
         prop_threshold=$(echo "$proposal" | jq -r '.threshold')
 
@@ -734,7 +734,7 @@ _learning_select_proposals() {
       # Display each selected proposal with full details
       echo "$selected_indices" | jq -r '.[]' | while read -r idx; do
         proposal=$(echo "$proposals_json" | jq -r ".proposals[$idx]")
-        content=$(echo "$proposal" | jq -r '.content')
+        content=$(sanitize_read_value "$(echo "$proposal" | jq -r '.content')")
         ptype=$(echo "$proposal" | jq -r '.wisdom_type')
         count=$(echo "$proposal" | jq -r '.observation_count')
         threshold=$(echo "$proposal" | jq -r '.threshold')
@@ -999,7 +999,7 @@ _learning_approve_proposals() {
     for ((i=0; i<proposal_count; i++)); do
       proposal=$(echo "$proposals_json" | jq ".proposals[$i]")
       ptype=$(echo "$proposal" | jq -r '.wisdom_type')
-      content=$(echo "$proposal" | jq -r '.content')
+      content=$(sanitize_read_value "$(echo "$proposal" | jq -r '.content')")
       count=$(echo "$proposal" | jq -r '.observation_count // 1')
       threshold=$(echo "$proposal" | jq -r '.threshold // 1')
 
@@ -1071,7 +1071,7 @@ _learning_approve_proposals() {
 
       for proposal in "${approved_proposals[@]}"; do
         ptype=$(echo "$proposal" | jq -r '.wisdom_type')
-        content=$(echo "$proposal" | jq -r '.content')
+        content=$(sanitize_read_value "$(echo "$proposal" | jq -r '.content')")
 
         if [[ "$dry_run" == "true" ]]; then
           echo "Dry run: would promote $ptype: \"$content\""
@@ -1232,7 +1232,7 @@ _learning_undo_promotions() {
       [[ -z "$item" ]] && continue
 
       ptype=$(echo "$item" | jq -r '.wisdom_type')
-      content=$(echo "$item" | jq -r '.content')
+      content=$(sanitize_read_value "$(echo "$item" | jq -r '.content')")
 
       # Map type to section header
       case "$ptype" in

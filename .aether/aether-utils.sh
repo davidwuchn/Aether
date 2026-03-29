@@ -66,6 +66,18 @@ _deprecation_warning() {
   printf '[deprecated] %s -- will be removed in v3.0\n' "$cmd_name" >&2
 }
 
+# --- Sanitize-on-read helper ---
+# Normalize a string value read from JSON that may contain raw control characters
+# from pre-escaping-era writes. Strips literal control chars (except \n \t),
+# and trims leading/trailing whitespace. Returns cleaned string on stdout.
+# This is defensive normalization -- if data was written correctly, it's a no-op.
+sanitize_read_value() {
+  local raw="${1:-}"
+  [[ -z "$raw" ]] && return 0
+  # Strip ASCII control characters except newline (0x0A) and tab (0x09)
+  printf '%s' "$raw" | tr -d '\000-\010\013\014\016-\037'
+}
+
 # Fallback atomic_write if not sourced (uses temp file + mv for true atomicity)
 # Uses TEMP_DIR to avoid issues with paths containing spaces in $TMPDIR
 if ! type atomic_write &>/dev/null; then

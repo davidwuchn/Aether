@@ -302,7 +302,7 @@ _session_update() {
 
     # Extract current values for preservation
     local current_goal current_phase current_milestone
-    current_goal=$(echo "$current_session" | jq -r '.colony_goal // empty')
+    current_goal=$(sanitize_read_value "$(echo "$current_session" | jq -r '.colony_goal // empty')")
     current_phase=$(echo "$current_session" | jq -r '.current_phase // 0')
     current_milestone=$(echo "$current_session" | jq -r '.current_milestone // "First Mound"')
 
@@ -316,7 +316,7 @@ _session_update() {
     # Get colony state if exists
     if [[ -f "$DATA_DIR/COLONY_STATE.json" ]]; then
       # SUPPRESS:OK -- read-default: query may return empty
-      current_goal=$(jq -r '.goal // empty' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null || echo "$current_goal")
+      current_goal=$(sanitize_read_value "$(jq -r '.goal // empty' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null || echo "$current_goal")")
       # SUPPRESS:OK -- read-default: query may return empty
       current_phase=$(jq -r '.current_phase // 0' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null || echo "$current_phase")
       # SUPPRESS:OK -- read-default: query may return empty
@@ -524,7 +524,7 @@ _session_summary() {
     fi
 
     local goal phase milestone last_cmd last_at suggested cleared
-    goal=$(jq -r '.colony_goal // "No goal set"' "$session_file")
+    goal=$(sanitize_read_value "$(jq -r '.colony_goal // "No goal set"' "$session_file")")
     phase=$(jq -r '.current_phase // 0' "$session_file")
     milestone=$(jq -r '.current_milestone // "First Mound"' "$session_file")
     last_cmd=$(jq -r '.last_command // "None"' "$session_file")

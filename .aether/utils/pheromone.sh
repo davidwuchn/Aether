@@ -1703,7 +1703,7 @@ while IFS= read -r phe_signal; do
     (($eff * 100) | floor)
   ' 2>/dev/null || echo "0")  # SUPPRESS:OK -- read-default: returns fallback on failure
   if [[ "$phe_strength_int" -gt 80 ]]; then
-    phe_text=$(echo "$phe_signal" | jq -r '.content.text // ""' 2>/dev/null || echo "")  # SUPPRESS:OK -- read-default: file may not exist yet
+    phe_text=$(sanitize_read_value "$(echo "$phe_signal" | jq -r '.content.text // ""' 2>/dev/null || echo "")")  # SUPPRESS:OK -- read-default: file may not exist yet
     phe_type=$(echo "$phe_signal" | jq -r '.type // "UNKNOWN"' 2>/dev/null || echo "UNKNOWN")  # SUPPRESS:OK -- read-default: file may not exist yet
     phe_source=$(echo "$phe_signal" | jq -r '.source // "unknown"' 2>/dev/null || echo "unknown")  # SUPPRESS:OK -- read-default: file may not exist yet
     phe_id=$(echo "$phe_signal" | jq -r '.id // ""' 2>/dev/null || echo "")  # SUPPRESS:OK -- read-default: file may not exist yet
