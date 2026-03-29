@@ -152,4 +152,15 @@ if echo "$PACK_LIST" | grep -qE '\.aether/exchange/.*\.xml'; then
   exit 1
 fi
 
-echo "Package validation passed (files + content checks)."
+# Check 7: Exchange modules must be present in distribution
+# Per D-03: exchange/ modules must be included in npm package
+for module in pheromone-xml.sh wisdom-xml.sh registry-xml.sh; do
+  if [ ! -f "$AETHER_DIR/exchange/$module" ]; then
+    echo "ERROR: Required exchange module missing from .aether/exchange/: $module" >&2
+    echo "  Exchange modules are required for XML export/import functionality." >&2
+    echo "  Run this from the Aether repo root after editing .aether/ files." >&2
+    exit 1
+  fi
+done
+
+echo "Package validation passed (files + content checks + exchange module check)."
