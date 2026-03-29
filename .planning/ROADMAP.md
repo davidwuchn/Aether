@@ -85,7 +85,7 @@
 **Milestone Goal:** Fix critical data-corruption bugs, harden infrastructure, clear high-priority TODOs.
 
 - [x] **Phase 33: Input Escaping & Atomic Write Safety** - Fix ant_name injection in grep/JSON, jq-escape all dynamic values, release locks on validation failure (completed 2026-03-29)
-- [ ] **Phase 34: Cross-Colony Isolation** - Eliminate information bleed between colonies via proper name extraction, lock scoping, and file namespacing
+- [x] **Phase 34: Cross-Colony Isolation** - Eliminate information bleed between colonies via proper name extraction, lock scoping, and file namespacing (completed 2026-03-29)
 - [ ] **Phase 35: Colony Depth & Model Routing** - Depth selector gates Oracle/Scout spawns; model routing either wired end-to-end or dead code removed
 - [ ] **Phase 36: YAML Command Generator** - Single YAML source produces both Claude and OpenCode command markdown
 - [ ] **Phase 37: XML Core Integration** - XML export/import wired into seal, entomb, and init lifecycle commands
@@ -117,14 +117,14 @@
   2. `LOCK_DIR` in hive.sh is passed as a function parameter, never mutated as a global variable
   3. Shared data files (pheromones.json, learning-observations.json, session.json, run-state.json) include colony namespace so two colonies writing concurrently do not overwrite each other
   4. Existing single-colony workflows still work identically (no regression)
-**Plans:** 5 plans
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 34-01-PLAN.md — Replace all 13 session_id splitting locations with colony-name subcommand (3 shell + 9 playbook + 1 OpenCode)
 - [x] 34-02-PLAN.md — Add acquire_lock_at/release_lock_at to file-lock.sh and refactor hive.sh to eliminate LOCK_DIR mutation
 - [x] 34-03-PLAN.md — Add COLONY_DATA_DIR resolution + auto-migration infrastructure, update aether-utils.sh file references
 - [x] 34-04-PLAN.md — Update all 15 utils/ modules to use COLONY_DATA_DIR for per-colony file references
-- [ ] 34-05-PLAN.md — Integration tests for colony isolation (COLONY_DATA_DIR, migration, lock tagging, backwards compat)
+- [x] 34-05-PLAN.md — Integration tests for colony isolation (COLONY_DATA_DIR, migration, lock tagging, backwards compat)
 
 ### Phase 35: Colony Depth & Model Routing
 **Goal**: Colony operators can control how deeply the system investigates (gating expensive agent spawns) and model routing is either functional end-to-end or honestly removed
@@ -206,7 +206,7 @@ Plans:
 | 31. Init.md Smart Init Rewrite | v2.5 | 2/2 | Complete | 2026-03-27 |
 | 32. Intelligence Enhancements | v2.5 | 3/3 | Complete | 2026-03-27 |
 | 33. Input Escaping & Atomic Write Safety | v2.6 | Complete    | 2026-03-29 | - |
-| 34. Cross-Colony Isolation | v2.6 | 2/5 | In progress | - |
+| 34. Cross-Colony Isolation | v2.6 | 2/5 | Complete    | 2026-03-29 |
 | 35. Colony Depth & Model Routing | v2.6 | 0/TBD | Not started | - |
 | 36. YAML Command Generator | v2.6 | 0/TBD | Not started | - |
 | 37. XML Core Integration | v2.6 | 0/TBD | Not started | - |
