@@ -1250,6 +1250,149 @@ rm -rf "$td" 2>/dev/null || true
 
 # ============================================================
 echo ""
+echo "--- 15. Export writes to .aether/exchange/ (not .aether/data/) ---"
+echo ""
+
+# 15a. Export file appears in exchange/ directory
+echo "15a. Export file written to .aether/exchange/"
+td=$(setup_test_repo)
+mkdir -p "$td/.aether/exchange"
+create_pheromones "$td" '[
+  {"id":"sig_redirect_w1","type":"REDIRECT","priority":"high","source":"worker:builder",
+   "created_at":"2026-03-30T13:00:00Z","expires_at":"phase_end","active":true,
+   "strength":0.9,"reason":"test","content":{"text":"avoid legacy"},"content_hash":"hash_ex15","reinforcement_count":1}
+]'
+git -C "$td" checkout -q -b feature/exchange-test 2>/dev/null || true
+result=$(run_pheromone "$td" pheromone-export-branch)
+if echo "$result" | jq -e '.ok == true' >/dev/null 2>&1; then
+  # Verify export file is in exchange/ NOT data/
+  if [[ -f "$td/.aether/exchange/pheromone-branch-export.json" ]]; then
+    assert_json_eq "export in exchange/ directory" "$(cat "$td/.aether/exchange/pheromone-branch-export.json")" '.schema' "pheromone-branch-export-v1"
+  else
+    echo "  FAIL: export file not found in .aether/exchange/"
+    ((FAIL++))
+  fi
+  # Verify export file is NOT in data/
+  if [[ -f "$td/.aether/data/pheromone-branch-export.json" ]]; then
+    echo "  FAIL: export file incorrectly written to .aether/data/"
+    ((FAIL++))
+  else
+    echo "  PASS: export file not in .aether/data/ (correct)"
+    ((PASS++))
+  fi
+else
+  echo "  FAIL: export-branch command failed"
+  ((FAIL++))
+fi
+rm -rf "$td"
+
+# ============================================================
+echo ""
+echo "--- 16. Merge-back reads from .aether/exchange/ by default ---"
+echo ""
+
+# 16a. Merge-back finds export in exchange/ without explicit --export-file
+echo "16a. Merge-back reads from exchange/ by default"
+td=$(setup_test_repo)
+mkdir -p "$td/.aether/exchange"
+create_pheromones "$td" '[]'
+
+# Create export file in exchange/ (simulating a merged PR)
+cat > "$td/.aether/exchange/pheromone-branch-export.json" <<'EXPORT_EOF'
+{
+  "schema": "pheromone-branch-export-v1",
+  "exported_at": "2026-03-30T14:00:00Z",
+  "branch_name": "feature/merge-test",
+  "branch_commit": "abc123",
+  "signals": [
+    {"id":"sig_r1","type":"REDIRECT","source":"worker:builder","content_hash":"hash_mb_1",
+     "content_text":"avoid legacy API","strength":0.9,"created_at":"2026-03-30T13:00:00Z",
+     "expires_at":"phase_end","reinforcement_count":0,"eligible_for_merge":true,
+     "merge_reason":"new worker REDIRECT"}
+  ],
+  "total_signals": 1,
+  "eligible_count": 1,
+  "ineligible_count": 0
+}
+EXPORT_EOF
+
+result=$(run_pheromone "$td" pheromone-merge-back)
+if echo "$result" | jq -e '.ok == true' >/dev/null 2>&1; then
+  assert_json_eq "merge-back new_signals_written" "$result" '.result.new_signals_written' "1"
+  # Verify signal was added to pheromones.json
+  signal_count=$(jq '[.signals[] | select(.active == true)] | length' "$td/.aether/data/pheromones.json" 2>/dev/null || echo "0")
+  if [[ "$signal_count" -ge 1 ]]; then
+    echo "  PASS: signal written to pheromones.json"
+    ((PASS++))
+  else
+    echo "  FAIL: no signals in pheromones.json after merge-back"
+    ((FAIL++))
+  fi
+else
+  echo "  FAIL: merge-back command failed: $(echo "$result" | head -3)"
+  ((FAIL++))
+fi
+rm -rf "$td"
+
+# ============================================================
+echo ""
+echo "--- 17. End-to-end: export then merge-back via exchange/ ---"
+echo ""
+
+# 17a. Export on branch, merge-back on main
+echo "17a. E2E export + merge-back via exchange/"
+td=$(setup_test_repo)
+mkdir -p "$td/.aether/exchange"
+# Start with empty main pheromones so merge-back finds genuinely new signals
+create_pheromones "$td" '[]'
+
+# Create a branch and add branch-specific signals
+git -C "$td" checkout -q -b feature/e2e-test 2>/dev/null || true
+# Overwrite with branch signals (worker REDIRECT is eligible for merge)
+create_pheromones "$td" '[
+  {"id":"sig_redirect_e2e","type":"REDIRECT","priority":"high","source":"worker:builder",
+   "created_at":"2026-03-30T15:00:00Z","expires_at":"phase_end","active":true,
+   "strength":0.85,"reason":"discovered during work","content":{"text":"do not use deprecated function"},"content_hash":"hash_e2e_r1","reinforcement_count":0},
+  {"id":"sig_focus_e2e","type":"FOCUS","priority":"normal","source":"user",
+   "created_at":"2026-03-30T15:00:00Z","expires_at":"phase_end","active":true,
+   "strength":0.8,"reason":"user focus","content":{"text":"testing"},"content_hash":"hash_e2e_f1","reinforcement_count":0}
+]'
+
+# Export branch signals
+export_result=$(run_pheromone "$td" pheromone-export-branch)
+assert_json_eq "e2e export ok" "$export_result" '.ok' "true"
+assert_json_eq "e2e export eligible" "$export_result" '.result.eligible_count' "1"
+
+# Verify export in exchange/
+if [[ -f "$td/.aether/exchange/pheromone-branch-export.json" ]]; then
+  echo "  PASS: export file in exchange/"
+  ((PASS++))
+else
+  echo "  FAIL: export file missing from exchange/"
+  ((FAIL++))
+fi
+
+# Switch back to main (empty pheromones) and merge-back
+git -C "$td" checkout -q main 2>/dev/null || true
+# Restore empty pheromones for main
+create_pheromones "$td" '[]'
+merge_result=$(run_pheromone "$td" pheromone-merge-back)
+assert_json_eq "e2e merge ok" "$merge_result" '.ok' "true"
+assert_json_eq "e2e merge new signals" "$merge_result" '.result.new_signals_written' "1"
+
+# Verify the REDIRECT signal is in main's pheromones
+has_redirect=$(jq '[.signals[] | select(.type == "REDIRECT" and .content_hash == "hash_e2e_r1")] | length' "$td/.aether/data/pheromones.json" 2>/dev/null || echo "0")
+if [[ "$has_redirect" -ge 1 ]]; then
+  echo "  PASS: REDIRECT signal present in main pheromones after merge-back"
+  ((PASS++))
+else
+  echo "  FAIL: REDIRECT signal not found in main pheromones"
+  ((FAIL++))
+fi
+rm -rf "$td"
+
+# ============================================================
+echo ""
 echo "=== RESULTS ==="
 echo "Passed: $PASS"
 echo "Failed: $FAIL"
