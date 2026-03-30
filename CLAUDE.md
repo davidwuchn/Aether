@@ -11,11 +11,11 @@
 | What | Count/Status |
 |------|--------------|
 | Version | v2.0.0 |
-| Slash commands | ~44 (Claude) + ~44 (OpenCode) |
+| Slash commands | ~45 (Claude) + ~45 (OpenCode) |
 | Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
 | aether-utils.sh | ~5,200 lines (dispatcher), ~151 subcommands across all modules |
-| Utils | ~30 scripts (9 domain modules + infrastructure + XML + emoji-audit) |
+| Utils | ~32 scripts (9 domain modules + infrastructure + XML + emoji-audit) |
 | Tests | 580+ passing |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
@@ -30,7 +30,7 @@
 │   .aether/             ← SOURCE OF TRUTH (packaged directly)    │
 │   ├── workers.md       (edit here)                              │
 │   ├── aether-utils.sh  (dispatcher, ~5,200 lines, ~150 subcmds) │
-│   ├── utils/           (~29 scripts, modular architecture)      │
+│   ├── utils/           (~32 scripts, modular architecture)      │
 │   │   ├── Domain modules (9):                                   │
 │   │   │   flag.sh, spawn.sh, session.sh, suggest.sh,            │
 │   │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh,        │
@@ -48,9 +48,9 @@
 │   .aether/data/        ← LOCAL ONLY (excluded by .npmignore)    │
 │   .aether/dreams/      ← LOCAL ONLY (excluded by .npmignore)    │
 │                                                                  │
-│   .claude/commands/ant/ ← 44 slash commands (Claude Code)       │
+│   .claude/commands/ant/ ← 45 slash commands (Claude Code)       │
 │   .claude/agents/ant/   ← 24 agent definitions                  │
-│   .opencode/commands/ant/ ← 44 slash commands (OpenCode)        │
+│   .opencode/commands/ant/ ← 45 slash commands (OpenCode)        │
 │   .opencode/agents/     ← Agent definitions (OpenCode)          │
 │                                                                  │
 │   ~/.aether/           ← HUB (cross-colony, user-level)         │
@@ -129,7 +129,7 @@ aether update      # or /ant:update
 .aether/
 ├── workers.md           # Worker definitions, spawn protocol
 ├── aether-utils.sh      # Dispatcher (~5,200 lines, ~150 subcommands across all modules)
-├── utils/               # ~29 scripts (modular architecture)
+├── utils/               # ~32 scripts (modular architecture)
 │   ├── Domain modules (9 -- extracted from monolith in Phase 13):
 │   │   flag.sh, spawn.sh, session.sh, suggest.sh,
 │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh, state-api.sh
@@ -159,7 +159,7 @@ aether update      # or /ant:update
 
 ```
 .claude/
-├── commands/ant/        # 44 slash commands
+├── commands/ant/        # 45 slash commands
 │   ├── init.md          # Colony initialization
 │   ├── plan.md          # Phase planning
 │   ├── build.md         # Build orchestrator (loads split playbooks)
