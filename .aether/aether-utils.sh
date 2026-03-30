@@ -46,8 +46,6 @@ CURRENT_LOCK=${CURRENT_LOCK:-""}
 [[ -f "$SCRIPT_DIR/utils/emoji-audit.sh" ]] && source "$SCRIPT_DIR/utils/emoji-audit.sh"
 [[ -f "$SCRIPT_DIR/utils/immune.sh" ]] && source "$SCRIPT_DIR/utils/immune.sh"
 [[ -f "$SCRIPT_DIR/utils/council.sh" ]] && source "$SCRIPT_DIR/utils/council.sh"
-[[ -f "$SCRIPT_DIR/utils/worktree.sh" ]] && source "$SCRIPT_DIR/utils/worktree.sh"
-[[ -f "$SCRIPT_DIR/utils/clash-detect.sh" ]] && source "$SCRIPT_DIR/utils/clash-detect.sh"
 
 # Fallback error constants if error-handler.sh wasn't sourced
 # This prevents "unbound variable" errors in older installations
@@ -1166,39 +1164,6 @@ get_wisdom_thresholds_json() {
 EOF
 }
 
-# --- Merge Driver Setup ---
-# Configures git merge driver for package-lock.json to avoid false merge conflicts.
-# Idempotent: safe to run multiple times.
-_setup_merge_driver() {
-  local git_root
-  git_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
-    json_err "$E_GIT_ERROR" "Not inside a git repository"; return 1;
-  }
-
-  local driver_script="$SCRIPT_DIR/utils/merge-driver-lockfile.sh"
-  if [[ ! -f "$driver_script" ]]; then
-    json_err "$E_FILE_NOT_FOUND" "Merge driver script not found: $driver_script"; return 1
-  fi
-
-  # Configure git merge driver (idempotent -- git config overwrites)
-  git config merge.lockfile.name "npm lockfile auto-merge"
-  git config merge.lockfile.driver "bash $driver_script %O %A %B"
-
-  # Ensure .gitattributes has the lockfile rule
-  local attributes_file="$git_root/.gitattributes"
-  local rule="package-lock.json merge=lockfile"
-
-  if [[ -f "$attributes_file" ]] && grep -qF "$rule" "$attributes_file"; then
-    # Rule already present -- nothing to do
-    :
-  else
-    # Append the rule (preserves existing content)
-    echo "$rule" >> "$attributes_file"
-  fi
-
-  json_ok "$(jq -n '{driver:"lockfile", configured:true}')"
-}
-
 # --- Subcommand dispatch ---
 cmd="${1:-help}"
 shift 2>/dev/null || true  # SUPPRESS:OK -- cleanup: shift is safe to fail
@@ -1211,7 +1176,7 @@ case "$cmd" in
     cat <<'HELP_EOF'
 {
   "ok": true,
-  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","midden-review","midden-acknowledge","midden-search","midden-tag","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","autopilot-set-headless","autopilot-headless-check","pending-decision-add","pending-decision-list","pending-decision-resolve","hive-init","hive-store","hive-read","hive-abstract","hive-promote","init-research","charter-write","colony-name","colony-vital-signs","emoji-audit","trophallaxis-diagnose","trophallaxis-retry","scar-add","scar-list","scar-check","immune-auto-scar","council-deliberate","council-advocate","council-challenger","council-sage","council-history","council-budget-check","setup-merge-driver"],
+  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","midden-review","midden-acknowledge","midden-search","midden-tag","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","autopilot-set-headless","autopilot-headless-check","pending-decision-add","pending-decision-list","pending-decision-resolve","hive-init","hive-store","hive-read","hive-abstract","hive-promote","init-research","charter-write","colony-name","colony-vital-signs","emoji-audit","trophallaxis-diagnose","trophallaxis-retry","scar-add","scar-list","scar-check","immune-auto-scar","council-deliberate","council-advocate","council-challenger","council-sage","council-history","council-budget-check"],
   "sections": {
     "Core": [
       {"name": "help", "description": "List all available commands with sections"},
@@ -1310,10 +1275,10 @@ case "$cmd" in
       {"name": "midden-acknowledge", "description": "Acknowledge midden entries by id or category"},
       {"name": "midden-search", "description": "Search midden entries by keyword with optional category/source filters"},
       {"name": "midden-tag", "description": "Add or remove a tag from a midden entry"},
-      {"name": "midden-collect", "description": "Collect midden entries from a merged branch worktree into main's midden"},
-      {"name": "midden-handle-revert", "description": "Tag entries from a reverted merge commit"},
-      {"name": "midden-cross-pr-analysis", "description": "Detect cross-PR failure patterns with auto-REDIRECT emission"},
-      {"name": "midden-prune", "description": "Retention cleanup for collected merges and reverted entries"},
+      {"name": "midden-collect", "description": "Collect failure records from a merged branch worktree into main midden"},
+      {"name": "midden-handle-revert", "description": "Tag entries from a reverted merge commit (preserves audit trail)"},
+      {"name": "midden-cross-pr-analysis", "description": "Detect failure patterns across multiple merged branches with auto-REDIRECT"},
+      {"name": "midden-prune", "description": "Prune stale merge records and acknowledge old reverted entries"},
       {"name": "entropy-score", "description": "Compute colony entropy score (0-100)"},
       {"name": "colony-vital-signs", "description": "Compute colony health metrics from existing data (velocity, errors, signals, memory, overall score)"},
       {"name": "force-unlock", "description": "Emergency unlock — remove stale lock files"}
@@ -1382,9 +1347,6 @@ case "$cmd" in
       {"name": "council-sage", "description": "Record sage synthesis and recommendation, marks deliberation complete"},
       {"name": "council-history", "description": "List past deliberations with their outcomes"},
       {"name": "council-budget-check", "description": "Check if current spawn budget allows N more spawns"}
-    ],
-    "Git Integration": [
-      {"name": "setup-merge-driver", "description": "Configure git merge driver for package-lock.json auto-resolution"}
     ],
     "Deprecated": [
       {"name": "checkpoint-check", "description": "Check dirty files against allowlist [DEPRECATED]"},
@@ -3936,10 +3898,6 @@ Files: ${files_changed} files changed"
   pheromone-count) _pheromone_count "$@" ;;
   pheromone-display) _pheromone_display "$@" ;;
   pheromone-read) _pheromone_read "$@" ;;
-  pheromone-snapshot-inject) _pheromone_snapshot_inject "$@" ;;
-  pheromone-export-branch) _pheromone_export_branch "$@" ;;
-  pheromone-merge-back) _pheromone_merge_back "$@" ;;
-  pheromone-merge-log) _pheromone_merge_log "$@" ;;
 
   instinct-read) _instinct_read "$@" ;;
   instinct-create) _instinct_create "$@" ;;
@@ -4809,11 +4767,8 @@ EOF
   midden-tag) _midden_tag "$@" ;;
 
   midden-collect) _midden_collect "$@" ;;
-
   midden-handle-revert) _midden_handle_revert "$@" ;;
-
   midden-cross-pr-analysis) _midden_cross_pr_analysis "$@" ;;
-
   midden-prune) _midden_prune "$@" ;;
 
   trophallaxis-diagnose) _trophallaxis_diagnose "$@" ;;
@@ -5480,27 +5435,6 @@ DRYRUN_EOF
   # ── Emoji Audit ─────────────────────────────────────────────────────────────
   emoji-audit)
     _emoji_audit_main "${1:-$(pwd)}"
-    ;;
-
-  # ── Worktree Management ────────────────────────────────────────────────────
-  worktree-create)
-    _worktree_create "$@"
-    ;;
-  worktree-cleanup)
-    _worktree_cleanup "$@"
-    ;;
-
-  # ── Clash Detection ───────────────────────────────────────────────────────
-  clash-check)
-    _clash_detect "$@"
-    ;;
-  clash-setup)
-    _clash_setup "$@"
-    ;;
-
-  # ── Merge Driver ──────────────────────────────────────────────────────────
-  setup-merge-driver)
-    _setup_merge_driver "$@"
     ;;
 
   *)
