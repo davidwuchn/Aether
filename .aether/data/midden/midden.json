@@ -434,7 +434,23 @@
       "source": "auditor",
       "message": "High severity issues: 1 (score: 63) - unescaped caste/status/timestamp fields in awk printf",
       "reviewed": false
+    },
+    {
+      "id": "midden_1774877958_25447",
+      "timestamp": "2026-03-30T13:39:18Z",
+      "category": "analytics",
+      "source": "sage",
+      "message": "Sage recommendation (P1): spawn.sh highest churn-to-size ratio (0.035) and bug-fix ratio (55.6%) -- refactoring candidate",
+      "reviewed": false
+    },
+    {
+      "id": "midden_1774877959_25506",
+      "timestamp": "2026-03-30T13:39:19Z",
+      "category": "analytics",
+      "source": "sage",
+      "message": "Sage recommendation (P2): spawn.sh parse_spawn_tree O(n^2) scaling -- 9 tests timeout",
+      "reviewed": false
     }
   ],
-  "entry_count": 32
+  "entry_count": 34
 }

@@ -2,7 +2,7 @@
   "version": "3.0",
   "goal": "Harden ~40 remaining json_ok call sites with safe escaping (A1+A4), add per-phase COLONY_STATE.json checkpointing (Rec 1), add jq null safety to hive reads (Rec 4), and add memory pipeline circuit breaker for file corruption recovery (Rec 8)",
   "colony_name": null,
-  "colony_version": 1,
+  "colony_version": 2,
   "state": "READY",
   "current_phase": 5,
   "session_id": "session_1774856077_89243",
@@ -323,6 +323,9 @@
     "2026-03-30T11:45:00Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 5 (Phase 4 already completed)",
     "2026-03-30T11:47:28Z|phase_started|build|Phase 5: Fix hive-read null safety and learning recovery tests started",
     "2026-03-30T12:19:23Z|phase_completed|continue|Phase 5: Fix hive-read null safety and learning recovery tests completed",
-    "2026-03-30T12:19:23Z|all_phases_completed|continue|All 5 phases completed"
-  ]
+    "2026-03-30T12:19:23Z|all_phases_completed|continue|All 5 phases completed",
+    "2026-03-30T13:40:48Z|milestone_reached|seal|Achieved Crowned Anthill milestone v2"
+  ],
+  "milestone": "Crowned Anthill",
+  "milestone_updated_at": "2026-03-30T13:40:48Z"
 }
