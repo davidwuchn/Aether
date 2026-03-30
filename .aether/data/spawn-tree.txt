@@ -2,3 +2,9 @@
 2026-03-30T07:58:04Z|Bolt-89|completed|Fixed 1 remaining raw json_ok in context-update, all 11 now use jq -nc
 2026-03-30T07:58:11Z|Queen|watcher|Watch-39|Independent verification|inherit|spawned
 2026-03-30T08:00:06Z|Watch-39|completed|Verification passed: 0 raw json_ok patterns, decision test with quotes passed
+2026-03-30T09:23:33Z|Queen|scout|Relic-49|Pre-build archaeology scan|inherit|spawned
+2026-03-30T09:28:25Z|Relic-49|completed|Pre-build archaeology scan
+2026-03-30T09:30:12Z|Queen|builder|Weld-79|Insert state-checkpoint calls before continue-advance Step 4 and seal Step 3, add test for all 3 checkpoint reasons|inherit|spawned
+2026-03-30T09:37:02Z|Weld-79|completed|Inserted state-checkpoint calls before continue-advance Step 4 and seal Step 4.5, added test for 3 reasons
+2026-03-30T09:37:12Z|Queen|watcher|Keen-21|Verify Phase 4 checkpoint work|inherit|spawned
+2026-03-30T09:39:03Z|Keen-21|completed|All 5 tests pass, 8/8 verification checks passed, quality 9/10

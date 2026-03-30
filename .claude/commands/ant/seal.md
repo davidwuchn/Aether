@@ -344,6 +344,15 @@ Log the seal ceremony to activity log:
 bash .aether/aether-utils.sh activity-log "MODIFIED" "Queen" "Colony sealed - wisdom review completed"
 ```
 
+### Step 4.4: Checkpoint State
+
+Before modifying colony state, create a rolling backup:
+
+Run using the Bash tool with description "Checkpointing colony state before seal...":
+```bash
+bash .aether/aether-utils.sh state-checkpoint "pre-seal" 2>/dev/null || echo "Warning: State checkpoint failed -- continuing without backup" >&2
+```
+
 ### Step 4.5: Increment Colony Version
 
 Before writing the Crowned Anthill milestone, increment `colony_version` in COLONY_STATE.json.

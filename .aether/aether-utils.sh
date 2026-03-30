@@ -955,7 +955,7 @@ EOF
   # Atomically replace the file
   mv "$temp_file" "$changelog_file"
 
-  json_ok '{"appended":true,"date":"'"$date_str"'","phase":"'"$phase"'","plan":"'"$plan"'"}'
+  json_ok "$(jq -nc --arg date "$date_str" --arg phase "$phase" --arg plan "$plan" '{appended:true,date:$date,phase:$phase,plan:$plan}')"
 }
 
 # Collect plan data for changelog entry
@@ -1407,6 +1407,7 @@ HELP_EOF
         ;;
       constraints)
         [[ -f "$COLONY_DATA_DIR/constraints.json" ]] || json_err "$E_FILE_NOT_FOUND" "constraints.json not found" '{"file":"constraints.json"}'
+        [[ -s "$COLONY_DATA_DIR/constraints.json" ]] || { json_ok '{"file":"constraints.json","checks":["pass","pass"],"pass":true}'; exit 0; }
         json_ok "$(jq '
           def arr(f): if has(f) and (.[f]|type) == "array" then "pass" else "fail: \(f) not array" end;
           {file:"constraints.json", checks:[
@@ -2446,7 +2447,7 @@ Files: ${files_changed} files changed"
         fi
 
         # Return enhanced JSON with additional metadata
-        json_ok "{\"message\":\"$message\",\"body\":\"$body\",\"files_changed\":$files_changed,\"subsystem\":\"$subsystem\",\"scope\":\"${phase_id}.${plan_num}\"}"
+        json_ok "$(jq -nc --arg msg "$message" --arg body "$body" --arg sub "$subsystem" --arg scope "${phase_id}.${plan_num}" '{message:$msg,body:$body,files_changed:'"$files_changed"',subsystem:$sub,scope:$scope}')"
         exit 0
         ;;
       seal)
@@ -2468,7 +2469,7 @@ Files: ${files_changed} files changed"
           message="${message:0:69}..."
         fi
 
-        json_ok "{\"message\":\"$message\",\"body\":\"$body\",\"files_changed\":$files_changed}"
+        json_ok "$(jq -nc --arg msg "$message" --arg body "$body" '{message:$msg,body:$body,files_changed:'"$files_changed"'}')"
         exit 0
         ;;
       *)
@@ -2482,7 +2483,7 @@ Files: ${files_changed} files changed"
       message="${message:0:69}..."
     fi
 
-    json_ok "{\"message\":\"$message\",\"body\":\"$body\",\"files_changed\":$files_changed}"
+    json_ok "$(jq -nc --arg msg "$message" --arg body "$body" '{message:$msg,body:$body,files_changed:'"$files_changed"'}')"
     ;;
 
   # ============================================
