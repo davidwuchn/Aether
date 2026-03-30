@@ -8,21 +8,24 @@
 
 | Field | Value |
 |-------|-------|
-| **Last Updated** | 2026-03-30T07:12:02Z |
-| **Current Phase** | 5 |
-| **Phase Name** | Verify fixes and acknowledge midden entries |
+| **Last Updated** | 2026-03-30T08:02:48Z |
+| **Current Phase** | 2 |
+| **Phase Name** | Harden commit-message + changelog + activity-log json_ok sites |
 | **Milestone** | First Mound |
 | **Colony Status** | initializing |
-| **Safe to Clear?** | YES — Build complete |
+| **Safe to Clear?** | YES — Phase advanced |
 
 ---
 
 ## 🎯 Current Goal
 
-Fix why Oracle tmux session dies immediately — oracle.sh doesn't exist. Oracle is meant to run autonomously like a ralph loop.
+Harden ~40 remaining json_ok call sites with safe escaping (A1+A4), add per-phase COLONY_STATE.json checkpointing (Rec 1), add jq null safety to hive reads (Rec 4), and add memory pipeline circuit breaker for file corruption recovery (Rec 8)
 
 ---
 
+## 📍 What's In Progress
+
+**Build completed** — success
 ## ⚠️ Active Constraints (REDIRECT Signals)
 
 | Constraint | Source | Date Set |
@@ -49,36 +52,9 @@ Fix why Oracle tmux session dies immediately — oracle.sh doesn't exist. Oracle
 
 | Timestamp | Command | Result | Files Changed |
 |-----------|---------|--------|---------------|
-| 2026-03-30T07:12:02Z | continue | Phase 5 completed, all phases done | — |
-| 2026-03-30T07:07:08Z | build 5 | completed | 0 |
-| 2026-03-30T06:42:49Z | continue | Phase 4 completed, advanced to 5 | — |
-| 2026-03-30T06:37:49Z | build 4 | completed | 2 |
-| 2026-03-30T06:28:07Z | continue | Phase 3 completed, advanced to 4 | — |
-| 2026-03-30T06:25:33Z | build 3 | completed | 3 |
-| 2026-03-30T06:14:52Z | continue | Phase 2 completed, advanced to 3 | — |
-| 2026-03-30T06:10:55Z | build 2 | completed | 2 |
-| 2026-03-30T05:46:41Z | continue | Phase 1 completed, advanced to 2 | — |
-| 2026-03-30T05:32:34Z | build 1 | completed | 2 |
-| 2026-03-29T02:46:18Z | continue | Phase 7 completed, all phases done | — |
-| 2026-03-29T02:35:07Z | build 7 | completed | 1 |
-| 2026-03-29T02:07:15Z | continue | Phase 6 completed, advanced to 7 | — |
-| 2026-03-29T01:58:11Z | build 6 | completed | 3 |
-| 2026-03-29T00:46:04Z | build 5 | completed | 0 |
-| 2026-03-28T23:57:21Z | continue | Phase 4 completed, advanced to 5 | — |
-| 2026-03-28T23:23:19Z | build 4 | completed | 0 |
-| 2026-03-28T03:47:01Z | continue | Phase 3 completed, advanced to 4 | — |
-| 2026-03-28T03:17:34Z | build 3 | completed | 0 |
-| 2026-03-28T02:09:04Z | build 5 | failed | 0 |
-| 2026-03-28T00:16:06Z | continue | Phase 2 completed, advanced to 3 | — |
-| 2026-03-23T15:56:44Z | continue | Phase 4 completed — all phases done, project complete | — |
-| 2026-03-23T15:52:05Z | build 4 | completed | 2 |
-| 2026-03-23T15:43:03Z | continue | Phase 3 completed, advanced to Phase 4 | — |
-| 2026-03-23T15:33:04Z | build 3 | completed | 0 |
-| 2026-03-23T15:26:38Z | continue | Phase 2 completed, advanced to Phase 3 | — |
-| 2026-03-22T20:23:31Z | build 2 | completed | 15 |
-| 2026-03-22T19:49:10Z | continue | Phase 1 completed, advanced to Phase 2 | — |
-| 2026-03-22T19:38:52Z | build 1 | completed | 5 |
-| 2026-03-22T18:28:24Z | init | Colony initialized | — |
+| 2026-03-30T08:02:48Z | continue | Phase 1 completed, advanced to 2 | — |
+| 2026-03-30T08:00:06Z | build 1 | completed | 1 |
+| 2026-03-30T07:35:09Z | init | Colony initialized | — |
 
 ---
 

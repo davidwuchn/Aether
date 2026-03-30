@@ -572,7 +572,7 @@ Git Commits:  0
 
 **Colony Memory Active** 🧠🐜
 EOF
-      json_ok "{\"updated\":true,\"action\":\"init\",\"file\":\"$ctx_file\"}"
+      json_ok "$(jq -nc --arg file "$ctx_file" '{updated:true,action:"init",file:$file}')"
       ;;
 
     update-phase)
@@ -588,7 +588,7 @@ EOF
       sed -i.bak "s/| \*\*Phase Name\*\* | .*/| **Phase Name** | $new_phase_name |/" "$ctx_file" && rm -f "$ctx_file.bak"
       sed -i.bak "s/| \*\*Safe to Clear?\*\* | .*/| **Safe to Clear?** | $safe_clear — $safe_reason |/" "$ctx_file" && rm -f "$ctx_file.bak"
 
-      json_ok "{\"updated\":true,\"action\":\"update-phase\",\"phase\":$new_phase}"
+      json_ok "$(jq -nc --argjson phase "$new_phase" '{updated:true,action:"update-phase",phase:$phase}')"
       ;;
 
     activity)
@@ -615,7 +615,7 @@ EOF
       ' "$ctx_file" > "$ctx_tmp"
 
       mv "$ctx_tmp" "$ctx_file"
-      json_ok "{\"updated\":true,\"action\":\"activity\",\"command\":\"$cmd\"}"
+      json_ok "$(jq -nc --arg cmd "$cmd" '{updated:true,action:"activity",command:$cmd}')"
       ;;
 
     safe-to-clear)
@@ -627,7 +627,7 @@ EOF
       sed -i.bak "s/| \*\*Last Updated\*\* | .*/| **Last Updated** | $ctx_ts |/" "$ctx_file" && rm -f "$ctx_file.bak"
       sed -i.bak "s/| \*\*Safe to Clear?\*\* | .*/| **Safe to Clear?** | $safe — $reason |/" "$ctx_file" && rm -f "$ctx_file.bak"
 
-      json_ok "{\"updated\":true,\"action\":\"safe-to-clear\",\"safe\":\"$safe\"}"
+      json_ok "$(jq -nc --arg safe "$safe" '{updated:true,action:"safe-to-clear",safe:$safe}')"
       ;;
 
     constraint)
@@ -653,7 +653,7 @@ EOF
 }" "$ctx_file" && rm -f "$ctx_file.bak"
       fi
 
-      json_ok "{\"updated\":true,\"action\":\"constraint\",\"type\":\"$c_type\"}"
+      json_ok "$(jq -nc --arg type "$c_type" '{updated:true,action:"constraint",type:$type}')"
       ;;
 
     decision)
@@ -694,7 +694,7 @@ EOF
         --ttl "30d" 2>/dev/null \
         || _aether_log_error "Could not emit feedback signal for decision"  # SUPPRESS:OK -- read-default: returns fallback on failure
 
-      json_ok "{\"updated\":true,\"action\":\"decision\"}"
+      json_ok "$(jq -nc '{updated:true,action:"decision"}')"
       ;;
 
     build-start)
@@ -708,7 +708,7 @@ EOF
       sed -i.bak "s/## 📍 What's In Progress/## 📍 What's In Progress\n\n**Phase $phase_id Build IN PROGRESS**\n- Workers: $worker_count | Tasks: $tasks_count\n- Started: $ctx_ts/" "$ctx_file" && rm -f "$ctx_file.bak"
       sed -i.bak "s/| \*\*Safe to Clear?\*\* | .*/| **Safe to Clear?** | ⚠️ NO — Build in progress |/" "$ctx_file" && rm -f "$ctx_file.bak"
 
-      json_ok "{\"updated\":true,\"action\":\"build-start\",\"workers\":$worker_count}"
+      json_ok "$(jq -nc --argjson workers "$worker_count" '{updated:true,action:"build-start",workers:$workers}')"
       ;;
 
     worker-spawn)
@@ -729,7 +729,7 @@ EOF
         { print }
       ' "$ctx_file" > "$ctx_tmp" && mv "$ctx_tmp" "$ctx_file"
 
-      json_ok "{\"updated\":true,\"action\":\"worker-spawn\",\"ant\":\"$ant_name\"}"
+      json_ok "$(jq -nc --arg ant "$ant_name" '{updated:true,action:"worker-spawn",ant:$ant}')"
       ;;
 
     worker-complete)
@@ -740,7 +740,7 @@ EOF
 
       sed -i.bak "s/- .*$ant_name .*$/- $ant_name: $status (updated $ctx_ts)/" "$ctx_file" && rm -f "$ctx_file.bak"
 
-      json_ok "{\"updated\":true,\"action\":\"worker-complete\",\"ant\":\"$ant_name\"}"
+      json_ok "$(jq -nc --arg ant "$ant_name" '{updated:true,action:"worker-complete",ant:$ant}')"
       ;;
 
     build-progress)
@@ -752,7 +752,7 @@ EOF
 
       sed -i.bak "s/Build IN PROGRESS/Build IN PROGRESS ($percentage% complete)/" "$ctx_file" && rm -f "$ctx_file.bak"
 
-      json_ok "{\"updated\":true,\"action\":\"build-progress\",\"percent\":$percentage}"
+      json_ok "$(jq -nc --argjson percent "$percentage" '{updated:true,action:"build-progress",percent:$percent}')"
       ;;
 
     build-complete)
@@ -778,7 +778,7 @@ EOF
 
       sed -i.bak "s/| \*\*Safe to Clear?\*\* | .*/| **Safe to Clear?** | ✅ YES — Build $status |/" "$ctx_file" && rm -f "$ctx_file.bak"
 
-      json_ok "{\"updated\":true,\"action\":\"build-complete\",\"status\":\"$status\"}"
+      json_ok "$(jq -nc --arg status "$status" '{updated:true,action:"build-complete",status:$status}')"
       ;;
 
     *)

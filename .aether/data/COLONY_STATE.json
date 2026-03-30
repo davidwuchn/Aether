@@ -1,252 +1,69 @@
 {
   "version": "3.0",
-  "goal": "Fix critical midden entries (spawn-tree O(n^2), queen-promote newline destruction, JSON ant names), reduce aether-utils.sh bug-fix ratio through targeted fixes, update 4 high-CVE dependencies (minimatch, path-to-regexp, picomatch, node-tar), and filter test noise from activity log",
+  "goal": "Harden ~40 remaining json_ok call sites with safe escaping (A1+A4), add per-phase COLONY_STATE.json checkpointing (Rec 1), add jq null safety to hive reads (Rec 4), and add memory pipeline circuit breaker for file corruption recovery (Rec 8)",
   "colony_name": null,
-  "colony_version": 2,
+  "colony_version": 1,
   "state": "READY",
-  "current_phase": 5,
-  "session_id": "session_1774845857_55502",
-  "initialized_at": "2026-03-30T04:44:17Z",
+  "current_phase": 2,
+  "session_id": "session_1774856077_89243",
+  "initialized_at": "2026-03-30T07:34:37Z",
   "build_started_at": null,
   "plan": {
-    "generated_at": "2026-03-30T05:15:17Z",
+    "generated_at": "2026-03-30T07:45:20Z",
     "confidence": 93,
     "phases": [
       {
         "id": 1,
-        "name": "Harden JSON escaping in spawn-tree",
+        "name": "Harden context-update json_ok sites",
         "status": "completed",
-        "description": "Add missing newline/CR/control-character escaping to awk-based JSON output in spawn-tree.sh"
+        "description": "Convert all 11 json_ok calls in context-update (lines 575-781) from raw interpolation to jq --arg safe escaping"
       },
       {
         "id": 2,
-        "name": "Fix queen-promote newline destruction and awk backslash issue",
-        "status": "completed",
-        "description": "Sanitize newlines in content before building QUEEN.md entries, fix awk -v backslash interpretation, clean up orphaned .metaupd temp files"
+        "name": "Harden commit-message + changelog + activity-log json_ok sites",
+        "status": "pending",
+        "description": "Convert json_ok calls in generate-commit-message (3 sites), changelog-append (1), and activity-log-init (1) to jq --arg"
       },
       {
         "id": 3,
-        "name": "Filter test noise from activity log",
-        "status": "completed",
-        "description": "Add AETHER_TESTING env guard to all 5 activity.log write points in error-handler.sh and spawn.sh"
+        "name": "Harden remaining scattered json_ok sites",
+        "status": "pending",
+        "description": "Convert ~15 remaining string-interpolating json_ok calls across view-state, rolling-summary, memory-capture, registry-add, and utils modules"
       },
       {
         "id": 4,
-        "name": "Update high-CVE dependencies",
-        "status": "completed",
-        "description": "Run npm audit fix for minimatch, path-to-regexp, picomatch, tar; add npm overrides if needed for nested picomatch"
+        "name": "Add per-phase checkpointing to continue and seal",
+        "status": "pending",
+        "description": "Insert state-checkpoint calls before continue-advance Step 4 and seal Step 3, add test for all 3 checkpoint reasons"
       },
       {
         "id": 5,
-        "name": "Verify fixes and acknowledge midden entries",
-        "status": "completed",
-        "description": "Run full test suite, acknowledge 7+ resolved midden entries including already-fixed O(n^2) spawn-tree"
+        "name": "Fix hive-read null safety and learning recovery tests",
+        "status": "pending",
+        "description": "Add (.confidence // 0) fallback to hive-read lines 309/316, fix 3 failing tests in test-learning-recovery.sh, add null-confidence test"
       }
     ]
   },
   "memory": {
     "phase_learnings": [
       {
-        "id": "learning_1774849545",
+        "id": "learning_1774857755",
         "phase": 1,
-        "phase_name": "Harden JSON escaping in spawn-tree",
+        "phase_name": "Harden context-update json_ok sites",
         "learnings": [
           {
-            "claim": "When adding awk gsub escaping, order matters: backslash must be first to prevent double-escaping of chars added by subsequent gsub calls",
+            "claim": "Previous colony work had already hardened 10/11 context-update json_ok sites — systematic audits catch most but not all instances",
             "status": "validated",
             "tested": true,
-            "evidence": "13/13 spawn-tree tests pass with 5-gsub chain in correct order",
-            "disproven_by": null
-          },
-          {
-            "claim": "Literal newlines in pipe-delimited records break awk NF guards, making CR the primary testable control character scenario for field-embedded content",
-            "status": "validated",
-            "tested": true,
-            "evidence": "Builder found awk NF==7 splits on newlines, so CR is the real edge case for embedded control chars",
+            "evidence": "Only 1 raw interpolation remained at line 697",
             "disproven_by": null
           }
         ],
-        "timestamp": "2026-03-30T05:45:45Z"
-      },
-      {
-        "id": "learning_1774851254",
-        "phase": 2,
-        "phase_name": "Fix queen-promote newline destruction",
-        "learnings": [
-          {
-            "claim": "awk -v interprets C-style escapes — use ENVIRON[] instead for user content to prevent backslash destruction",
-            "status": "validated",
-            "tested": true,
-            "evidence": "13/13 queen tests pass after replacing all awk -v with ENVIRON approach",
-            "disproven_by": null
-          },
-          {
-            "claim": "Multi-line strings cannot be passed via awk -v — use head/tail concatenation for multi-line content replacement",
-            "status": "validated",
-            "tested": true,
-            "evidence": "METADATA block update now works correctly, no more 0-byte .metaupd orphans",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-30T06:14:14Z"
-      },
-      {
-        "id": "learning_1774852066",
-        "phase": 3,
-        "phase_name": "Filter test noise from activity log",
-        "learnings": [
-          {
-            "claim": "Guarding the central activity-log subcommand plus individual write sites provides defense-in-depth for test isolation",
-            "status": "validated",
-            "tested": true,
-            "evidence": "All 6 write points guarded with AETHER_TESTING check",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-30T06:27:46Z"
-      },
-      {
-        "id": "learning_1774852956",
-        "phase": 4,
-        "phase_name": "Update high-CVE dependencies",
-        "learnings": [
-          {
-            "claim": "npm overrides are the correct mechanism for pinning safe versions of transitive dependencies without modifying direct deps",
-            "status": "validated",
-            "tested": true,
-            "evidence": "6 overrides added, npm audit shows 0 vulnerabilities, all tests pass",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-30T06:42:36Z"
-      },
-      {
-        "id": "learning_1774854711",
-        "phase": 5,
-        "phase_name": "Verify fixes and acknowledge midden entries",
-        "learnings": [
-          {
-            "claim": "Final verification sweeps with midden acknowledgment provide a clean closure record of what was fixed vs what remains open",
-            "status": "validated",
-            "tested": true,
-            "evidence": "9 entries acknowledged, 7 genuine open issues documented, full test suite green",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-03-30T07:11:51Z"
+        "timestamp": "2026-03-30T08:02:35Z"
       }
     ],
     "decisions": [],
-    "instincts": [
-      {
-        "id": "instinct_1774851267",
-        "trigger": "shell functions pass user content to awk",
-        "action": "use ENVIRON[] instead of awk -v to prevent C-style backslash escape interpretation",
-        "confidence": 0.85,
-        "status": "hypothesis",
-        "domain": "code-style",
-        "source": "phase-2",
-        "evidence": [
-          "queen.sh awk -v was destroying backslashes in content, ENVIRON fix validated by 13/13 tests"
-        ],
-        "tested": false,
-        "created_at": "2026-03-30T06:14:27Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774849565",
-        "trigger": "adding awk gsub escaping for JSON output",
-        "action": "escape backslash FIRST to prevent double-escaping from subsequent gsub calls",
-        "confidence": 0.8,
-        "status": "hypothesis",
-        "domain": "code-style",
-        "source": "phase-1",
-        "evidence": [
-          "5-gsub chain order validated by 13/13 tests"
-        ],
-        "tested": false,
-        "created_at": "2026-03-30T05:46:05Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774849555",
-        "trigger": "working on pattern patterns",
-        "action": "When adding awk gsub escaping, order matters: backslash must be first to prevent double-escaping",
-        "confidence": 0.70,
-        "status": "hypothesis",
-        "domain": "pattern",
-        "source": "promoted_from_learning",
-        "evidence": [
-          ""
-        ],
-        "tested": false,
-        "created_at": "2026-03-30T05:45:55Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774849556",
-        "trigger": "working on pattern patterns",
-        "action": "Literal newlines break awk NF guards, CR is the testable control char for embedded content",
-        "confidence": 0.70,
-        "status": "hypothesis",
-        "domain": "pattern",
-        "source": "promoted_from_learning",
-        "evidence": [
-          ""
-        ],
-        "tested": false,
-        "created_at": "2026-03-30T05:45:56Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774851264",
-        "trigger": "working on pattern patterns",
-        "action": "awk -v interprets C-style escapes — use ENVIRON[] for user content",
-        "confidence": 0.70,
-        "status": "hypothesis",
-        "domain": "pattern",
-        "source": "promoted_from_learning",
-        "evidence": [
-          ""
-        ],
-        "tested": false,
-        "created_at": "2026-03-30T06:14:24Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      },
-      {
-        "id": "instinct_1774851266",
-        "trigger": "working on pattern patterns",
-        "action": "Multi-line strings cannot pass via awk -v — use head/tail concatenation",
-        "confidence": 0.70,
-        "status": "hypothesis",
-        "domain": "pattern",
-        "source": "promoted_from_learning",
-        "evidence": [
-          ""
-        ],
-        "tested": false,
-        "created_at": "2026-03-30T06:14:26Z",
-        "last_applied": null,
-        "applications": 0,
-        "successes": 0,
-        "failures": 0
-      }
-    ]
+    "instincts": []
   },
   "errors": {
     "records": [],
@@ -255,29 +72,10 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-03-30T04:44:17Z|colony_initialized|init|Colony initialized with goal: Fix critical midden entries (spawn-tree O(n^2), queen-promote newline destruction, JSON ant names), reduce aether-utils.sh bug-fix ratio through targeted fixes, update 4 high-CVE dependencies (minimatch, path-to-regexp, picomatch, node-tar), and filter test noise from activity log",
-    "2026-03-30T04:53:04Z|territory_surveyed|colonize|Territory surveyed: 7 documents",
-    "2026-03-30T05:15:17Z|plan_generated|plan|Generated 5 phases with 93% confidence (3 iterations, exhaustive mode)",
-    "2026-03-30T05:17:37Z|phase_started|build|Phase 1: Harden JSON escaping in spawn-tree started",
-    "2026-03-30T05:20:00Z|phase_started|build|Phase 1: Harden JSON escaping in spawn-tree started",
-    "2026-03-30T05:45:45Z|phase_completed|continue|Phase 1: Harden JSON escaping in spawn-tree completed",
-    "2026-03-30T05:45:45Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
-    "2026-03-30T05:53:21Z|phase_started|build|Phase 2: Fix queen-promote newline destruction started",
-    "2026-03-30T06:14:14Z|phase_completed|continue|Phase 2: Fix queen-promote newline destruction completed",
-    "2026-03-30T06:14:14Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
-    "2026-03-30T06:17:04Z|phase_started|build|Phase 3: Filter test noise from activity log started",
-    "2026-03-30T06:27:46Z|phase_completed|continue|Phase 3: Filter test noise from activity log completed",
-    "2026-03-30T06:27:46Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
-    "2026-03-30T06:29:34Z|phase_started|build|Phase 4: Update high-CVE dependencies started",
-    "2026-03-30T06:42:36Z|phase_completed|continue|Phase 4: Update high-CVE dependencies completed",
-    "2026-03-30T06:42:36Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5",
-    "2026-03-30T06:58:30Z|phase_started|build|Phase 5: Verify fixes and acknowledge midden entries started",
-    "2026-03-30T07:11:51Z|phase_completed|continue|Phase 5: Verify fixes and acknowledge midden entries completed",
-    "2026-03-30T07:11:51Z|all_phases_completed|continue|All 5 phases completed",
-    "2026-03-30T07:26:25Z|milestone_reached|seal|Achieved Crowned Anthill milestone",
-    "2026-03-30T07:28:39Z|milestone_reached|seal|Achieved Crowned Anthill milestone"
-  ],
-  "territory_surveyed": "2026-03-30T04:53:04Z",
-  "milestone": "Crowned Anthill",
-  "milestone_updated_at": "2026-03-30T07:28:39Z"
+    "2026-03-30T07:34:37Z|colony_initialized|init|Colony initialized with goal: Harden ~40 remaining json_ok call sites with safe escaping (A1+A4), add per-phase COLONY_STATE.json checkpointing (Rec 1), add jq null safety to hive reads (Rec 4), and add memory pipeline circuit breaker for file corruption recovery (Rec 8)",
+    "2026-03-30T07:45:20Z|plan_generated|plan|Generated 5 phases with 93% confidence (2 iterations, deep mode)",
+    "2026-03-30T07:52:29Z|phase_started|build|Phase 1: Harden context-update json_ok sites started",
+    "2026-03-30T08:02:35Z|phase_completed|continue|Phase 1: Harden context-update json_ok sites completed",
+    "2026-03-30T08:02:35Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
+  ]
 }
