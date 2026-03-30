@@ -98,7 +98,7 @@
 
 - [ ] **Phase 39: State Safety** — STATE-01, STATE-02
 - [x] **Phase 40: Pheromone Propagation** — PHERO-01, PHERO-02, PHERO-03 (completed 2026-03-30)
-- [ ] **Phase 41: Midden Collection** — MIDD-01, MIDD-02, MIDD-03
+- [x] **Phase 41: Midden Collection** — MIDD-01, MIDD-02, MIDD-03 (completed 2026-03-30)
 - [ ] **Phase 42: CI Context Assembly** — CI-01, CI-02, CI-03
 - [ ] **Phase 43: Clash Detection Integration** — CLASH-01, CLASH-02, CLASH-03
 - [ ] **Phase 44: Release Hygiene & Ship** — REL-01, REL-02, REL-03, TEST-01, TEST-02
@@ -319,7 +319,7 @@ Plans:
 | 38. Cleanup & Maintenance | v2.6 | 1/2 | Complete    | 2026-03-29 |
 | 39. State Safety | v2.7 | 0/2 | Pending | -- |
 | 40. Pheromone Propagation | v2.7 | 1/1 | Complete   | 2026-03-30 |
-| 41. Midden Collection | v2.7 | 0/0 | Pending | -- |
+| 41. Midden Collection | v2.7 | 0/0 | Complete    | 2026-03-30 |
 | 42. CI Context Assembly | v2.7 | 0/0 | Pending | -- |
 | 43. Clash Detection Integration | v2.7 | 0/0 | Pending | -- |
 | 44. Release Hygiene & Ship | v2.7 | 0/0 | Pending | -- |
