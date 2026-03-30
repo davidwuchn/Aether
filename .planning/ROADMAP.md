@@ -89,7 +89,7 @@
 - [x] **Phase 35: Colony Depth & Model Routing** - Depth selector gates Oracle/Scout spawns; model routing either wired end-to-end or dead code removed (completed 2026-03-29)
 - [x] **Phase 36: YAML Command Generator** - Single YAML source produces both Claude and OpenCode command markdown (completed 2026-03-29)
 - [x] **Phase 37: XML Core Integration** - XML export/import wired into seal, entomb, and init lifecycle commands (completed 2026-03-29)
-- [ ] **Phase 38: Cleanup & Maintenance** - Deprecate old npm versions, generate error code docs, remove dead awk code
+- [x] **Phase 38: Cleanup & Maintenance** - Deprecate old npm versions, generate error code docs, remove dead awk code (completed 2026-03-29)
 
 ## Phase Details
 
@@ -220,4 +220,4 @@ Plans:
 | 35. Colony Depth & Model Routing | v2.6 | 0/TBD | Complete    | 2026-03-29 |
 | 36. YAML Command Generator | v2.6 | 2/4 | Complete    | 2026-03-29 |
 | 37. XML Core Integration | v2.6 | 3/3 | Complete    | 2026-03-29 |
-| 38. Cleanup & Maintenance | v2.6 | 1/2 | In Progress|  |
+| 38. Cleanup & Maintenance | v2.6 | 1/2 | Complete    | 2026-03-29 |

@@ -44,6 +44,8 @@ CURRENT_LOCK=${CURRENT_LOCK:-""}
 [[ -f "$SCRIPT_DIR/utils/pheromone.sh" ]] && source "$SCRIPT_DIR/utils/pheromone.sh"
 [[ -f "$SCRIPT_DIR/utils/scan.sh" ]] && source "$SCRIPT_DIR/utils/scan.sh"
 [[ -f "$SCRIPT_DIR/utils/emoji-audit.sh" ]] && source "$SCRIPT_DIR/utils/emoji-audit.sh"
+[[ -f "$SCRIPT_DIR/utils/immune.sh" ]] && source "$SCRIPT_DIR/utils/immune.sh"
+[[ -f "$SCRIPT_DIR/utils/council.sh" ]] && source "$SCRIPT_DIR/utils/council.sh"
 
 # Fallback error constants if error-handler.sh wasn't sourced
 # This prevents "unbound variable" errors in older installations
@@ -1174,7 +1176,7 @@ case "$cmd" in
     cat <<'HELP_EOF'
 {
   "ok": true,
-  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","midden-review","midden-acknowledge","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","hive-init","hive-store","hive-read","hive-abstract","hive-promote","init-research","charter-write","colony-name","emoji-audit"],
+  "commands": ["help","version","validate-state","validate-oracle-state","load-state","unload-state","error-add","error-pattern-check","error-summary","activity-log","activity-log-init","activity-log-read","learning-promote","learning-inject","learning-observe","learning-check-promotion","learning-promote-auto","memory-capture","queen-thresholds","context-capsule","rolling-summary","generate-ant-name","spawn-log","spawn-complete","spawn-can-spawn","spawn-get-depth","spawn-tree-load","spawn-tree-active","spawn-tree-depth","spawn-efficiency","validate-worker-response","update-progress","check-antipattern","error-flag-pattern","signature-scan","signature-match","flag-add","flag-check-blockers","flag-resolve","flag-acknowledge","flag-list","flag-auto-resolve","autofix-checkpoint","autofix-rollback","spawn-can-spawn-swarm","swarm-findings-init","swarm-findings-add","swarm-findings-read","swarm-solution-set","swarm-cleanup","swarm-activity-log","swarm-display-init","swarm-display-update","swarm-display-get","swarm-display-text","swarm-timing-start","swarm-timing-get","swarm-timing-eta","view-state-init","view-state-get","view-state-set","view-state-toggle","view-state-expand","view-state-collapse","grave-add","grave-check","phase-insert","generate-commit-message","version-check","registry-add","registry-list","bootstrap-system","chamber-create","chamber-verify","chamber-list","milestone-detect","queen-init","queen-read","queen-promote","incident-rule-add","survey-load","survey-verify","pheromone-export","pheromone-write","pheromone-count","pheromone-read","instinct-read","instinct-create","instinct-apply","pheromone-prime","colony-prime","pheromone-expire","eternal-init","eternal-store","pheromone-export-xml","pheromone-import-xml","pheromone-validate-xml","wisdom-export-xml","wisdom-import-xml","registry-export-xml","registry-import-xml","memory-metrics","midden-recent-failures","midden-review","midden-acknowledge","midden-search","midden-tag","entropy-score","force-unlock","changelog-append","changelog-collect-plan-data","suggest-approve","suggest-quick-dismiss","data-clean","autopilot-init","autopilot-update","autopilot-status","autopilot-stop","autopilot-check-replan","autopilot-set-headless","autopilot-headless-check","pending-decision-add","pending-decision-list","pending-decision-resolve","hive-init","hive-store","hive-read","hive-abstract","hive-promote","init-research","charter-write","colony-name","colony-vital-signs","emoji-audit","trophallaxis-diagnose","trophallaxis-retry","scar-add","scar-list","scar-check","immune-auto-scar","council-deliberate","council-advocate","council-challenger","council-sage","council-history","council-budget-check"],
   "sections": {
     "Core": [
       {"name": "help", "description": "List all available commands with sections"},
@@ -1271,7 +1273,10 @@ case "$cmd" in
       {"name": "midden-recent-failures", "description": "Read recent failure signals from midden"},
       {"name": "midden-review", "description": "Review unacknowledged midden entries grouped by category"},
       {"name": "midden-acknowledge", "description": "Acknowledge midden entries by id or category"},
+      {"name": "midden-search", "description": "Search midden entries by keyword with optional category/source filters"},
+      {"name": "midden-tag", "description": "Add or remove a tag from a midden entry"},
       {"name": "entropy-score", "description": "Compute colony entropy score (0-100)"},
+      {"name": "colony-vital-signs", "description": "Compute colony health metrics from existing data (velocity, errors, signals, memory, overall score)"},
       {"name": "force-unlock", "description": "Emergency unlock — remove stale lock files"}
     ],
     "Changelog": [
@@ -1290,7 +1295,12 @@ case "$cmd" in
       {"name": "autopilot-update", "description": "Update autopilot state after phase action"},
       {"name": "autopilot-status", "description": "Return current autopilot state"},
       {"name": "autopilot-stop", "description": "Stop or complete an autopilot run with reason"},
-      {"name": "autopilot-check-replan", "description": "Check if replan trigger should fire based on completed phases"}
+      {"name": "autopilot-check-replan", "description": "Check if replan trigger should fire based on completed phases"},
+      {"name": "autopilot-set-headless", "description": "Set headless mode flag in run-state.json (true or false)"},
+      {"name": "autopilot-headless-check", "description": "Check if autopilot is running in headless mode"},
+      {"name": "pending-decision-add", "description": "Queue a deferred decision for later review"},
+      {"name": "pending-decision-list", "description": "List pending decisions, optionally filtered by type or status"},
+      {"name": "pending-decision-resolve", "description": "Mark a pending decision as resolved with a resolution note"}
     ],
     "Hive Intelligence": [
       {"name": "hive-init", "description": "Initialize ~/.aether/hive/ directory and wisdom.json schema"},
@@ -1317,6 +1327,22 @@ case "$cmd" in
     ],
     "Emoji Audit": [
       {"name": "emoji-audit", "description": "Audit emoji usage in command files against the canonical colony-visuals reference map"}
+    ],
+    "Immune System": [
+      {"name": "trophallaxis-diagnose", "description": "Diagnose a task failure by searching midden for related failures and suggesting an approach"},
+      {"name": "trophallaxis-retry", "description": "Record a retry attempt for a task with diagnosis context injected"},
+      {"name": "scar-add", "description": "Record a persistent failure pattern as a scar to warn future workers"},
+      {"name": "scar-list", "description": "List scars, optionally filtered by active status or severity"},
+      {"name": "scar-check", "description": "Check if a task description matches any active scar patterns"},
+      {"name": "immune-auto-scar", "description": "Auto-create a scar if a task has been retried 3 or more times"}
+    ],
+    "Council": [
+      {"name": "council-deliberate", "description": "Start a new deliberation with Advocate/Challenger/Sage model and spawn budget guard"},
+      {"name": "council-advocate", "description": "Record an advocate argument (FOR) for a deliberation"},
+      {"name": "council-challenger", "description": "Record a challenger argument (AGAINST) for a deliberation"},
+      {"name": "council-sage", "description": "Record sage synthesis and recommendation, marks deliberation complete"},
+      {"name": "council-history", "description": "List past deliberations with their outcomes"},
+      {"name": "council-budget-check", "description": "Check if current spawn budget allows N more spawns"}
     ],
     "Deprecated": [
       {"name": "checkpoint-check", "description": "Check dirty files against allowlist [DEPRECATED]"},
@@ -4341,6 +4367,13 @@ Files: ${files_changed} files changed"
   session-mark-resumed) _session_mark_resumed "$@" ;;
   session-summary) _session_summary "$@" ;;
 
+  pending-decision-add) _pending_decision_add "$@" ;;
+  pending-decision-list) _pending_decision_list "$@" ;;
+  pending-decision-resolve) _pending_decision_resolve "$@" ;;
+
+  autopilot-headless-check) _autopilot_headless_check "$@" ;;
+  autopilot-set-headless) _autopilot_set_headless "$@" ;;
+
   generate-progress-bar)
     generate-progress-bar "$@"
     ;;
@@ -4717,6 +4750,35 @@ EOF
 
   midden-acknowledge) _midden_acknowledge "$@" ;;
 
+  midden-search) _midden_search "$@" ;;
+
+  midden-tag) _midden_tag "$@" ;;
+
+  trophallaxis-diagnose) _trophallaxis_diagnose "$@" ;;
+
+  trophallaxis-retry) _trophallaxis_retry "$@" ;;
+
+  scar-add) _scar_add "$@" ;;
+
+  scar-list) _scar_list "$@" ;;
+
+  scar-check) _scar_check "$@" ;;
+
+  immune-auto-scar) _immune_auto_scar "$@" ;;
+
+  # ── Council Deliberation ────────────────────────────────────────────────────
+  council-deliberate) _council_deliberate "$@" ;;
+
+  council-advocate) _council_advocate "$@" ;;
+
+  council-challenger) _council_challenger "$@" ;;
+
+  council-sage) _council_sage "$@" ;;
+
+  council-history) _council_history "$@" ;;
+
+  council-budget-check) _council_budget_check "$@" ;;
+
   resume-dashboard)
     # Generate dashboard data for /ant:resume command
     # Usage: resume-dashboard
@@ -4798,6 +4860,14 @@ EOF
     exit 0
     ;;
 
+  colony-vital-signs)
+    # Compute colony health metrics from existing data files
+    # Usage: colony-vital-signs
+    # Returns: JSON with build_velocity, error_rate, signal_health, memory_pressure,
+    #          colony_age_hours, and overall_health (0-100)
+    _colony_vital_signs
+    ;;
+
   data-safety-stats)
     # Read data safety statistics from safety-stats.json
     # Usage: data-safety-stats
@@ -4819,6 +4889,8 @@ EOF
     fi
     exit 0
     ;;
+
+  # colony-vital-signs handled above (dispatches to _colony_vital_signs in state-api.sh)
 
   suggest-analyze) _suggest_analyze "$@" ;;
   suggest-record) _suggest_record "$@" ;;

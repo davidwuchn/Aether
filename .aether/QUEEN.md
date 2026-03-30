@@ -11,14 +11,23 @@ Communication style, expertise level, and decision-making patterns observed from
 
 - **test-colony** (2026-03-29T06:03:45Z): test content
 
-- [charter] **Intent**: Comprehensive audit of today's session work — verify QUEEN.md, pheromone system, wisdom pipeline, charter-write, and all colony lifecycle changes are functioning correctly (Colony: Aether Colony)
-- [charter] **Vision**: Confirm that everything built across three colonies today (versioning, seal audit fixes, visual consistency) works end-to-end with no regressions, silent failures, or data loss (Colony: Aether Colony)
+- [charter] **Intent**: Implement next-generation Aether features: immune response system (trophallaxis repair + scarification), headless autopilot (--headless flag + pending decisions), colony vital signs dashboard, /ant... (Colony: Aether Colony)
+- [charter] **Vision**: Transform Aether from a reliable colony orchestrator into a self-healing, adaptive system that learns from every failure, runs autonomously when needed, and gives the Queen a living picture of colo... (Colony: Aether Colony)
 ---
 
 ## Codebase Patterns
 
 Validated approaches that work in this codebase, and anti-patterns to avoid. Includes architecture conventions, naming patterns, error handling style, and technology-specific insights. Tagged [repo] for project-specific or [general] for cross-colony patterns.
 
+- **1774204068** (2026-03-29T17:39:31Z): Oracle research finding: What would an expert change about this architecture to minimize user input while maximizing safety, verifiability, and autonomous execution capability? (80%)
+- **1774204068** (2026-03-29T17:39:23Z): Oracle research finding: How does the memory and context management system handle state persistence, session resume, context rot, and cross-colony knowledge sharing? (82%)
+- **1774204068** (2026-03-29T17:39:14Z): Oracle research finding: Where are the risk areas — execution reliability gaps, silent failures, fake autonomy, hallucination vectors, and verification weaknesses? (82%)
+- **1774204068** (2026-03-29T17:39:04Z): Oracle research finding: What are the dependency relationships between components, and where are coupling risks? (82%)
+- **1774204068** (2026-03-29T17:38:55Z): Oracle research finding: What are the main components and their responsibilities in the Aether system? (85%)
+- **1774204068** (2026-03-29T17:38:46Z): Position-aware path exclusion (first-segment-only) is needed when a directory name appears at multiple depths
+- **1774204068** (2026-03-29T17:38:41Z): Distribution pipeline has three independent exclusion layers — verify each separately
+- **1774204068** (2026-03-29T17:38:37Z): SCRIPT_DIR references in test harness setup are easily missed when updating main path constants — grep separately
+- **1774204068** (2026-03-29T17:38:33Z): Anchor .npmignore patterns with leading slash when directory name appears at multiple depths
 - **1774204068** (2026-03-29T02:47:07Z): Separate infrastructure from state using distinct directory variables when moving scripts
 - **1774204068** (2026-03-29T02:47:00Z): Watcher independently catches state-path bugs that builders miss during refactoring
 - **1774178419** (2026-03-29T02:46:52Z): TDD with parallel background agents speeds up Phase 1 type work
@@ -100,6 +109,16 @@ High-confidence behavioral patterns that have been validated through repeated co
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-03-29T17:41:46Z | system | charter_updated | Colony charter updated for Aether Colony |
+| 2026-03-29T17:39:31Z | 1774204068 | promoted_pattern | Added: Oracle research finding: What would an expert chan... |
+| 2026-03-29T17:39:23Z | 1774204068 | promoted_pattern | Added: Oracle research finding: How does the memory and c... |
+| 2026-03-29T17:39:14Z | 1774204068 | promoted_pattern | Added: Oracle research finding: Where are the risk areas ... |
+| 2026-03-29T17:39:04Z | 1774204068 | promoted_pattern | Added: Oracle research finding: What are the dependency r... |
+| 2026-03-29T17:38:55Z | 1774204068 | promoted_pattern | Added: Oracle research finding: What are the main compone... |
+| 2026-03-29T17:38:46Z | 1774204068 | promoted_pattern | Added: Position-aware path exclusion (first-segment-only)... |
+| 2026-03-29T17:38:41Z | 1774204068 | promoted_pattern | Added: Distribution pipeline has three independent exclus... |
+| 2026-03-29T17:38:37Z | 1774204068 | promoted_pattern | Added: SCRIPT_DIR references in test harness setup are ea... |
+| 2026-03-29T17:38:33Z | 1774204068 | promoted_pattern | Added: Anchor .npmignore patterns with leading slash when... |
 | 2026-03-29T06:03:45Z | test-colony | promoted_decree | Added: test content... |
 | 2026-03-29T02:47:07Z | 1774204068 | promoted_pattern | Added: Separate infrastructure from state using distinct ... |
 | 2026-03-29T02:47:00Z | 1774204068 | promoted_pattern | Added: Watcher independently catches state-path bugs that... |
@@ -169,11 +188,11 @@ High-confidence behavioral patterns that have been validated through repeated co
 {
   "version": "2.0.0",
   "wisdom_version": "2.0",
-  "last_evolved": "2026-03-29T06:03:45Z",
+  "last_evolved": "2026-03-29T17:41:46Z",
   "colonies_contributed": ["1774645519"],
   "stats": {
     "total_user_prefs": 3,
-    "total_codebase_patterns": 44,
+    "total_codebase_patterns": 53,
     "total_build_learnings": 3,
     "total_instincts": 9
   },

@@ -286,6 +286,8 @@ Use the `phase_bar` and `task_bar` values computed in Step 2.7 for the actual ba
 
 
 
+
+
 **Edge cases:**
 - No phases yet: show `[░░░░░░░░░░░░░░░░░░░░] 0/0 phases`
 - No tasks in phase: show `[░░░░░░░░░░░░░░░░░░░░] 0/0 tasks in Phase 0`

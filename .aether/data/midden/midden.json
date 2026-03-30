@@ -359,7 +359,8 @@
       "category": "resilience",
       "source": "chaos",
       "message": "Chaos finding: spawn-tree-active test passes for wrong reason — 5-pipe fixture format bypasses logic (high)",
-      "reviewed": false
+      "reviewed": false,
+      "tags": []
     },
     {
       "id": "midden_1774746402_85376",
@@ -384,7 +385,18 @@
       "source": "auditor",
       "message": "High severity issues: 1 (score: 67) - unescaped ant_name in helper functions",
       "reviewed": false
+    },
+    {
+      "id": "midden_1774808061_45068",
+      "timestamp": "2026-03-29T18:14:21Z",
+      "category": "test-cat",
+      "source": "watcher",
+      "message": "hello world search test",
+      "reviewed": false,
+      "tags": [
+        "verified"
+      ]
     }
   ],
-  "entry_count": 30
+  "entry_count": 31
 }

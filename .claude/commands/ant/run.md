@@ -30,6 +30,7 @@ Parse `$ARGUMENTS` for:
 - `--replan-interval N` — Pause for replan suggestion every N phases (default: 2)
 - `--continue` — Resume after a replan pause without replanning
 - `--dry-run` — Preview plan without executing
+- `--headless` — Run without interactive prompts; queue decisions for later review
 - `--verbose` / `-v`, `--no-visual`, `--no-suggest` — Pass through to playbooks
 
 ```
@@ -38,6 +39,7 @@ Parse `$ARGUMENTS` for:
 /ant:run --replan-interval 3   Suggest replan every 3 phases instead of 2
 /ant:run --continue            Resume after replan pause without replanning
 /ant:run --dry-run             Preview the autopilot plan
+/ant:run --headless            Run all phases without interactive prompts
 /ant:run --max-phases 3 -v     Run 3 phases with verbose output
 ```
 
@@ -67,7 +69,10 @@ replan suggestion (every {replan_interval} phases)
 2. Determine remaining incomplete phases; apply `--max-phases` cap
 3. Set `phases_completed = 0`, `autopilot_start = $(date +%s)`
 4. Record pre-build blocker count: `bash .aether/aether-utils.sh flag-check-blockers {phase}`
-5. Display: `AUTOPILOT ENGAGED | Goal: {goal} | Phase {N} | Max: {max or "all"}`
+5. If `--headless` flag is present:
+   - Run: `bash .aether/aether-utils.sh autopilot-set-headless true`
+   - Display: `Headless mode: ON — interactive prompts will be queued as pending decisions`
+6. Display: `AUTOPILOT ENGAGED | Goal: {goal} | Phase {N} | Max: {max or "all"}`
 
 ### Step 1: Build Phase
 
@@ -98,6 +103,19 @@ On pause, display the AUTOPILOT PAUSED banner with reason, affected phase,
 specific issues, and instruction: "Fix issues, then run /ant:run to resume."
 Log: `"<timestamp>|autopilot_paused|run|Paused at Phase {id}: {reason}"`
 
+**Headless override for visual checkpoints:** If headless mode is active and a
+visual checkpoint prompt would normally be shown to the user, instead queue it as
+a pending decision:
+```bash
+bash .aether/aether-utils.sh pending-decision-add \
+  --title "Visual checkpoint: Phase {id}" \
+  --type "checkpoint" \
+  --description "{checkpoint_description}" \
+  --phase "{id}" \
+  --source "build-pause-check"
+```
+Then continue without pausing.
+
 **If no pause:** proceed to Step 3.
 
 ### Step 3: Continue (Verify + Advance)
@@ -114,6 +132,18 @@ Execute continue playbooks in order, carrying cross-stage state
 **Autopilot override for runtime verification (Step 1.11 in continue-gates):**
 Skip the AskUserQuestion prompt. Instead, auto-PAUSE with reason
 "Runtime verification required" so the user can test manually before resuming.
+
+**Headless override for runtime verification:** If headless mode is active and
+runtime verification would normally pause, queue as a pending decision instead:
+```bash
+bash .aether/aether-utils.sh pending-decision-add \
+  --title "Runtime verification needed: Phase {id}" \
+  --type "runtime-verification" \
+  --description "Manual testing required before advancing past Phase {id}" \
+  --phase "{id}" \
+  --source "continue-gates"
+```
+Then continue without pausing.
 
 ### Step 4: Continue Pause Check
 
@@ -182,6 +212,11 @@ Phases completed: {N} | Elapsed: {Xm Ys} | Now at: Phase {current}
 {max reached}   -> Run /ant:run to continue
 {replan}        -> Run /ant:plan to replan, or /ant:run --continue to dismiss
 {paused}        -> Fix {reason}, then /ant:run to resume
+```
+
+If headless mode was active and pending decisions were queued, display:
+```
+Pending decisions: {N} — run `pending-decision-list` to review
 ```
 
 Update session:

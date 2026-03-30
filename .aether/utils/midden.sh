@@ -244,6 +244,184 @@ _midden_ingest_errors() {
     return 0
 }
 
+_midden_search() {
+    # Search midden entries by keyword match in message field
+    # Usage: midden-search <query> [--category <cat>] [--source <src>] [--limit N] [--include-acknowledged]
+    # Returns: JSON with query, match_count, and entries array
+
+    ms_query=""
+    ms_category=""
+    ms_source=""
+    ms_limit=10
+    ms_include_ack=false
+
+    # First positional arg is the query
+    if [[ $# -gt 0 && "$1" != --* ]]; then
+      ms_query="$1"
+      shift
+    fi
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --category)             ms_category="${2:-}"; shift 2 ;;
+        --source)               ms_source="${2:-}"; shift 2 ;;
+        --limit)                ms_limit="${2:-10}"; shift 2 ;;
+        --include-acknowledged) ms_include_ack=true; shift ;;
+        *) shift ;;
+      esac
+    done
+
+    ms_midden_file="$COLONY_DATA_DIR/midden/midden.json"
+
+    if [[ ! -f "$ms_midden_file" ]]; then
+      json_ok "{\"query\":$(printf '%s' "$ms_query" | jq -Rs .),\"match_count\":0,\"entries\":[]}"
+      return 0
+    fi
+
+    ms_result=$(jq \
+      --arg query "$ms_query" \
+      --arg category "$ms_category" \
+      --arg source "$ms_source" \
+      --argjson limit "$ms_limit" \
+      --argjson include_ack "$ms_include_ack" \
+      '
+      [.entries // [] | .[] |
+        # Filter acknowledged unless --include-acknowledged
+        if $include_ack then . else select(.acknowledged != true) end |
+        # Filter by category if specified
+        if ($category | length) > 0 then select(.category == $category) else . end |
+        # Filter by source if specified
+        if ($source | length) > 0 then select(.source == $source) else . end |
+        # Filter by keyword match in message (case-insensitive)
+        if ($query | length) > 0 then
+          select(.message | ascii_downcase | contains($query | ascii_downcase))
+        else
+          .
+        end
+      ] |
+      sort_by(.timestamp) | reverse |
+      . as $all |
+      {
+        query: $query,
+        match_count: ($all | length),
+        entries: ($all | .[:$limit])
+      }
+      ' "$ms_midden_file" 2>/dev/null)
+
+    if [[ -z "$ms_result" ]]; then
+      json_ok "{\"query\":$(printf '%s' "$ms_query" | jq -Rs .),\"match_count\":0,\"entries\":[]}"
+    else
+      json_ok "$ms_result"
+    fi
+    return 0
+}
+
+_midden_tag() {
+    # Add or remove a tag from a midden entry's tags array
+    # Usage: midden-tag --id <entry_id> --tag <tag_name>
+    #    OR: midden-tag --id <entry_id> --untag <tag_name>
+    # Returns: JSON with entry_id, tags array, and action
+
+    mt_id=""
+    mt_tag=""
+    mt_untag=""
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --id)    mt_id="${2:-}"; shift 2 ;;
+        --tag)   mt_tag="${2:-}"; shift 2 ;;
+        --untag) mt_untag="${2:-}"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    # Validate: need --id
+    if [[ -z "$mt_id" ]]; then
+      json_err "$E_VALIDATION_FAILED" "midden-tag requires --id"
+    fi
+
+    # Validate: need --tag or --untag (but not both)
+    if [[ -z "$mt_tag" && -z "$mt_untag" ]]; then
+      json_err "$E_VALIDATION_FAILED" "midden-tag requires --tag or --untag"
+    fi
+
+    if [[ -n "$mt_tag" && -n "$mt_untag" ]]; then
+      json_err "$E_VALIDATION_FAILED" "midden-tag requires --tag or --untag, not both"
+    fi
+
+    mt_midden_file="$COLONY_DATA_DIR/midden/midden.json"
+
+    if [[ ! -f "$mt_midden_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "midden.json not found"
+    fi
+
+    # Check entry exists
+    mt_exists=$(jq --arg id "$mt_id" '[.entries[]? | select(.id == $id)] | length > 0' "$mt_midden_file" 2>/dev/null || echo "false")
+    if [[ "$mt_exists" != "true" ]]; then
+      json_err "$E_RESOURCE_NOT_FOUND" "Midden entry '$mt_id' not found"
+    fi
+
+    # Acquire lock with trap-based cleanup
+    acquire_lock "$mt_midden_file" || {
+      json_err "$E_LOCK_FAILED" "Failed to acquire lock on midden.json"
+    }
+    trap 'release_lock 2>/dev/null || true' EXIT
+
+    if [[ -n "$mt_tag" ]]; then
+      # Add tag — create tags array if absent, append if tag not already present
+      mt_updated=$(jq \
+        --arg id "$mt_id" \
+        --arg tag "$mt_tag" \
+        '
+        .entries = [.entries[] |
+          if .id == $id then
+            . + {tags: ((.tags // []) | if contains([$tag]) then . else . + [$tag] end)}
+          else
+            .
+          end
+        ]
+        ' "$mt_midden_file" 2>/dev/null)
+      mt_action="added"
+    else
+      # Remove tag — remove from tags array if present
+      mt_updated=$(jq \
+        --arg id "$mt_id" \
+        --arg tag "$mt_untag" \
+        '
+        .entries = [.entries[] |
+          if .id == $id then
+            . + {tags: ((.tags // []) | map(select(. != $tag)))}
+          else
+            .
+          end
+        ]
+        ' "$mt_midden_file" 2>/dev/null)
+      mt_action="removed"
+      mt_tag="$mt_untag"
+    fi
+
+    if [[ -z "$mt_updated" ]]; then
+      trap - EXIT
+      release_lock 2>/dev/null || true
+      json_err "$E_INTERNAL" "Failed to update midden.json"
+    fi
+
+    atomic_write "$mt_midden_file" "$mt_updated"
+
+    trap - EXIT
+    release_lock 2>/dev/null || true
+
+    # Read back the updated tags for the entry
+    mt_tags=$(jq --arg id "$mt_id" '[.entries[]? | select(.id == $id) | .tags // []] | .[0] // []' "$mt_midden_file" 2>/dev/null || echo "[]")
+
+    json_ok "$(jq -n \
+      --arg entry_id "$mt_id" \
+      --argjson tags "$mt_tags" \
+      --arg action "$mt_action" \
+      '{entry_id: $entry_id, tags: $tags, action: $action}')"
+    return 0
+}
+
 _midden_acknowledge() {
     # Acknowledge midden entries by id or by category
     # Usage: midden-acknowledge --id <entry_id> [--reason <reason>]

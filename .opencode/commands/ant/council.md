@@ -15,8 +15,145 @@ You are the **Queen Ant Colony**. Convene the council to clarify user intent and
 ## Instructions
 
 Parse `$normalized_args`:
+- If starts with `--deliberate`: set `deliberate_mode = true`, extract proposal text after `--deliberate`
 - If contains `--no-visual`: set `visual_mode = false` (visual is ON by default)
 - Otherwise: set `visual_mode = true`
+
+**If `deliberate_mode` is true:** Skip to [Deliberation Mode](#deliberation-mode) and stop after it.
+
+---
+
+## Deliberation Mode
+
+When `--deliberate "<proposal>"` is passed, run a structured Advocate/Challenger/Sage deliberation.
+
+### Step D1: Check Budget
+
+Run using the Bash tool with description "Checking deliberation budget...":
+```bash
+bash .aether/aether-utils.sh council-budget-check
+```
+
+Parse result. If `allowed` is `false`:
+```
+📜🐜🏛️🐜📜 COUNCIL — BUDGET EXHAUSTED
+
+Spawn budget is fully allocated. Complete or close existing deliberations before starting new ones.
+Run /ant:council to review existing deliberations.
+```
+Stop here.
+
+### Step D2: Open Deliberation
+
+Run using the Bash tool with description "Opening deliberation...":
+```bash
+bash .aether/aether-utils.sh council-deliberate --proposal "<proposal>"
+```
+
+Capture `deliberation_id` from `result.id`.
+
+Display:
+```
+📜🐜🏛️🐜📜 COUNCIL DELIBERATION OPENED
+
+Proposal: "<proposal>"
+ID: {deliberation_id}
+Budget: {budget} spawns available
+
+Convening Advocate, Challenger, and Sage...
+```
+
+### Step D3: Spawn Advocate Scout
+
+Spawn an Advocate scout to argue **in favor** of the proposal.
+
+
+
+Record the argument:
+```bash
+bash .aether/aether-utils.sh council-advocate \
+  --deliberation-id "<deliberation_id>" \
+  --argument "<advocate_argument>"
+```
+
+Display:
+```
+⚖️  ADVOCATE:
+{advocate_argument}
+```
+
+### Step D4: Spawn Challenger Scout
+
+Spawn a Challenger scout to argue **against** the proposal.
+
+
+
+Record the argument:
+```bash
+bash .aether/aether-utils.sh council-challenger \
+  --deliberation-id "<deliberation_id>" \
+  --argument "<challenger_argument>"
+```
+
+Display:
+```
+⚔️  CHALLENGER:
+{challenger_argument}
+```
+
+### Step D5: Spawn Sage Scout
+
+Spawn a Sage scout to synthesize both positions and provide a recommendation.
+
+
+
+Record the sage synthesis:
+```bash
+bash .aether/aether-utils.sh council-sage \
+  --deliberation-id "<deliberation_id>" \
+  --synthesis "<synthesis>" \
+  --recommendation "<recommendation>"
+```
+
+### Step D6: Display Result
+
+```
+📜🐜🏛️🐜📜 COUNCIL DELIBERATION COMPLETE
+
+Proposal: "<proposal>"
+
+⚖️  Advocate:
+{advocate_argument}
+
+⚔️  Challenger:
+{challenger_argument}
+
+🧙 Sage Synthesis:
+{synthesis}
+
+Recommendation: {recommendation}
+```
+
+If recommendation is `adopt` or `adopt-with-conditions`:
+```
+✅ Council recommends proceeding.
+   Run /ant:focus "<proposal summary>" to inject guidance for the colony.
+```
+
+If recommendation is `reject`:
+```
+❌ Council recommends against this proposal.
+   Run /ant:redirect "<proposal summary>" if you want to make this a hard constraint.
+```
+
+If recommendation is `defer`:
+```
+⏸️  Council recommends deferring this decision.
+   Return when more context is available.
+```
+
+---
+
 
 
 ### Step 1: Read Current State

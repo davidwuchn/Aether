@@ -550,3 +550,267 @@ _session_summary() {
       [[ "$cleared" == "true" ]] && echo "Status: Context was cleared"
     fi
 }
+
+# ============================================================================
+# _pending_decision_add
+# Add a decision to the pending decisions queue
+# Usage: pending-decision-add --type <type> --description <desc> [--phase N] [--source <src>]
+# Types: visual_checkpoint, replan, escalation, runtime_verification, user_input
+# ============================================================================
+_pending_decision_add() {
+    local pd_type=""
+    local pd_description=""
+    local pd_phase="null"
+    local pd_source=""
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --type) pd_type="$2"; shift 2 ;;
+        --description) pd_description="$2"; shift 2 ;;
+        --phase) pd_phase="$2"; shift 2 ;;
+        --source) pd_source="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    [[ -z "$pd_type" ]] && json_err "$E_VALIDATION_FAILED" "pending-decision-add requires --type"
+    [[ -z "$pd_description" ]] && json_err "$E_VALIDATION_FAILED" "pending-decision-add requires --description"
+
+    local pd_file="$COLONY_DATA_DIR/pending-decisions.json"
+    local pd_id="pd_$(date +%s)_$$"
+    local pd_now
+    pd_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Acquire lock for concurrent access
+    if type acquire_lock &>/dev/null; then
+      acquire_lock "$pd_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on pending-decisions.json"
+      trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
+    fi
+
+    # Initialize file if missing
+    if [[ ! -f "$pd_file" ]]; then
+      echo '{"version":"1.0","decisions":[]}' > "$pd_file"
+    fi
+
+    local pd_current
+    pd_current=$(cat "$pd_file" 2>/dev/null || echo '{"version":"1.0","decisions":[]}')  # SUPPRESS:OK -- read-default: file may not exist yet
+
+    # Build new decision entry
+    local pd_phase_val
+    if [[ "$pd_phase" == "null" ]]; then
+      pd_phase_val="null"
+    else
+      pd_phase_val="$pd_phase"
+    fi
+
+    local pd_updated
+    pd_updated=$(echo "$pd_current" | jq \
+      --arg id "$pd_id" \
+      --arg type "$pd_type" \
+      --arg description "$pd_description" \
+      --argjson phase "${pd_phase_val}" \
+      --arg source "$pd_source" \
+      --arg created_at "$pd_now" \
+      '.decisions += [{
+        id: $id,
+        type: $type,
+        description: $description,
+        phase: $phase,
+        source: $source,
+        created_at: $created_at,
+        resolved: false
+      }]' 2>/dev/null) || {
+      type release_lock &>/dev/null && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+      json_err "$E_JSON_INVALID" "Failed to append decision to pending-decisions.json"
+    }
+
+    atomic_write "$pd_file" "$pd_updated" || {
+      type release_lock &>/dev/null && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+      json_err "$E_JSON_INVALID" "Failed to write pending-decisions.json"
+    }
+
+    type release_lock &>/dev/null && { release_lock 2>/dev/null || true; trap - EXIT; }  # SUPPRESS:OK -- cleanup: lock may not be held
+
+    local pd_count
+    pd_count=$(echo "$pd_updated" | jq '.decisions | length')
+
+    json_ok "$(jq -n --arg id "$pd_id" --argjson count "$pd_count" \
+      '{id: $id, decision_count: $count}')"
+}
+
+# ============================================================================
+# _pending_decision_list
+# List decisions from the pending decisions queue
+# Usage: pending-decision-list [--unresolved] [--type <type>]
+# Default: show only unresolved
+# ============================================================================
+_pending_decision_list() {
+    local pd_unresolved_only="true"
+    local pd_filter_type=""
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --unresolved) pd_unresolved_only="true"; shift ;;
+        --type) pd_filter_type="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    local pd_file="$COLONY_DATA_DIR/pending-decisions.json"
+
+    if [[ ! -f "$pd_file" ]]; then
+      json_ok '{"total":0,"unresolved":0,"decisions":[]}'
+      exit 0
+    fi
+
+    local pd_data
+    pd_data=$(cat "$pd_file" 2>/dev/null || echo '{"version":"1.0","decisions":[]}')  # SUPPRESS:OK -- read-default: file may not exist yet
+
+    # Build jq filter
+    local pd_filter='.decisions'
+
+    # Apply type filter if provided
+    if [[ -n "$pd_filter_type" ]]; then
+      pd_filter="$pd_filter | map(select(.type == \"$pd_filter_type\"))"
+    fi
+
+    # Apply resolved filter (default: only unresolved)
+    if [[ "$pd_unresolved_only" == "true" ]]; then
+      pd_filter="$pd_filter | map(select(.resolved == false))"
+    fi
+
+    local pd_total pd_unresolved pd_decisions
+    pd_total=$(echo "$pd_data" | jq '.decisions | length')
+    pd_unresolved=$(echo "$pd_data" | jq '[.decisions[] | select(.resolved == false)] | length')
+    pd_decisions=$(echo "$pd_data" | jq "$pd_filter")
+
+    json_ok "$(jq -n --argjson total "$pd_total" --argjson unresolved "$pd_unresolved" \
+      --argjson decisions "$pd_decisions" \
+      '{total: $total, unresolved: $unresolved, decisions: $decisions}')"
+}
+
+# ============================================================================
+# _pending_decision_resolve
+# Mark a pending decision as resolved
+# Usage: pending-decision-resolve --id <id> --resolution <text>
+# ============================================================================
+_pending_decision_resolve() {
+    local pd_id=""
+    local pd_resolution=""
+
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --id) pd_id="$2"; shift 2 ;;
+        --resolution) pd_resolution="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+
+    [[ -z "$pd_id" ]] && json_err "$E_VALIDATION_FAILED" "pending-decision-resolve requires --id"
+    [[ -z "$pd_resolution" ]] && json_err "$E_VALIDATION_FAILED" "pending-decision-resolve requires --resolution"
+
+    local pd_file="$COLONY_DATA_DIR/pending-decisions.json"
+
+    if [[ ! -f "$pd_file" ]]; then
+      json_err "$E_RESOURCE_NOT_FOUND" "No pending decisions file found"
+    fi
+
+    # Acquire lock for concurrent access
+    if type acquire_lock &>/dev/null; then
+      acquire_lock "$pd_file" || json_err "$E_LOCK_FAILED" "Failed to acquire lock on pending-decisions.json"
+      trap 'release_lock 2>/dev/null || true' EXIT  # SUPPRESS:OK -- cleanup: lock may not be held
+    fi
+
+    local pd_data
+    pd_data=$(cat "$pd_file" 2>/dev/null || echo '{"version":"1.0","decisions":[]}')  # SUPPRESS:OK -- read-default: file may not exist yet
+
+    # Check if ID exists
+    local pd_exists
+    pd_exists=$(echo "$pd_data" | jq --arg id "$pd_id" '[.decisions[] | select(.id == $id)] | length')
+    if [[ "$pd_exists" -eq 0 ]]; then
+      type release_lock &>/dev/null && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+      json_err "$E_RESOURCE_NOT_FOUND" "Decision not found: $pd_id"
+    fi
+
+    local pd_now
+    pd_now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    local pd_updated
+    pd_updated=$(echo "$pd_data" | jq \
+      --arg id "$pd_id" \
+      --arg resolution "$pd_resolution" \
+      --arg resolved_at "$pd_now" \
+      '(.decisions[] | select(.id == $id)) |= (. + {resolved: true, resolution: $resolution, resolved_at: $resolved_at})' 2>/dev/null) || {
+      type release_lock &>/dev/null && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+      json_err "$E_JSON_INVALID" "Failed to resolve decision in pending-decisions.json"
+    }
+
+    atomic_write "$pd_file" "$pd_updated" || {
+      type release_lock &>/dev/null && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
+      json_err "$E_JSON_INVALID" "Failed to write pending-decisions.json"
+    }
+
+    type release_lock &>/dev/null && { release_lock 2>/dev/null || true; trap - EXIT; }  # SUPPRESS:OK -- cleanup: lock may not be held
+
+    json_ok "$(jq -n --arg id "$pd_id" '{resolved: true, id: $id}')"
+}
+
+# ============================================================================
+# _autopilot_headless_check
+# Check whether headless mode is active in run-state.json
+# Usage: autopilot-headless-check
+# Returns: {"ok":true,"result":{"headless":true|false}}
+# ============================================================================
+_autopilot_headless_check() {
+    local ah_state_file="$COLONY_DATA_DIR/run-state.json"
+
+    if [[ ! -f "$ah_state_file" ]]; then
+      json_ok '{"headless":false}'
+      exit 0
+    fi
+
+    local ah_headless
+    ah_headless=$(jq -r '.headless // false' "$ah_state_file" 2>/dev/null || echo "false")  # SUPPRESS:OK -- read-default: field may not exist
+
+    # Normalize to boolean
+    if [[ "$ah_headless" == "true" ]]; then
+      json_ok '{"headless":true}'
+    else
+      json_ok '{"headless":false}'
+    fi
+}
+
+# ============================================================================
+# _autopilot_set_headless
+# Set the headless flag in run-state.json
+# Usage: autopilot-set-headless <true|false>
+# Returns: {"ok":true,"result":{"headless":true|false,"updated":true}}
+# ============================================================================
+_autopilot_set_headless() {
+    local ah_value="${1:-}"
+
+    if [[ "$ah_value" != "true" && "$ah_value" != "false" ]]; then
+      json_err "$E_VALIDATION_FAILED" "autopilot-set-headless requires true or false argument"
+    fi
+
+    local ah_state_file="$COLONY_DATA_DIR/run-state.json"
+
+    if [[ ! -f "$ah_state_file" ]]; then
+      json_err "$E_FILE_NOT_FOUND" "run-state.json not found — autopilot not active"
+    fi
+
+    local ah_headless_bool
+    [[ "$ah_value" == "true" ]] && ah_headless_bool=true || ah_headless_bool=false
+
+    local ah_current ah_updated
+    ah_current=$(cat "$ah_state_file" 2>/dev/null || echo '{}')  # SUPPRESS:OK -- read-default: file may not exist yet
+    ah_updated=$(echo "$ah_current" | jq --argjson headless "$ah_headless_bool" '.headless = $headless' 2>/dev/null) || {
+      json_err "$E_JSON_INVALID" "Failed to update headless flag in run-state.json"
+    }
+
+    atomic_write "$ah_state_file" "$ah_updated" || {
+      json_err "$E_JSON_INVALID" "Failed to write run-state.json"
+    }
+
+    json_ok "$(jq -n --argjson headless "$ah_headless_bool" '{headless: $headless, updated: true}')"
+}

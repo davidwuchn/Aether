@@ -1,6 +1,7 @@
 #!/bin/bash
 # State API facade -- centralized COLONY_STATE.json access
-# Provides: _state_read, _state_write, _state_read_field, _state_mutate, _state_migrate
+# Provides: _state_read, _state_write, _state_read_field, _state_mutate, _state_migrate,
+#           _colony_vital_signs
 #
 # These functions are sourced by aether-utils.sh at startup.
 # All shared infrastructure (json_ok, json_err, atomic_write, acquire_lock,
@@ -196,4 +197,193 @@ _state_migrate() {
 
         [[ "$sm_lock_held" == "true" ]] && release_lock 2>/dev/null || true  # SUPPRESS:OK -- cleanup: lock may not be held
     fi
+}
+
+# ============================================================================
+# _colony_vital_signs
+# Compute colony health metrics from existing data files
+# Usage: colony-vital-signs
+# Returns: JSON with build_velocity, error_rate, signal_health, memory_pressure,
+#          colony_age_hours, and overall_health (0-100)
+# Gracefully degrades: missing files produce zero/default values
+# ============================================================================
+_colony_vital_signs() {
+    local cvs_state_file="$COLONY_DATA_DIR/COLONY_STATE.json"
+    local cvs_midden_file="$COLONY_DATA_DIR/midden/midden.json"
+    local cvs_phero_file="$COLONY_DATA_DIR/pheromones.json"
+    local cvs_session_file="$COLONY_DATA_DIR/session.json"
+
+    # --- Compute 24h window boundary ---
+    local cvs_now
+    cvs_now=$(date -u +%s 2>/dev/null || echo "0")
+    local cvs_window_start=$(( cvs_now - 86400 ))
+
+    # ---- build_velocity: count phase_completed events in last 24h ----
+    local cvs_phases_per_day=0
+    if [[ -f "$cvs_state_file" ]]; then
+        cvs_phases_per_day=$(jq --argjson win "$cvs_window_start" '
+            [.events[]? |
+             select(. != null) |
+             select(test("\\|phase_completed\\|")) |
+             capture("^(?P<ts>[^|]+)\\|") |
+             .ts |
+             gsub("[TZ:-]"; " ") |
+             split(" ") |
+             if length >= 6 then
+               (.[0:6] | join(" ")) |
+               # convert to comparable string for ordering -- full ISO compare
+               . as $s | $s
+             else . end
+            ] | length
+        ' "$cvs_state_file" 2>/dev/null || echo "0")
+
+        # Simpler approach: use string comparison on ISO timestamps
+        # Compute the 24h-ago timestamp as ISO string
+        local cvs_cutoff_iso
+        cvs_cutoff_iso=$(date -u -r "$cvs_window_start" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || date -u -d "@$cvs_window_start" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || echo "")
+
+        if [[ -n "$cvs_cutoff_iso" ]]; then
+            cvs_phases_per_day=$(jq --arg cutoff "$cvs_cutoff_iso" '
+                [.events[]? |
+                 select(. != null and (type == "string")) |
+                 select(test("\\|phase_completed\\|")) |
+                 split("|") | .[0] |
+                 select(. >= $cutoff)
+                ] | length
+            ' "$cvs_state_file" 2>/dev/null || echo "0")
+        fi
+    fi
+    # Normalize: ensure integer
+    cvs_phases_per_day=$(( cvs_phases_per_day + 0 )) 2>/dev/null || cvs_phases_per_day=0
+
+    # Determine trend (simple heuristic: any builds = steady, 0 = idle)
+    local cvs_bv_trend="idle"
+    [[ "$cvs_phases_per_day" -ge 1 ]] && cvs_bv_trend="steady"
+    [[ "$cvs_phases_per_day" -ge 3 ]] && cvs_bv_trend="accelerating"
+
+    # ---- error_rate: unreviewed midden entries in last 24h ----
+    local cvs_errors_per_day=0
+    local cvs_err_status="clean"
+    if [[ -f "$cvs_midden_file" ]]; then
+        local cvs_cutoff_iso_err
+        cvs_cutoff_iso_err=$(date -u -r "$cvs_window_start" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || date -u -d "@$cvs_window_start" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || echo "")
+
+        if [[ -n "$cvs_cutoff_iso_err" ]]; then
+            cvs_errors_per_day=$(jq --arg cutoff "$cvs_cutoff_iso_err" '
+                [(.entries // [])[]? |
+                 select(.reviewed == false or .reviewed == null) |
+                 select((.timestamp // "") >= $cutoff)
+                ] | length
+            ' "$cvs_midden_file" 2>/dev/null || echo "0")
+        else
+            # Fallback: count all unreviewed
+            cvs_errors_per_day=$(jq '
+                [(.entries // [])[]? | select(.reviewed == false or .reviewed == null)] | length
+            ' "$cvs_midden_file" 2>/dev/null || echo "0")
+        fi
+    fi
+    cvs_errors_per_day=$(( cvs_errors_per_day + 0 )) 2>/dev/null || cvs_errors_per_day=0
+
+    if [[ "$cvs_errors_per_day" -eq 0 ]]; then
+        cvs_err_status="clean"
+    elif [[ "$cvs_errors_per_day" -le 2 ]]; then
+        cvs_err_status="nominal"
+    elif [[ "$cvs_errors_per_day" -le 5 ]]; then
+        cvs_err_status="elevated"
+    else
+        cvs_err_status="critical"
+    fi
+
+    # ---- signal_health: count active pheromones ----
+    local cvs_active_count=0
+    local cvs_sig_status="dormant"
+    if [[ -f "$cvs_phero_file" ]]; then
+        cvs_active_count=$(jq '
+            [.signals[]? | select(.active == true)] | length
+        ' "$cvs_phero_file" 2>/dev/null || echo "0")
+    fi
+    cvs_active_count=$(( cvs_active_count + 0 )) 2>/dev/null || cvs_active_count=0
+
+    if [[ "$cvs_active_count" -eq 0 ]]; then
+        cvs_sig_status="dormant"
+    elif [[ "$cvs_active_count" -le 3 ]]; then
+        cvs_sig_status="guided"
+    else
+        cvs_sig_status="active"
+    fi
+
+    # ---- memory_pressure: count instincts ----
+    local cvs_instinct_count=0
+    local cvs_mem_status="empty"
+    if [[ -f "$cvs_state_file" ]]; then
+        # instincts may be a JSON string (serialized array) or a real array
+        local cvs_raw_instincts
+        cvs_raw_instincts=$(jq -r '.memory.instincts // "[]"' "$cvs_state_file" 2>/dev/null || echo "[]")
+        # Handle both string-encoded and native array
+        cvs_instinct_count=$(echo "$cvs_raw_instincts" | jq -r 'if type == "string" then (. | fromjson | length) elif type == "array" then length else 0 end' 2>/dev/null || echo "0")
+    fi
+    cvs_instinct_count=$(( cvs_instinct_count + 0 )) 2>/dev/null || cvs_instinct_count=0
+
+    if [[ "$cvs_instinct_count" -eq 0 ]]; then
+        cvs_mem_status="empty"
+    elif [[ "$cvs_instinct_count" -le 5 ]]; then
+        cvs_mem_status="growing"
+    elif [[ "$cvs_instinct_count" -le 15 ]]; then
+        cvs_mem_status="healthy"
+    else
+        cvs_mem_status="rich"
+    fi
+
+    # ---- colony_age_hours: hours since initialized_at ----
+    local cvs_age_hours=0
+    if [[ -f "$cvs_state_file" ]]; then
+        local cvs_init_at
+        cvs_init_at=$(jq -r '.initialized_at // empty' "$cvs_state_file" 2>/dev/null || echo "")
+        if [[ -n "$cvs_init_at" ]]; then
+            local cvs_init_ts
+            cvs_init_ts=$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$cvs_init_at" '+%s' 2>/dev/null \
+                || date -u -d "$cvs_init_at" '+%s' 2>/dev/null \
+                || echo "0")
+            if [[ "$cvs_init_ts" -gt 0 && "$cvs_now" -gt "$cvs_init_ts" ]]; then
+                cvs_age_hours=$(( (cvs_now - cvs_init_ts) / 3600 ))
+            fi
+        fi
+    fi
+
+    # ---- overall_health: weighted 0-100 score ----
+    # Components (max points each):
+    #   recent builds (+30): has at least one phase_completed in 24h
+    #   low errors (+30):    zero unreviewed errors in 24h
+    #   signals exist (+20): at least one active pheromone
+    #   instincts growing (+20): at least one instinct
+    local cvs_score=0
+    [[ "$cvs_phases_per_day" -ge 1 ]] && cvs_score=$(( cvs_score + 30 ))
+    [[ "$cvs_errors_per_day" -eq 0 ]] && cvs_score=$(( cvs_score + 30 ))
+    [[ "$cvs_active_count" -ge 1 ]] && cvs_score=$(( cvs_score + 20 ))
+    [[ "$cvs_instinct_count" -ge 1 ]] && cvs_score=$(( cvs_score + 20 ))
+    [[ "$cvs_score" -gt 100 ]] && cvs_score=100
+
+    json_ok "$(jq -n \
+        --argjson phases_per_day "$cvs_phases_per_day" \
+        --arg bv_trend "$cvs_bv_trend" \
+        --argjson errors_per_day "$cvs_errors_per_day" \
+        --arg err_status "$cvs_err_status" \
+        --argjson active_count "$cvs_active_count" \
+        --arg sig_status "$cvs_sig_status" \
+        --argjson instinct_count "$cvs_instinct_count" \
+        --arg mem_status "$cvs_mem_status" \
+        --argjson age_hours "$cvs_age_hours" \
+        --argjson overall_health "$cvs_score" \
+        '{
+            build_velocity:   {phases_per_day: $phases_per_day, trend: $bv_trend},
+            error_rate:       {errors_per_day: $errors_per_day, status: $err_status},
+            signal_health:    {active_count: $active_count, status: $sig_status},
+            memory_pressure:  {instinct_count: $instinct_count, status: $mem_status},
+            colony_age_hours: $age_hours,
+            overall_health:   $overall_health
+        }')"
 }

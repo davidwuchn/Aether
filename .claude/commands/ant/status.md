@@ -302,8 +302,52 @@ Use the `phase_bar` and `task_bar` values computed in Step 2.7 for the actual ba
 ```
 
 
-**Data Safety:**
+**Colony Vital Signs:**
 After the Memory Health table, run:
+```bash
+bash .aether/aether-utils.sh colony-vital-signs
+```
+
+Extract from JSON result:
+- build_velocity.phases_per_day and build_velocity.trend
+- error_rate.errors_per_day and error_rate.status
+- signal_health.active_count and signal_health.status
+- memory_pressure.instinct_count and memory_pressure.status
+- colony_age_hours
+- overall_health (0-100 score)
+
+Map overall_health score to a label:
+- 80-100: "Thriving"
+- 60-79: "Healthy"
+- 40-59: "Stable"
+- 20-39: "Struggling"
+- 0-19: "Critical"
+
+Display:
+```
+💓 Colony Vital Signs
+┌─────────────────┬────────────┬─────────────────────────────┐
+│ Vital Sign      │ Value      │ Status                      │
+├─────────────────┼────────────┼─────────────────────────────┤
+│ Build Velocity  │ {phases_per_day}/d  │ {trend}            │
+│ Error Rate      │ {errors_per_day}/d  │ {error_status}     │
+│ Signal Health   │ {active_count}      │ {signal_status}    │
+│ Memory Pressure │ {instinct_count}    │ {memory_status}    │
+│ Colony Age      │ {colony_age_hours}h │                    │
+├─────────────────┼────────────┼─────────────────────────────┤
+│ Overall Health  │ {overall_health}%   │ {health_label}     │
+└─────────────────┴────────────┴─────────────────────────────┘
+```
+
+If the command fails or returns no data, display:
+```
+💓 Colony Vital Signs: No data available
+```
+
+
+
+**Data Safety:**
+After the Colony Vital Signs panel, run:
 ```bash
 bash .aether/aether-utils.sh data-safety-stats
 ```

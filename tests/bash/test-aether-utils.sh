@@ -1703,6 +1703,135 @@ test_entropy_score_command() {
 }
 
 # ============================================================================
+# Test: colony-vital-signs returns valid JSON with expected keys
+# ============================================================================
+test_colony_vital_signs_command() {
+    local tmp_dir
+    tmp_dir=$(setup_isolated_env)
+
+    # Seed COLONY_STATE.json with initialized_at, instincts, and a phase_completed event
+    local now_ts
+    now_ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local recent_ts
+    recent_ts=$(date -u -v-1H +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date -u -d "1 hour ago" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "$now_ts")
+
+    cat > "$tmp_dir/.aether/data/COLONY_STATE.json" <<EOF
+{
+  "version": "3.0",
+  "goal": "test goal",
+  "initialized_at": "${recent_ts}",
+  "memory": {
+    "instincts": "[{\"id\":\"i1\"},{\"id\":\"i2\"},{\"id\":\"i3\"}]"
+  },
+  "events": [
+    "${recent_ts}|phase_completed|continue|Phase 1 done"
+  ]
+}
+EOF
+
+    # Seed pheromones.json with 2 active signals
+    cat > "$tmp_dir/.aether/data/pheromones.json" <<EOF
+{
+  "signals": [
+    {"id":"s1","type":"FOCUS","active":true},
+    {"id":"s2","type":"REDIRECT","active":true}
+  ]
+}
+EOF
+
+    # Seed midden with one unreviewed entry from the last 24h
+    mkdir -p "$tmp_dir/.aether/data/midden"
+    cat > "$tmp_dir/.aether/data/midden/midden.json" <<EOF
+{
+  "version": "1.0.0",
+  "entries": [
+    {"id":"e1","timestamp":"${recent_ts}","category":"test","source":"test","message":"a failure","reviewed":false}
+  ]
+}
+EOF
+
+    local output
+    output=$(bash "$tmp_dir/.aether/aether-utils.sh" colony-vital-signs 2>&1)
+    rm -rf "$tmp_dir"
+
+    if ! assert_json_valid "$output"; then
+        test_fail "valid JSON" "$output"
+        return 1
+    fi
+
+    # Verify ok:true
+    local ok
+    ok=$(echo "$output" | jq -r '.ok // false')
+    if [[ "$ok" != "true" ]]; then
+        test_fail "ok:true" "ok=$ok output=$output"
+        return 1
+    fi
+
+    # Verify top-level result keys exist
+    for key in build_velocity error_rate signal_health memory_pressure colony_age_hours overall_health; do
+        local val
+        val=$(echo "$output" | jq -r ".result.${key} // \"MISSING\"")
+        if [[ "$val" == "MISSING" ]]; then
+            test_fail "result has key $key" "key missing in output=$output"
+            return 1
+        fi
+    done
+
+    # Verify signal_health status is "guided" (2 active signals)
+    local sig_status
+    sig_status=$(echo "$output" | jq -r '.result.signal_health.status // "MISSING"')
+    if [[ "$sig_status" != "guided" ]]; then
+        test_fail "signal_health.status == guided" "status=$sig_status"
+        return 1
+    fi
+
+    # Verify overall_health is 0-100
+    local health
+    health=$(echo "$output" | jq -r '.result.overall_health // -1')
+    if ! [[ "$health" =~ ^[0-9]+$ ]] || [[ "$health" -lt 0 || "$health" -gt 100 ]]; then
+        test_fail "overall_health bounded 0-100" "health=$health"
+        return 1
+    fi
+
+    return 0
+}
+
+# ============================================================================
+# Test: colony-vital-signs gracefully degrades when data files are missing
+# ============================================================================
+test_colony_vital_signs_missing_files() {
+    local tmp_dir
+    tmp_dir=$(setup_isolated_env)
+    # No data files seeded — pure empty environment
+
+    local output
+    output=$(bash "$tmp_dir/.aether/aether-utils.sh" colony-vital-signs 2>&1)
+    rm -rf "$tmp_dir"
+
+    if ! assert_json_valid "$output"; then
+        test_fail "valid JSON on missing files" "$output"
+        return 1
+    fi
+
+    local ok
+    ok=$(echo "$output" | jq -r '.ok // false')
+    if [[ "$ok" != "true" ]]; then
+        test_fail "ok:true on missing files" "ok=$ok"
+        return 1
+    fi
+
+    # signal_health.status should be "dormant" (no pheromones file)
+    local sig_status
+    sig_status=$(echo "$output" | jq -r '.result.signal_health.status // "MISSING"')
+    if [[ "$sig_status" != "dormant" ]]; then
+        test_fail "signal_health.status == dormant when no pheromones" "status=$sig_status"
+        return 1
+    fi
+
+    return 0
+}
+
+# ============================================================================
 # Main Test Runner
 # ============================================================================
 
@@ -1771,6 +1900,8 @@ main() {
     run_test "test_spawn_efficiency_command" "spawn-efficiency reports totals and efficiency percentage"
     run_test "test_pheromone_expire_promotes_eternal" "pheromone-expire promotes high-strength signals to eternal memory"
     run_test "test_entropy_score_command" "entropy-score returns bounded 0-100 value"
+    run_test "test_colony_vital_signs_command" "colony-vital-signs returns valid JSON with all required keys"
+    run_test "test_colony_vital_signs_missing_files" "colony-vital-signs gracefully degrades when data files are missing"
 
     # Print summary
     test_summary
