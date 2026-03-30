@@ -1391,8 +1391,7 @@ _colony_depth() {
             local new_depth="${2:-}"
             case "$new_depth" in
                 light|standard|deep|full)
-                    local tmp="${DATA_DIR}/COLONY_STATE.json.tmp.$$"
-                    jq --arg d "$new_depth" '.colony_depth = $d' "$DATA_DIR/COLONY_STATE.json" > "$tmp" && mv "$tmp" "$DATA_DIR/COLONY_STATE.json"
+                    NEW_DEPTH="$new_depth" _state_mutate '.colony_depth = env.NEW_DEPTH'
                     json_ok "$(jq -n --arg depth "$new_depth" '{depth: $depth, updated: true}')"
                     ;;
                 *)
@@ -1476,8 +1475,7 @@ _queen_write_charter() {
         local current_name
         current_name=$(jq -r '.colony_name // empty' "$DATA_DIR/COLONY_STATE.json" 2>/dev/null) || true
         if [[ -z "$current_name" && -n "$cw_colony_name" ]]; then
-            local tmp_state="${DATA_DIR}/COLONY_STATE.json.tmp.$$"
-            jq --arg cn "$cw_colony_name" '.colony_name = $cn' "$DATA_DIR/COLONY_STATE.json" > "$tmp_state" && mv "$tmp_state" "$DATA_DIR/COLONY_STATE.json"
+            CW_COLONY_NAME="$cw_colony_name" _state_mutate '.colony_name = env.CW_COLONY_NAME'
         fi
     fi
 
