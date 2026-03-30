@@ -632,6 +632,29 @@ else
 fi
 ```
 
+### Step 6.5a: Export Branch Pheromones (PHERO-02)
+
+Before finalizing the seal, export branch pheromone signals for potential merge-back. This step only runs on non-main branches.
+
+```bash
+# Export pheromones for merge-back if on a non-main branch
+current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+if [[ "$current_branch" != "main" ]]; then
+  export_result=$(bash .aether/aether-utils.sh pheromone-export-branch 2>/dev/null || echo '{"ok":false}')
+  export_ok=$(echo "$export_result" | jq -r '.ok // false' 2>/dev/null)
+  if [[ "$export_ok" == "true" ]]; then
+    eligible_count=$(echo "$export_result" | jq -r '.result.eligible_count // 0' 2>/dev/null)
+    pheromone_export_line="Pheromone Export: ${eligible_count} signals eligible for merge-back"
+  else
+    pheromone_export_line="Pheromone Export: failed (non-blocking)"
+  fi
+else
+  pheromone_export_line=""
+fi
+```
+
+This is NON-BLOCKING -- if export fails, seal proceeds normally. The export file is written to `.aether/exchange/pheromone-branch-export.json` which is git-tracked.
+
 ### Step 7: Display Ceremony
 
 
@@ -670,6 +693,7 @@ Seal Document: .aether/CROWNED-ANTHILL.md
 {pher_export_line}
 {wisdom_export_line}
 {registry_export_line}
+{pheromone_export_line}
 
 The colony stands crowned and sealed.
 Its wisdom lives on in QUEEN.md.

@@ -2261,7 +2261,7 @@ _pheromone_export_branch() {
 # Export branch's eligible signals for merge-back
 # Usage: pheromone-export-branch
 # Returns: JSON with eligible_count, ineligible_count, total_signals
-# Side effect: writes .aether/data/pheromone-branch-export.json
+# Side effect: writes .aether/exchange/pheromone-branch-export.json
 
 peb_file="$COLONY_DATA_DIR/pheromones.json"
 
@@ -2367,7 +2367,8 @@ peb_export=$(jq -n \
     ineligible_count: $ineligible
   }')
 
-peb_export_file="$COLONY_DATA_DIR/pheromone-branch-export.json"
+peb_export_file="$AETHER_ROOT/.aether/exchange/pheromone-branch-export.json"
+mkdir -p "$AETHER_ROOT/.aether/exchange" 2>/dev/null || true
 atomic_write "$peb_export_file" "$peb_export" 2>/dev/null || {
   _aether_log_error "Could not write pheromone branch export"
 }
