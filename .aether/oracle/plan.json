@@ -445,7 +445,7 @@
       "id": "q1",
       "text": "What are the main components and their responsibilities in the Aether system?",
       "status": "answered",
-      "confidence": 85,
+      "confidence": 92,
       "key_findings": [
         {
           "text": "System has 13 major components: aether-utils.sh (11,272-line monolithic bash utility with ~125 subcommands), CLI (Node.js bin/cli.js with 16 lib modules), 43 slash commands, 22 agent definitions across 3 tiers, skills system (10 colony + 18 domain), pheromone signal system (FOCUS/REDIRECT/FEEDBACK), colony state persistence, hub (~/.aether/ with hive brain), 22 extracted utility scripts, XML exchange system, 12 templates, internal documentation with split playbooks, and workers.md role definitions.",
@@ -544,7 +544,7 @@
       "id": "q2",
       "text": "What are the dependency relationships between components, and where are coupling risks?",
       "status": "answered",
-      "confidence": 82,
+      "confidence": 90,
       "key_findings": [
         {
           "text": "COLONY_STATE.json is the central coupling nexus: 219 direct references across 38 of 43 slash commands, plus 153 references in aether-utils.sh. Both slash commands and aether-utils.sh read/write it — slash commands via direct jq calls AND via aether-utils.sh subcommands, creating two parallel access paths to the same file with potential consistency risks.",
@@ -639,7 +639,7 @@
       "id": "q3",
       "text": "Where are the risk areas — execution reliability gaps, silent failures, fake autonomy, hallucination vectors, and verification weaknesses?",
       "status": "answered",
-      "confidence": 82,
+      "confidence": 88,
       "key_findings": [
         {
           "text": "Silent error suppression at industrial scale: ~338 instances of error-swallowing patterns. ERR trap disabled for suggest-analyze (lines 10236-10427), creating ~200-line untrapped window during builds. Combined with conditional module sourcing, errors propagate without detection.",
@@ -746,7 +746,7 @@
       "id": "q4",
       "text": "How does the memory and context management system handle state persistence, session resume, context rot, and cross-colony knowledge sharing?",
       "status": "answered",
-      "confidence": 82,
+      "confidence": 90,
       "key_findings": [
         {
           "text": "Dual-file state persistence: session.json (lightweight metadata) and COLONY_STATE.json (authoritative state). Resume reads both, COLONY_STATE.json always authoritative. Missing/corrupted COLONY_STATE.json blocks resume — asks user to start fresh.",
@@ -875,7 +875,7 @@
       "id": "q5",
       "text": "What would an expert change about this architecture to minimize user input while maximizing safety, verifiability, and autonomous execution capability?",
       "status": "answered",
-      "confidence": 80,
+      "confidence": 88,
       "key_findings": [
         {
           "text": "RECOMMENDATION 1 — Per-phase COLONY_STATE.json checkpointing. Only entomb creates backups. State-safety skill prescribes backups but they're not implemented in builds/continues/autopilot. Fix: cp COLONY_STATE.json COLONY_STATE.json.phase-N.bak before each build-wave. Near-zero cost, prevents total loss.",
@@ -1003,7 +1003,7 @@
     }
   ],
   "created_at": "2026-03-23T16:06:44Z",
-  "last_updated": "2026-03-23T17:30:00Z",
+  "last_updated": "2026-03-30T09:30:00Z",
   "trust_summary": {
     "total_findings": 55,
     "single_source": 8,

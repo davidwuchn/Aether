@@ -1,59 +1,131 @@
 {
   "version": "3.0",
-  "goal": "Implement next-generation Aether features: immune response system (trophallaxis repair + scarification), headless autopilot (--headless flag + pending decisions), colony vital signs dashboard, /ant:quick scout missions, council expansion (advocate/challenger/sage), and midden library for persistent debug knowledge",
+  "goal": "Fix critical midden entries (spawn-tree O(n^2), queen-promote newline destruction, JSON ant names), reduce aether-utils.sh bug-fix ratio through targeted fixes, update 4 high-CVE dependencies (minimatch, path-to-regexp, picomatch, node-tar), and filter test noise from activity log",
   "colony_name": null,
-  "colony_version": 2,
+  "colony_version": 1,
   "state": "READY",
-  "current_phase": 6,
-  "session_id": "session_1774806158_2241",
-  "initialized_at": "2026-03-29T17:42:38Z",
-  "build_started_at": "2026-03-29T18:06:40Z",
+  "current_phase": 2,
+  "session_id": "session_1774845857_55502",
+  "initialized_at": "2026-03-30T04:44:17Z",
+  "build_started_at": null,
   "plan": {
-    "generated_at": "2026-03-29T18:03:09Z",
-    "confidence": 94,
+    "generated_at": "2026-03-30T05:15:17Z",
+    "confidence": 93,
     "phases": [
       {
         "id": 1,
-        "name": "Midden Library Foundation",
+        "name": "Harden JSON escaping in spawn-tree",
         "status": "completed",
-        "description": "Add midden-search and midden-tag subcommands with tests"
+        "description": "Add missing newline/CR/control-character escaping to awk-based JSON output in spawn-tree.sh"
       },
       {
         "id": 2,
-        "name": "Colony Vital Signs Dashboard",
-        "status": "completed",
-        "description": "Extend /ant:status with vital signs panel using existing data"
+        "name": "Fix queen-promote newline destruction and awk backslash issue",
+        "status": "pending",
+        "description": "Sanitize newlines in content before building QUEEN.md entries, fix awk -v backslash interpretation, clean up orphaned .metaupd temp files"
       },
       {
         "id": 3,
-        "name": "Headless Autopilot + Pending Decisions",
-        "status": "completed",
-        "description": "Add --headless flag to /ant:run, suppress interactive prompts, queue deferred decisions"
+        "name": "Filter test noise from activity log",
+        "status": "pending",
+        "description": "Add AETHER_TESTING env guard to all 5 activity.log write points in error-handler.sh and spawn.sh"
       },
       {
         "id": 4,
-        "name": "Trophallaxis Repair + Scarification",
-        "status": "completed",
-        "description": "Immune response: scout diagnoses failures, retry with findings, scar persistent failures"
+        "name": "Update high-CVE dependencies",
+        "status": "pending",
+        "description": "Run npm audit fix for minimatch, path-to-regexp, picomatch, tar; add npm overrides if needed for nested picomatch"
       },
       {
         "id": 5,
-        "name": "/ant:quick Scout Missions",
-        "status": "completed",
-        "description": "New lightweight command for focused scout queries without full build ceremony"
-      },
-      {
-        "id": 6,
-        "name": "Council Expansion",
-        "status": "completed",
-        "description": "Advocate/Challenger/Sage deliberation model with spawn budget guards"
+        "name": "Verify fixes and acknowledge midden entries",
+        "status": "pending",
+        "description": "Run full test suite, acknowledge 7+ resolved midden entries including already-fixed O(n^2) spawn-tree"
       }
     ]
   },
   "memory": {
-    "phase_learnings": "[]",
+    "phase_learnings": [
+      {
+        "id": "learning_1774849545",
+        "phase": 1,
+        "phase_name": "Harden JSON escaping in spawn-tree",
+        "learnings": [
+          {
+            "claim": "When adding awk gsub escaping, order matters: backslash must be first to prevent double-escaping of chars added by subsequent gsub calls",
+            "status": "validated",
+            "tested": true,
+            "evidence": "13/13 spawn-tree tests pass with 5-gsub chain in correct order",
+            "disproven_by": null
+          },
+          {
+            "claim": "Literal newlines in pipe-delimited records break awk NF guards, making CR the primary testable control character scenario for field-embedded content",
+            "status": "validated",
+            "tested": true,
+            "evidence": "Builder found awk NF==7 splits on newlines, so CR is the real edge case for embedded control chars",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-30T05:45:45Z"
+      }
+    ],
     "decisions": [],
-    "instincts": "[]"
+    "instincts": [
+      {
+        "id": "instinct_1774849565",
+        "trigger": "adding awk gsub escaping for JSON output",
+        "action": "escape backslash FIRST to prevent double-escaping from subsequent gsub calls",
+        "confidence": 0.8,
+        "status": "hypothesis",
+        "domain": "code-style",
+        "source": "phase-1",
+        "evidence": [
+          "5-gsub chain order validated by 13/13 tests"
+        ],
+        "tested": false,
+        "created_at": "2026-03-30T05:46:05Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774849555",
+        "trigger": "working on pattern patterns",
+        "action": "When adding awk gsub escaping, order matters: backslash must be first to prevent double-escaping",
+        "confidence": 0.70,
+        "status": "hypothesis",
+        "domain": "pattern",
+        "source": "promoted_from_learning",
+        "evidence": [
+          ""
+        ],
+        "tested": false,
+        "created_at": "2026-03-30T05:45:55Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774849556",
+        "trigger": "working on pattern patterns",
+        "action": "Literal newlines break awk NF guards, CR is the testable control char for embedded content",
+        "confidence": 0.70,
+        "status": "hypothesis",
+        "domain": "pattern",
+        "source": "promoted_from_learning",
+        "evidence": [
+          ""
+        ],
+        "tested": false,
+        "created_at": "2026-03-30T05:45:56Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      }
+    ]
   },
   "errors": {
     "records": [],
@@ -62,28 +134,13 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-03-29T17:42:38Z|colony_initialized|init|Colony initialized with goal: Implement next-generation Aether features: immune response system (trophallaxis repair + scarification), headless autopilot (--headless flag + pending decisions), colony vital signs dashboard, /ant:quick scout missions, council expansion (advocate/challenger/sage), and midden library for persistent debug knowledge",
-    "2026-03-29T18:03:09Z|plan_generated|plan|Generated 6 phases with 94% confidence (3 iterations, exhaustive mode)",
-    "2026-03-29T18:06:40Z|phase_started|build|Phase 1: Midden Library Foundation started",
-    "2026-03-29T18:15:23Z|phase_completed|continue|Phase 1: Midden Library Foundation completed",
-    "2026-03-29T18:15:23Z|autopilot_advance|run|Phase 1 -> 2 (1/6)",
-    "2026-03-29T18:15:30Z|phase_started|build|Phase 2: Colony Vital Signs Dashboard started",
-    "2026-03-29T18:33:13Z|phase_completed|continue|Phase 2: Colony Vital Signs Dashboard completed",
-    "2026-03-29T18:33:13Z|autopilot_advance|run|Phase 2 -> 3 (2/6)",
-    "2026-03-29T18:33:37Z|phase_started|build|Phase 3: Headless Autopilot + Pending Decisions started",
-    "2026-03-29T18:51:12Z|phase_completed|continue|Phase 3: Headless Autopilot + Pending Decisions completed",
-    "2026-03-29T18:51:12Z|autopilot_advance|run|Phase 3 -> 4 (3/6)",
-    "2026-03-29T18:51:18Z|phase_started|build|Phase 4: Trophallaxis Repair + Scarification started",
-    "2026-03-29T19:05:11Z|phase_completed|continue|Phase 4: Trophallaxis Repair + Scarification completed",
-    "2026-03-29T19:05:11Z|autopilot_advance|run|Phase 4 -> 5 (4/6)",
-    "2026-03-29T19:05:25Z|phase_started|build|Phase 5: /ant:quick Scout Missions started",
-    "2026-03-29T19:07:33Z|phase_completed|continue|Phase 5: /ant:quick Scout Missions completed",
-    "2026-03-29T19:07:33Z|autopilot_advance|run|Phase 5 -> 6 (5/6)",
-    "2026-03-29T19:07:39Z|phase_started|build|Phase 6: Council Expansion started",
-    "2026-03-29T19:22:22Z|phase_completed|continue|Phase 6: Council Expansion completed",
-    "2026-03-29T19:22:22Z|autopilot_complete|run|All 6 phases completed",
-    "2026-03-30T04:27:57Z|milestone_reached|seal|Achieved Crowned Anthill milestone"
+    "2026-03-30T04:44:17Z|colony_initialized|init|Colony initialized with goal: Fix critical midden entries (spawn-tree O(n^2), queen-promote newline destruction, JSON ant names), reduce aether-utils.sh bug-fix ratio through targeted fixes, update 4 high-CVE dependencies (minimatch, path-to-regexp, picomatch, node-tar), and filter test noise from activity log",
+    "2026-03-30T04:53:04Z|territory_surveyed|colonize|Territory surveyed: 7 documents",
+    "2026-03-30T05:15:17Z|plan_generated|plan|Generated 5 phases with 93% confidence (3 iterations, exhaustive mode)",
+    "2026-03-30T05:17:37Z|phase_started|build|Phase 1: Harden JSON escaping in spawn-tree started",
+    "2026-03-30T05:20:00Z|phase_started|build|Phase 1: Harden JSON escaping in spawn-tree started",
+    "2026-03-30T05:45:45Z|phase_completed|continue|Phase 1: Harden JSON escaping in spawn-tree completed",
+    "2026-03-30T05:45:45Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
   ],
-  "milestone": "Crowned Anthill",
-  "milestone_updated_at": "2026-03-30T04:27:57Z"
+  "territory_surveyed": "2026-03-30T04:53:04Z"
 }

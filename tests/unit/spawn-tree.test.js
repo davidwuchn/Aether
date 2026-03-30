@@ -217,3 +217,115 @@ test('spawn-tree-active returns empty array when no active spawns', t => {
   // Cleanup
   fs.rmSync(tempDir, { recursive: true });
 });
+
+// Test: parse_spawn_tree handles backslash-n literal (two-char \n) in ant names
+// Note: a real newline in a pipe-delimited record would break the record boundary,
+// so the relevant case is a backslash followed by 'n' (two chars) in the field value.
+test('spawn-tree-load preserves backslash-n sequence in ant name as valid JSON', t => {
+  const tempDir = fs.mkdtempSync('/tmp/spawn-tree-ctrl-test-');
+  const tempSpawnTree = path.join(tempDir, 'spawn-tree.txt');
+
+  // Ant name containing a backslash followed by 'n' (two characters, not a newline)
+  const testData = '2026-02-13T10:00:00Z|Queen|builder|Ant\\nBackslash|Task 1|default|spawned\n';
+
+  fs.writeFileSync(tempSpawnTree, testData);
+
+  const cmd = `SPAWN_TREE_FILE="${tempSpawnTree}" bash "${AETHER_UTILS}" spawn-tree-load`;
+  const output = execSync(cmd, {
+    cwd: AETHER_ROOT,
+    encoding: 'utf8',
+    timeout: 10000
+  });
+
+  // Output must be valid JSON
+  t.notThrows(() => JSON.parse(output), 'Output must be valid JSON with backslash-n in ant name');
+  const result = JSON.parse(output);
+  t.true(result.ok, 'Should return ok: true');
+  t.is(result.result.spawns.length, 1, 'Should have one spawn');
+  // The name should preserve the backslash-n sequence
+  t.true(result.result.spawns[0].name.includes('\\n'), 'Parsed ant name should contain backslash-n sequence');
+
+  fs.rmSync(tempDir, { recursive: true });
+});
+
+// Test: parse_spawn_tree escapes carriage return in ant names
+test('spawn-tree-load escapes carriage return in ant name to produce valid JSON', t => {
+  const tempDir = fs.mkdtempSync('/tmp/spawn-tree-cr-test-');
+  const tempSpawnTree = path.join(tempDir, 'spawn-tree.txt');
+
+  // Ant name containing a literal carriage return
+  const antNameWithCR = 'Ant\rWithCR';
+  const testData = `2026-02-13T10:00:00Z|Queen|builder|${antNameWithCR}|Task 1|default|spawned\n`;
+
+  fs.writeFileSync(tempSpawnTree, testData);
+
+  const cmd = `SPAWN_TREE_FILE="${tempSpawnTree}" bash "${AETHER_UTILS}" spawn-tree-load`;
+  const output = execSync(cmd, {
+    cwd: AETHER_ROOT,
+    encoding: 'utf8',
+    timeout: 10000
+  });
+
+  // Output must be valid JSON — JSON.parse will throw if CR is unescaped
+  t.notThrows(() => JSON.parse(output), 'Output must be valid JSON even with CR in ant name');
+  const result = JSON.parse(output);
+  t.true(result.ok, 'Should return ok: true');
+  t.is(result.result.spawns.length, 1, 'Should have one spawn');
+  // The name should contain the CR character after JSON parsing
+  t.regex(result.result.spawns[0].name, /\r/, 'Parsed ant name should contain carriage return character');
+
+  fs.rmSync(tempDir, { recursive: true });
+});
+
+// Test: get_active_spawns handles carriage return in ant names
+test('spawn-tree-active escapes carriage return in ant name to produce valid JSON', t => {
+  const tempDir = fs.mkdtempSync('/tmp/spawn-tree-active-ctrl-test-');
+  const tempSpawnTree = path.join(tempDir, 'spawn-tree.txt');
+
+  // Write a file with a CR in the ant name (CR does not break awk line parsing)
+  const testData = Buffer.from('2026-02-13T10:00:00Z|Queen|builder|Active\rAnt|Active task|default|spawned\n');
+
+  fs.writeFileSync(tempSpawnTree, testData);
+
+  const cmd = `SPAWN_TREE_FILE="${tempSpawnTree}" bash "${AETHER_UTILS}" spawn-tree-active`;
+  const output = execSync(cmd, {
+    cwd: AETHER_ROOT,
+    encoding: 'utf8',
+    timeout: 10000
+  });
+
+  // Output must be valid JSON — CR would break JSON if unescaped
+  t.notThrows(() => JSON.parse(output), 'Output must be valid JSON even with CR in active ant name');
+  const result = JSON.parse(output);
+  t.true(result.ok, 'Should return ok: true');
+  t.is(result.result.length, 1, 'Should have one active spawn');
+  t.regex(result.result[0].name, /\r/, 'Parsed active ant name should contain carriage return character');
+
+  fs.rmSync(tempDir, { recursive: true });
+});
+
+// Test: carriage return in task description is escaped
+test('spawn-tree-load escapes carriage return in task description to produce valid JSON', t => {
+  const tempDir = fs.mkdtempSync('/tmp/spawn-tree-task-ctrl-test-');
+  const tempSpawnTree = path.join(tempDir, 'spawn-tree.txt');
+
+  // Task description with embedded CR — CR does not break awk line parsing
+  const testData = Buffer.from('2026-02-13T10:00:00Z|Queen|builder|NormalAnt|Task\rWith\rCR|default|spawned\n');
+
+  fs.writeFileSync(tempSpawnTree, testData);
+
+  const cmd = `SPAWN_TREE_FILE="${tempSpawnTree}" bash "${AETHER_UTILS}" spawn-tree-load`;
+  const output = execSync(cmd, {
+    cwd: AETHER_ROOT,
+    encoding: 'utf8',
+    timeout: 10000
+  });
+
+  t.notThrows(() => JSON.parse(output), 'Output must be valid JSON even with CR in task');
+  const result = JSON.parse(output);
+  t.true(result.ok, 'Should return ok: true');
+  t.is(result.result.spawns.length, 1, 'Should have one spawn');
+  t.regex(result.result.spawns[0].task, /\r/, 'Parsed task should contain carriage return character');
+
+  fs.rmSync(tempDir, { recursive: true });
+});

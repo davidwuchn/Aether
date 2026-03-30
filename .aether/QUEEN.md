@@ -11,14 +11,16 @@ Communication style, expertise level, and decision-making patterns observed from
 
 - **test-colony** (2026-03-29T06:03:45Z): test content
 
-- [charter] **Intent**: Implement next-generation Aether features: immune response system (trophallaxis repair + scarification), headless autopilot (--headless flag + pending decisions), colony vital signs dashboard, /ant... (Colony: Aether Colony)
-- [charter] **Vision**: Transform Aether from a reliable colony orchestrator into a self-healing, adaptive system that learns from every failure, runs autonomously when needed, and gives the Queen a living picture of colo... (Colony: Aether Colony)
+- [charter] **Intent**: Fix critical midden entries (spawn-tree O(n^2), queen-promote newline destruction, JSON ant names), reduce aether-utils.sh bug-fix ratio through targeted fixes, update 4 high-CVE dependencies (mini... (Colony: Aether Colony)
+- [charter] **Vision**: Harden Aether operational foundations -- fix the bugs that chaos testing surfaced, clean up security debt in dependencies, and make the activity log useful again as a monitoring signal. This is a s... (Colony: Aether Colony)
 ---
 
 ## Codebase Patterns
 
 Validated approaches that work in this codebase, and anti-patterns to avoid. Includes architecture conventions, naming patterns, error handling style, and technology-specific insights. Tagged [repo] for project-specific or [general] for cross-colony patterns.
 
+- **Aether Colony** (2026-03-30T05:45:56Z): Literal newlines break awk NF guards, CR is the testable control char for embedded content
+- **Aether Colony** (2026-03-30T05:45:54Z): When adding awk gsub escaping, order matters: backslash must be first to prevent double-escaping
 - **1774204068** (2026-03-29T17:39:31Z): Oracle research finding: What would an expert change about this architecture to minimize user input while maximizing safety, verifiability, and autonomous execution capability? (80%)
 - **1774204068** (2026-03-29T17:39:23Z): Oracle research finding: How does the memory and context management system handle state persistence, session resume, context rot, and cross-colony knowledge sharing? (82%)
 - **1774204068** (2026-03-29T17:39:14Z): Oracle research finding: Where are the risk areas — execution reliability gaps, silent failures, fake autonomy, hallucination vectors, and verification weaknesses? (82%)
@@ -72,7 +74,7 @@ Validated approaches that work in this codebase, and anti-patterns to avoid. Inc
 - [hive] When Deploying files via SFTP to Cloudways: Use -oPreferredAuthentications=password flags for Cloudways SFTP (cross-colony, confidence: 0.9)
 - [hive] When Verifying deployed changes on Cloudways: Use ?nocache= to bypass Varnish when verifying deploys (cross-colony, confidence: 0.9)
 - [hive] When building bash utilities with scoring/accumulation loops: use process substitution (&lt; &lt;(jq)) not pipes to while loops — pipes create subshells that lose variable modifications (cross-colony, confidence: 0.85)
-- [charter] **Governance**: CI/CD pipeline active — ensure all checks pass before merging (Colony: Aether Colony)
+- [charter] **Governance**: CI/CD pipeline active -- ensure all checks pass before merging (Colony: Aether Colony)
 ---
 
 ## Build Learnings
@@ -109,6 +111,9 @@ High-confidence behavioral patterns that have been validated through repeated co
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-03-30T05:45:56Z | Aether Colony | promoted_pattern | Added: Literal newlines break awk NF guards, CR is the te... |
+| 2026-03-30T05:45:54Z | Aether Colony | promoted_pattern | Added: When adding awk gsub escaping, order matters: back... |
+| 2026-03-30T04:44:16Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-29T17:41:46Z | system | charter_updated | Colony charter updated for Aether Colony |
 | 2026-03-29T17:39:31Z | 1774204068 | promoted_pattern | Added: Oracle research finding: What would an expert chan... |
 | 2026-03-29T17:39:23Z | 1774204068 | promoted_pattern | Added: Oracle research finding: How does the memory and c... |
@@ -188,11 +193,11 @@ High-confidence behavioral patterns that have been validated through repeated co
 {
   "version": "2.0.0",
   "wisdom_version": "2.0",
-  "last_evolved": "2026-03-29T17:41:46Z",
+  "last_evolved": "2026-03-30T05:45:56Z",
   "colonies_contributed": ["1774645519"],
   "stats": {
     "total_user_prefs": 3,
-    "total_codebase_patterns": 53,
+    "total_codebase_patterns": 55,
     "total_build_learnings": 3,
     "total_instincts": 9
   },

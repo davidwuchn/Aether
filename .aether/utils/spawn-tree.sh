@@ -51,9 +51,9 @@ parse_spawn_tree() {
     printf "\"spawns\":["
     for (i = 0; i < n; i++) {
       if (i > 0) printf ","
-      nm = names[i]; gsub(/\\/, "\\\\", nm); gsub(/"/, "\\\"", nm); gsub(/\t/, "\\t", nm)
-      pr = parents[i]; gsub(/\\/, "\\\\", pr); gsub(/"/, "\\\"", pr); gsub(/\t/, "\\t", pr)
-      tk = tasks[i]; gsub(/\\/, "\\\\", tk); gsub(/"/, "\\\"", tk); gsub(/\t/, "\\t", tk)
+      nm = names[i]; gsub(/\\/, "\\\\", nm); gsub(/"/, "\\\"", nm); gsub(/\t/, "\\t", nm); gsub(/\n/, "\\n", nm); gsub(/\r/, "\\r", nm)
+      pr = parents[i]; gsub(/\\/, "\\\\", pr); gsub(/"/, "\\\"", pr); gsub(/\t/, "\\t", pr); gsub(/\n/, "\\n", pr); gsub(/\r/, "\\r", pr)
+      tk = tasks[i]; gsub(/\\/, "\\\\", tk); gsub(/"/, "\\\"", tk); gsub(/\t/, "\\t", tk); gsub(/\n/, "\\n", tk); gsub(/\r/, "\\r", tk)
       printf "{\"name\":\"%s\",\"parent\":\"%s\",\"caste\":\"%s\",", nm, pr, castes[i]
       printf "\"task\":\"%s\",\"status\":\"%s\",", tk, statuses[i]
       printf "\"spawned_at\":\"%s\",\"completed_at\":\"%s\",", timestamps[i], completed_at[i]
@@ -63,7 +63,7 @@ parse_spawn_tree() {
         for (j = 1; j <= length(cidxs); j++) {
           if (j > 1) printf ","
           cn = names[cidxs[j]+0]
-          gsub(/\\/, "\\\\", cn); gsub(/"/, "\\\"", cn); gsub(/\t/, "\\t", cn)
+          gsub(/\\/, "\\\\", cn); gsub(/"/, "\\\"", cn); gsub(/\t/, "\\t", cn); gsub(/\n/, "\\n", cn); gsub(/\r/, "\\r", cn)
           printf "\"%s\"", cn
         }
       }
@@ -149,9 +149,9 @@ get_active_spawns() {
       if (!(spawn_names[i] in done_set)) {
         if (!first) printf ","
         first = 0
-        nm = spawn_names[i]; gsub(/\\/, "\\\\", nm); gsub(/"/, "\\\"", nm); gsub(/\t/, "\\t", nm)
-        pr = spawn_parents[i]; gsub(/\\/, "\\\\", pr); gsub(/"/, "\\\"", pr); gsub(/\t/, "\\t", pr)
-        tk = spawn_tasks[i]; gsub(/\\/, "\\\\", tk); gsub(/"/, "\\\"", tk); gsub(/\t/, "\\t", tk)
+        nm = spawn_names[i]; gsub(/\\/, "\\\\", nm); gsub(/"/, "\\\"", nm); gsub(/\t/, "\\t", nm); gsub(/\n/, "\\n", nm); gsub(/\r/, "\\r", nm)
+        pr = spawn_parents[i]; gsub(/\\/, "\\\\", pr); gsub(/"/, "\\\"", pr); gsub(/\t/, "\\t", pr); gsub(/\n/, "\\n", pr); gsub(/\r/, "\\r", pr)
+        tk = spawn_tasks[i]; gsub(/\\/, "\\\\", tk); gsub(/"/, "\\\"", tk); gsub(/\t/, "\\t", tk); gsub(/\n/, "\\n", tk); gsub(/\r/, "\\r", tk)
         printf "{\"name\":\"%s\",\"caste\":\"%s\",\"parent\":\"%s\",\"task\":\"%s\",\"spawned_at\":\"%s\"}", nm, spawn_castes[i], pr, tk, spawn_ts[i]
       }
     }

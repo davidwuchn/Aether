@@ -21,3 +21,13 @@
 2026-03-30T04:27:00Z|Queen|chronicler|{"ok":true,"result":"Archive-25"}|Documentation coverage audit|inherit|spawned
 2026-03-30T04:28:55Z|Marcher-86|completed|Analytics review complete
 2026-03-30T04:28:55Z|Archive-25|completed|Documentation audit complete
+2026-03-30T05:19:08Z|Queen|scout|Glyph-74|Pre-build archaeology scan|inherit|spawned
+2026-03-30T05:22:31Z|Glyph-74|completed|Pre-build archaeology scan
+2026-03-30T05:23:22Z|Queen|builder|Hammer-61|Add newline/CR/control-char escaping to awk JSON output in spawn-tree.sh|inherit|spawned
+2026-03-30T05:27:58Z|Hammer-61|completed|Added newline and CR gsub escaping to all 3 awk blocks in spawn-tree.sh
+2026-03-30T05:28:13Z|Queen|watcher|Sharp-33|Independent verification|inherit|spawned
+2026-03-30T05:32:09Z|Sharp-33|completed|Verification passed: all 13 spawn-tree tests pass, 5-gsub chain correct, no regressions
+2026-03-30T05:39:26Z|Queen|gatekeeper|Checkpoint-84|Supply chain security audit|inherit|spawned
+2026-03-30T05:39:27Z|Queen|auditor|Audit-53|Code quality audit|inherit|spawned
+2026-03-30T05:43:26Z|Checkpoint-84|completed|No critical CVEs, 1 LOW finding
+2026-03-30T05:43:26Z|Audit-53|completed|Score 63/100, 0 critical, 1 HIGH
