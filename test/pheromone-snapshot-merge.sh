@@ -467,7 +467,7 @@ create_pheromones "$td" '[
 git -C "$td" checkout -q -b feature/test-branch 2>/dev/null || true
 result=$(run_pheromone "$td" pheromone-export-branch)
 if echo "$result" | jq -e '.ok == true' >/dev/null 2>&1; then
-  export_file="$td/.aether/data/pheromone-branch-export.json"
+  export_file="$td/.aether/exchange/pheromone-branch-export.json"
   if [[ -f "$export_file" ]]; then
     assert_json_eq "export schema" "$(cat "$export_file")" '.schema' "pheromone-branch-export-v1"
   else
@@ -1055,6 +1055,46 @@ echo "13a. Export fails when no pheromones.json"
 td=$(setup_test_repo)
 # Do not create pheromones.json
 assert_exit_fail "export-branch fails without pheromones.json" run_pheromone "$td" pheromone-export-branch
+rm -rf "$td"
+
+# ============================================================
+echo ""
+echo "--- 14. pheromone-export-branch: Export writes to exchange dir ---"
+echo ""
+
+# 14a. Export file written to .aether/exchange/ not .aether/data/
+echo "14a. Export file written to .aether/exchange/"
+td=$(setup_test_repo)
+mkdir -p "$td/.aether/exchange"
+create_pheromones "$td" '[
+  {"id":"sig_redirect_wrk14","type":"REDIRECT","priority":"high","source":"worker:builder",
+   "created_at":"2026-03-30T13:00:00Z","expires_at":"phase_end","active":true,
+   "strength":0.9,"reason":"test","content":{"text":"avoid global vars"},"content_hash":"hash_14a","reinforcement_count":1}
+]'
+git -C "$td" checkout -q -b feature/test-branch 2>/dev/null || true
+result=$(run_pheromone "$td" pheromone-export-branch)
+if echo "$result" | jq -e '.ok == true' >/dev/null 2>&1; then
+  # Export file MUST be in .aether/exchange/
+  if [[ -f "$td/.aether/exchange/pheromone-branch-export.json" ]]; then
+    echo "  PASS: export file in .aether/exchange/"
+    ((PASS++))
+    assert_json_eq "export schema" "$(cat "$td/.aether/exchange/pheromone-branch-export.json")" '.schema' "pheromone-branch-export-v1"
+  else
+    echo "  FAIL: export file not found in .aether/exchange/"
+    ((FAIL++))
+  fi
+  # Export file MUST NOT be in .aether/data/
+  if [[ -f "$td/.aether/data/pheromone-branch-export.json" ]]; then
+    echo "  FAIL: export file incorrectly written to .aether/data/"
+    ((FAIL++))
+  else
+    echo "  PASS: export file not in .aether/data/ (correct)"
+    ((PASS++))
+  fi
+else
+  echo "  FAIL: command did not return ok"
+  ((FAIL++))
+fi
 rm -rf "$td"
 
 # ============================================================
