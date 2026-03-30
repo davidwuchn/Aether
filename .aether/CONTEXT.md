@@ -8,12 +8,12 @@
 
 | Field | Value |
 |-------|-------|
-| **Last Updated** | 2026-03-30T13:15:02Z |
+| **Last Updated** | 2026-03-30T16:33:27Z |
 | **Current Phase** | 5 |
 | **Phase Name** | Fix hive-read null safety and learning recovery tests |
 | **Milestone** | First Mound |
 | **Colony Status** | initializing |
-| **Safe to Clear?** | YES — Build complete, ready to continue |
+| **Safe to Clear?** | ⚠️ NO — Build in progress |
 
 ---
 
@@ -24,6 +24,10 @@ Harden ~40 remaining json_ok call sites with safe escaping (A1+A4), add per-phas
 ---
 
 ## 📍 What's In Progress
+
+**Phase 2 Build IN PROGRESS**
+- Workers: 2 | Tasks: 0
+- Started: 2026-03-30T16:33:27Z
 
 **Build completed** — success
 ## ⚠️ Active Constraints (REDIRECT Signals)

@@ -45,3 +45,5 @@
 2026-03-30T13:28:13Z|Queen|chronicler|Record-57|Documentation coverage audit|inherit|spawned
 2026-03-30T13:39:18Z|Runner-92|completed|Analytics review complete
 2026-03-30T13:39:18Z|Record-57|completed|Documentation audit complete
+2026-03-30T16:34:00Z|Queen|builder|Weld-31|Implement worktree-create and worktree-cleanup|inherit|spawned
+2026-03-30T16:34:01Z|Queen|builder|Bolt-91|Set up npm lockfile merge driver|inherit|spawned
