@@ -2027,3 +2027,655 @@ source "$SCRIPT_DIR/exchange/pheromone-xml.sh"
 xml-pheromone-validate "$pvx_xml" "$pvx_xsd"
 }
 
+# ============================================================================
+# _pheromone_snapshot_inject
+# Inject canonical signals from main into the current branch
+# ============================================================================
+_pheromone_snapshot_inject() {
+# Inject main's injectable signals into the current branch's pheromones.json
+# Usage: pheromone-snapshot-inject --from-branch BRANCH --from-commit SHA
+#   --from-branch: source branch (typically "main")
+#   --from-commit: commit SHA of the source branch at injection time
+# Returns: JSON with injected_count, skipped_count, snapshot metadata
+
+psi_from_branch="main"
+psi_from_commit=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --from-branch) shift; psi_from_branch="${1:-main}" ;;
+    --from-commit) shift; psi_from_commit="${1:-}" ;;
+    *) shift ;;
+  esac
+done
+
+if [[ -z "$psi_from_commit" ]]; then
+  json_err "$E_VALIDATION_FAILED" "pheromone-snapshot-inject requires --from-commit argument"
+fi
+
+psi_file="$COLONY_DATA_DIR/pheromones.json"
+
+# Edge case: no pheromones.json on main -- no-op
+if [[ ! -f "$psi_file" ]]; then
+  json_ok "$(jq -n --arg branch "$psi_from_branch" --arg commit "$psi_from_commit" \
+    '{snapshot_from_branch: $branch, snapshot_from_commit: $commit, injected_count: 0, skipped_count: 0}')"
+  return 0
+fi
+
+psi_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# Read active signals and filter injectable ones
+# Filter rule: REDIRECT (any source) OR (user source AND type IN (FOCUS, FEEDBACK))
+psi_filtered=$(jq -c --arg now "$psi_now_iso" '
+  def to_epoch(ts):
+    if ts == null or ts == "" or ts == "phase_end" then null
+    else
+      (ts | split("T")) as $parts |
+      ($parts[0] | split("-")) as $d |
+      ($parts[1] | rtrimstr("Z") | split(":")) as $t |
+      (($d[0] | tonumber) - 1970) * 365 * 86400 +
+      (($d[1] | tonumber) - 1) * 30 * 86400 +
+      (($d[2] | tonumber) - 1) * 86400 +
+      ($t[0] | tonumber) * 3600 +
+      ($t[1] | tonumber) * 60 +
+      ($t[2] | rtrimstr("Z") | tonumber)
+    end;
+
+  (to_epoch($now)) as $now_epoch |
+
+  .signals | map(select(.active == true)) |
+  map(
+    # Check expiry
+    (to_epoch(.expires_at)) as $exp_epoch |
+    select(if $exp_epoch != null then $exp_epoch > $now_epoch else true end) |
+    # Apply injection filter
+    select(
+      .type == "REDIRECT"
+      or
+      (.source == "user" and (.type == "FOCUS" or .type == "FEEDBACK"))
+    )
+  )
+' "$psi_file" 2>/dev/null || echo "[]")
+
+if [[ -z "$psi_filtered" || "$psi_filtered" == "null" ]]; then
+  psi_filtered="[]"
+fi
+
+psi_injected_ids=()
+psi_skipped_ids=()
+psi_injected_details="[]"
+psi_skipped_details="[]"
+
+# Count total active signals for skip tracking
+psi_total_active=$(jq '[.signals[] | select(.active == true)] | length' "$psi_file" 2>/dev/null || echo "0")
+psi_inject_count=$(echo "$psi_filtered" | jq 'length')
+psi_skip_count=$((psi_total_active - psi_inject_count))
+
+# Build skipped reasons
+psi_skip_reasons="[]"
+if [[ "$psi_skip_count" -gt 0 ]]; then
+  psi_skip_reasons=$(jq -c --arg now "$psi_now_iso" '
+    def to_epoch(ts):
+      if ts == null or ts == "" or ts == "phase_end" then null
+      else
+        (ts | split("T")) as $parts |
+        ($parts[0] | split("-")) as $d |
+        ($parts[1] | rtrimstr("Z") | split(":")) as $t |
+        (($d[0] | tonumber) - 1970) * 365 * 86400 +
+        (($d[1] | tonumber) - 1) * 30 * 86400 +
+        (($d[2] | tonumber) - 1) * 86400 +
+        ($t[0] | tonumber) * 3600 +
+        ($t[1] | tonumber) * 60 +
+        ($t[2] | rtrimstr("Z") | tonumber)
+      end;
+
+    (to_epoch($now)) as $now_epoch |
+
+    .signals | map(select(.active == true)) |
+    map(
+      (to_epoch(.expires_at)) as $exp_epoch |
+      select(if $exp_epoch != null then $exp_epoch > $now_epoch else true end) |
+      select(
+        .type != "REDIRECT"
+        and
+        (.source != "user" or (.type != "FOCUS" and .type != "FEEDBACK"))
+      )
+    ) | map({
+      original_id: .id,
+      type: .type,
+      source: .source,
+      reason: (if .type == "FOCUS" or .type == "FEEDBACK" then "worker/system-sourced \(.type) excluded from injection" else "signal type \(.type) excluded from injection" end)
+    })
+  ' "$psi_file" 2>/dev/null || echo "[]")
+fi
+
+# Inject each signal via _pheromone_write (reuses content_hash dedup)
+psi_injected_count=0
+if [[ "$psi_inject_count" -gt 0 ]]; then
+  psi_injected_details=$(echo "$psi_filtered" | jq -c --arg now "$psi_now_iso" '
+    map({
+      original_id: .id,
+      type: .type,
+      content_hash: .content_hash,
+      strength: .strength,
+      source: .source,
+      action: "injected"
+    })
+  ')
+
+  # Compute TTL from expires_at for each signal
+  echo "$psi_filtered" | jq -c '.[]' | while IFS= read -r sig; do
+    local_sig_type=$(echo "$sig" | jq -r '.type')
+    local_sig_content=$(echo "$sig" | jq -r '.content.text // .content // ""')
+    local_sig_strength=$(echo "$sig" | jq -r '.strength')
+    local_sig_source=$(echo "$sig" | jq -r '.source')
+    local_sig_expires=$(echo "$sig" | jq -r '.expires_at')
+
+    # Compute TTL from remaining time
+    local_sig_ttl="phase_end"
+    if [[ "$local_sig_expires" != "phase_end" && -n "$local_sig_expires" ]]; then
+      # Parse expires_at epoch using jq's to_epoch (same logic as _pheromone_write)
+      local_exp_epoch=$(echo "$sig" | jq --arg now "$psi_now_iso" '
+        def to_epoch(ts):
+          (ts | split("T")) as $parts |
+          ($parts[0] | split("-")) as $d |
+          ($parts[1] | rtrimstr("Z") | split(":")) as $t |
+          (($d[0] | tonumber) - 1970) * 365 * 86400 +
+          (($d[1] | tonumber) - 1) * 30 * 86400 +
+          (($d[2] | tonumber) - 1) * 86400 +
+          ($t[0] | tonumber) * 3600 +
+          ($t[1] | tonumber) * 60 +
+          ($t[2] | rtrimstr("Z") | tonumber)
+        end;
+        to_epoch(.expires_at)
+      ' 2>/dev/null || echo "0")
+
+      local_now_epoch=$(date +%s)
+      local_remaining=$(( local_exp_epoch - local_now_epoch ))
+
+      if [[ "$local_remaining" -gt 0 ]]; then
+        # Convert to hours/days for TTL
+        if [[ "$local_remaining" -ge 86400 ]]; then
+          local_sig_ttl="$(( local_remaining / 86400 ))d"
+        else
+          local_sig_ttl="$(( local_remaining / 3600 ))h"
+        fi
+      fi
+    fi
+
+    _pheromone_write "$local_sig_type" "$local_sig_content" \
+      --strength "$local_sig_strength" \
+      --ttl "$local_sig_ttl" \
+      --source "$local_sig_source" \
+      --reason "Injected from $psi_from_branch branch (snapshot)" \
+      >/dev/null 2>&1 || true
+  done
+
+  psi_injected_count="$psi_inject_count"
+fi
+
+# Write snapshot metadata
+psi_snapshot_file="$COLONY_DATA_DIR/pheromone-snapshot.json"
+psi_snapshot=$(jq -n \
+  --arg schema "pheromone-snapshot-v1" \
+  --arg branch "$psi_from_branch" \
+  --arg commit "$psi_from_commit" \
+  --arg at "$psi_now_iso" \
+  --argjson injected "$psi_injected_details" \
+  --argjson skipped "$psi_skip_reasons" \
+  --argjson injected_count "$psi_injected_count" \
+  --argjson skipped_count "$psi_skip_count" \
+  '{
+    schema: $schema,
+    snapshot_from_branch: $branch,
+    snapshot_from_commit: $commit,
+    snapshot_at: $at,
+    injected: $injected,
+    skipped: $skipped,
+    injected_count: $injected_count,
+    skipped_count: $skipped_count
+  }')
+
+atomic_write "$psi_snapshot_file" "$psi_snapshot" 2>/dev/null || {
+  _aether_log_error "Could not write pheromone snapshot metadata"
+}
+
+json_ok "$(jq -n \
+  --arg branch "$psi_from_branch" \
+  --arg commit "$psi_from_commit" \
+  --argjson injected_count "$psi_injected_count" \
+  --argjson skipped_count "$psi_skip_count" \
+  '{
+    snapshot_from_branch: $branch,
+    snapshot_from_commit: $commit,
+    injected_count: $injected_count,
+    skipped_count: $skipped_count
+  }')"
+}
+
+# ============================================================================
+# _pheromone_export_branch
+# Export branch signals for merge-back (pre-merge step)
+# ============================================================================
+_pheromone_export_branch() {
+# Export branch's eligible signals for merge-back
+# Usage: pheromone-export-branch
+# Returns: JSON with eligible_count, ineligible_count, total_signals
+# Side effect: writes .aether/data/pheromone-branch-export.json
+
+peb_file="$COLONY_DATA_DIR/pheromones.json"
+
+if [[ ! -f "$peb_file" ]]; then
+  json_err "$E_FILE_NOT_FOUND" "pheromones.json not found. No signals to export."
+fi
+
+peb_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# Get current branch name and commit
+peb_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+peb_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+
+# Read all active signals and determine eligibility
+peb_all_signals=$(jq -c --arg now "$peb_now_iso" '
+  def to_epoch(ts):
+    if ts == null or ts == "" or ts == "phase_end" then null
+    else
+      (ts | split("T")) as $parts |
+      ($parts[0] | split("-")) as $d |
+      ($parts[1] | rtrimstr("Z") | split(":")) as $t |
+      (($d[0] | tonumber) - 1970) * 365 * 86400 +
+      (($d[1] | tonumber) - 1) * 30 * 86400 +
+      (($d[2] | tonumber) - 1) * 86400 +
+      ($t[0] | tonumber) * 3600 +
+      ($t[1] | tonumber) * 60 +
+      ($t[2] | rtrimstr("Z") | tonumber)
+    end;
+
+  (to_epoch($now)) as $now_epoch |
+
+  .signals | map(select(.active == true)) |
+  map(
+    (to_epoch(.expires_at)) as $exp_epoch |
+    select(if $exp_epoch != null then $exp_epoch > $now_epoch else true end) |
+    . + {
+      # Eligibility rules:
+      # REDIRECT from non-user sources: YES (new constraint)
+      # FEEDBACK from non-user sources with reinforcement >= 2: YES
+      # Everything else: NO
+      eligible_for_merge: (
+        if .type == "REDIRECT" and .source != "user" then true
+        elif .type == "FEEDBACK" and .source != "user" and ((.reinforcement_count // 0) >= 2) then true
+        elif .type == "REDIRECT" and .source == "system" then true
+        else false
+        end
+      ),
+      merge_reason: (
+        if .type == "REDIRECT" and .source != "user" then "new \(.source) REDIRECT discovered on branch"
+        elif .type == "FEEDBACK" and .source != "user" and ((.reinforcement_count // 0) >= 2) then "FEEDBACK with reinforcement_count >= 2"
+        elif .type == "FOCUS" then "\(.source)-sourced FOCUS excluded from merge-back"
+        elif .type == "REDIRECT" and .source == "user" then "user signal already on main"
+        elif .type == "FEEDBACK" and .source == "user" then "user signal already on main"
+        elif .type == "FEEDBACK" and ((.reinforcement_count // 0) < 2) then "FEEDBACK reinforcement < 2"
+        else "signal type \(.type) from \(.source) excluded"
+        end
+      )
+    }
+  )
+' "$peb_file" 2>/dev/null || echo "[]")
+
+peb_total=$(echo "$peb_all_signals" | jq 'length' 2>/dev/null || echo "0")
+peb_eligible=$(echo "$peb_all_signals" | jq '[.[] | select(.eligible_for_merge == true)]' 2>/dev/null || echo "[]")
+peb_ineligible=$(echo "$peb_all_signals" | jq '[.[] | select(.eligible_for_merge == false)]' 2>/dev/null || echo "[]")
+peb_eligible_count=$(echo "$peb_eligible" | jq 'length' 2>/dev/null || echo "0")
+peb_ineligible_count=$(echo "$peb_ineligible" | jq 'length' 2>/dev/null || echo "0")
+
+# Build export signals array with only needed fields
+peb_export_signals=$(echo "$peb_all_signals" | jq -c '[
+  .[] | {
+    id: .id,
+    type: .type,
+    source: .source,
+    content_hash: .content_hash,
+    content_text: (.content.text // .content // ""),
+    strength: .strength,
+    created_at: .created_at,
+    expires_at: .expires_at,
+    reinforcement_count: (.reinforcement_count // 0),
+    eligible_for_merge: .eligible_for_merge,
+    merge_reason: .merge_reason
+  }
+]')
+
+# Write export file
+peb_export=$(jq -n \
+  --arg schema "pheromone-branch-export-v1" \
+  --arg at "$peb_now_iso" \
+  --arg branch "$peb_branch" \
+  --arg commit "$peb_commit" \
+  --argjson signals "$peb_export_signals" \
+  --argjson total "$peb_total" \
+  --argjson eligible "$peb_eligible_count" \
+  --argjson ineligible "$peb_ineligible_count" \
+  '{
+    schema: $schema,
+    exported_at: $at,
+    branch_name: $branch,
+    branch_commit: $commit,
+    signals: $signals,
+    total_signals: $total,
+    eligible_count: $eligible,
+    ineligible_count: $ineligible
+  }')
+
+peb_export_file="$COLONY_DATA_DIR/pheromone-branch-export.json"
+atomic_write "$peb_export_file" "$peb_export" 2>/dev/null || {
+  _aether_log_error "Could not write pheromone branch export"
+}
+
+json_ok "$(jq -n \
+  --arg branch "$peb_branch" \
+  --arg commit "$peb_commit" \
+  --argjson total "$peb_total" \
+  --argjson eligible "$peb_eligible_count" \
+  --argjson ineligible "$peb_ineligible_count" \
+  '{
+    branch_name: $branch,
+    branch_commit: $commit,
+    total_signals: $total,
+    eligible_count: $eligible,
+    ineligible_count: $ineligible
+  }')"
+}
+
+# ============================================================================
+# _pheromone_merge_back
+# Merge branch signals into main (post-merge step)
+# ============================================================================
+_pheromone_merge_back() {
+# Merge eligible branch signals into main's pheromones.json
+# Usage: pheromone-merge-back [--export-file PATH]
+#   --export-file: path to branch export JSON (default: .aether/data/pheromone-branch-export.json)
+# Returns: JSON with new_signals_written, skipped_count, conflicts_resolved
+# Side effect: appends to .aether/data/pheromone-merge-log.json
+
+pmb_export_file="${1:-}"
+pmb_branch=""
+
+# Parse args
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --export-file) shift; pmb_export_file="${1:-}" ;;
+    *) shift ;;
+  esac
+done
+
+# Default export file path
+if [[ -z "$pmb_export_file" ]]; then
+  pmb_export_file="$COLONY_DATA_DIR/pheromone-branch-export.json"
+fi
+
+# Edge case: no export file -- no-op
+if [[ ! -f "$pmb_export_file" ]]; then
+  json_ok "$(jq -n '{new_signals_written: 0, skipped_count: 0, conflicts_resolved: [], warnings: []}')"
+  return 0
+fi
+
+# Validate export schema
+pmb_schema=$(jq -r '.schema // ""' "$pmb_export_file" 2>/dev/null || echo "")
+if [[ "$pmb_schema" != "pheromone-branch-export-v1" ]]; then
+  json_err "$E_VALIDATION_FAILED" "Invalid export file schema: expected pheromone-branch-export-v1"
+fi
+
+pmb_branch=$(jq -r '.branch_name // "unknown"' "$pmb_export_file" 2>/dev/null || echo "unknown")
+pmb_branch_commit=$(jq -r '.branch_commit // "unknown"' "$pmb_export_file" 2>/dev/null || echo "unknown")
+pmb_now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+pmb_main_file="$COLONY_DATA_DIR/pheromones.json"
+
+# Initialize main pheromones.json if missing
+if [[ ! -f "$pmb_main_file" ]]; then
+  pmb_init_content='{"version":"1.0.0","colony_id":"aether-dev","generated_at":"'"$pmb_now_iso"'","signals":[]}'
+  atomic_write "$pmb_main_file" "$pmb_init_content" 2>/dev/null || true
+fi
+
+# Get eligible signals from export
+pmb_eligible=$(jq -c '[.signals[] | select(.eligible_for_merge == true)]' "$pmb_export_file" 2>/dev/null || echo "[]")
+pmb_ineligible_count=$(jq '[.signals[] | select(.eligible_for_merge == false)] | length' "$pmb_export_file" 2>/dev/null || echo "0")
+
+# Lock main pheromones.json for writing
+pmb_lock_held=false
+if type acquire_lock &>/dev/null; then
+  acquire_lock "$pmb_main_file" 2>/dev/null && pmb_lock_held=true || true
+fi
+
+pmb_new_signals="[]"
+pmb_conflicts="[]"
+pmb_warnings="[]"
+pmb_new_count=0
+
+pmb_eligible_count=$(echo "$pmb_eligible" | jq 'length')
+
+if [[ "$pmb_eligible_count" -gt 0 ]]; then
+  # Read main signals for conflict detection
+  pmb_main_hashes=$(jq -c '[.signals[] | select(.active == true) | {type: .type, content_hash: .content_hash, id: .id, strength: .strength, source: .source, reinforcement_count: (.reinforcement_count // 0), expires_at: .expires_at}]' "$pmb_main_file" 2>/dev/null || echo "[]")
+
+  # Process each eligible signal
+  pmb_new_signals="[]"
+  pmb_conflicts="[]"
+
+  while IFS= read -r sig; do
+    [[ -z "$sig" || "$sig" == "null" ]] && continue
+
+    sig_type=$(echo "$sig" | jq -r '.type')
+    sig_hash=$(echo "$sig" | jq -r '.content_hash')
+    sig_text=$(echo "$sig" | jq -r '.content_text')
+    sig_strength=$(echo "$sig" | jq -r '.strength')
+    sig_source=$(echo "$sig" | jq -r '.source')
+    sig_reinforcement=$(echo "$sig" | jq -r '.reinforcement_count')
+    sig_expires=$(echo "$sig" | jq -r '.expires_at')
+    sig_id=$(echo "$sig" | jq -r '.id')
+
+    # Check for conflict: main has same type + content_hash
+    main_match=$(echo "$pmb_main_hashes" | jq -c --arg type "$sig_type" --arg hash "$sig_hash" \
+      '[.[] | select(.type == $type and .content_hash == $hash)][0]' 2>/dev/null || echo "null")
+
+    if [[ -n "$main_match" && "$main_match" != "null" ]]; then
+      # Conflict detected -- resolve
+      main_strength=$(echo "$main_match" | jq -r '.strength')
+      main_source=$(echo "$main_match" | jq -r '.source')
+      main_reinforcement=$(echo "$main_match" | jq -r '.reinforcement_count')
+      main_id=$(echo "$main_match" | jq -r '.id')
+
+      # Resolution logic per design spec
+      resolution="skip"
+
+      if [[ "$sig_type" == "REDIRECT" ]]; then
+        resolution="reinforced"
+      elif [[ "$main_source" == "user" && "$sig_type" == "FOCUS" ]]; then
+        resolution="skip"
+      elif [[ "$sig_type" == "FEEDBACK" ]]; then
+        if [[ "$sig_reinforcement" -ge 2 ]]; then
+          resolution="reinforced"
+        else
+          resolution="skip"
+        fi
+      fi
+
+      if [[ "$resolution" == "reinforced" ]]; then
+        # Reinforce: update main signal with max strength, increment reinforcement
+        new_strength=$(echo "$main_strength $sig_strength" | awk '{if ($1 > $2) print $1; else print $2}')
+        new_reinforcement=$(( main_reinforcement + 1 ))
+
+        # Update the signal in main's pheromones.json
+        pmb_updated=$(jq \
+          --arg id "$main_id" \
+          --argjson new_strength "$new_strength" \
+          --argjson new_reinforcement "$new_reinforcement" \
+          --arg now "$pmb_now_iso" \
+          '
+          .signals = [.signals[] |
+            if .id == $id then
+              .strength = ([.strength, $new_strength] | max) |
+              .reinforcement_count = $new_reinforcement |
+              .created_at = $now
+            else .
+            end
+          ]
+          ' "$pmb_main_file" 2>/dev/null)
+
+        if [[ -n "$pmb_updated" && "$pmb_updated" != "null" ]]; then
+          atomic_write "$pmb_main_file" "$pmb_updated" 2>/dev/null || true
+        fi
+
+        pmb_conflicts=$(echo "$pmb_conflicts" | jq -c --arg hash "$sig_hash" --arg type "$sig_type" \
+          --argjson main_s "$main_strength" --argjson branch_s "$sig_strength" \
+          --argjson new_s "$new_strength" --argjson new_r "$new_reinforcement" \
+          '. += [{
+            content_hash: $hash,
+            type: $type,
+            main_strength: $main_s,
+            branch_strength: $branch_s,
+            resolution: "reinforced",
+            new_strength: $new_s,
+            new_reinforcement_count: $new_r
+          }]')
+      else
+        pmb_conflicts=$(echo "$pmb_conflicts" | jq -c --arg hash "$sig_hash" --arg type "$sig_type" \
+          --argjson main_s "$main_strength" --argjson branch_s "$sig_strength" \
+          '. += [{
+            content_hash: $hash,
+            type: $type,
+            main_strength: $main_s,
+            branch_strength: $branch_s,
+            resolution: "skip"
+          }]')
+      fi
+    else
+      # No conflict -- write new signal to main directly (we already hold the lock,
+      # so calling _pheromone_write would deadlock on re-acquiring it)
+      pmb_new_epoch=$(date +%s)
+      pmb_new_rand=$(( RANDOM % 10000 ))
+      pmb_new_type_lower=$(echo "$sig_type" | tr '[:upper:]' '[:lower:]')
+      pmb_new_id="sig_${pmb_new_type_lower}_${pmb_new_epoch}_${pmb_new_rand}"
+      pmb_new_created="$pmb_now_iso"
+
+      case "$sig_type" in
+        REDIRECT) pmb_new_priority="high" ;;
+        FOCUS)    pmb_new_priority="normal" ;;
+        FEEDBACK) pmb_new_priority="low" ;;
+      esac
+
+      pmb_new_signal=$(jq -n \
+        --arg id "$pmb_new_id" \
+        --arg type "$sig_type" \
+        --arg priority "$pmb_new_priority" \
+        --arg source "$sig_source" \
+        --arg created_at "$pmb_new_created" \
+        --arg expires_at "phase_end" \
+        --argjson active true \
+        --argjson strength "$sig_strength" \
+        --arg reason "Merged from branch $pmb_branch" \
+        --arg content "$sig_text" \
+        --arg content_hash "$sig_hash" \
+        --argjson reinforcement_count 0 \
+        '{id: $id, type: $type, priority: $priority, source: $source, created_at: $created_at, expires_at: $expires_at, active: $active, strength: ($strength | tonumber), reason: $reason, content: {text: $content}, content_hash: $content_hash, reinforcement_count: $reinforcement_count}')
+
+      pmb_updated_main=$(jq --argjson sig "$pmb_new_signal" '.signals += [$sig]' "$pmb_main_file" 2>/dev/null)
+      if [[ -n "$pmb_updated_main" && "$pmb_updated_main" != "null" ]]; then
+        atomic_write "$pmb_main_file" "$pmb_updated_main" 2>/dev/null || true
+      fi
+
+      pmb_new_signals=$(echo "$pmb_new_signals" | jq -c --arg id "$sig_id" --arg new_id "$pmb_new_id" --arg type "$sig_type" --arg hash "$sig_hash" \
+        '. += [{original_id: $id, new_id: $new_id, type: $type, content_hash: $hash}]')
+      pmb_new_count=$(( pmb_new_count + 1 ))
+    fi
+  done < <(echo "$pmb_eligible" | jq -c '.[]')
+fi
+
+# Release lock
+[[ "$pmb_lock_held" == "true" ]] && release_lock 2>/dev/null || true
+
+# Append to merge log
+pmb_log_file="$COLONY_DATA_DIR/pheromone-merge-log.json"
+pmb_entries="[]"
+if [[ -f "$pmb_log_file" ]]; then
+  pmb_entries=$(jq -c '.entries // []' "$pmb_log_file" 2>/dev/null || echo "[]")
+fi
+
+pmb_new_entry=$(jq -n \
+  --arg branch "$pmb_branch" \
+  --arg commit "$pmb_branch_commit" \
+  --arg at "$pmb_now_iso" \
+  --argjson new_signals "$pmb_new_signals" \
+  --argjson conflicts "$pmb_conflicts" \
+  --argjson warnings "$pmb_warnings" \
+  --argjson skipped "$pmb_ineligible_count" \
+  '{
+    merged_from_branch: $branch,
+    merged_from_commit: $commit,
+    merged_at: $at,
+    new_signals_written: $new_signals,
+    conflicts_resolved: $conflicts,
+    warnings: $warnings,
+    skipped_count: $skipped
+  }')
+
+pmb_updated_log=$(jq -n --arg schema "pheromone-merge-log-v1" --argjson entries "$pmb_entries" --argjson new_entry "$pmb_new_entry" \
+  '{schema: $schema, entries: ($entries + [$new_entry])}')
+
+atomic_write "$pmb_log_file" "$pmb_updated_log" 2>/dev/null || {
+  _aether_log_error "Could not write pheromone merge log"
+}
+
+json_ok "$(jq -n \
+  --arg branch "$pmb_branch" \
+  --argjson new_count "$pmb_new_count" \
+  --argjson skipped "$pmb_ineligible_count" \
+  --argjson conflicts "$pmb_conflicts" \
+  '{
+    merged_from_branch: $branch,
+    new_signals_written: $new_count,
+    skipped_count: $skipped,
+    conflicts_resolved: $conflicts
+  }')"
+}
+
+# ============================================================================
+# _pheromone_merge_log
+# Read merge log entries for debugging/auditing
+# ============================================================================
+_pheromone_merge_log() {
+# Read pheromone merge log entries
+# Usage: pheromone-merge-log [--last N]
+#   --last N: only return the last N entries (default: all)
+# Returns: JSON with entries array
+
+pml_last=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --last) shift; pml_last="${1:-}" ;;
+    *) shift ;;
+  esac
+done
+
+pml_log_file="$COLONY_DATA_DIR/pheromone-merge-log.json"
+
+if [[ ! -f "$pml_log_file" ]]; then
+  json_ok "$(jq -n '{schema: "pheromone-merge-log-v1", entries_count: 0, entries: []}')"
+  return 0
+fi
+
+pml_entries=$(jq -c '.entries // []' "$pml_log_file" 2>/dev/null || echo "[]")
+
+if [[ -n "$pml_last" && "$pml_last" =~ ^[0-9]+$ ]]; then
+  pml_entries=$(echo "$pml_entries" | jq -c --argjson n "$pml_last" '.[(-$n):]')
+fi
+
+pml_count=$(echo "$pml_entries" | jq 'length' 2>/dev/null || echo "0")
+
+json_ok "$(jq -n \
+  --argjson count "$pml_count" \
+  --argjson entries "$pml_entries" \
+  '{entries_count: $count, entries: $entries}')"
+}
+

@@ -47,6 +47,7 @@ CURRENT_LOCK=${CURRENT_LOCK:-""}
 [[ -f "$SCRIPT_DIR/utils/immune.sh" ]] && source "$SCRIPT_DIR/utils/immune.sh"
 [[ -f "$SCRIPT_DIR/utils/council.sh" ]] && source "$SCRIPT_DIR/utils/council.sh"
 [[ -f "$SCRIPT_DIR/utils/worktree.sh" ]] && source "$SCRIPT_DIR/utils/worktree.sh"
+[[ -f "$SCRIPT_DIR/utils/clash-detect.sh" ]] && source "$SCRIPT_DIR/utils/clash-detect.sh"
 
 # Fallback error constants if error-handler.sh wasn't sourced
 # This prevents "unbound variable" errors in older installations
@@ -3931,6 +3932,10 @@ Files: ${files_changed} files changed"
   pheromone-count) _pheromone_count "$@" ;;
   pheromone-display) _pheromone_display "$@" ;;
   pheromone-read) _pheromone_read "$@" ;;
+  pheromone-snapshot-inject) _pheromone_snapshot_inject "$@" ;;
+  pheromone-export-branch) _pheromone_export_branch "$@" ;;
+  pheromone-merge-back) _pheromone_merge_back "$@" ;;
+  pheromone-merge-log) _pheromone_merge_log "$@" ;;
 
   instinct-read) _instinct_read "$@" ;;
   instinct-create) _instinct_create "$@" ;;
@@ -5471,6 +5476,14 @@ DRYRUN_EOF
     ;;
   worktree-cleanup)
     _worktree_cleanup "$@"
+    ;;
+
+  # ── Clash Detection ───────────────────────────────────────────────────────
+  clash-check)
+    _clash_detect "$@"
+    ;;
+  clash-setup)
+    _clash_setup "$@"
     ;;
 
   # ── Merge Driver ──────────────────────────────────────────────────────────

@@ -45,11 +45,3 @@
 2026-03-30T13:28:13Z|Queen|chronicler|Record-57|Documentation coverage audit|inherit|spawned
 2026-03-30T13:39:18Z|Runner-92|completed|Analytics review complete
 2026-03-30T13:39:18Z|Record-57|completed|Documentation audit complete
-2026-03-30T16:34:00Z|Queen|builder|Weld-31|Implement worktree-create and worktree-cleanup|inherit|spawned
-2026-03-30T16:34:01Z|Queen|builder|Bolt-91|Set up npm lockfile merge driver|inherit|spawned
-2026-03-30T16:48:08Z|Queen|builder|Hammer-93|Configure Clash PreToolUse hook|inherit|spawned
-2026-03-30T16:48:08Z|Queen|builder|Forge-55|Implement pheromone-snapshot and merge-back|inherit|spawned
-2026-03-30T17:00:36Z|Hammer-93|completed|Clash hook verified and bug-fixed
-2026-03-30T17:08:28Z|Forge-55|completed|Pheromone snapshot/merge-back bug-fixed with 10 new tests
-2026-03-30T17:08:45Z|Queen|watcher|Vigil-21|Independent verification|inherit|spawned
-2026-03-30T17:11:54Z|Vigil-21|completed|All 581 tests pass, 4/4 criteria met
