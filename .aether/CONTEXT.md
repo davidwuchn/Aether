@@ -8,9 +8,9 @@
 
 | Field | Value |
 |-------|-------|
-| **Last Updated** | 2026-03-30T05:46:41Z |
-| **Current Phase** | 2 |
-| **Phase Name** | Fix queen-promote newline destruction and awk backslash issue |
+| **Last Updated** | 2026-03-30T06:14:52Z |
+| **Current Phase** | 3 |
+| **Phase Name** | Filter test noise from activity log |
 | **Milestone** | First Mound |
 | **Colony Status** | initializing |
 | **Safe to Clear?** | YES — Phase advanced, ready to build |
@@ -49,6 +49,8 @@ Fix why Oracle tmux session dies immediately — oracle.sh doesn't exist. Oracle
 
 | Timestamp | Command | Result | Files Changed |
 |-----------|---------|--------|---------------|
+| 2026-03-30T06:14:52Z | continue | Phase 2 completed, advanced to 3 | — |
+| 2026-03-30T06:10:55Z | build 2 | completed | 2 |
 | 2026-03-30T05:46:41Z | continue | Phase 1 completed, advanced to 2 | — |
 | 2026-03-30T05:32:34Z | build 1 | completed | 2 |
 | 2026-03-29T02:46:18Z | continue | Phase 7 completed, all phases done | — |

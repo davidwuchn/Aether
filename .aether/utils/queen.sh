@@ -488,8 +488,9 @@ _queen_promote() {
     ev_separator=$(grep -n "^|------|" "$tmp_file" | tail -1 | cut -d: -f1 || true)
 
     # Use awk for cross-platform insertion (only if separator found)
+    # Use ENVIRON instead of -v for user content to avoid C-escape interpretation (\n, \t, \\)
     if [[ -n "$ev_separator" ]]; then
-      awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
+      AETHER_EV_ENTRY="$ev_entry" awk -v line="$ev_separator" 'NR==line{print; print ENVIRON["AETHER_EV_ENTRY"]; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
     fi
 
     # Update METADATA stats in temp file
@@ -528,9 +529,10 @@ _queen_promote() {
     ev_log_entry="{\"timestamp\": \"$ts\", \"action\": \"promote\", \"wisdom_type\": \"$wisdom_type\", \"content_hash\": \"$content_hash\", \"colony\": \"$colony_name\"}"
 
     # Check if evolution_log exists in metadata, add if not
+    # Use ENVIRON instead of -v for user content to avoid C-escape interpretation (\n, \t, \\)
     if ! grep -q '"evolution_log"' "$tmp_file"; then
       # Add evolution_log array after stats
-      awk -v entry="$ev_log_entry" '
+      AETHER_EV_LOG_ENTRY="$ev_log_entry" awk '
         /"stats": \{/ {
           print
           # Read until closing brace of stats
@@ -540,19 +542,19 @@ _queen_promote() {
           }
           # Add comma and evolution_log
           print ","
-          print "  \"evolution_log\": [" entry "]"
+          print "  \"evolution_log\": [" ENVIRON["AETHER_EV_LOG_ENTRY"] "]"
           next
         }
         { print }
       ' "$tmp_file" > "${tmp_file}.evlog" && mv "${tmp_file}.evlog" "$tmp_file"
     else
       # Append to existing evolution_log array
-      awk -v entry="$ev_log_entry" '
+      AETHER_EV_LOG_ENTRY="$ev_log_entry" awk '
         /"evolution_log": \[/ {
           # Check if array is empty or has items
           if (/\]/) {
             # Empty array - replace with entry
-            gsub(/"evolution_log": \[\]/, "\"evolution_log\": [" entry "]")
+            gsub(/"evolution_log": \[\]/, "\"evolution_log\": [" ENVIRON["AETHER_EV_LOG_ENTRY"] "]")
           } else {
             # Has items - need to add before closing bracket
             # For now, just print and handle in next iteration
@@ -566,7 +568,7 @@ _queen_promote() {
           getline
           if (/\]/) {
             # Was empty, now add entry
-            print entry
+            print ENVIRON["AETHER_EV_LOG_ENTRY"]
             print "]"
           } else {
             # Has items, add comma and entry before closing
@@ -574,7 +576,7 @@ _queen_promote() {
             while (getline > 0) {
               if (/^\s*\]/) {
                 print ","
-                print entry
+                print ENVIRON["AETHER_EV_LOG_ENTRY"]
                 print "]"
                 break
               }
@@ -628,12 +630,18 @@ _queen_promote() {
       if [[ -n "$meta_section" ]]; then
         # SUPPRESS:OK -- read-default: returns fallback on failure
         updated_meta=$(echo "$meta_section" | jq --arg hash "$content_hash" --argjson cols "$colonies_json" '.colonies_contributed[$hash] = $cols' 2>/dev/null || echo "$meta_section")
-        # Replace metadata section
-        new_comment="<!-- METADATA"
-        new_comment="$new_comment
-$updated_meta
--->"
-        awk -v new="$new_comment" '/<!-- METADATA/,/-->/{ if (/<!-- METADATA/) print new; next }1' "$tmp_file" > "${tmp_file}.metaupd" && mv "${tmp_file}.metaupd" "$tmp_file"
+        # Replace metadata section using head/tail to handle multi-line content safely
+        # awk -v cannot handle embedded newlines in variable values (C-escape interpretation)
+        local meta_start_line meta_end_line
+        meta_start_line=$(grep -n "^<!-- METADATA$" "$tmp_file" | head -1 | cut -d: -f1)
+        meta_end_line=$(grep -n "^-->$" "$tmp_file" | head -1 | cut -d: -f1)
+        if [[ -n "$meta_start_line" && -n "$meta_end_line" ]]; then
+          {
+            head -n $((meta_start_line - 1)) "$tmp_file"
+            printf '<!-- METADATA\n%s\n-->\n' "$updated_meta"
+            tail -n +$((meta_end_line + 1)) "$tmp_file"
+          } > "${tmp_file}.metaupd" && mv "${tmp_file}.metaupd" "$tmp_file"
+        fi
       fi
     fi
 
@@ -837,7 +845,8 @@ _queen_write_learnings() {
     local ev_separator
     ev_separator=$(grep -n "^|------|" "$tmp_file" | tail -1 | cut -d: -f1 || true)
     if [[ -n "$ev_separator" ]]; then
-      awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
+      # Use ENVIRON instead of -v for user content to avoid C-escape interpretation (\n, \t, \\)
+      AETHER_EV_ENTRY="$ev_entry" awk -v line="$ev_separator" 'NR==line{print; print ENVIRON["AETHER_EV_ENTRY"]; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
     fi
 
     # Update METADATA stats: increment total_build_learnings
@@ -967,7 +976,8 @@ _queen_promote_instinct() {
     local ev_separator
     ev_separator=$(grep -n "^|------|" "$tmp_file" | tail -1 | cut -d: -f1 || true)
     if [[ -n "$ev_separator" ]]; then
-      awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
+      # Use ENVIRON instead of -v for user content to avoid C-escape interpretation (\n, \t, \\)
+      AETHER_EV_ENTRY="$ev_entry" awk -v line="$ev_separator" 'NR==line{print; print ENVIRON["AETHER_EV_ENTRY"]; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
     fi
 
     # Update METADATA stats: increment total_instincts
@@ -1110,7 +1120,8 @@ _queen_seed_from_hive() {
     local ev_separator
     ev_separator=$(grep -n "^|------|" "$tmp_file" | tail -1 | cut -d: -f1 || true)
     if [[ -n "$ev_separator" ]]; then
-      awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
+      # Use ENVIRON instead of -v for user content to avoid C-escape interpretation (\n, \t, \\)
+      AETHER_EV_ENTRY="$ev_entry" awk -v line="$ev_separator" 'NR==line{print; print ENVIRON["AETHER_EV_ENTRY"]; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
     fi
 
     # Update METADATA stats: increment total_codebase_patterns
@@ -1601,7 +1612,8 @@ _queen_write_charter() {
     local ev_separator
     ev_separator=$(grep -n "^|------|" "$tmp_file" | tail -1 | cut -d: -f1 || true)
     if [[ -n "$ev_separator" ]]; then
-        awk -v line="$ev_separator" -v entry="$ev_entry" 'NR==line{print; print entry; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
+        # Use ENVIRON instead of -v for user content to avoid C-escape interpretation (\n, \t, \\)
+        AETHER_EV_ENTRY="$ev_entry" awk -v line="$ev_separator" 'NR==line{print; print ENVIRON["AETHER_EV_ENTRY"]; next}1' "$tmp_file" > "${tmp_file}.ev" && mv "${tmp_file}.ev" "$tmp_file"
     fi
 
     # Update METADATA stats -- count non-charter list items in each section, add charter entries

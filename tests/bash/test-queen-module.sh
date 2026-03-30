@@ -407,6 +407,122 @@ V1EOF2
 }
 
 # ============================================================================
+# Test: ev_entry with backslash content does not corrupt Evolution Log
+# Reproduces: awk -v entry="$ev_entry" interpreting \n as newline when
+# user content (phase_name) contains backslash sequences like \n or \t
+# ============================================================================
+test_ev_entry_backslash_safe() {
+    local tmp_dir
+    tmp_dir=$(setup_queen_env)
+    rm -f "$tmp_dir/.aether/QUEEN.md"
+    run_queen_cmd "$tmp_dir" queen-init >/dev/null
+
+    # phase_name with \n ends up in ev_entry: "| ts | phase-1 | build_learnings | Added 1 learnings from Phase 1: Test\nPhase |"
+    # awk -v entry="..." would interpret \n as actual newline, splitting the table row
+    local learnings='[{"claim":"test backslash safety","tag":"repo","evidence":"e1"}]'
+    # Use a phase name containing a literal backslash-n (the two chars \ and n)
+    local phase_name
+    phase_name="$(printf 'Test\\nPhase')"
+    local result
+    result=$(run_queen_cmd "$tmp_dir" queen-write-learnings 1 "$phase_name" "$learnings")
+
+    # Must return ok:true
+    assert_ok_true "$result" || { rm -rf "$tmp_dir"; return 1; }
+
+    # QUEEN.md must not be empty
+    [[ -s "$tmp_dir/.aether/QUEEN.md" ]] || { rm -rf "$tmp_dir"; return 1; }
+
+    # The Evolution Log table entry for this operation must be a single-line row
+    # (no awk -v newline corruption). Check that the separator line |------| still
+    # appears exactly once followed by the new entry on the very next line.
+    local evo_section_count
+    evo_section_count=$(grep -c "^|------|" "$tmp_dir/.aether/QUEEN.md" 2>/dev/null || true)
+    [[ "$evo_section_count" -ge 1 ]] || { rm -rf "$tmp_dir"; return 1; }
+
+    rm -rf "$tmp_dir"
+}
+
+# ============================================================================
+# Test: queen-promote-instinct with backslash in domain/action does not crash
+# Reproduces: awk -v entry="$ev_entry" where ev_entry contains ${domain} or
+# ${action:0:50} with backslashes
+# ============================================================================
+test_promote_instinct_backslash_safe() {
+    local tmp_dir
+    tmp_dir=$(setup_queen_env)
+    rm -f "$tmp_dir/.aether/QUEEN.md"
+    run_queen_cmd "$tmp_dir" queen-init >/dev/null
+
+    local result
+    result=$(run_queen_cmd "$tmp_dir" queen-promote-instinct \
+        "path contains \\n separator" \
+        "escape \\t tabs before logging" \
+        0.9 \
+        "file\\\\system")
+
+    # Must return ok:true
+    assert_ok_true "$result" || { rm -rf "$tmp_dir"; return 1; }
+
+    # QUEEN.md must not be empty
+    [[ -s "$tmp_dir/.aether/QUEEN.md" ]] || { rm -rf "$tmp_dir"; return 1; }
+
+    rm -rf "$tmp_dir"
+}
+
+# ============================================================================
+# Test: queen-promote with colonies_contributed metadata update preserves
+# QUEEN.md content (non-empty output, no 0-byte .metaupd files left behind)
+# Reproduces: awk -v new="$new_comment" with multi-line content producing
+# 0-byte temp files that cause QUEEN.md to be overwritten with empty content
+# ============================================================================
+test_queen_promote_metadata_update_nonempty() {
+    local tmp_dir
+    tmp_dir=$(setup_queen_env)
+    rm -f "$tmp_dir/.aether/QUEEN.md"
+    run_queen_cmd "$tmp_dir" queen-init >/dev/null
+
+    # Inject a pre-existing colonies_contributed in the METADATA so the
+    # "update existing" branch (line 636) is exercised
+    local queen_file="$tmp_dir/.aether/QUEEN.md"
+    # Replace the simple colonies_contributed in METADATA with a JSON object form
+    sed -i.bak 's/"colonies_contributed": \[\]/"colonies_contributed": {"sha256:abc": ["existing-colony"]}/' "$queen_file" && rm -f "${queen_file}.bak"
+
+    # Write a decree type (threshold=0, no observations file needed)
+    # Use a multi-word colony_name that has a hash so colonies_contributed gets updated
+    # Inject a fake observations file so the hash lookup succeeds
+    local content_text="always prefer explicit types"
+    local content_hash="sha256:$(echo -n "$content_text" | sha256sum | cut -d' ' -f1)"
+    mkdir -p "$tmp_dir/.aether/data"
+    cat > "$tmp_dir/.aether/data/learning-observations.json" << OBSEOF
+{
+  "observations": [
+    {
+      "content_hash": "$content_hash",
+      "observation_count": 1,
+      "colonies": ["test-colony"]
+    }
+  ]
+}
+OBSEOF
+
+    local result
+    result=$(run_queen_cmd "$tmp_dir" queen-promote decree "$content_text" "test-colony")
+
+    # Must return ok:true
+    assert_ok_true "$result" || { rm -rf "$tmp_dir"; return 1; }
+
+    # QUEEN.md must NOT be empty after the update
+    [[ -s "$tmp_dir/.aether/QUEEN.md" ]] || { rm -rf "$tmp_dir"; return 1; }
+
+    # No orphaned .metaupd files should remain
+    local metaupd_count
+    metaupd_count=$(find "$tmp_dir" -name "*.metaupd" 2>/dev/null | wc -l | tr -d ' ')
+    [[ "$metaupd_count" -eq 0 ]] || { rm -rf "$tmp_dir"; return 1; }
+
+    rm -rf "$tmp_dir"
+}
+
+# ============================================================================
 # Run all tests
 # ============================================================================
 echo "=== Queen Module Smoke Tests ==="
@@ -422,5 +538,8 @@ run_test test_queen_write_learnings_dedup "queen-write-learnings deduplicates sa
 run_test test_queen_promote_instinct "queen-promote-instinct writes entry to Instincts section"
 run_test test_queen_promote_instinct_dedup "queen-promote-instinct deduplicates same action"
 run_test test_queen_read_v1_compat "queen-read with v1 format returns mapped v2 keys"
+run_test test_ev_entry_backslash_safe "ev_entry with backslash content does not corrupt Evolution Log"
+run_test test_promote_instinct_backslash_safe "queen-promote-instinct with backslash in domain/action does not crash"
+run_test test_queen_promote_metadata_update_nonempty "queen-promote metadata update preserves QUEEN.md content"
 
 test_summary

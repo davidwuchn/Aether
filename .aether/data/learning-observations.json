@@ -593,6 +593,50 @@
       "colonies": [
         "1774650429"
       ]
+    },
+    {
+      "content_hash": "sha256:8389141fc83ca87c344f391b4b736d4be6185963611fff066474e09440c6da46",
+      "content": "When adding awk gsub escaping, order matters: backslash must be first to prevent double-escaping",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-30T05:45:54Z",
+      "last_seen": "2026-03-30T05:45:54Z",
+      "colonies": [
+        "Aether Colony"
+      ]
+    },
+    {
+      "content_hash": "sha256:6406b522b877957741908e414498622d71cfe0881a3d2bac288036ed89379d2e",
+      "content": "Literal newlines break awk NF guards, CR is the testable control char for embedded content",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-30T05:45:55Z",
+      "last_seen": "2026-03-30T05:45:55Z",
+      "colonies": [
+        "Aether Colony"
+      ]
+    },
+    {
+      "content_hash": "sha256:c76d81d39e9aa53826743b06224714a07c902050c77331af55420d0d092a20f7",
+      "content": "awk -v interprets C-style escapes — use ENVIRON[] for user content",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-30T06:14:23Z",
+      "last_seen": "2026-03-30T06:14:23Z",
+      "colonies": [
+        "Aether Colony"
+      ]
+    },
+    {
+      "content_hash": "sha256:48ffc36db00c9abaa2504c73ca00f9bdc7fdf6967703fe66a807502912abe827",
+      "content": "Multi-line strings cannot pass via awk -v — use head/tail concatenation",
+      "wisdom_type": "pattern",
+      "observation_count": 1,
+      "first_seen": "2026-03-30T06:14:25Z",
+      "last_seen": "2026-03-30T06:14:25Z",
+      "colonies": [
+        "Aether Colony"
+      ]
     }
   ]
 }

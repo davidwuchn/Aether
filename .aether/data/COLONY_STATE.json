@@ -4,7 +4,7 @@
   "colony_name": null,
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 2,
+  "current_phase": 3,
   "session_id": "session_1774845857_55502",
   "initialized_at": "2026-03-30T04:44:17Z",
   "build_started_at": null,
@@ -21,7 +21,7 @@
       {
         "id": 2,
         "name": "Fix queen-promote newline destruction and awk backslash issue",
-        "status": "pending",
+        "status": "completed",
         "description": "Sanitize newlines in content before building QUEEN.md entries, fix awk -v backslash interpretation, clean up orphaned .metaupd temp files"
       },
       {
@@ -67,10 +67,50 @@
           }
         ],
         "timestamp": "2026-03-30T05:45:45Z"
+      },
+      {
+        "id": "learning_1774851254",
+        "phase": 2,
+        "phase_name": "Fix queen-promote newline destruction",
+        "learnings": [
+          {
+            "claim": "awk -v interprets C-style escapes — use ENVIRON[] instead for user content to prevent backslash destruction",
+            "status": "validated",
+            "tested": true,
+            "evidence": "13/13 queen tests pass after replacing all awk -v with ENVIRON approach",
+            "disproven_by": null
+          },
+          {
+            "claim": "Multi-line strings cannot be passed via awk -v — use head/tail concatenation for multi-line content replacement",
+            "status": "validated",
+            "tested": true,
+            "evidence": "METADATA block update now works correctly, no more 0-byte .metaupd orphans",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-03-30T06:14:14Z"
       }
     ],
     "decisions": [],
     "instincts": [
+      {
+        "id": "instinct_1774851267",
+        "trigger": "shell functions pass user content to awk",
+        "action": "use ENVIRON[] instead of awk -v to prevent C-style backslash escape interpretation",
+        "confidence": 0.85,
+        "status": "hypothesis",
+        "domain": "code-style",
+        "source": "phase-2",
+        "evidence": [
+          "queen.sh awk -v was destroying backslashes in content, ENVIRON fix validated by 13/13 tests"
+        ],
+        "tested": false,
+        "created_at": "2026-03-30T06:14:27Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
       {
         "id": "instinct_1774849565",
         "trigger": "adding awk gsub escaping for JSON output",
@@ -124,6 +164,42 @@
         "applications": 0,
         "successes": 0,
         "failures": 0
+      },
+      {
+        "id": "instinct_1774851264",
+        "trigger": "working on pattern patterns",
+        "action": "awk -v interprets C-style escapes — use ENVIRON[] for user content",
+        "confidence": 0.70,
+        "status": "hypothesis",
+        "domain": "pattern",
+        "source": "promoted_from_learning",
+        "evidence": [
+          ""
+        ],
+        "tested": false,
+        "created_at": "2026-03-30T06:14:24Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
+      },
+      {
+        "id": "instinct_1774851266",
+        "trigger": "working on pattern patterns",
+        "action": "Multi-line strings cannot pass via awk -v — use head/tail concatenation",
+        "confidence": 0.70,
+        "status": "hypothesis",
+        "domain": "pattern",
+        "source": "promoted_from_learning",
+        "evidence": [
+          ""
+        ],
+        "tested": false,
+        "created_at": "2026-03-30T06:14:26Z",
+        "last_applied": null,
+        "applications": 0,
+        "successes": 0,
+        "failures": 0
       }
     ]
   },
@@ -140,7 +216,10 @@
     "2026-03-30T05:17:37Z|phase_started|build|Phase 1: Harden JSON escaping in spawn-tree started",
     "2026-03-30T05:20:00Z|phase_started|build|Phase 1: Harden JSON escaping in spawn-tree started",
     "2026-03-30T05:45:45Z|phase_completed|continue|Phase 1: Harden JSON escaping in spawn-tree completed",
-    "2026-03-30T05:45:45Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
+    "2026-03-30T05:45:45Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
+    "2026-03-30T05:53:21Z|phase_started|build|Phase 2: Fix queen-promote newline destruction started",
+    "2026-03-30T06:14:14Z|phase_completed|continue|Phase 2: Fix queen-promote newline destruction completed",
+    "2026-03-30T06:14:14Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3"
   ],
   "territory_surveyed": "2026-03-30T04:53:04Z"
 }

@@ -31,3 +31,9 @@
 2026-03-30T05:39:27Z|Queen|auditor|Audit-53|Code quality audit|inherit|spawned
 2026-03-30T05:43:26Z|Checkpoint-84|completed|No critical CVEs, 1 LOW finding
 2026-03-30T05:43:26Z|Audit-53|completed|Score 63/100, 0 critical, 1 HIGH
+2026-03-30T05:53:49Z|Queen|scout|Shard-47|Pre-build archaeology scan of queen.sh|inherit|spawned
+2026-03-30T05:57:40Z|Shard-47|completed|Pre-build archaeology scan of queen.sh
+2026-03-30T05:57:57Z|Queen|builder|Chip-44|Fix awk -v backslash interpretation in queen.sh|inherit|spawned
+2026-03-30T06:06:33Z|Chip-44|completed|Fixed awk -v backslash in queen.sh, deleted 62 orphan metaupd files
+2026-03-30T06:06:41Z|Queen|watcher|Alert-37|Independent verification|inherit|spawned
+2026-03-30T06:10:44Z|Alert-37|completed|Verification passed: all 10 criteria met, 13/13 queen tests pass
