@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Completed 38-01-PLAN.md
-last_updated: "2026-03-29T15:43:59.148Z"
-last_activity: 2026-03-29
+stopped_at: Completed 42.1-02-PLAN.md
+last_updated: "2026-03-31T03:14:00Z"
+last_activity: 2026-03-31
 progress:
   total_phases: 6
   completed_phases: 5
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 38 — cleanup-maintenance
+**Current focus:** Phase 42.1 — release-hygiene
 
 ## Current Position
 
-Phase: 38
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-03-29
+Phase: 42.1
+Plan: 02 complete
+Status: Plan 02 executed
+Last activity: 2026-03-31
 
 Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in progress
 
@@ -114,6 +114,8 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 - [Phase 37]: Check 7 in validate-package.sh validates exchange shell scripts (.sh), not XML data files
 - [Phase 38]: Pre-existing instinct-confidence test failures (4 tests) deferred as unrelated to spawn-tree.sh changes
 - [Phase 38]: error-codes.md descriptions verified accurate; only last-updated date needed changing
+- [42.1-02]: CLAUDE.md version tracks development milestone (v2.7-dev), not npm semver
+- [42.1-02]: Fixed 4 additional stale references in Architecture Overview and Key Directories beyond plan's explicit list to meet acceptance criteria
 
 ### Pending Todos
 
@@ -125,6 +127,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-29T14:59:06.180Z
-Stopped at: Completed 38-01-PLAN.md
+Last session: 2026-03-31T03:14:00Z
+Stopped at: Completed 42.1-02-PLAN.md
 Resume file: None
