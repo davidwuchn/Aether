@@ -1,8 +1,8 @@
 # CLAUDE.md — Aether Development Guide
 
-> **Current Version:** v2.0.0
+> **Current Version:** v2.7-dev
 > **Architecture:** v4.0 (runtime/ eliminated, direct packaging)
-> **Last Updated:** 2026-03-24 (post-hardening accuracy sweep)
+> **Last Updated:** 2026-03-31
 
 ---
 
@@ -10,13 +10,13 @@
 
 | What | Count/Status |
 |------|--------------|
-| Version | v2.0.0 |
+| Version | v2.7-dev |
 | Slash commands | ~45 (Claude) + ~45 (OpenCode) |
 | Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
-| aether-utils.sh | ~5,200 lines (dispatcher), ~151 subcommands across all modules |
-| Utils | ~32 scripts (9 domain modules + infrastructure + XML + emoji-audit) |
-| Tests | 580+ passing |
+| aether-utils.sh | ~5,400 lines (dispatcher), ~130+ subcommands across all modules |
+| Utils | 35 scripts (9 domain modules + infrastructure + XML + exchange + misc) |
+| Tests | 500+ passing |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
 ---
@@ -29,8 +29,8 @@
 │                                                                  │
 │   .aether/             ← SOURCE OF TRUTH (packaged directly)    │
 │   ├── workers.md       (edit here)                              │
-│   ├── aether-utils.sh  (dispatcher, ~5,200 lines, ~150 subcmds) │
-│   ├── utils/           (~32 scripts, modular architecture)      │
+│   ├── aether-utils.sh  (dispatcher, ~5,400 lines, ~130+ subcmds) │
+│   ├── utils/           (35 scripts, modular architecture)       │
 │   │   ├── Domain modules (9):                                   │
 │   │   │   flag.sh, spawn.sh, session.sh, suggest.sh,            │
 │   │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh,        │
@@ -128,8 +128,8 @@ aether update      # or /ant:update
 ```
 .aether/
 ├── workers.md           # Worker definitions, spawn protocol
-├── aether-utils.sh      # Dispatcher (~5,200 lines, ~150 subcommands across all modules)
-├── utils/               # ~32 scripts (modular architecture)
+├── aether-utils.sh      # Dispatcher (~5,400 lines, ~130+ subcommands across all modules)
+├── utils/               # 35 scripts (modular architecture)
 │   ├── Domain modules (9 -- extracted from monolith in Phase 13):
 │   │   flag.sh, spawn.sh, session.sh, suggest.sh,
 │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh, state-api.sh
@@ -607,7 +607,7 @@ On the first message of a new conversation, check if `.aether/data/session.json`
 
 ## Wisdom Pipeline
 
-The Wisdom Pipeline is the core learning loop of Aether v2.4. Colony work produces
+The Wisdom Pipeline is the core learning loop of Aether. Colony work produces
 observations that flow through the system and become reusable wisdom.
 
 ### Pipeline Stages
@@ -656,4 +656,4 @@ For OpenCode-specific rules and agents, see `.opencode/OPENCODE.md`
 
 ---
 
-*Updated for Aether v2.0.0 — 2026-03-24 (post-hardening accuracy sweep)*
+*Updated for Aether v2.7-dev — 2026-03-31*

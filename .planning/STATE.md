@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Completed 42.1-01-PLAN.md
-last_updated: "2026-03-31T03:11:50.114Z"
+stopped_at: Completed 42.1-02-PLAN.md
+last_updated: "2026-03-31T03:14:00Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 35
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 42.1 — release-hygiene-version-drift-npm-packaging-opencode-agent-parity-exchange-distribution-doc-accuracy-test-coverage
+**Current focus:** Phase 42.1 — release-hygiene
 
 ## Current Position
 
-Phase: 42.1 (release-hygiene-version-drift-npm-packaging-opencode-agent-parity-exchange-distribution-doc-accuracy-test-coverage) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
+Phase: 42.1
+Plan: 02 complete
+Status: Phase execution complete
 Last activity: 2026-03-31
 
 Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in progress
@@ -124,6 +124,8 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 - [Phase 41]: All midden wiring is non-blocking following the pheromone merge-back pattern from Step 2.0.5
 - [Phase 42.1]: Added 23 missing entries to REQUIRED_FILES in one batch (20 shell + 3 non-shell)
 - [Phase 42.1]: Used generate-commands.js for bulk regeneration rather than manual editing
+- [42.1-02]: CLAUDE.md version tracks development milestone (v2.7-dev), not npm semver
+- [42.1-02]: Fixed 4 additional stale references in Architecture Overview and Key Directories beyond plan's explicit list to meet acceptance criteria
 
 ### Pending Todos
 
@@ -135,6 +137,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-31T03:11:50.109Z
-Stopped at: Completed 42.1-01-PLAN.md
+Last session: 2026-03-31T03:14:00Z
+Stopped at: Completed 42.1-02-PLAN.md
 Resume file: None
