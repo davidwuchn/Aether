@@ -731,6 +731,161 @@ json_ok "$(jq -n --argjson signal_count "$pp_signal_count" --argjson instinct_co
 }
 
 # ============================================================================
+# _budget_enforce
+# Shared budget enforcement for colony-prime and pr-context.
+# Trims sections in priority order when assembled prompt exceeds character budget.
+# Usage: _budget_enforce "<prefix>"
+#   prefix: variable prefix ("cp_" for colony-prime, "pc_" for pr-context)
+# Reads/writes via indirect access:
+#   {prefix}max_chars, {prefix}budget_len, {prefix}final_prompt,
+#   {prefix}sec_rolling, {prefix}sec_learnings, {prefix}sec_decisions,
+#   {prefix}sec_hive, {prefix}sec_capsule, {prefix}sec_user_prefs,
+#   {prefix}sec_queen_global, {prefix}sec_queen_local, {prefix}sec_signals,
+#   {prefix}sec_blockers, {prefix}budget_trimmed_list
+# Trim order: rolling > learnings > decisions > hive > capsule > user_prefs >
+#   queen_global > queen_local > signals (preserves REDIRECTs). NEVER trims blockers.
+# ============================================================================
+_budget_enforce() {
+  local _be_prefix="${1:-cp_}"
+
+  # Assemble final_prompt from sections
+  eval "local _be_sec_queen_global=\"\${${_be_prefix}sec_queen_global}\""
+  eval "local _be_sec_queen_local=\"\${${_be_prefix}sec_queen_local}\""
+  eval "local _be_sec_user_prefs=\"\${${_be_prefix}sec_user_prefs}\""
+  eval "local _be_sec_hive=\"\${${_be_prefix}sec_hive}\""
+  eval "local _be_sec_capsule=\"\${${_be_prefix}sec_capsule}\""
+  eval "local _be_sec_learnings=\"\${${_be_prefix}sec_learnings}\""
+  eval "local _be_sec_decisions=\"\${${_be_prefix}sec_decisions}\""
+  eval "local _be_sec_blockers=\"\${${_be_prefix}sec_blockers}\""
+  eval "local _be_sec_rolling=\"\${${_be_prefix}sec_rolling}\""
+  eval "local _be_sec_signals=\"\${${_be_prefix}sec_signals}\""
+
+  eval "local _be_max_chars=\${${_be_prefix}max_chars}"
+
+  # Assemble all sections in order
+  local _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+
+  local _be_budget_len=${#_be_final_prompt}
+  local _be_trimmed_list=""
+
+  if [[ "$_be_budget_len" -gt "$_be_max_chars" ]]; then
+    # Over budget -- trim sections in priority order (first = trimmed first)
+
+    # 1. Trim rolling-summary
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_rolling" ]]; then
+      _be_sec_rolling=""
+      _be_trimmed_list="rolling-summary"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 2. Trim phase-learnings
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_learnings" ]]; then
+      _be_sec_learnings=""
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}phase-learnings"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 3. Trim key-decisions
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_decisions" ]]; then
+      _be_sec_decisions=""
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}key-decisions"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 4. Trim hive-wisdom
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_hive" ]]; then
+      _be_sec_hive=""
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}hive-wisdom"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 5. Trim context-capsule
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_capsule" ]]; then
+      _be_sec_capsule=""
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}context-capsule"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 6. Trim user-prefs
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_user_prefs" ]]; then
+      _be_sec_user_prefs=""
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}user-prefs"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 7. Trim queen-wisdom-global (trim global before local -- local is more relevant)
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_queen_global" ]]; then
+      _be_sec_queen_global=""
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}queen-wisdom-global"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 8. Trim queen-wisdom-local
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_queen_local" ]]; then
+      _be_sec_queen_local=""
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}queen-wisdom-local"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+
+    # 9. Trim pheromone-signals (preserve REDIRECTs)
+    if [[ "$_be_budget_len" -gt "$_be_max_chars" && -n "$_be_sec_signals" ]]; then
+      # Extract REDIRECT lines and preserve them
+      local _be_redirect_preserved=""
+      if [[ "$_be_sec_signals" == *"REDIRECT (HARD CONSTRAINTS"* ]]; then
+        local _be_redirect_lines=""
+        local _be_in_redirect=false
+        local _be_rl
+        while IFS= read -r _be_rl; do
+          if [[ "$_be_rl" == *"REDIRECT (HARD CONSTRAINTS"* ]]; then
+            _be_in_redirect=true
+            _be_redirect_lines+="$_be_rl"$'\n'
+          elif [[ "$_be_in_redirect" == "true" ]]; then
+            if [[ "$_be_rl" == "FOCUS "* ]] || [[ "$_be_rl" == "FEEDBACK "* ]] || \
+                 [[ "$_be_rl" == "POSITION "* ]] || [[ "$_be_rl" == "--- "* ]]; then
+              _be_in_redirect=false
+            else
+              _be_redirect_lines+="$_be_rl"$'\n'
+            fi
+          fi
+        done <<< "$_be_sec_signals"
+        if [[ -n "$_be_redirect_lines" ]]; then
+          _be_redirect_preserved=$'\n'"--- ACTIVE SIGNALS (Colony Guidance) ---"$'\n'
+          _be_redirect_preserved+=$'\n'"$_be_redirect_lines"
+          _be_redirect_preserved+=$'\n'"--- END COLONY CONTEXT ---"
+        fi
+      fi
+      _be_sec_signals="$_be_redirect_preserved"
+      _be_trimmed_list="${_be_trimmed_list:+$_be_trimmed_list,}pheromone-signals"
+      _be_final_prompt="$_be_sec_queen_global$_be_sec_queen_local$_be_sec_user_prefs$_be_sec_hive$_be_sec_capsule$_be_sec_learnings$_be_sec_decisions$_be_sec_blockers$_be_sec_rolling$_be_sec_signals"
+      _be_budget_len=${#_be_final_prompt}
+    fi
+  fi
+
+  # Write back to caller's variables
+  eval "${_be_prefix}sec_queen_global=\"\$_be_sec_queen_global\""
+  eval "${_be_prefix}sec_queen_local=\"\$_be_sec_queen_local\""
+  eval "${_be_prefix}sec_user_prefs=\"\$_be_sec_user_prefs\""
+  eval "${_be_prefix}sec_hive=\"\$_be_sec_hive\""
+  eval "${_be_prefix}sec_capsule=\"\$_be_sec_capsule\""
+  eval "${_be_prefix}sec_learnings=\"\$_be_sec_learnings\""
+  eval "${_be_prefix}sec_decisions=\"\$_be_sec_decisions\""
+  eval "${_be_prefix}sec_blockers=\"\$_be_sec_blockers\""
+  eval "${_be_prefix}sec_rolling=\"\$_be_sec_rolling\""
+  eval "${_be_prefix}sec_signals=\"\$_be_sec_signals\""
+  eval "${_be_prefix}final_prompt=\"\$_be_final_prompt\""
+  eval "${_be_prefix}budget_len=\"\$_be_budget_len\""
+  eval "${_be_prefix}budget_trimmed_list=\"\$_be_trimmed_list\""
+}
+
+# ============================================================================
 # _colony_prime
 # Unified colony priming: combines wisdom (QUEEN.md) + signals + instincts into single output
 # ============================================================================
@@ -1380,115 +1535,11 @@ fi
 #   context-capsule > user-prefs > queen-wisdom-global > queen-wisdom-local > pheromone-signals (NEVER trim REDIRECTs)
 # Blockers are always kept (REDIRECT-priority).
 
-# Assemble all sections in original order (Phase 20: split queen sections)
-cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
+_budget_enforce "cp_"
 
-cp_budget_len=${#cp_final_prompt}
-
-if [[ "$cp_budget_len" -gt "$cp_max_chars" ]]; then
-  # Over budget -- trim sections in priority order (first = trimmed first)
-  cp_budget_trimmed_list=""
-
-  # 1. Trim rolling-summary
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_rolling" ]]; then
-    cp_sec_rolling=""
-    cp_budget_trimmed_list="rolling-summary"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 2. Trim phase-learnings
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_learnings" ]]; then
-    cp_sec_learnings=""
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}phase-learnings"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 3. Trim key-decisions
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_decisions" ]]; then
-    cp_sec_decisions=""
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}key-decisions"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 4. Trim hive-wisdom
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_hive" ]]; then
-    cp_sec_hive=""
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}hive-wisdom"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 5. Trim context-capsule
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_capsule" ]]; then
-    cp_sec_capsule=""
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}context-capsule"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 6. Trim user-prefs
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_user_prefs" ]]; then
-    cp_sec_user_prefs=""
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}user-prefs"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 7. Trim queen-wisdom-global (trim global before local -- local is more relevant)
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_queen_global" ]]; then
-    cp_sec_queen_global=""
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}queen-wisdom-global"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 8. Trim queen-wisdom-local
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_queen_local" ]]; then
-    cp_sec_queen_local=""
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}queen-wisdom-local"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # 9. Trim pheromone-signals (preserve REDIRECTs)
-  if [[ "$cp_budget_len" -gt "$cp_max_chars" && -n "$cp_sec_signals" ]]; then
-    # Extract REDIRECT lines and preserve them
-    cp_redirect_preserved=""
-    if [[ "$cp_sec_signals" == *"REDIRECT (HARD CONSTRAINTS"* ]]; then
-      cp_redirect_lines=""
-      cp_in_redirect=false
-      while IFS= read -r cp_rl; do
-        if [[ "$cp_rl" == *"REDIRECT (HARD CONSTRAINTS"* ]]; then
-          cp_in_redirect=true
-          cp_redirect_lines+="$cp_rl"$'\n'
-        elif [[ "$cp_in_redirect" == "true" ]]; then
-          if [[ "$cp_rl" == "FOCUS "* ]] || [[ "$cp_rl" == "FEEDBACK "* ]] || \
-               [[ "$cp_rl" == "POSITION "* ]] || [[ "$cp_rl" == "--- "* ]]; then
-            cp_in_redirect=false
-          else
-            cp_redirect_lines+="$cp_rl"$'\n'
-          fi
-        fi
-      done <<< "$cp_sec_signals"
-      if [[ -n "$cp_redirect_lines" ]]; then
-        cp_redirect_preserved=$'\n'"--- ACTIVE SIGNALS (Colony Guidance) ---"$'\n'
-        cp_redirect_preserved+=$'\n'"$cp_redirect_lines"
-        cp_redirect_preserved+=$'\n'"--- END COLONY CONTEXT ---"
-      fi
-    fi
-    cp_sec_signals="$cp_redirect_preserved"
-    cp_budget_trimmed_list="${cp_budget_trimmed_list:+$cp_budget_trimmed_list,}pheromone-signals"
-    cp_final_prompt="$cp_sec_queen_global$cp_sec_queen_local$cp_sec_user_prefs$cp_sec_hive$cp_sec_capsule$cp_sec_learnings$cp_sec_decisions$cp_sec_blockers$cp_sec_rolling$cp_sec_signals"
-    cp_budget_len=${#cp_final_prompt}
-  fi
-
-  # Append truncation note to log line
-  if [[ -n "$cp_budget_trimmed_list" ]]; then
-    cp_log_line="$cp_log_line, truncated: $cp_budget_trimmed_list (budget: ${cp_max_chars})"
-  fi
+# Append truncation note to log line (post _budget_enforce)
+if [[ -n "${cp_budget_trimmed_list:-}" ]]; then
+  cp_log_line="$cp_log_line, truncated: $cp_budget_trimmed_list (budget: ${cp_max_chars})"
 fi
 # === END Budget enforcement ===
 
@@ -1550,6 +1601,569 @@ if [[ -z "$cp_result" ]] || ! echo "$cp_result" | jq -e . >/dev/null 2>&1; then 
 fi
 
 json_ok "$cp_result"
+}
+
+# ============================================================================
+# _cache_read / _cache_write
+# Cache helpers for pr-context -- TTL-based with mtime validation
+# ============================================================================
+_cache_read() {
+  local _cr_name="$1"
+  local _cr_path="$2"
+  local _cr_ttl="$3"
+  local _cr_cache_file="${COLONY_DATA_DIR:-$DATA_DIR}/pr-context-cache.json"
+
+  if [[ ! -f "$_cr_cache_file" ]]; then
+    echo "null"
+    return 0
+  fi
+
+  # Get source file mtime
+  local _cr_mtime
+  _cr_mtime=$(stat -f "%m" "$_cr_path" 2>/dev/null || stat -c "%Y" "$_cr_path" 2>/dev/null || echo "0")
+
+  # Get cached entry
+  local _cr_entry
+  _cr_entry=$(jq -r --arg name "$_cr_name" '.[$name] // null' "$_cr_cache_file" 2>/dev/null)
+
+  if [[ "$_cr_entry" == "null" || -z "$_cr_entry" ]]; then
+    echo "null"
+    return 0
+  fi
+
+  # Check mtime match
+  local _cr_cached_mtime
+  _cr_cached_mtime=$(echo "$_cr_entry" | jq -r '.mtime // 0' 2>/dev/null)
+  if [[ "$_cr_cached_mtime" != "$_cr_mtime" ]]; then
+    echo "null"
+    return 0
+  fi
+
+  # Check TTL
+  local _cr_cached_at
+  _cr_cached_at=$(echo "$_cr_entry" | jq -r '.cached_at // 0' 2>/dev/null)
+  local _cr_now
+  _cr_now=$(date +%s)
+  local _cr_age=$(( _cr_now - _cr_cached_at ))
+  if [[ "$_cr_age" -gt "$_cr_ttl" ]]; then
+    echo "null"
+    return 0
+  fi
+
+  # Cache hit -- return the data
+  echo "$_cr_entry" | jq -r '.data'
+}
+
+_cache_write() {
+  local _cw_name="$1"
+  local _cw_path="$2"
+  local _cw_data="$3"
+  local _cw_cache_file="${COLONY_DATA_DIR:-$DATA_DIR}/pr-context-cache.json"
+
+  # Ensure directory exists
+  mkdir -p "$(dirname "$_cw_cache_file")" 2>/dev/null || true
+
+  # Get source file mtime
+  local _cw_mtime
+  _cw_mtime=$(stat -f "%m" "$_cw_path" 2>/dev/null || stat -c "%Y" "$_cw_path" 2>/dev/null || echo "0")
+
+  local _cw_now
+  _cw_now=$(date +%s)
+
+  # Build new entry
+  local _cw_entry
+  _cw_entry=$(jq -n \
+    --arg path "$_cw_path" \
+    --arg mtime "$_cw_mtime" \
+    --argjson cached_at "$_cw_now" \
+    --argjson data "$_cw_data" \
+    '{path: $path, mtime: $mtime, cached_at: $cached_at, data: $data}')
+
+  # Merge into cache file
+  if [[ ! -f "$_cw_cache_file" ]]; then
+    echo "{}" > "$_cw_cache_file"
+  fi
+
+  # Use atomic write pattern
+  local _cw_tmp="${_cw_cache_file}.tmp.$$"
+  jq --arg name "$_cw_name" --argjson entry "$_cw_entry" \
+    '.[$name] = $entry' "$_cw_cache_file" > "$_cw_tmp" 2>/dev/null && \
+    mv "$_cw_tmp" "$_cw_cache_file" 2>/dev/null || \
+    rm -f "$_cw_tmp" 2>/dev/null
+}
+
+# ============================================================================
+# _pr_context
+# Generate CI-ready colony context as structured JSON.
+# Soft-fails on every missing source. Uses cache for stable sources.
+# ============================================================================
+_pr_context() {
+pc_compact=false
+pc_branch=""
+pc_ci_run_id=""
+
+# Parse flags
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --compact) pc_compact=true; shift ;;
+    --branch) pc_branch="${2:-}"; shift 2 ;;
+    --ci-run-id) pc_ci_run_id="${2:-}"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+
+# Defaults
+pc_max_chars=6000
+if [[ "$pc_compact" == "true" ]]; then
+  pc_max_chars=3000
+fi
+
+if [[ -z "$pc_branch" ]]; then
+  pc_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+fi
+
+pc_generated_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+pc_warnings=()
+pc_fallbacks=()
+pc_cache_status='{}'
+
+# === Section: queen (global) ===
+pc_queen_global_file="$HOME/.aether/QUEEN.md"
+pc_queen_global_data="{}"
+if [[ -f "$pc_queen_global_file" ]]; then
+  pc_queen_global_cached=$(_cache_read "queen_global" "$pc_queen_global_file" 3600)
+  if [[ "$pc_queen_global_cached" != "null" && -n "$pc_queen_global_cached" ]]; then
+    pc_queen_global_data="$pc_queen_global_cached"
+    pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "cached" '.queen_global = $s' 2>/dev/null || echo '{}')
+  else
+    pc_queen_global_data=$(_extract_wisdom "$pc_queen_global_file" 2>/dev/null || echo '{}')
+    if [[ -z "$pc_queen_global_data" || "$pc_queen_global_data" == "null" ]]; then
+      pc_queen_global_data="{}"
+    fi
+    _cache_write "queen_global" "$pc_queen_global_file" "$pc_queen_global_data" 2>/dev/null || true
+    pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "fresh" '.queen_global = $s' 2>/dev/null || echo '{}')
+  fi
+else
+  pc_fallbacks+=("queen_global: no file found")
+  pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "missing" '.queen_global = $s' 2>/dev/null || echo '{}')
+fi
+
+# === Section: queen (local) ===
+pc_queen_local_file="$AETHER_ROOT/.aether/QUEEN.md"
+pc_queen_local_data="{}"
+if [[ -f "$pc_queen_local_file" ]]; then
+  pc_queen_local_cached=$(_cache_read "queen_local" "$pc_queen_local_file" 3600)
+  if [[ "$pc_queen_local_cached" != "null" && -n "$pc_queen_local_cached" ]]; then
+    pc_queen_local_data="$pc_queen_local_cached"
+    pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "cached" '.queen_local = $s' 2>/dev/null || echo '{}')
+  else
+    pc_queen_local_data=$(_extract_wisdom "$pc_queen_local_file" 2>/dev/null || echo '{}')
+    if [[ -z "$pc_queen_local_data" || "$pc_queen_local_data" == "null" ]]; then
+      pc_queen_local_data="{}"
+    fi
+    _cache_write "queen_local" "$pc_queen_local_file" "$pc_queen_local_data" 2>/dev/null || true
+    pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "fresh" '.queen_local = $s' 2>/dev/null || echo '{}')
+  fi
+else
+  pc_fallbacks+=("queen_local: no file found")
+  pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "missing" '.queen_local = $s' 2>/dev/null || echo '{}')
+fi
+
+# === Section: user_preferences ===
+pc_user_prefs='[]'
+# Extract from global queen wisdom
+pc_up_raw=$(echo "$pc_queen_global_data" | jq -r '.user_prefs // ""' 2>/dev/null)
+if [[ -n "$pc_up_raw" && "$pc_up_raw" != "null" ]]; then
+  pc_user_prefs=$(echo "$pc_up_raw" | jq -R -s 'split("\n") | map(select(length > 0))' 2>/dev/null || echo '[]')
+fi
+pc_up_local=$(echo "$pc_queen_local_data" | jq -r '.user_prefs // ""' 2>/dev/null)
+if [[ -n "$pc_up_local" && "$pc_up_local" != "null" ]]; then
+  pc_user_prefs_local=$(echo "$pc_up_local" | jq -R -s 'split("\n") | map(select(length > 0))' 2>/dev/null || echo '[]')
+  pc_user_prefs=$(echo "$pc_user_prefs" | jq --argjson local "$pc_user_prefs_local" '. + $local' 2>/dev/null || echo "$pc_user_prefs")
+fi
+
+# === Section: signals ===
+pc_pher_file="${COLONY_DATA_DIR:-$DATA_DIR}/pheromones.json"
+pc_state_file="${COLONY_DATA_DIR:-$DATA_DIR}/COLONY_STATE.json"
+pc_signals_count=0
+pc_redirects='[]'
+pc_focus='[]'
+pc_feedback='[]'
+pc_instincts='[]'
+
+if [[ -f "$pc_pher_file" ]]; then
+  # Read and classify signals
+  pc_signals_json=$(jq -r '.signals // []' "$pc_pher_file" 2>/dev/null || echo '[]')
+  if [[ -n "$pc_signals_json" && "$pc_signals_json" != "null" ]]; then
+    pc_signals_count=$(echo "$pc_signals_json" | jq 'length' 2>/dev/null || echo 0)
+    pc_redirects=$(echo "$pc_signals_json" | jq '[.[] | select(.type == "REDIRECT")]' 2>/dev/null || echo '[]')
+    pc_focus=$(echo "$pc_signals_json" | jq '[.[] | select(.type == "FOCUS")]' 2>/dev/null || echo '[]')
+    pc_feedback=$(echo "$pc_signals_json" | jq '[.[] | select(.type == "FEEDBACK")]' 2>/dev/null || echo '[]')
+  fi
+else
+  pc_fallbacks+=("pheromones: no active signals")
+fi
+
+# Read instincts from COLONY_STATE.json
+if [[ -f "$pc_state_file" ]]; then
+  pc_instincts=$(jq -r '.memory.instincts // []' "$pc_state_file" 2>/dev/null || echo '[]')
+  if [[ -z "$pc_instincts" || "$pc_instincts" == "null" ]]; then
+    pc_instincts='[]'
+  fi
+fi
+
+# === Section: hive_wisdom ===
+pc_hive_data='[]'
+pc_hive_source="empty"
+pc_hive_file="$HOME/.aether/hive/wisdom.json"
+pc_eternal_file="$HOME/.aether/eternal/memory.json"
+
+# Try hive first (via subcommand invocation for proper domain scoping)
+pc_hive_raw=$(bash "$SCRIPT_DIR/aether-utils.sh" hive-read --limit 5 --min-confidence 0.5 --format json 2>/dev/null || echo '')
+if [[ -n "$pc_hive_raw" ]]; then
+  pc_hive_entries=$(echo "$pc_hive_raw" | jq -r '.result.entries // []' 2>/dev/null)
+  if [[ -n "$pc_hive_entries" && "$pc_hive_entries" != "null" && "$pc_hive_entries" != "[]" ]]; then
+    pc_hive_data="$pc_hive_entries"
+    pc_hive_source="hive"
+    pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "fresh" '.hive = $s' 2>/dev/null || echo '{}')
+  fi
+fi
+
+# Fallback to eternal memory
+if [[ "$pc_hive_source" == "empty" && -f "$pc_eternal_file" ]]; then
+  pc_eternal_cached=$(_cache_read "eternal" "$pc_eternal_file" 7200)
+  if [[ "$pc_eternal_cached" != "null" && -n "$pc_eternal_cached" ]]; then
+    pc_hive_data="$pc_eternal_cached"
+    pc_hive_source="eternal"
+    pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "cached" '.hive = $s' 2>/dev/null || echo '{}')
+  else
+    pc_eternal_raw=$(jq -r '.entries // []' "$pc_eternal_file" 2>/dev/null || echo '[]')
+    if [[ -n "$pc_eternal_raw" && "$pc_eternal_raw" != "null" && "$pc_eternal_raw" != "[]" ]]; then
+      pc_hive_data="$pc_eternal_raw"
+      pc_hive_source="eternal"
+      _cache_write "eternal" "$pc_eternal_file" "$pc_eternal_raw" 2>/dev/null || true
+      pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "fresh" '.hive = $s' 2>/dev/null || echo '{}')
+    fi
+  fi
+fi
+
+if [[ "$pc_hive_source" == "empty" ]]; then
+  pc_fallbacks+=("hive_wisdom: no hive or eternal data")
+  pc_cache_status=$(echo "$pc_cache_status" | jq --arg s "missing" '.hive = $s' 2>/dev/null || echo '{}')
+fi
+
+# === Section: colony_state ===
+pc_cs_exists=false
+pc_cs_goal="No goal set"
+pc_cs_state="UNKNOWN"
+pc_cs_current_phase=0
+pc_cs_total_phases=0
+pc_cs_phase_name=""
+if [[ -f "$pc_state_file" ]]; then
+  pc_cs_parsed=$(jq -r '{goal: .goal, state: .state, current_phase: .current_phase, total_phases: (.total_phases // (.plan.phases | length // 0)), phase_name: .phase_name}' "$pc_state_file" 2>/dev/null)
+  if [[ -n "$pc_cs_parsed" && "$pc_cs_parsed" != "null" ]]; then
+    pc_cs_exists=true
+    pc_cs_goal=$(echo "$pc_cs_parsed" | jq -r '.goal // "No goal set"' 2>/dev/null)
+    pc_cs_state=$(echo "$pc_cs_parsed" | jq -r '.state // "UNKNOWN"' 2>/dev/null)
+    pc_cs_current_phase=$(echo "$pc_cs_parsed" | jq -r '.current_phase // 0' 2>/dev/null)
+    pc_cs_total_phases=$(echo "$pc_cs_parsed" | jq -r '.total_phases // 0' 2>/dev/null)
+    pc_cs_phase_name=$(echo "$pc_cs_parsed" | jq -r '.phase_name // ""' 2>/dev/null)
+  else
+    pc_fallbacks+=("colony_state: COLONY_STATE.json corrupt")
+  fi
+else
+  pc_fallbacks+=("colony_state: COLONY_STATE.json missing")
+fi
+
+# === Section: blockers ===
+pc_flags_file="${COLONY_DATA_DIR:-$DATA_DIR}/flags.json"
+pc_blockers_count=0
+pc_blockers_items='[]'
+if [[ -f "$pc_flags_file" ]]; then
+  pc_blockers_items=$(jq -r '[.flags // [] | .[] | select((.resolved // false) != true and ((.type // "") == "blocker" or (.severity // "") == "CRITICAL"))]' "$pc_flags_file" 2>/dev/null || echo '[]')
+  pc_blockers_count=$(echo "$pc_blockers_items" | jq 'length' 2>/dev/null || echo 0)
+else
+  pc_fallbacks+=("blockers: flags.json missing")
+fi
+
+# === Section: decisions ===
+pc_decisions_count=0
+pc_decisions_items='[]'
+pc_context_file="$AETHER_ROOT/.aether/CONTEXT.md"
+if [[ -f "$pc_context_file" ]]; then
+  # Extract decisions from CONTEXT.md if present
+  pc_decisions_items=$(jq -r '.memory.decisions // []' "$pc_state_file" 2>/dev/null || echo '[]')
+  if [[ -n "$pc_decisions_items" && "$pc_decisions_items" != "null" && "$pc_decisions_items" != "[]" ]]; then
+    pc_decisions_count=$(echo "$pc_decisions_items" | jq 'length' 2>/dev/null || echo 0)
+  fi
+elif [[ -f "$pc_state_file" ]]; then
+  pc_decisions_items=$(jq -r '.memory.decisions // []' "$pc_state_file" 2>/dev/null || echo '[]')
+  if [[ -n "$pc_decisions_items" && "$pc_decisions_items" != "null" ]]; then
+    pc_decisions_count=$(echo "$pc_decisions_items" | jq 'length' 2>/dev/null || echo 0)
+  fi
+fi
+
+# === Section: rolling_summary ===
+pc_roll_file="${COLONY_DATA_DIR:-$DATA_DIR}/rolling-summary.log"
+pc_rolling=""
+if [[ -f "$pc_roll_file" ]]; then
+  pc_rolling=$(tail -n 20 "$pc_roll_file" 2>/dev/null | head -20 || echo "")
+fi
+
+# === Section: midden ===
+pc_midden_file="${COLONY_DATA_DIR:-$DATA_DIR}/midden/midden.json"
+pc_midden_count=0
+pc_midden_entries='[]'
+pc_midden_cross_pr='{}'
+
+if [[ -f "$pc_midden_file" ]]; then
+  # Bound: entries from last 7 days, cap at 10
+  local now_epoch
+  now_epoch=$(date +%s)
+  local seven_days_ago=$(( now_epoch - 604800 ))
+  pc_midden_entries=$(jq -r --argjson cutoff "$seven_days_ago" --argjson max 10 '
+    [.entries // [] | .[] |
+      # Parse occurred_at to epoch (best-effort)
+      (.occurred_at // .timestamp // "") as $ts |
+      ($ts | split("T")) as $parts |
+      if ($parts | length) > 1 then
+        ($parts[0] | split("-")) as $d |
+        ($parts[1] | rtrimstr("Z") | split(":")) as $t |
+        (($d[0] // "0" | tonumber) - 1970) * 365 * 86400 +
+        (($d[1] // "0" | tonumber) - 1) * 30 * 86400 +
+        (($d[2] // "0" | tonumber) - 1) * 86400 +
+        (($t[0] // "0" | tonumber) * 3600) +
+        (($t[1] // "0" | tonumber) * 60) +
+        (($t[2] // "0" | rtrimstr("Z") | tonumber) // 0) as $epoch |
+        . + {_epoch: $epoch}
+      else . + {_epoch: 0} end
+    ] | sort_by(-._epoch) | .[:$max] |
+    map(del(._epoch) | .description = ((.description // "")[0:160]))
+  ' "$pc_midden_file" 2>/dev/null || echo '[]')
+  pc_midden_count=$(echo "$pc_midden_entries" | jq 'length' 2>/dev/null || echo 0)
+else
+  pc_fallbacks+=("midden: midden.json missing")
+fi
+
+# === Section: context_capsule ===
+pc_capsule_data='{}'
+pc_capsule_raw=$(bash "$SCRIPT_DIR/aether-utils.sh" context-capsule --json 2>/dev/null || echo '')
+if [[ -n "$pc_capsule_raw" ]]; then
+  pc_capsule_data=$(echo "$pc_capsule_raw" | jq -r '.result // . // {}' 2>/dev/null || echo '{}')
+fi
+
+# === Section: phase_learnings ===
+pc_learnings=""
+if [[ -f "$pc_state_file" ]]; then
+  pc_learnings=$(jq -r '.memory.phase_learnings // [] | map(if type == "object" then (.summary // .description // tostring) else tostring end) | .[]' "$pc_state_file" 2>/dev/null | head -20 || echo "")
+fi
+
+# === Build prompt_section (text version) ===
+pc_sec_queen_global=""
+pc_sec_queen_local=""
+pc_sec_user_prefs=""
+pc_sec_hive=""
+pc_sec_capsule=""
+pc_sec_learnings=""
+pc_sec_decisions=""
+pc_sec_blockers=""
+pc_sec_rolling=""
+pc_sec_signals=""
+
+# QUEEN global section
+local _pc_qg_raw=""
+if [[ -f "$pc_queen_global_file" ]]; then
+  _pc_qg_raw=$(echo "$pc_queen_global_data" | jq -r 'to_entries | map("\(.key): \(.value)") | .[]' 2>/dev/null)
+fi
+if [[ -n "$_pc_qg_raw" ]]; then
+  pc_sec_queen_global=$'\n'"--- QUEEN WISDOM (Global) ---"$'\n'"$_pc_qg_raw"$'\n'
+fi
+
+# QUEEN local section
+local _pc_ql_raw=""
+if [[ -f "$pc_queen_local_file" ]]; then
+  _pc_ql_raw=$(echo "$pc_queen_local_data" | jq -r 'to_entries | map("\(.key): \(.value)") | .[]' 2>/dev/null)
+fi
+if [[ -n "$_pc_ql_raw" ]]; then
+  pc_sec_queen_local=$'\n'"--- QUEEN WISDOM (Local) ---"$'\n'"$_pc_ql_raw"$'\n'
+fi
+
+# User preferences
+if [[ "$(echo "$pc_user_prefs" | jq 'length' 2>/dev/null)" -gt 0 ]]; then
+  pc_sec_user_prefs=$'\n'"--- USER PREFERENCES ---"$'\n'
+  pc_sec_user_prefs+=$(echo "$pc_user_prefs" | jq -r '.[]' 2>/dev/null | while IFS= read -r line; do echo "- $line"; done)
+  pc_sec_user_prefs+=$'\n'
+fi
+
+# Signals section
+if [[ "$pc_signals_count" -gt 0 ]]; then
+  pc_sec_signals=$'\n'"--- ACTIVE SIGNALS (Colony Guidance) ---"$'\n'
+  local _pc_redirects_text=""
+  _pc_redirects_text=$(echo "$pc_redirects" | jq -r '.[] | "REDIRECT (HARD CONSTRAINT): " + (.content.text // (.content | if type == "string" then . else "" end))' 2>/dev/null)
+  if [[ -n "$_pc_redirects_text" ]]; then
+    pc_sec_signals+=$'\n'"REDIRECT (HARD CONSTRAINTS):"$'\n'
+    while IFS= read -r line; do [[ -n "$line" ]] && pc_sec_signals+="- $line"$'\n'; done <<< "$_pc_redirects_text"
+  fi
+  local _pc_focus_text=""
+  _pc_focus_text=$(echo "$pc_focus" | jq -r '.[] | "FOCUS: " + (.content.text // (.content | if type == "string" then . else "" end))' 2>/dev/null)
+  if [[ -n "$_pc_focus_text" ]]; then
+    pc_sec_signals+=$'\n'"FOCUS (Active Guidance):"$'\n'
+    while IFS= read -r line; do [[ -n "$line" ]] && pc_sec_signals+="- $line"$'\n'; done <<< "$_pc_focus_text"
+  fi
+  local _pc_feedback_text=""
+  _pc_feedback_text=$(echo "$pc_feedback" | jq -r '.[] | "FEEDBACK: " + (.content.text // (.content | if type == "string" then . else "" end))' 2>/dev/null)
+  if [[ -n "$_pc_feedback_text" ]]; then
+    pc_sec_signals+=$'\n'"FEEDBACK (Adjustments):"$'\n'
+    while IFS= read -r line; do [[ -n "$line" ]] && pc_sec_signals+="- $line"$'\n'; done <<< "$_pc_feedback_text"
+  fi
+  pc_sec_signals+=$'\n'"--- END SIGNALS ---"$'\n'
+fi
+
+# Hive wisdom
+local _pc_hive_count=0
+_pc_hive_count=$(echo "$pc_hive_data" | jq 'length' 2>/dev/null || echo 0)
+if [[ "$_pc_hive_count" -gt 0 ]]; then
+  pc_sec_hive=$'\n'"--- HIVE WISDOM (Cross-Colony Patterns) ---"$'\n'
+  pc_sec_hive+=$(echo "$pc_hive_data" | jq -r '.[] | "- " + (.wisdom // .text // (. | tostring))' 2>/dev/null | head -10)
+  pc_sec_hive+=$'\n'
+fi
+
+# Context capsule
+local _pc_capsule_text=""
+_pc_capsule_text=$(echo "$pc_capsule_data" | jq -r '.prompt_section // ""' 2>/dev/null)
+if [[ -n "$_pc_capsule_text" ]]; then
+  pc_sec_capsule=$'\n'"$_pc_capsule_text"$'\n'
+fi
+
+# Phase learnings
+if [[ -n "$pc_learnings" ]]; then
+  pc_sec_learnings=$'\n'"--- PHASE LEARNINGS ---"$'\n'"$pc_learnings"$'\n'
+fi
+
+# Decisions
+if [[ "$pc_decisions_count" -gt 0 ]]; then
+  pc_sec_decisions=$'\n'"--- KEY DECISIONS ---"$'\n'
+  pc_sec_decisions+=$(echo "$pc_decisions_items" | jq -r '.[] | if type == "object" then "- " + (.decision // .summary // .description // tostring) else "- " + tostring end' 2>/dev/null | head -10)
+  pc_sec_decisions+=$'\n'
+fi
+
+# Blockers
+if [[ "$pc_blockers_count" -gt 0 ]]; then
+  pc_sec_blockers=$'\n'"--- BLOCKERS (CRITICAL) ---"$'\n'
+  pc_sec_blockers+=$(echo "$pc_blockers_items" | jq -r '.[] | "- " + (.title // .description // tostring)' 2>/dev/null | head -10)
+  pc_sec_blockers+=$'\n'
+fi
+
+# Rolling summary
+if [[ -n "$pc_rolling" ]]; then
+  pc_sec_rolling=$'\n'"--- ROLLING SUMMARY ---"$'\n'"$pc_rolling"$'\n'
+fi
+
+# === Budget enforcement ===
+_budget_enforce "pc_"
+
+# Trim notification
+local pc_trimmed_sections=""
+if [[ -n "${pc_budget_trimmed_list:-}" ]]; then
+  pc_trimmed_sections=$(echo "$pc_budget_trimmed_list" | tr ',' ', ')
+fi
+
+# === Build output JSON ===
+# Build fallbacks JSON array
+local pc_fallbacks_json='[]'
+local fb
+for fb in ${pc_fallbacks[@]+"${pc_fallbacks[@]}"}; do
+  pc_fallbacks_json=$(echo "$pc_fallbacks_json" | jq --arg f "$fb" '. + [$f]' 2>/dev/null || echo '[]')
+done
+
+# Build warnings JSON array
+local pc_warnings_json='[]'
+local w
+for w in ${pc_warnings[@]+"${pc_warnings[@]}"}; do
+  pc_warnings_json=$(echo "$pc_warnings_json" | jq --arg f "$w" '. + [$f]' 2>/dev/null || echo '[]')
+done
+
+# Trimmed sections JSON array
+local pc_trimmed_json='[]'
+if [[ -n "${pc_budget_trimmed_list:-}" ]]; then
+  pc_trimmed_json=$(echo "$pc_budget_trimmed_list" | jq -R 'split(",")' 2>/dev/null || echo '[]')
+fi
+
+# Escape prompt_section for JSON
+local pc_prompt_json
+pc_prompt_json=$(printf '%s' "$pc_final_prompt" | jq -Rs '.' 2>/dev/null || echo '""')
+
+# Colony state JSON
+local pc_colony_state_json
+pc_colony_state_json=$(jq -n \
+  --argjson exists "$pc_cs_exists" \
+  --arg goal "$pc_cs_goal" \
+  --arg state "$pc_cs_state" \
+  --argjson current_phase "$pc_cs_current_phase" \
+  --argjson total_phases "$pc_cs_total_phases" \
+  --arg phase_name "$pc_cs_phase_name" \
+  '{exists: $exists, goal: $goal, state: $state, current_phase: $current_phase, total_phases: $total_phases, phase_name: $phase_name}')
+
+# Build result
+local pc_result
+pc_result=$(jq -n \
+  --arg schema "pr-context-v1" \
+  --arg generated_at "$pc_generated_at" \
+  --arg branch "$pc_branch" \
+  --argjson cache_status "$pc_cache_status" \
+  --argjson queen_global "$pc_queen_global_data" \
+  --argjson queen_local "$pc_queen_local_data" \
+  --argjson combined_prefs "$pc_user_prefs" \
+  --argjson signals_count "$pc_signals_count" \
+  --argjson redirects "$pc_redirects" \
+  --argjson focus "$pc_focus" \
+  --argjson feedback "$pc_feedback" \
+  --argjson instincts "$pc_instincts" \
+  --arg hive_source "$pc_hive_source" \
+  --argjson hive_count "$(echo "$pc_hive_data" | jq 'length' 2>/dev/null || echo 0)" \
+  --argjson hive_entries "$pc_hive_data" \
+  --argjson colony_state "$pc_colony_state_json" \
+  --argjson blockers_count "$pc_blockers_count" \
+  --argjson blockers_items "$pc_blockers_items" \
+  --argjson decisions_count "$pc_decisions_count" \
+  --argjson decisions_items "$pc_decisions_items" \
+  --argjson midden_count "$pc_midden_count" \
+  --argjson midden_entries "$pc_midden_entries" \
+  --argjson midden_cross_pr "$pc_midden_cross_pr" \
+  --argjson prompt_section "$pc_prompt_json" \
+  --argjson char_count "${#pc_final_prompt}" \
+  --argjson budget "$pc_max_chars" \
+  --argjson trimmed_sections "$pc_trimmed_json" \
+  --argjson warnings "$pc_warnings_json" \
+  --argjson fallbacks_used "$pc_fallbacks_json" \
+  '{
+    schema: $schema,
+    generated_at: $generated_at,
+    branch: $branch,
+    cache_status: $cache_status,
+    queen: {global: $queen_global, local: $queen_local, combined_prefs: $combined_prefs},
+    signals: {count: $signals_count, redirects: $redirects, focus: $focus, feedback: $feedback, instincts: $instincts},
+    hive: {source: $hive_source, count: $hive_count, entries: $hive_entries},
+    colony_state: $colony_state,
+    blockers: {count: $blockers_count, items: $blockers_items},
+    decisions: {count: $decisions_count, items: $decisions_items},
+    midden: {count: $midden_count, entries: $midden_entries, cross_pr_analysis: $midden_cross_pr},
+    prompt_section: $prompt_section,
+    char_count: $char_count,
+    budget: $budget,
+    trimmed_sections: $trimmed_sections,
+    warnings: $warnings,
+    fallbacks_used: $fallbacks_used
+  }')
+
+# Validate result
+if [[ -z "$pc_result" ]] || ! echo "$pc_result" | jq -e . >/dev/null 2>&1; then
+  json_err "$E_JSON_INVALID" \
+    "Couldn't assemble pr-context output" \
+    '{"error":"assembly_failed"}'
+fi
+
+json_ok "$pc_result"
 }
 
 # ============================================================================
