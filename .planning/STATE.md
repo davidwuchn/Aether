@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Completed 38-01-PLAN.md
-last_updated: "2026-03-29T15:43:59.148Z"
-last_activity: 2026-03-29
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-03-31T06:05:21Z"
+last_activity: 2026-03-31
 progress:
   total_phases: 6
   completed_phases: 5
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 38 — cleanup-maintenance
+**Current focus:** Phase 44 — release-hygiene-ship
 
 ## Current Position
 
-Phase: 38
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-03-29
+Phase: 44
+Plan: 01 complete
+Status: Executing
+Last activity: 2026-03-31
 
 Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in progress
 
@@ -68,6 +68,7 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 | Phase 36 P03 | 14min | 2 tasks | 22 files |
 | Phase 37 P03 | 5min | 2 tasks | 7 files |
 | Phase 38 P01 | 8min | 2 tasks | 2 files |
+| Phase 44 P01 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,8 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 - [Phase 37]: Check 7 in validate-package.sh validates exchange shell scripts (.sh), not XML data files
 - [Phase 38]: Pre-existing instinct-confidence test failures (4 tests) deferred as unrelated to spawn-tree.sh changes
 - [Phase 38]: error-codes.md descriptions verified accurate; only last-updated date needed changing
+- [Phase 44]: Used wildcard .npmignore patterns (docs/*-design.md, scripts/) instead of individual file listings
+- [Phase 44]: Left unused OPENCODE_COMMANDS_SRC constant in npx-install.js as harmless
 
 ### Pending Todos
 
@@ -125,6 +128,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-29T14:59:06.180Z
-Stopped at: Completed 38-01-PLAN.md
+Last session: 2026-03-31T06:05:21Z
+Stopped at: Completed 44-01-PLAN.md
 Resume file: None

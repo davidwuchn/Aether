@@ -9,6 +9,7 @@
 - **v2.4 Living Wisdom** -- Phases 25-28 (shipped 2026-03-27)
 - **v2.5 Smart Init** -- Phases 29-32 (shipped 2026-03-27)
 - **v2.6 Bugfix & Hardening** -- Phases 33-38 (in progress)
+- **v2.7 Release Hygiene & Ship** -- Phase 44 (in progress)
 
 ## Phases
 
@@ -221,3 +222,4 @@ Plans:
 | 36. YAML Command Generator | v2.6 | 2/4 | Complete    | 2026-03-29 |
 | 37. XML Core Integration | v2.6 | 3/3 | Complete    | 2026-03-29 |
 | 38. Cleanup & Maintenance | v2.6 | 1/2 | Complete    | 2026-03-29 |
+| 44. Release Hygiene & Ship | v2.7 | 1/3 | In Progress | - |
