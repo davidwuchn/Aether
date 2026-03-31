@@ -1,3 +1,16 @@
+### Step 2.0.7: Generate Review Context (pr-context)
+
+After verification passes, generate structured colony context for the review and learning steps that follow.
+
+Run using the Bash tool with description "Generating review context...":
+```bash
+REVIEW_CONTEXT=$(bash "$AETHER_UTILS" pr-context 2>/dev/null) || true
+```
+
+- If REVIEW_CONTEXT is empty or fails, continue without it (non-blocking)
+- This provides structured colony context for review/learning steps
+- Output is available for subsequent steps but does not gate them
+
 ### Step 2: Update State
 
 Find current phase in `plan.phases`.

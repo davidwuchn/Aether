@@ -1,3 +1,16 @@
+### Step 5.3.5: Generate Compact Review Context for Review Cycles
+
+Before spawning review agents, generate compact colony context for CI/autopilot agent review cycles.
+
+Run using the Bash tool with description "Generating compact review context...":
+```bash
+REVIEW_CONTEXT=$(bash "$AETHER_UTILS" pr-context --compact 2>/dev/null) || true
+```
+
+- If empty, continue without review context (non-blocking)
+- Provides compact colony context for CI/autopilot agent review cycles
+- Output is available for Watcher and subsequent review agents but does not gate them
+
 ### Step 5.4: Spawn Watcher for Verification
 
 **MANDATORY: Always spawn a Watcher — testing must be independent.**
