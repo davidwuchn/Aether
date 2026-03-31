@@ -109,7 +109,7 @@ async function interactiveSetup() {
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     try {
       console.log(BANNER);
-      console.log(`  Aether Colony v${VERSION}\n`);
+      console.log(`  🐜 Aether Colony v${VERSION}\n`);
       log('Aether is already set up in this directory.');
 
       let answer;
@@ -136,12 +136,12 @@ async function interactiveSetup() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
     console.log(BANNER);
-    console.log(`  Aether Colony v${VERSION}\n`);
+    console.log(`  🐜 Aether Colony v${VERSION}\n`);
 
     const defaultOption = getDefaultOption(env);
     const option3Disabled = !env.isProjectDir;
 
-    console.log('  What would you like to do?\n');
+    console.log('  🐜 What would you like to do?\n');
     console.log(`  [1] Full setup    — Install globally + set up this repo${defaultOption === 1 ? ' (recommended)' : ''}`);
     console.log(`  [2] Global only   — Install hub, commands, and agents (~/.aether/)${defaultOption === 2 ? ' (recommended)' : ''}`);
     if (option3Disabled) {
@@ -212,11 +212,12 @@ async function executeChoice(choice, env, performGlobalInstall, initializeRepo) 
  */
 function printGlobalSuccess() {
   console.log('');
-  log('Global install complete.');
+  console.log('  🐜 Global install complete!');
   console.log('');
   console.log('  Next steps:');
   console.log('    cd into a project, then run: npx aether-colony --repo');
   console.log('    Or: aether init --goal "your goal"');
+  console.log('  🐜🐜🐜')
   console.log('');
 }
 
@@ -230,7 +231,7 @@ function printRepoSuccess(result) {
     return;
   }
   console.log('');
-  log('Aether is ready.');
+  console.log('  🐜 Aether is ready!');
   if (result.filesCopied != null) {
     console.log(`  ${result.filesCopied} system files synced to .aether/`);
   }
@@ -238,6 +239,7 @@ function printRepoSuccess(result) {
   console.log('  Next steps:');
   console.log('    In Claude Code: /ant:init "your goal"');
   console.log('    Or terminal:    aether init --goal "your goal"');
+  console.log('  🐜🐜🐜');
   console.log('');
 }
 

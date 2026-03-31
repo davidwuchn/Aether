@@ -18,7 +18,7 @@ Spawn a colony of 24 AI specialists that self-organize around your goal using ph
 *The whole is greater than the sum of its ants.*
 
 ```bash
-npm install -g aether-colony
+npx aether-colony
 ```
 
 </div>
@@ -72,7 +72,10 @@ The colony **remembers**. Wisdom, learnings, and instincts persist across sessio
 ## 🚀 Quick Start
 
 ```bash
-# Install globally
+# Interactive setup (recommended)
+npx aether-colony
+
+# Or install globally
 npm install -g aether-colony
 
 # In your project repo:

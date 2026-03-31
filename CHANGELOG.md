@@ -18,10 +18,12 @@ Aether v2.7 — PR Workflow + Stability. Six phases (39-44) adding multi-branch 
 - **Worktree utilities** — `_worktree_create` auto-copies colony context (COLONY_STATE.json, pheromones.json) and runs pheromone-snapshot-inject
 - **Merge driver** — `.gitattributes` merge driver resolves package-lock.json conflicts by keeping "ours" via `merge-driver-lockfile.sh`
 - **Midden wiring** — `midden-collect` and `midden-cross-pr-analysis` wired into `/ant:continue` playbooks (non-blocking, follows pheromone merge-back pattern)
+- **Interactive installer** — `npx aether-colony` now shows a 3-option menu (Full setup / Global only / Repo only) with environment detection and context-sensitive defaults; supports `--global`, `--repo`, `--yes` flags for scripting
+- **`aether setup` command** — CLI equivalent of `/ant:lay-eggs` for setting up Aether in a repo without Claude Code open
 
 ### Changed
 - **Package validation** — `validate-package.sh` expanded from 15 to 38+ required file entries (100% coverage of packaged utils)
-- **NPX installer** — `npx-install.js` now sources Claude agents from `.aether/agents-claude/` (previously used `.opencode/agents/` incorrectly)
+- **NPX installer** — Replaced `npx-install.js` with interactive `npx-entry.js`; old installer kept as deprecation redirect
 - **Package cleanliness** — 8 dev-only files excluded from npm tarball (scripts/, design docs, example schemas)
 - **CLAUDE.md** — Full accuracy audit: version bumped to v2.7.0, all counts verified (5,500 lines, 35 utils, 45 commands, 509 tests)
 - **README.md** — Architecture counts updated (35 utils, 45 commands, ~5,500 lines)
