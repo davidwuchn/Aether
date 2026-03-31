@@ -793,7 +793,8 @@ class UpdateTransaction {
       return true;
     }
     // Protect exchange data files — only .sh scripts should distribute
-    if (parts.includes('exchange') && !basename.endsWith('.sh')) {
+    // Only filter files (not directories), so the exchange dir itself is traversed
+    if (parts.includes('exchange') && !basename.endsWith('.sh') && !relPath.endsWith('exchange')) {
       return true;
     }
     return false;
