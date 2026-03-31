@@ -46,6 +46,8 @@ CURRENT_LOCK=${CURRENT_LOCK:-""}
 [[ -f "$SCRIPT_DIR/utils/emoji-audit.sh" ]] && source "$SCRIPT_DIR/utils/emoji-audit.sh"
 [[ -f "$SCRIPT_DIR/utils/immune.sh" ]] && source "$SCRIPT_DIR/utils/immune.sh"
 [[ -f "$SCRIPT_DIR/utils/council.sh" ]] && source "$SCRIPT_DIR/utils/council.sh"
+[[ -f "$SCRIPT_DIR/utils/clash-detect.sh" ]] && source "$SCRIPT_DIR/utils/clash-detect.sh"
+[[ -f "$SCRIPT_DIR/utils/worktree.sh" ]] && source "$SCRIPT_DIR/utils/worktree.sh"
 
 # Fallback error constants if error-handler.sh wasn't sourced
 # This prevents "unbound variable" errors in older installations
@@ -1348,6 +1350,12 @@ case "$cmd" in
       {"name": "council-sage", "description": "Record sage synthesis and recommendation, marks deliberation complete"},
       {"name": "council-history", "description": "List past deliberations with their outcomes"},
       {"name": "council-budget-check", "description": "Check if current spawn budget allows N more spawns"}
+    ],
+    "Clash Detection": [
+      {"name": "clash-check", "description": "Check if a file has conflicts across active worktrees"},
+      {"name": "clash-setup", "description": "Install or uninstall the PreToolUse clash detection hook"},
+      {"name": "worktree-create", "description": "Create a git worktree with colony context copy"},
+      {"name": "worktree-cleanup", "description": "Remove a git worktree and clean up tracking"}
     ],
     "Deprecated": [
       {"name": "checkpoint-check", "description": "Check dirty files against allowlist [DEPRECATED]"},
@@ -5437,6 +5445,22 @@ DRYRUN_EOF
   # ── Emoji Audit ─────────────────────────────────────────────────────────────
   emoji-audit)
     _emoji_audit_main "${1:-$(pwd)}"
+    ;;
+
+  # ── Clash Detection ──────────────────────────────────────────────────────────
+  clash-check)
+    _clash_detect "$@"
+    ;;
+  clash-setup)
+    _clash_setup "$@"
+    ;;
+
+  # ── Worktree Management ──────────────────────────────────────────────────────
+  worktree-create)
+    _worktree_create "$@"
+    ;;
+  worktree-cleanup)
+    _worktree_cleanup "$@"
     ;;
 
   *)
