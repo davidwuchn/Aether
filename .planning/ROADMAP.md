@@ -100,7 +100,7 @@
 - [x] **Phase 40: Pheromone Propagation** -- PHERO-01, PHERO-02, PHERO-03 (completed 2026-03-30)
 - [x] **Phase 41: Midden Collection** -- MIDD-01, MIDD-02, MIDD-03 (completed 2026-03-30)
 - [ ] **Phase 42: CI Context Assembly** -- CI-01, CI-02, CI-03
-- [ ] **Phase 43: Clash Detection Integration** -- CLASH-01, CLASH-02, CLASH-03
+- [x] **Phase 43: Clash Detection Integration** -- CLASH-01, CLASH-02, CLASH-03 (completed 2026-03-31)
 - [ ] **Phase 44: Release Hygiene & Ship** -- REL-01, REL-02, REL-03, TEST-01, TEST-02
 
 ## Phase Details
@@ -274,7 +274,7 @@ Plans:
   3. `.gitattributes` merge driver resolves package-lock.json conflicts by keeping "ours"
   4. `.aether/data/` files are on the allowlist -- never trigger clash detection (branch-local state)
 **Existing work**: clash-detect.sh, clash-pre-tool-use.js hook, worktree.sh, merge-driver-lockfile.sh; 4 test files (~1,036 lines total)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 43-01-PLAN.md -- Wire clash-detect.sh and worktree.sh into aether-utils.sh dispatcher (source lines, dispatch cases, help JSON)
@@ -343,5 +343,5 @@ Plans:
 | 41. Midden Collection | v2.7 | 0/0 | Complete    | 2026-03-30 |
 | 42. CI Context Assembly | v2.7 | 0/2 | Pending | -- |
 | 42.1 Release Hygiene | v2.7 | 1/2 | Complete    | 2026-03-31 |
-| 43. Clash Detection Integration | v2.7 | 1/2 | In Progress|  |
+| 43. Clash Detection Integration | v2.7 | 1/2 | Complete    | 2026-03-31 |
 | 44. Release Hygiene & Ship | v2.7 | 0/0 | Pending | -- |
