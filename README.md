@@ -14,6 +14,15 @@
 [![GitHub stars](https://img.shields.io/github/stars/calcosmic/Aether.svg?style=flat-square)](https://github.com/calcosmic/Aether/stargazers)
 [![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-%23ea4aaa.svg?style=flat-square&logo=github)](https://github.com/sponsors/calcosmic)
 
+[![weekly downloads](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/weekly-downloads.json&style=flat-square)](https://www.npmjs.com/package/aether-colony)
+[![monthly downloads](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/monthly-downloads.json&style=flat-square)](https://www.npmjs.com/package/aether-colony)
+[![total downloads](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/total-downloads.json&style=flat-square)](https://www.npmjs.com/package/aether-colony)
+[![bundle size](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/bundle-size.json&style=flat-square)](https://www.npmjs.com/package/aether-colony)
+![test count](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/test-count.json&style=flat-square)
+![commands](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/commands.json&style=flat-square)
+![agents](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/agents.json&style=flat-square)
+[![colony version](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/calcosmic/Aether/main/docs/badges/colony-version.json&style=flat-square)](https://github.com/calcosmic/Aether/releases)
+
 <br>
 
 ```
