@@ -1313,79 +1313,111 @@ program.on('option:quiet', () => {
   globalQuiet = true;
 });
 
-// Install command
-program
-  .command('install')
-  .description('Install commands and agents to ~/.claude/ and set up distribution hub')
-  .action(wrapCommand(async () => {
-    log(c.header(`aether-colony v${VERSION} — installing...`));
+/**
+ * Perform a global installation of commands, agents, and hub setup.
+ * Extracted so it can be called from the interactive installer.
+ */
+async function performGlobalInstall() {
+  log(c.header(`aether-colony v${VERSION} — installing...`));
 
-    // Sync commands to ~/.claude/commands/ant/ (with orphan cleanup)
-    if (!fs.existsSync(COMMANDS_SRC)) {
-      // Running from source repo — commands are in .claude/commands/ant/
-      const repoCommands = path.join(PACKAGE_DIR, '.claude', 'commands', 'ant');
-      if (fs.existsSync(repoCommands)) {
-        const result = syncDirWithCleanup(repoCommands, COMMANDS_DEST);
-        log(`  Commands: ${result.copied} files -> ${COMMANDS_DEST}`);
-        if (result.removed.length > 0) {
-          log(`  Commands: removed ${result.removed.length} stale files`);
-          for (const f of result.removed) log(`    - ${f}`);
-        }
-      } else {
-        console.error('  Commands source not found. Skipping.');
-      }
-    } else {
-      const result = syncDirWithCleanup(COMMANDS_SRC, COMMANDS_DEST);
+  // Sync commands to ~/.claude/commands/ant/ (with orphan cleanup)
+  if (!fs.existsSync(COMMANDS_SRC)) {
+    // Running from source repo — commands are in .claude/commands/ant/
+    const repoCommands = path.join(PACKAGE_DIR, '.claude', 'commands', 'ant');
+    if (fs.existsSync(repoCommands)) {
+      const result = syncDirWithCleanup(repoCommands, COMMANDS_DEST);
       log(`  Commands: ${result.copied} files -> ${COMMANDS_DEST}`);
       if (result.removed.length > 0) {
         log(`  Commands: removed ${result.removed.length} stale files`);
         for (const f of result.removed) log(`    - ${f}`);
       }
+    } else {
+      console.error('  Commands source not found. Skipping.');
     }
-
-    // Sync agents to ~/.claude/agents/ant/ (with orphan cleanup)
-    const repoAgents = path.join(PACKAGE_DIR, '.claude', 'agents', 'ant');
-    if (fs.existsSync(repoAgents)) {
-      const result = syncDirWithCleanup(repoAgents, AGENTS_DEST);
-      log(`  Agents (claude): ${result.copied} files -> ${AGENTS_DEST}`);
-      if (result.removed.length > 0) {
-        log(`  Agents (claude): removed ${result.removed.length} stale files`);
-        for (const f of result.removed) log(`    - ${f}`);
-      }
+  } else {
+    const result = syncDirWithCleanup(COMMANDS_SRC, COMMANDS_DEST);
+    log(`  Commands: ${result.copied} files -> ${COMMANDS_DEST}`);
+    if (result.removed.length > 0) {
+      log(`  Commands: removed ${result.removed.length} stale files`);
+      for (const f of result.removed) log(`    - ${f}`);
     }
+  }
 
-    // Sync OpenCode commands to ~/.opencode/command/ (with orphan cleanup)
-    const opencodeCmdsSrc = path.join(PACKAGE_DIR, '.opencode', 'commands', 'ant');
-    if (fs.existsSync(opencodeCmdsSrc)) {
-      const result = syncDirWithCleanup(opencodeCmdsSrc, OPENCODE_COMMANDS_DEST);
-      log(`  Commands (opencode): ${result.copied} files -> ${OPENCODE_COMMANDS_DEST}`);
-      if (result.removed.length > 0) {
-        log(`  Commands (opencode): removed ${result.removed.length} stale files`);
-        for (const f of result.removed) log(`    - ${f}`);
-      }
+  // Sync agents to ~/.claude/agents/ant/ (with orphan cleanup)
+  const repoAgents = path.join(PACKAGE_DIR, '.claude', 'agents', 'ant');
+  if (fs.existsSync(repoAgents)) {
+    const result = syncDirWithCleanup(repoAgents, AGENTS_DEST);
+    log(`  Agents (claude): ${result.copied} files -> ${AGENTS_DEST}`);
+    if (result.removed.length > 0) {
+      log(`  Agents (claude): removed ${result.removed.length} stale files`);
+      for (const f of result.removed) log(`    - ${f}`);
     }
+  }
 
-    // Sync OpenCode agents to ~/.opencode/agent/ (with orphan cleanup)
-    const opencodeAgentsSrc = path.join(PACKAGE_DIR, '.opencode', 'agents');
-    if (fs.existsSync(opencodeAgentsSrc)) {
-      const result = syncDirWithCleanup(opencodeAgentsSrc, OPENCODE_AGENTS_DEST);
-      log(`  Agents (opencode): ${result.copied} files -> ${OPENCODE_AGENTS_DEST}`);
-      if (result.removed.length > 0) {
-        log(`  Agents (opencode): removed ${result.removed.length} stale files`);
-        for (const f of result.removed) log(`    - ${f}`);
-      }
+  // Sync OpenCode commands to ~/.opencode/command/ (with orphan cleanup)
+  const opencodeCmdsSrc = path.join(PACKAGE_DIR, '.opencode', 'commands', 'ant');
+  if (fs.existsSync(opencodeCmdsSrc)) {
+    const result = syncDirWithCleanup(opencodeCmdsSrc, OPENCODE_COMMANDS_DEST);
+    log(`  Commands (opencode): ${result.copied} files -> ${OPENCODE_COMMANDS_DEST}`);
+    if (result.removed.length > 0) {
+      log(`  Commands (opencode): removed ${result.removed.length} stale files`);
+      for (const f of result.removed) log(`    - ${f}`);
     }
+  }
 
-    // Set up distribution hub at ~/.aether/
-    log('');
-    log(c.colony('Setting up distribution hub...'));
-    setupHub();
+  // Sync OpenCode agents to ~/.opencode/agent/ (with orphan cleanup)
+  const opencodeAgentsSrc = path.join(PACKAGE_DIR, '.opencode', 'agents');
+  if (fs.existsSync(opencodeAgentsSrc)) {
+    const result = syncDirWithCleanup(opencodeAgentsSrc, OPENCODE_AGENTS_DEST);
+    log(`  Agents (opencode): ${result.copied} files -> ${OPENCODE_AGENTS_DEST}`);
+    if (result.removed.length > 0) {
+      log(`  Agents (opencode): removed ${result.removed.length} stale files`);
+      for (const f of result.removed) log(`    - ${f}`);
+    }
+  }
 
-    log('');
-    log(c.success('Install complete.'));
-    log(`  ${c.queen('Claude Code:')} run /ant to get started`);
-    log(`  ${c.colony('OpenCode:')} run /ant to get started`);
-    log(`  ${c.colony('Hub:')} ${c.dim('~/.aether/')} (for coordinated updates across repos)`);
+  // Set up distribution hub at ~/.aether/
+  log('');
+  log(c.colony('Setting up distribution hub...'));
+  setupHub();
+
+  log('');
+  log(c.success('Install complete.'));
+  log(`  ${c.queen('Claude Code:')} run /ant to get started`);
+  log(`  ${c.colony('OpenCode:')} run /ant to get started`);
+  log(`  ${c.colony('Hub:')} ${c.dim('~/.aether/')} (for coordinated updates across repos)`);
+}
+
+// Install command
+program
+  .command('install')
+  .description('Install commands and agents to ~/.claude/ and set up distribution hub')
+  .action(wrapCommand(performGlobalInstall));
+
+// Setup command — set up Aether in the current directory from hub
+program
+  .command('setup')
+  .description('Set up Aether in the current directory (copies system files from hub)')
+  .option('-f, --force', 'Overwrite existing setup')
+  .action(wrapCommand(async (options) => {
+    if (!fs.existsSync(HUB_VERSION)) {
+      console.error('Aether hub not installed.');
+      console.error('Run "npx aether-colony" or "aether install" to install the hub first.');
+      process.exit(1);
+    }
+    const repoPath = process.cwd();
+    log(c.header('Setting up Aether in this directory...'));
+    const result = await initializeRepo(repoPath, { setupOnly: true });
+    if (result.success) {
+      log('');
+      log(c.success('Aether is ready.'));
+      log(`  ${result.filesCopied} system files synced to .aether/`);
+      log('');
+      log('  Next steps:');
+      log('    In Claude Code: /ant:init "your goal"');
+      log('    Or terminal:    aether init --goal "your goal"');
+      log('');
+    }
   }));
 
 // Update command
@@ -2172,10 +2204,20 @@ module.exports = {
   syncDirWithCleanup,
   syncSkillsToHub,
   listFilesRecursive,
-  cleanEmptyDirs
+  cleanEmptyDirs,
+  performGlobalInstall,
+  run
 };
+
+/**
+ * Parse CLI arguments. Called automatically when run directly,
+ * or explicitly by npx-entry.js when delegating a subcommand.
+ */
+function run() {
+  program.parse();
+}
 
 // Parse command line arguments only when run directly (not when required as a module)
 if (require.main === module) {
-  program.parse();
+  run();
 }
