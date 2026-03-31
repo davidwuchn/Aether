@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Phase 42 context gathered (discuss mode)
-last_updated: "2026-03-30T23:58:59.365Z"
-last_activity: 2026-03-30
+stopped_at: Completed 42.1-01-PLAN.md
+last_updated: "2026-03-31T03:11:50.114Z"
+last_activity: 2026-03-31
 progress:
-  total_phases: 34
-  completed_phases: 31
-  total_plans: 89
-  completed_plans: 86
+  total_phases: 35
+  completed_phases: 32
+  total_plans: 93
+  completed_plans: 89
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 38 — cleanup-maintenance
+**Current focus:** Phase 42.1 — release-hygiene-version-drift-npm-packaging-opencode-agent-parity-exchange-distribution-doc-accuracy-test-coverage
 
 ## Current Position
 
-Phase: 41
-Plan: Not started
+Phase: 42.1 (release-hygiene-version-drift-npm-packaging-opencode-agent-parity-exchange-distribution-doc-accuracy-test-coverage) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-03-30
+Last activity: 2026-03-31
 
 Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in progress
 
@@ -69,8 +69,13 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 | Phase 37 P03 | 5min | 2 tasks | 7 files |
 | Phase 38 P01 | 8min | 2 tasks | 2 files |
 | Phase 41 P03 | 6min | 1 tasks | 3 files |
+| Phase 42.1 P01 | 4min | 2 tasks | 7 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 42.1 inserted after Phase 42: Release hygiene — version drift, npm packaging, OpenCode agent parity, exchange distribution, doc accuracy, test coverage (URGENT)
 
 ### Decisions
 
@@ -117,6 +122,8 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 - [Phase 38]: error-codes.md descriptions verified accurate; only last-updated date needed changing
 - [Phase 41]: Step 2.0.6 added to both continue-verify.md and continue-advance.md since plan specified both as targets
 - [Phase 41]: All midden wiring is non-blocking following the pheromone merge-back pattern from Step 2.0.5
+- [Phase 42.1]: Added 23 missing entries to REQUIRED_FILES in one batch (20 shell + 3 non-shell)
+- [Phase 42.1]: Used generate-commands.js for bulk regeneration rather than manual editing
 
 ### Pending Todos
 
@@ -128,6 +135,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-30T23:58:59.360Z
-Stopped at: Phase 42 context gathered (discuss mode)
-Resume file: .planning/phases/42-ci-context-assembly/42-CONTEXT.md
+Last session: 2026-03-31T03:11:50.109Z
+Stopped at: Completed 42.1-01-PLAN.md
+Resume file: None

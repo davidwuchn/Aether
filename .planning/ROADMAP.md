@@ -253,6 +253,17 @@ Plans:
 
 ---
 
+### Phase 42.1: Release hygiene — version drift, npm packaging, command sync, doc accuracy (INSERTED)
+
+**Goal:** Fix version drift in CLAUDE.md, expand validate-package.sh coverage to all packaged utils, regenerate stale YAML-generated commands, and correct inaccurate documentation counts.
+**Requirements**: REL-01, REL-02
+**Depends on:** Phase 42
+**Plans:** 1/2 plans executed
+
+Plans:
+- [x] 42.1-01-PLAN.md -- Expand validate-package.sh REQUIRED_FILES to all 35 utils + regenerate stale commands
+- [ ] 42.1-02-PLAN.md -- Fix CLAUDE.md version drift and stale documentation counts
+
 ### Phase 43: Clash Detection Integration
 **Goal**: Task-as-PR workflow prevents file conflicts between parallel worktrees via hooks and automatic context setup
 **Depends on**: Phase 40 (worktree creation needs pheromone injection)
@@ -326,5 +337,6 @@ Plans:
 | 40. Pheromone Propagation | v2.7 | 1/1 | Complete   | 2026-03-30 |
 | 41. Midden Collection | v2.7 | 0/0 | Complete    | 2026-03-30 |
 | 42. CI Context Assembly | v2.7 | 0/2 | Pending | -- |
+| 42.1 Release Hygiene | v2.7 | 1/2 | In Progress|  |
 | 43. Clash Detection Integration | v2.7 | 0/0 | Pending | -- |
 | 44. Release Hygiene & Ship | v2.7 | 0/0 | Pending | -- |
