@@ -1676,7 +1676,7 @@ Output:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   P H A S E   A D V A N C E M E N T
+➡️ P H A S E   A D V A N C E M E N T
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ✅ Phase {prev_id}: {prev_name} -- COMPLETED

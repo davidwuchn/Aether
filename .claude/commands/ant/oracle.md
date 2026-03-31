@@ -286,7 +286,7 @@ Display the brief for approval:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   R E S E A R C H   B R I E F
+🔮 R E S E A R C H   B R I E F
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 **Topic:** {reformulated topic — clear, specific, actionable}
