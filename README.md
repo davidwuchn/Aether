@@ -8,6 +8,7 @@
 
 <br>
 
+[![website](https://img.shields.io/badge/aetherantcolony.com-7B3FE4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://aetherantcolony.com)
 [![npm](https://img.shields.io/npm/v/aether-colony?style=for-the-badge&logo=npm&logoColor=white&label=npm&color=7B3FE4)](https://www.npmjs.com/package/aether-colony)
 [![downloads](https://img.shields.io/npm/dw/aether-colony?style=for-the-badge&logo=npm&logoColor=white&color=333333)](https://www.npmjs.com/package/aether-colony)
 [![license](https://img.shields.io/github/license/calcosmic/Aether?style=for-the-badge&color=333333)](LICENSE)
