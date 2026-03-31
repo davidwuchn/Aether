@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Phase 44 context gathered
-last_updated: "2026-03-31T05:19:06.522Z"
+stopped_at: Completed 44-01-PLAN.md
+last_updated: "2026-03-31T06:05:21Z"
 last_activity: 2026-03-31
 progress:
-  total_phases: 37
-  completed_phases: 34
-  total_plans: 95
-  completed_plans: 92
+  total_phases: 6
+  completed_phases: 5
+  total_plans: 22
+  completed_plans: 21
   percent: 100
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 43 — clash-detection-integration
+**Current focus:** Phase 44 — release-hygiene-ship
 
 ## Current Position
 
-Phase: 43
-Plan: Not started
-Status: Ready to execute
+Phase: 44
+Plan: 01 complete
+Status: Executing
 Last activity: 2026-03-31
 
 Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in progress
@@ -68,15 +68,9 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 | Phase 36 P03 | 14min | 2 tasks | 22 files |
 | Phase 37 P03 | 5min | 2 tasks | 7 files |
 | Phase 38 P01 | 8min | 2 tasks | 2 files |
-| Phase 41 P03 | 6min | 1 tasks | 3 files |
-| Phase 42.1 P01 | 4min | 2 tasks | 7 files |
-| Phase 43 P01 | 3min | 2 tasks | 1 files |
+| Phase 44 P01 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
-
-### Roadmap Evolution
-
-- Phase 42.1 inserted after Phase 42: Release hygiene — version drift, npm packaging, OpenCode agent parity, exchange distribution, doc accuracy, test coverage (URGENT)
 
 ### Decisions
 
@@ -121,14 +115,8 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 - [Phase 37]: Check 7 in validate-package.sh validates exchange shell scripts (.sh), not XML data files
 - [Phase 38]: Pre-existing instinct-confidence test failures (4 tests) deferred as unrelated to spawn-tree.sh changes
 - [Phase 38]: error-codes.md descriptions verified accurate; only last-updated date needed changing
-- [Phase 41]: Step 2.0.6 added to both continue-verify.md and continue-advance.md since plan specified both as targets
-- [Phase 41]: All midden wiring is non-blocking following the pheromone merge-back pattern from Step 2.0.5
-- [Phase 42.1]: Added 23 missing entries to REQUIRED_FILES in one batch (20 shell + 3 non-shell)
-- [Phase 42.1]: Used generate-commands.js for bulk regeneration rather than manual editing
-- [42.1-02]: CLAUDE.md version tracks development milestone (v2.7-dev), not npm semver
-- [42.1-02]: Fixed 4 additional stale references in Architecture Overview and Key Directories beyond plan's explicit list to meet acceptance criteria
-- [Phase 43]: Dispatcher wiring pattern: source line, dispatch case, help JSON entry -- three-part registration
-- [Phase 43]: Research predicted 5/12 worktree test failures but dispatcher wiring resolved all 12
+- [Phase 44]: Used wildcard .npmignore patterns (docs/*-design.md, scripts/) instead of individual file listings
+- [Phase 44]: Left unused OPENCODE_COMMANDS_SRC constant in npx-install.js as harmless
 
 ### Pending Todos
 
@@ -140,6 +128,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-31T05:19:06.512Z
-Stopped at: Phase 44 context gathered
-Resume file: .planning/phases/44-release-hygiene-ship/44-CONTEXT.md
+Last session: 2026-03-31T06:05:21Z
+Stopped at: Completed 44-01-PLAN.md
+Resume file: None
