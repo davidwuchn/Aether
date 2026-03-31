@@ -344,4 +344,4 @@ Plans:
 | 42. CI Context Assembly | v2.7 | 0/2 | Pending | -- |
 | 42.1 Release Hygiene | v2.7 | 1/2 | Complete    | 2026-03-31 |
 | 43. Clash Detection Integration | v2.7 | 1/2 | Complete    | 2026-03-31 |
-| 44. Release Hygiene & Ship | v2.7 | 0/0 | Pending | -- |
+| 44. Release Hygiene & Ship | v2.7 | 1/3 | In Progress | -- |

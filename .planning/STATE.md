@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: Bugfix & Hardening
 status: executing
-stopped_at: Phase 44 context gathered
-last_updated: "2026-03-31T05:19:06.522Z"
+stopped_at: Completed 44-02-PLAN.md
+last_updated: "2026-03-31T06:08:05.876Z"
 last_activity: 2026-03-31
 progress:
-  total_phases: 37
-  completed_phases: 34
-  total_plans: 95
-  completed_plans: 92
+  total_phases: 34
+  completed_phases: 6
+  total_plans: 28
+  completed_plans: 68
   percent: 100
 ---
 
@@ -71,6 +71,7 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 | Phase 41 P03 | 6min | 1 tasks | 3 files |
 | Phase 42.1 P01 | 4min | 2 tasks | 7 files |
 | Phase 43 P01 | 3min | 2 tasks | 1 files |
+| Phase 44 P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,8 @@ Progress: [█████████ ] 100% (v1.3 through v2.5) + phase 37 in 
 - [42.1-02]: Fixed 4 additional stale references in Architecture Overview and Key Directories beyond plan's explicit list to meet acceptance criteria
 - [Phase 43]: Dispatcher wiring pattern: source line, dispatch case, help JSON entry -- three-part registration
 - [Phase 43]: Research predicted 5/12 worktree test failures but dispatcher wiring resolved all 12
+- [Phase 44]: Used ~5,500 for aether-utils.sh line count (actual 5,469) for rounding stability
+- [Phase 44]: CHANGELOG uses npm version [5.3.0] as section header per keepachangelog convention
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-03-31T05:19:06.512Z
-Stopped at: Phase 44 context gathered
-Resume file: .planning/phases/44-release-hygiene-ship/44-CONTEXT.md
+Last session: 2026-03-31T06:08:05.872Z
+Stopped at: Completed 44-02-PLAN.md
+Resume file: None
