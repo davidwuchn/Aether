@@ -1784,7 +1784,7 @@ fi
 
 # === Section: signals ===
 pc_pher_file="${COLONY_DATA_DIR:-$DATA_DIR}/pheromones.json"
-pc_state_file="$DATA_DIR/COLONY_STATE.json"
+pc_state_file="${COLONY_DATA_DIR:-$DATA_DIR}/COLONY_STATE.json"
 pc_signals_count=0
 pc_redirects='[]'
 pc_focus='[]'
