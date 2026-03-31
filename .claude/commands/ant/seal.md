@@ -364,11 +364,14 @@ current_colony_version=$(jq -r '.colony_version // 0' .aether/data/COLONY_STATE.
 [[ "$current_colony_version" =~ ^[0-9]+$ ]] || current_colony_version=0
 new_colony_version=$(( current_colony_version + 1 ))
 
-# Write incremented value back via state-mutate (atomic, locked, validated)
-bash .aether/aether-utils.sh state-mutate --argjson v "$new_colony_version" '.colony_version = $v' || {
-  echo "Warning: state-mutate failed — colony_version defaults to 1, state file unchanged"
+# Write incremented value back — guard against empty output destroying the file
+updated=$(jq --argjson v "$new_colony_version" '.colony_version = $v' .aether/data/COLONY_STATE.json 2>/dev/null)
+if [[ -n "$updated" && ${#updated} -gt 10 ]]; then
+  echo "$updated" > .aether/data/COLONY_STATE.json
+else
+  echo "Warning: jq update failed — colony_version defaults to 1, state file unchanged"
   new_colony_version=1
-}
+fi
 ```
 
 Use `new_colony_version` as `{colony_version}` throughout the rest of the seal ceremony (e.g., display as "Crowned Anthill v{colony_version}").
@@ -377,16 +380,10 @@ Use `new_colony_version` as `{colony_version}` throughout the rest of the seal c
 
 ### Step 5: Update Milestone to Crowned Anthill
 
-Update COLONY_STATE.json using state-mutate (atomic, locked, validated):
+Update COLONY_STATE.json:
 1. Set `milestone` to `"Crowned Anthill"`
 2. Set `milestone_updated_at` to current ISO-8601 timestamp
 3. Append event: `"<timestamp>|milestone_reached|seal|Achieved Crowned Anthill milestone"`
-
-```bash
-bash .aether/aether-utils.sh state-mutate \
-  --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '.milestone = "Crowned Anthill" | .milestone_updated_at = $timestamp | .events += [$timestamp + "|milestone_reached|seal|Achieved Crowned Anthill milestone"]'
-```
 
 Run `bash .aether/aether-utils.sh validate-state colony` after write.
 
@@ -632,27 +629,6 @@ else
 fi
 ```
 
-### Step 6.6: Export Pheromone Branch Snapshot (non-main branches only)
-
-If sealing on a non-main branch, export eligible pheromone signals for merge-back after PR merge. This step is non-blocking -- seal proceeds even if export fails.
-
-```bash
-# Export pheromones for merge-back if on a non-main branch
-current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
-if [[ "$current_branch" != "main" ]]; then
-  export_result=$(bash .aether/aether-utils.sh pheromone-export-branch 2>/dev/null || echo '{"ok":false}')
-  export_ok=$(echo "$export_result" | jq -r '.ok // false' 2>/dev/null)
-  if [[ "$export_ok" == "true" ]]; then
-    eligible_count=$(echo "$export_result" | jq -r '.result.eligible_count // 0' 2>/dev/null)
-    pheromone_export_line="Pheromone Branch Export: ${eligible_count} signals eligible for merge-back"
-  else
-    pheromone_export_line="Pheromone Branch Export: failed (non-blocking)"
-  fi
-else
-  pheromone_export_line="Pheromone Branch Export: skipped (on main branch)"
-fi
-```
-
 ### Step 7: Display Ceremony
 
 
@@ -691,7 +667,6 @@ Seal Document: .aether/CROWNED-ANTHILL.md
 {pher_export_line}
 {wisdom_export_line}
 {registry_export_line}
-{pheromone_export_line}
 
 The colony stands crowned and sealed.
 Its wisdom lives on in QUEEN.md.
