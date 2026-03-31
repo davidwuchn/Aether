@@ -1,3 +1,36 @@
+### Stage Audit Gate (Pre-Synthesis Check)
+
+**This gate runs before Step 5.9. All 4 prior playbook stages must have completed with "ok" status.**
+
+Check the cross-stage state record for each of the following stages:
+
+| Stage | Playbook | Required Status |
+|-------|----------|----------------|
+| 1 | build-prep | ok |
+| 2 | build-context | ok |
+| 3 | build-wave | ok |
+| 4 | build-verify | ok |
+
+To verify, read the cross-stage state (typically `.aether/data/build-stage-state.json` or the in-memory record accumulated during the build run) and confirm each stage entry has `"status": "ok"`.
+
+**If any stage is missing or did not complete with "ok" status:**
+- HALT — do not proceed to Step 5.9
+- Display:
+  ```
+  Stage Audit FAILED — cannot synthesize results.
+
+  Missing or failed stages:
+    {list each stage name with its recorded status, or "not recorded" if absent}
+
+  Recovery options:
+    1. Re-run the missing stage(s) manually, then retry /ant:build
+    2. Run /ant:flags to review blockers
+    3. Run /ant:swarm to auto-repair failed tasks
+  ```
+- Return `{"status": "failed", "summary": "Stage audit failed — stages {names} did not complete successfully"}` and stop.
+
+**If all 4 stages passed:** proceed to Step 5.9.
+
 ### Step 5.9: Synthesize Results
 
 **This step runs after all worker tasks have completed (Builders, Watcher, Chaos).**

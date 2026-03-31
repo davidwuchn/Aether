@@ -19,6 +19,7 @@ Communication style, expertise level, and decision-making patterns observed from
 
 Validated approaches that work in this codebase, and anti-patterns to avoid. Includes architecture conventions, naming patterns, error handling style, and technology-specific insights. Tagged [repo] for project-specific or [general] for cross-colony patterns.
 
+- **Aether Colony** (2026-03-31T08:51:57Z): Stage Audit Gate pattern: add pre-synthesis verification gate to build orchestrators ensures all stages complete before synthesis (evidence: all 6 success criteria passed, watcher quality 9/10)
 - **Aether Colony** (2026-03-30T12:19:36Z): After monolith extraction tests that grep source code break when code moves to extracted modules
 - **Aether Colony** (2026-03-30T12:19:34Z): Archaeology pre-build scans prevent regression when modifying same lines as prior bug fixes
 - **Aether Colony** (2026-03-30T11:43:35Z): Quality gate re-audit after fixing HIGH findings raised score from 53 to 73, confirming the fixes addressed the root issues not just symptoms
@@ -99,6 +100,9 @@ What worked and what failed during builds. Captures the full picture of colony e
 ### Phase 5: Fix hive-read null safety and learning recovery tests
 - [general] Archaeology pre-build scans that identify specific prior bug-fix commits prevent regression when modifying the same lines — Strata-7 caught the tonumber requirement that would otherwise have been missed -- *Phase 5 (Fix hive-read null safety and learning recovery tests)* (2026-03-30)
 - [general] After monolith extraction, tests that grep source code for structural patterns break when the code moves to extracted modules — always check grep targets against the actual module location -- *Phase 5 (Fix hive-read null safety and learning recovery tests)* (2026-03-30)
+
+### Phase 1: Enforce non-skippable playbook execution in build orchestrators
+- [general] Adding pre-synthesis verification gates to build orchestrators catches incomplete builds before synthesis — gate should name all prerequisite stages explicitly -- *Phase 1 (Enforce non-skippable playbook execution in build orchestrators)* (2026-03-31)
 ---
 
 ## Instincts
@@ -126,6 +130,8 @@ High-confidence behavioral patterns that have been validated through repeated co
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-03-31T09:08:09Z | phase-1 | build_learnings | Added 1 learnings from Phase 1: Enforce non-skippable playbook execution in build orchestrators |
+| 2026-03-31T08:51:57Z | Aether Colony | promoted_pattern | Added: Stage Audit Gate pattern: add pre-synthesis verifi... |
 | 2026-03-30T12:20:25Z | phase-5 | build_learnings | Added 2 learnings from Phase 5: Fix hive-read null safety and learning recovery tests |
 | 2026-03-30T12:19:53Z | instinct | promoted_instinct | testing: Verify grep targets point to the extracted module ... |
 | 2026-03-30T12:19:52Z | instinct | promoted_instinct | workflow: Run archaeology pre-build scan to identify prior f... |
@@ -217,5 +223,5 @@ High-confidence behavioral patterns that have been validated through repeated co
 ---
 
 <!-- METADATA
-{  "version": "2.0.0",  "wisdom_version": "2.0",  "last_evolved": "2026-03-30T12:20:25Z",  "colonies_contributed": ["1774645519"],  "stats": {    "total_user_prefs": 3,    "total_codebase_patterns": 3,    "total_build_learnings": 4,    "total_instincts": 3  },  "evolution_log": [{"timestamp": "2026-03-24T23:40:00Z", "action": "migrate", "wisdom_type": "system", "content_hash": "v1-to-v2-migration", "colony": "system"}, {"timestamp": "2026-03-20T12:37:32Z", "action": "promote", "wisdom_type": "pattern", "content_hash": "sha256:f8aa50cfda0f37cac6cabba140bb99f1d75aa6d01a7100fe7a5ccddc2b3a017b", "colony": "1771335865738"}]}
+{  "version": "2.0.0",  "wisdom_version": "2.0",  "last_evolved": "2026-03-31T09:08:09Z",  "colonies_contributed": ["1774645519"],  "stats": {    "total_user_prefs": 3,    "total_codebase_patterns": 3,    "total_build_learnings": 3,    "total_instincts": 3  },  "evolution_log": [{"timestamp": "2026-03-24T23:40:00Z", "action": "migrate", "wisdom_type": "system", "content_hash": "v1-to-v2-migration", "colony": "system"}, {"timestamp": "2026-03-20T12:37:32Z", "action": "promote", "wisdom_type": "pattern", "content_hash": "sha256:f8aa50cfda0f37cac6cabba140bb99f1d75aa6d01a7100fe7a5ccddc2b3a017b", "colony": "1771335865738"}]}
 -->
