@@ -1629,14 +1629,14 @@ Calculate `elapsed` using `build_started_at_epoch` (epoch integer captured at St
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   B U I L D   S U M M A R Y
+🔨 B U I L D   S U M M A R Y
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Phase {id}: {name}
-Pattern:  {selected_pattern}
+📍 Phase {id}: {name}
+🎲 Pattern:  {selected_pattern}
 
-Workers:  {pass_count} passed  {fail_count} failed  ({total} total)
-Tools:    {total_tools} calls across all workers
-Duration: {elapsed}
+🐜 Workers:  {pass_count} passed  {fail_count} failed  ({total} total)
+🛠️ Tools:    {total_tools} calls across all workers
+⏱️ Duration: {elapsed}
 
 {if measurer_ran:}
 📊 Measurer: {baseline_count} baselines established, {bottleneck_count} bottlenecks identified

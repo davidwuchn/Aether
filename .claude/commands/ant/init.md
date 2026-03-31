@@ -493,24 +493,24 @@ Display the success header and result block:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   A E T H E R   C O L O N Y
+🥚 A E T H E R   C O L O N Y
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Queen has set the colony's intention
+👑 Queen has set the colony's intention
 
    "{approved_intent}"
 
-   Colony Status: READY
+   🟢 Colony Status: READY
 
-{If re-init: "   Mode: Re-init (charter updated, state preserved)"}
-{If fresh and seeded_count > 0: "   Hive wisdom: {seeded_count} cross-colony pattern(s) seeded into QUEEN.md"}
+{If re-init: "   🔄 Mode: Re-init (charter updated, state preserved)"}
+{If fresh and seeded_count > 0: "   🧠 Hive wisdom: {seeded_count} cross-colony pattern(s) seeded into QUEEN.md"}
 
-State persisted -- safe to /clear, then run /ant:plan
+💾 State persisted -- safe to /clear, then run /ant:plan
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   Next Up
+🐜 Next Up
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   /ant:plan                 Generate execution plan
-   /ant:status               Check colony state
-   /ant:focus                Set initial focus
+   /ant:plan                 📊 Generate execution plan
+   /ant:status               📋 Check colony state
+   /ant:focus                🎯 Set initial focus
 ```
