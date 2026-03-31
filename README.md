@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🐜 Aether Colony
+<img src="./AetherLogo.png" alt="Aether Colony" width="280" />
+
+# Aether Colony
 
 **Multi-agent AI development for Claude Code and OpenCode**
 
@@ -11,7 +13,6 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-%23ea4aaa.svg?style=flat-square&logo=github)](https://github.com/sponsors/calcosmic)
 
 Spawn a colony of 24 AI specialists that self-organize around your goal using pheromone signals.
-1,000+ weekly installs.
 
 *Artificial Ecology For Thought and Emergent Reasoning*
 
@@ -22,10 +23,6 @@ npx aether-colony
 ```
 
 </div>
-
-<p align="center">
-  <img src="./AetherAnts.png" alt="Aether Colony" width="640" />
-</p>
 
 ```
          👑 Queen (you)
