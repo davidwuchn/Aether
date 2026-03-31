@@ -321,7 +321,7 @@ function validateInitialization(repoPath) {
  * @returns {object} Result: { success: boolean, stateFile: string|null, message: string }
  */
 async function initializeRepo(repoPath, options = {}) {
-  const { goal, skipIfExists = false, quiet = false } = options;
+  const { goal, skipIfExists = false, quiet = false, setupOnly = false } = options;
 
   // Check if already initialized
   if (isInitialized(repoPath) && skipIfExists) {
@@ -411,12 +411,13 @@ locks/
 `;
   fs.writeFileSync(gitignorePath, gitignoreContent);
 
-  // Create initial state
-  const state = createInitialState(goal);
-
-  // Write state file
-  const stateFile = path.join(repoPath, '.aether', 'data', 'COLONY_STATE.json');
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + '\n');
+  // Create initial colony state (skipped in setupOnly mode)
+  let stateFile = null;
+  if (!setupOnly) {
+    const state = createInitialState(goal);
+    stateFile = path.join(repoPath, '.aether', 'data', 'COLONY_STATE.json');
+    fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + '\n');
+  }
 
   // Get hub version
   const hubVersion = readJsonSafe(HUB_VERSION);
