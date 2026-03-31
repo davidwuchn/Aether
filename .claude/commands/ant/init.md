@@ -41,7 +41,6 @@ Do not touch during init:
 - .aether/dreams/ (user notes)
 - .aether/chambers/ (archived colonies)
 - .env* files
-- .claude/settings.json
 - .github/workflows/
 </read_only>
 
