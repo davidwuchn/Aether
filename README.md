@@ -8,12 +8,11 @@
 
 <br>
 
-[![website](https://img.shields.io/badge/aetherantcolony.com-7B3FE4?style=for-the-badge&logo=google-chrome&logoColor=white)](https://aetherantcolony.com)
-[![npm](https://img.shields.io/npm/v/aether-colony?style=for-the-badge&logo=npm&logoColor=white&label=npm&color=7B3FE4)](https://www.npmjs.com/package/aether-colony)
-[![downloads](https://img.shields.io/npm/dw/aether-colony?style=for-the-badge&logo=npm&logoColor=white&color=333333)](https://www.npmjs.com/package/aether-colony)
-[![license](https://img.shields.io/github/license/calcosmic/Aether?style=for-the-badge&color=333333)](LICENSE)
-[![stars](https://img.shields.io/github/stars/calcosmic/Aether?style=for-the-badge&logo=github&logoColor=white&color=333333)](https://github.com/calcosmic/Aether/stargazers)
-[![sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/calcosmic)
+[![npm version](https://img.shields.io/npm/v/aether-colony.svg?style=flat-square)](https://www.npmjs.com/package/aether-colony)
+[![npm downloads](https://img.shields.io/npm/dw/aether-colony.svg?style=flat-square)](https://www.npmjs.com/package/aether-colony)
+[![License: MIT](https://img.shields.io/github/license/calcosmic/Aether.svg?style=flat-square)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/calcosmic/Aether.svg?style=flat-square)](https://github.com/calcosmic/Aether/stargazers)
+[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-%23ea4aaa.svg?style=flat-square&logo=github)](https://github.com/sponsors/calcosmic)
 
 <br>
 
@@ -24,6 +23,10 @@ $ npx aether-colony
 <br>
 
 *The whole is greater than the sum of its ants.* 🐜
+
+<br>
+
+[![🐜 aetherantcolony.com](https://img.shields.io/badge/%F0%9F%90%9C_aetherantcolony.com-7B3FE4?style=for-the-badge&logoColor=white)](https://aetherantcolony.com)
 
 </div>
 
