@@ -286,7 +286,7 @@ Write the result to .aether/HANDOFF.md using the Write tool.
 
 This ensures the handoff always reflects the latest build state, even if the session crashes before explicit pause.
 
-### Step 6.5: Update Context Document
+### Step 6.6: Update Context Document
 
 Log this build activity to `.aether/CONTEXT.md`:
 
@@ -296,7 +296,7 @@ Also update safe-to-clear status:
 - If build completed successfully: `context-update safe-to-clear "YES" "Build complete, ready to continue"`
 - If build failed: `context-update safe-to-clear "NO" "Build failed — run /ant:swarm or /ant:flags"`
 
-### Step 5.10: Check for Promotion Proposals
+### Step 6.7: Check for Promotion Proposals
 
 After build completion (success or failure), check if any observations have met promotion thresholds.
 
