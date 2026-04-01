@@ -61,6 +61,8 @@ CURRENT_LOCK=${CURRENT_LOCK:-""}
 [[ -f "$SCRIPT_DIR/utils/curation-ants/librarian.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/librarian.sh"
 [[ -f "$SCRIPT_DIR/utils/curation-ants/critic.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/critic.sh"
 [[ -f "$SCRIPT_DIR/utils/curation-ants/orchestrator.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/orchestrator.sh"
+[[ -f "$SCRIPT_DIR/utils/consolidation-seal.sh" ]] && source "$SCRIPT_DIR/utils/consolidation-seal.sh"
+[[ -f "$SCRIPT_DIR/utils/consolidation.sh" ]] && source "$SCRIPT_DIR/utils/consolidation.sh"
 
 # Fallback error constants if error-handler.sh wasn't sourced
 # This prevents "unbound variable" errors in older installations
@@ -5622,6 +5624,16 @@ DRYRUN_EOF
     ;;
   curation-run)
     _curation_run "$@"
+    ;;
+
+  # ── Consolidation Seal ─────────────────────────────────────────────────────
+  consolidation-seal)
+    _consolidation_seal "$@"
+    ;;
+
+  # ── Consolidation Phase End ───────────────────────────────────────────────
+  consolidation-phase-end)
+    _consolidation_phase_end "$@"
     ;;
 
   *)
