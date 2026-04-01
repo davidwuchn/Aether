@@ -444,7 +444,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 43. Clash Detection | v2.7 | - | Complete | 2026-03-31 |
 | 44. Release Hygiene & Ship | v2.7 | - | Complete | 2026-03-31 |
 | 45. Core Storage | v5.4 | 1/2 | Complete    | 2026-04-01 |
-| 46. Event Bus | v5.4 | 1/1 | Complete   | 2026-04-01 |
+| 46. Event Bus | v5.4 | 2/1 | Complete   | 2026-04-01 |
 | 47. Memory Pipeline | v5.4 | 0/TBD | Not started | - |
 | 48. Graph Layer | v5.4 | 0/TBD | Not started | - |
 | 49. Agent System + LLM | v5.4 | 0/TBD | Not started | - |
