@@ -52,6 +52,15 @@ CURRENT_LOCK=${CURRENT_LOCK:-""}
 [[ -f "$SCRIPT_DIR/utils/trust-scoring.sh" ]] && source "$SCRIPT_DIR/utils/trust-scoring.sh"
 [[ -f "$SCRIPT_DIR/utils/instinct-store.sh" ]] && source "$SCRIPT_DIR/utils/instinct-store.sh"
 [[ -f "$SCRIPT_DIR/utils/graph.sh" ]] && source "$SCRIPT_DIR/utils/graph.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/sentinel.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/sentinel.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/janitor.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/janitor.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/archivist.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/archivist.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/scribe.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/scribe.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/nurse.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/nurse.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/herald.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/herald.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/librarian.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/librarian.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/critic.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/critic.sh"
+[[ -f "$SCRIPT_DIR/utils/curation-ants/orchestrator.sh" ]] && source "$SCRIPT_DIR/utils/curation-ants/orchestrator.sh"
 
 # Fallback error constants if error-handler.sh wasn't sourced
 # This prevents "unbound variable" errors in older installations
@@ -5584,6 +5593,35 @@ DRYRUN_EOF
     ;;
   graph-cluster)
     _graph_cluster "$@"
+    ;;
+
+  # ── Curation Ants ──────────────────────────────────────────────────────────
+  curation-sentinel)
+    _curation_sentinel "$@"
+    ;;
+  curation-janitor)
+    _curation_janitor "$@"
+    ;;
+  curation-archivist)
+    _curation_archivist "$@"
+    ;;
+  curation-scribe)
+    _curation_scribe "$@"
+    ;;
+  curation-nurse)
+    _curation_nurse "$@"
+    ;;
+  curation-herald)
+    _curation_herald "$@"
+    ;;
+  curation-librarian)
+    _curation_librarian "$@"
+    ;;
+  curation-critic)
+    _curation_critic "$@"
+    ;;
+  curation-run)
+    _curation_run "$@"
     ;;
 
   *)

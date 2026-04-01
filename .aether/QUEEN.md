@@ -19,6 +19,7 @@ Communication style, expertise level, and decision-making patterns observed from
 
 Validated approaches that work in this codebase, and anti-patterns to avoid. Includes architecture conventions, naming patterns, error handling style, and technology-specific insights. Tagged [repo] for project-specific or [general] for cross-colony patterns.
 
+- **Aether Colony** (2026-04-01T09:51:44Z): Curation modules with no shared state can be built in parallel then integrated by orchestrator
 - **Aether Colony** (2026-04-01T09:20:45Z): Additive modifications to existing files can safely parallel with new file creation
 - **Aether Colony** (2026-04-01T08:57:46Z): Builders that self-register dispatcher entries eliminate Wave 2 dependency
 - **Aether Colony** (2026-04-01T08:57:44Z): Shell utility modules with pure calculation logic can be built independently by parallel builders
@@ -118,6 +119,9 @@ What worked and what failed during builds. Captures the full picture of colony e
 ### Phase 3: Trust-Scored Storage and Graph Layer
 - [general] Running lint:sync and lint as a dedicated verification phase after code changes confirms no sync drift — useful as a final gate before colony seal -- *Phase 3 (Trust-Scored Storage and Graph Layer)* (2026-04-01)
 - [general] Modifying existing code (learning.sh) and creating new modules (graph.sh, instinct-store.sh) can safely run in parallel when the modifications are additive (new fields, new function args) -- *Phase 3 (Trust-Scored Storage and Graph Layer)* (2026-04-01)
+
+### Phase 4: Curation Ants
+- [general] Curation ant modules that share no state can be built in parallel across two builders (core vs ops), then integrated by a third builder for orchestration -- *Phase 4 (Curation Ants)* (2026-04-01)
 ---
 
 ## Instincts
@@ -145,6 +149,8 @@ High-confidence behavioral patterns that have been validated through repeated co
 
 | Date | Source | Type | Details |
 |------|--------|------|---------|
+| 2026-04-01T09:52:02Z | phase-4 | build_learnings | Added 1 learnings from Phase 4: Curation Ants |
+| 2026-04-01T09:51:44Z | Aether Colony | promoted_pattern | Added: Curation modules with no shared state can be built... |
 | 2026-04-01T09:21:03Z | phase-3 | build_learnings | Added 2 learnings from Phase 3: Trust-Scored Storage and Graph Layer |
 | 2026-04-01T09:20:45Z | Aether Colony | promoted_pattern | Added: Additive modifications to existing files can safel... |
 | 2026-04-01T08:58:07Z | phase-2 | build_learnings | Added 2 learnings from Phase 2: Trust Scoring Engine and Event Bus Foundation |
@@ -247,5 +253,5 @@ High-confidence behavioral patterns that have been validated through repeated co
 ---
 
 <!-- METADATA
-{  "version": "2.0.0",  "wisdom_version": "2.0",  "last_evolved": "2026-04-01T09:21:03Z",  "colonies_contributed": ["1774645519"],  "stats": {    "total_user_prefs": 3,    "total_codebase_patterns": 3,    "total_build_learnings": 4,    "total_instincts": 3  },  "evolution_log": [{"timestamp": "2026-03-24T23:40:00Z", "action": "migrate", "wisdom_type": "system", "content_hash": "v1-to-v2-migration", "colony": "system"}, {"timestamp": "2026-03-20T12:37:32Z", "action": "promote", "wisdom_type": "pattern", "content_hash": "sha256:f8aa50cfda0f37cac6cabba140bb99f1d75aa6d01a7100fe7a5ccddc2b3a017b", "colony": "1771335865738"}]}
+{  "version": "2.0.0",  "wisdom_version": "2.0",  "last_evolved": "2026-04-01T09:52:02Z",  "colonies_contributed": ["1774645519"],  "stats": {    "total_user_prefs": 3,    "total_codebase_patterns": 3,    "total_build_learnings": 3,    "total_instincts": 3  },  "evolution_log": [{"timestamp": "2026-03-24T23:40:00Z", "action": "migrate", "wisdom_type": "system", "content_hash": "v1-to-v2-migration", "colony": "system"}, {"timestamp": "2026-03-20T12:37:32Z", "action": "promote", "wisdom_type": "pattern", "content_hash": "sha256:f8aa50cfda0f37cac6cabba140bb99f1d75aa6d01a7100fe7a5ccddc2b3a017b", "colony": "1771335865738"}]}
 -->
