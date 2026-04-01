@@ -111,8 +111,8 @@
 
 **Milestone Goal:** Replace all shell scripts with a native Go binary, eliminating bash/jq/curl dependencies while preserving exact behavioral parity with the existing system.
 
-- [x] **Phase 45: Core Storage** - STOR-01, STOR-02, STOR-03
-- [x] **Phase 46: Event Bus** - EVT-01, EVT-02, EVT-03
+- [ ] **Phase 45: Core Storage** - STOR-01, STOR-02, STOR-03
+- [ ] **Phase 46: Event Bus** - EVT-01, EVT-02, EVT-03
 - [ ] **Phase 47: Memory Pipeline** - MEM-01 through MEM-05
 - [ ] **Phase 48: Graph Layer** - GRAPH-01 through GRAPH-04
 - [ ] **Phase 49: Agent System + LLM** - AGENT-01 through AGENT-04, LLM-01 through LLM-04
@@ -323,7 +323,11 @@ Plans:
   2. After a simulated crash (process kill), the bus replays persisted events from JSONL so no events are lost
   3. Events with expired TTLs are pruned on load and on schedule -- behavior matches the shell `event-bus-publish` TTL pruning
   4. Channel subscribe/unsubscribe works without blocking publishers -- goroutines clean up on unsubscribe
-**Plans**: TBD
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 46-01-PLAN.md -- Core event bus: Event type, Bus struct, Publish with JSONL persistence, Subscribe/Unsubscribe with wildcard matching (EVT-01, EVT-02)
+- [ ] 46-02-PLAN.md -- TTL cleanup, event replay, golden file parity tests (EVT-03)
 
 ### Phase 47: Memory Pipeline
 **Goal**: Observations flow through trust scoring, auto-promote to instincts, and high-confidence instincts promote to QUEEN.md -- identical outcomes to the shell wisdom pipeline
@@ -444,7 +448,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 43. Clash Detection | v2.7 | - | Complete | 2026-03-31 |
 | 44. Release Hygiene & Ship | v2.7 | - | Complete | 2026-03-31 |
 | 45. Core Storage | v5.4 | 1/2 | Complete    | 2026-04-01 |
-| 46. Event Bus | v5.4 | 2/1 | Complete   | 2026-04-01 |
+| 46. Event Bus | v5.4 | 0/2 | Complete    | 2026-04-01 |
 | 47. Memory Pipeline | v5.4 | 0/TBD | Not started | - |
 | 48. Graph Layer | v5.4 | 0/TBD | Not started | - |
 | 49. Agent System + LLM | v5.4 | 0/TBD | Not started | - |
