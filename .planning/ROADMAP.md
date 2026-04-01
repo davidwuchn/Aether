@@ -339,7 +339,12 @@ Plans:
   3. Promoted instincts include full provenance (source observation IDs, timestamp, confidence) and graph edges link source to instinct
   4. QUEEN.md sections written by Go match the existing 4-section template format -- no structural changes to the file
   5. Phase-end consolidation runs trust decay, archives entries below threshold, and checks promotion eligibility -- output matches shell consolidation
-**Plans**: TBD
+**Plans:** 3/3 plans complete
+
+Plans:
+- [x] 47-01-PLAN.md -- Trust scoring + observation capture with auto-promotion (MEM-01, MEM-02)
+- [x] 47-02-PLAN.md -- Instinct promotion + QUEEN.md writer (MEM-03, MEM-04)
+- [x] 47-03-PLAN.md -- Consolidation orchestrator + pipeline wiring (MEM-05)
 
 ### Phase 48: Graph Layer
 **Goal**: A directed graph tracks relationships between learnings, instincts, phases, and colonies -- queryable via BFS and cycle detection
@@ -449,7 +454,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 44. Release Hygiene & Ship | v2.7 | - | Complete | 2026-03-31 |
 | 45. Core Storage | v5.4 | 1/2 | Complete    | 2026-04-01 |
 | 46. Event Bus | v5.4 | 0/2 | Complete    | 2026-04-01 |
-| 47. Memory Pipeline | v5.4 | 0/TBD | Not started | - |
+| 47. Memory Pipeline | v5.4 | 3/3 | Complete   | 2026-04-01 |
 | 48. Graph Layer | v5.4 | 0/TBD | Not started | - |
 | 49. Agent System + LLM | v5.4 | 0/TBD | Not started | - |
 | 50. CLI Commands | v5.4 | 0/TBD | Not started | - |
