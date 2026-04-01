@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.4
 milestone_name: Shell-to-Go Rewrite
 status: executing
-stopped_at: Completed 45-02-PLAN.md
-last_updated: "2026-04-01T20:40:49.282Z"
+stopped_at: Completed 46-01-PLAN.md
+last_updated: "2026-04-01T21:56:22.265Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 20
-  completed_phases: 11
-  total_plans: 41
-  completed_plans: 37
+  completed_phases: 2
+  total_plans: 10
+  completed_plans: 30
 ---
 
 # Project State
@@ -70,6 +70,7 @@ Last activity: 2026-04-01
 | Phase 43 P01 | 3min | 2 tasks | 1 files |
 | Phase 44 P02 | 3min | 2 tasks | 3 files |
 | Phase 45 P02 | 12min | 2 tasks | 6 files |
+| Phase 46 P01 | 15min | 4 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,8 @@ Last activity: 2026-04-01
 - [45-02]: Used crypto/rand hex suffix for temp file naming instead of PID-only for concurrent safety
 - [45-02]: Used fmt.Fprintf to stderr for malformed JSONL logging instead of log.Printf
 - [45-02]: Created full Store type in storage.go since the file did not exist despite plan referencing it
+- [Phase 46]: Event bus uses string timestamps matching shell format for JSON parity
+- [Phase 46]: Subscriber channels buffered at 256 with non-blocking send to match shell slow-consumer behavior
 
 ### Pending Todos
 
@@ -144,6 +147,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-04-01T20:28:17Z
-Stopped at: Completed 45-02-PLAN.md
+Last session: 2026-04-01T21:56:22.261Z
+Stopped at: Completed 46-01-PLAN.md
 Resume file: None
