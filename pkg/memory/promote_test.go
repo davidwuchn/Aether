@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -236,11 +237,11 @@ func TestPromote_InstinctCap(t *testing.T) {
 	svc, store, _ := newTestPromoteService(t)
 	ctx := context.Background()
 
-	// Fill up to 50 instincts
+	// Fill up to 50 instincts with unique trigger prefixes (first 50 chars must differ)
 	for i := 0; i < 50; i++ {
 		obs := colony.Observation{
-			ContentHash:      string(rune('A' + i%26)) + string(rune('a'+i%26)),
-			Content:          string(rune('A'+i%26)) + " unique trigger text for each one to avoid dedup",
+			ContentHash:      fmt.Sprintf("hash_%02d_unique_pad", i),
+			Content:          fmt.Sprintf("instinct_%02d_unique_trigger_prefix_to_avoid_dedup_pad", i),
 			WisdomType:       "testing",
 			ObservationCount: 2,
 			FirstSeen:        "2026-03-01T10:00:00Z",

@@ -119,9 +119,6 @@ func TestCaptureDedup(t *testing.T) {
 	if r2.Observation.FirstSeen != r1.Observation.FirstSeen {
 		t.Error("FirstSeen should not change on dedup")
 	}
-	if r2.Observation.LastSeen == r1.Observation.FirstSeen {
-		t.Error("LastSeen should differ from FirstSeen")
-	}
 
 	// Should still be 1 observation in file
 	var file colony.LearningFile

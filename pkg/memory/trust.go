@@ -69,7 +69,10 @@ func Calculate(input TrustInput) TrustResult {
 func Decay(score float64, days int) float64 {
 	activity := math.Pow(0.5, float64(days)/60.0)
 	decayed := score * activity
-	return math.Max(0.2, math.Round(decayed*1e6)/1e6)
+	// Round to 6 decimal places to match shell scale=6
+	decayed = math.Round(decayed*1e6) / 1e6
+	decayed = math.Max(0.2, decayed)
+	return decayed
 }
 
 // Tier returns the trust tier name and index for a given score.
