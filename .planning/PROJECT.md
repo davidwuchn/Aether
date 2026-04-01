@@ -48,7 +48,7 @@ The system must reliably interpret a user request, decompose it into executable 
 - Agent/worker system — goroutine pools replacing shell subprocesses — v5.4
 - LLM integration — Anthropic Go SDK for agent Claude calls — v5.4
 - XML exchange — native Go replacing xmllint/xmlstarlet — v5.4
-- Storage layer — atomic writes already done, JSON compatibility — v5.4
+- ✓ Storage layer — typed Go structs for all colony data, atomic writes, backup rotation, path resolution — Phase 45
 - Full test parity — all existing tests ported to Go — v5.4
 - Distribution — Go binary replacing npm package — v5.4
 
@@ -85,7 +85,7 @@ The system must reliably interpret a user request, decompose it into executable 
 - v2.3 shipped: Per-caste model routing, model-slot CLI, 24 agents configured
 - v2.2 shipped: QUEEN.md structured wisdom, cross-colony hive brain, wisdom injection
 - v2.1 shipped: Error handling hardened, monolith modularized (10 modules), state API centralized
-- Go foundation started: pkg/colony/ types, pkg/storage/ atomic writes, state machine implemented
+- Phase 45 complete: typed Go structs for all colony data files (7 types), storage package (atomic writes, backup rotation, path resolution), 74 tests passing
 - 60+ shell scripts, ~44 commands, 24 agents, ~150+ subcommands across 10 domain modules
 - Oracle research completed (25 iterations, 100% confidence) covering full conversion spec
 
