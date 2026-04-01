@@ -41,7 +41,7 @@ The system must reliably interpret a user request, decompose it into executable 
 ### Active
 
 - Go CLI with Cobra — all 37 commands ported from shell — v5.4
-- Event bus — channels + JSONL replacing file-based pub/sub — v5.4
+- ✓ Event bus — channels + JSONL replacing file-based pub/sub — v5.4 (Phase 46)
 - Trust scoring — native float64 replacing bc subprocess — v5.4
 - Memory pipeline — observation → instinct → QUEEN promotion — v5.4
 - Graph layer — BFS, cycle detection, relationship tracking — v5.4
@@ -134,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after v5.4 milestone start — shell-to-go rewrite*
+*Last updated: 2026-04-01 after Phase 46 (event bus) completion*
