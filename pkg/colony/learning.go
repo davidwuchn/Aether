@@ -9,6 +9,10 @@ type Observation struct {
 	FirstSeen        string   `json:"first_seen"`
 	LastSeen         string   `json:"last_seen"`
 	Colonies         []string `json:"colonies"`
+	TrustScore       *float64 `json:"trust_score,omitempty"`
+	SourceType       string   `json:"source_type,omitempty"`
+	EvidenceType     string   `json:"evidence_type,omitempty"`
+	CompressionLevel int      `json:"compression_level,omitempty"`
 }
 
 // LearningFile represents the top-level learning-observations.json file.
