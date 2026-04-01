@@ -308,7 +308,7 @@ Plans:
   2. Killing the process mid-write never leaves a partial or corrupt JSON file on disk -- temp+rename atomic writes match the shell `atomic_write` contract
   3. JSONL append and read operations produce the same line format as shell -- blank lines are skipped, malformed lines are logged and skipped
   4. A Go test suite of 20+ cases covers normal reads, missing files, corrupt JSON, concurrent writes, and large files
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 45-01-PLAN.md -- Define typed structs for all 6 data files (pheromones, learning-observations, midden, flags, constraints, session), fix ColonyState gaps, golden file parity tests (STOR-01)
@@ -443,7 +443,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 42.1. Release Hygiene | v2.7 | - | Complete | 2026-03-31 |
 | 43. Clash Detection | v2.7 | - | Complete | 2026-03-31 |
 | 44. Release Hygiene & Ship | v2.7 | - | Complete | 2026-03-31 |
-| 45. Core Storage | v5.4 | 1/2 | In Progress|  |
+| 45. Core Storage | v5.4 | 1/2 | Complete    | 2026-04-01 |
 | 46. Event Bus | v5.4 | 0/TBD | Not started | - |
 | 47. Memory Pipeline | v5.4 | 0/TBD | Not started | - |
 | 48. Graph Layer | v5.4 | 0/TBD | Not started | - |
