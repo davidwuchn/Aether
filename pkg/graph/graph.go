@@ -6,6 +6,7 @@ package graph
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -436,4 +437,217 @@ func removeEdgeFromList(list []*Edge, target *Edge) []*Edge {
 		}
 	}
 	return list
+}
+
+// ============================================================================
+// BFS Shortest Path
+// ============================================================================
+
+// ShortestPath finds the minimum-hop path from source to target using BFS.
+// Returns nil if no path exists. Returns [source] if source == target.
+// Returns an error if either node does not exist.
+func (g *Graph) ShortestPath(from, to string) ([]string, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	if _, ok := g.nodes[from]; !ok {
+		return nil, fmt.Errorf("graph: node %q not found", from)
+	}
+	if _, ok := g.nodes[to]; !ok {
+		return nil, fmt.Errorf("graph: node %q not found", to)
+	}
+
+	if from == to {
+		return []string{from}, nil
+	}
+
+	// BFS with path tracking
+	type bfsEntry struct {
+		id   string
+		path []string
+	}
+
+	queue := []bfsEntry{{id: from, path: []string{from}}}
+	visited := map[string]bool{from: true}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, e := range g.outEdges[current.id] {
+			if visited[e.Target] {
+				continue
+			}
+			visited[e.Target] = true
+
+			newPath := make([]string, len(current.path)+1)
+			copy(newPath, current.path)
+			newPath[len(current.path)] = e.Target
+
+			if e.Target == to {
+				return newPath, nil
+			}
+
+			queue = append(queue, bfsEntry{id: e.Target, path: newPath})
+		}
+	}
+
+	return nil, nil // unreachable
+}
+
+// ============================================================================
+// Cycle Detection
+// ============================================================================
+
+// DetectCycles finds all directed cycles in the graph using DFS.
+// Each cycle is represented as a slice of node IDs forming the cycle.
+// A self-loop (a -> a) is reported as [a].
+func (g *Graph) DetectCycles() [][]string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	var cycles [][]string
+	visited := map[string]bool{}
+	recStack := map[string]bool{}
+	path := []string{}
+
+	// Collect all node IDs and sort for deterministic iteration order
+	nodeIDs := make([]string, 0, len(g.nodes))
+	for id := range g.nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	sort.Strings(nodeIDs)
+
+	var dfs func(nodeID string)
+	dfs = func(nodeID string) {
+		visited[nodeID] = true
+		recStack[nodeID] = true
+		path = append(path, nodeID)
+
+		for _, e := range g.outEdges[nodeID] {
+			// Self-loop detection
+			if e.Target == nodeID {
+				cycles = append(cycles, []string{nodeID})
+				continue
+			}
+
+			if !visited[e.Target] {
+				dfs(e.Target)
+			} else if recStack[e.Target] {
+				// Found a cycle: extract from path
+				start := -1
+				for i, id := range path {
+					if id == e.Target {
+						start = i
+						break
+					}
+				}
+				if start >= 0 {
+					cycle := make([]string, len(path)-start)
+					copy(cycle, path[start:])
+					cycles = append(cycles, cycle)
+				}
+			}
+		}
+
+		path = path[:len(path)-1]
+		recStack[nodeID] = false
+	}
+
+	for _, id := range nodeIDs {
+		if !visited[id] {
+			dfs(id)
+		}
+	}
+
+	return cycles
+}
+
+// ============================================================================
+// JSON Serialization
+// ============================================================================
+
+// JSONFile represents the graph in the shell-compatible JSON format.
+type JSONFile struct {
+	Version string `json:"version"`
+	Nodes   []Node `json:"nodes"`
+	Edges   []Edge `json:"edges"`
+}
+
+// Export serializes the graph to a JSONFile for serialization.
+func (g *Graph) Export() (*JSONFile, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	nodes := make([]Node, 0, len(g.nodes))
+	for _, n := range g.nodes {
+		nodes = append(nodes, *n)
+	}
+	// Sort nodes by ID for deterministic output
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].ID < nodes[j].ID
+	})
+
+	edges := make([]Edge, 0, len(g.edges))
+	for _, e := range g.edges {
+		edges = append(edges, *e)
+	}
+	// Sort edges by ID for deterministic output
+	sort.Slice(edges, func(i, j int) bool {
+		return edges[i].ID < edges[j].ID
+	})
+
+	return &JSONFile{
+		Version: "1.0",
+		Nodes:   nodes,
+		Edges:   edges,
+	}, nil
+}
+
+// Import loads nodes and edges from a JSONFile into the graph.
+// Existing graph data is replaced.
+func (g *Graph) Import(jf *JSONFile) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	// Reset graph
+	g.nodes = make(map[string]*Node)
+	g.outEdges = make(map[string][]*Edge)
+	g.inEdges = make(map[string][]*Edge)
+	g.edges = make(map[string]*Edge)
+
+	// Add nodes
+	for _, n := range jf.Nodes {
+		node := n // copy
+		g.nodes[node.ID] = &node
+	}
+
+	// Add edges
+	for _, e := range jf.Edges {
+		edge := e // copy
+		key := edgeKey(edge.Source, edge.Target, edge.Relationship)
+		g.edges[key] = &edge
+		g.outEdges[edge.Source] = append(g.outEdges[edge.Source], &edge)
+		g.inEdges[edge.Target] = append(g.inEdges[edge.Target], &edge)
+	}
+
+	return nil
+}
+
+// ExportJSON serializes the graph to JSON bytes.
+func (g *Graph) ExportJSON() ([]byte, error) {
+	jf, err := g.Export()
+	if err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(jf, "", "  ")
+}
+
+// ImportJSON deserializes the graph from JSON bytes.
+func (g *Graph) ImportJSON(data []byte) error {
+	var jf JSONFile
+	if err := json.Unmarshal(data, &jf); err != nil {
+		return fmt.Errorf("graph: import JSON: %w", err)
+	}
+	return g.Import(&jf)
 }
