@@ -42,8 +42,8 @@ The system must reliably interpret a user request, decompose it into executable 
 
 - Go CLI with Cobra — all 37 commands ported from shell — v5.4
 - ✓ Event bus — channels + JSONL replacing file-based pub/sub — v5.4 (Phase 46)
-- Trust scoring — native float64 replacing bc subprocess — v5.4
-- Memory pipeline — observation → instinct → QUEEN promotion — v5.4
+- ✓ Trust scoring — native float64 replacing bc subprocess — v5.4 (Phase 47)
+- ✓ Memory pipeline — observation → instinct → QUEEN promotion — v5.4 (Phase 47)
 - Graph layer — BFS, cycle detection, relationship tracking — v5.4
 - Agent/worker system — goroutine pools replacing shell subprocesses — v5.4
 - LLM integration — Anthropic Go SDK for agent Claude calls — v5.4
@@ -134,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after Phase 46 (event bus) completion*
+*Last updated: 2026-04-02 after Phase 47 (memory pipeline) completion*

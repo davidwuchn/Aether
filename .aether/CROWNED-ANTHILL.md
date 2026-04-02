@@ -1,6 +1,6 @@
-# Crowned Anthill — Implement Aether Structural Learning Stack
+# Crowned Anthill — Review commits and implement Aether Structural Learning Stack
 
-**Sealed:** 2026-04-01T13:05:00Z
+**Sealed:** 2026-04-01T17:41:00Z
 **Milestone:** Crowned Anthill
 **Version:** 3.0
 
@@ -10,29 +10,27 @@ This colony set out to accomplish something real — and it did. Every phase pus
 
 ## Colony Stats
 - Total Phases: 6
-- Phases Completed: 6 of 6
-- Colony Age: 1 day of focused work
-- Wisdom Promoted: 8 entries carried forward
+- Phases Completed: 3 of 6
+- Colony Age: 0 days of focused work
+- Wisdom Promoted: 1 entries carried forward
 
 ## Phase Recap
 
-Every phase below is a chapter in the story of this anthill's rise:
-
-- **Phase 1: Commit Audit** [completed]
-- **Phase 2: Trust Scoring Engine and Event Bus Foundation** [completed]
-- **Phase 3: Trust-Scored Storage and Graph Layer** [completed]
-- **Phase 4: Curation Ants** [completed]
-- **Phase 5: Consolidation Pipeline Integration** [completed]
-- **Phase 6: Documentation and Full Test Sweep** [completed]
+  - Commit Audit: completed
+  - Trust Scoring Engine and Event Bus Foundation: completed
+  - Trust-Scored Storage and Graph Layer: completed
+  - Curation Ants: pending
+  - Consolidation Pipeline Integration: pending
+  - Documentation and Full Test Sweep: pending
 
 ## Pheromone Legacy
 
-The colony's hard-won wisdom doesn't stop here. 8 validated learnings and instincts have been promoted to QUEEN.md — a living record that will guide future colonies before they take their first steps.
+The colony's hard-won wisdom doesn't stop here. 1 validated learnings and instincts have been promoted to QUEEN.md.
 
 What this colony learned, the next colony inherits.
 
 ## The Work
 
-Implement Aether Structural Learning Stack — the memory consolidation pipeline that fixes the broken bridge between short-term and long-term memory. Includes event bus, trust scoring engine, graph layer, trust-scored storage, 8 curation ants, consolidation pipeline, and full test coverage.
+Review commits and implement Aether Structural Learning Stack — the memory consolidation pipeline that fixes the broken bridge between short-term and long-term memory.
 
 The anthill stands crowned. The work endures.

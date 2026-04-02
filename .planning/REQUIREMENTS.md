@@ -36,22 +36,22 @@ Requirements for the Shell-to-Go rewrite. Each maps to roadmap phases.
 
 ### Agents
 
-- [ ] **AGENT-01**: Agent interface defines Name, Caste, Triggers, Execute -- all agents implement this interface
-- [ ] **AGENT-02**: Worker pool manages concurrent agent execution with bounded goroutines (errgroup with SetLimit)
-- [ ] **AGENT-03**: Spawn tracking records running agents in spawn tree -- matches spawn-tree.txt format
-- [ ] **AGENT-04**: Curation ants (8) implement event subscriptions and handle memory events -- matches shell ant behavior
+- [x] **AGENT-01**: Agent interface defines Name, Caste, Triggers, Execute -- all agents implement this interface
+- [x] **AGENT-02**: Worker pool manages concurrent agent execution with bounded goroutines (errgroup with SetLimit)
+- [x] **AGENT-03**: Spawn tracking records running agents in spawn tree -- matches spawn-tree.txt format
+- [x] **AGENT-04**: Curation ants (8) implement event subscriptions and handle memory events -- matches shell ant behavior
 
 ### LLM
 
 - [ ] **LLM-01**: Anthropic Go SDK integration sends messages and receives responses -- supports Claude calls from Go agents
 - [ ] **LLM-02**: Streaming responses accumulate SSE events into complete messages -- matches Claude streaming behavior
 - [ ] **LLM-03**: Tool use loop detects ToolUseBlock, executes tools, returns ToolResultBlock -- agentic pattern
-- [ ] **LLM-04**: Agent spec YAML frontmatter is parsed into Go AgentConfig structs -- model, tools, triggers resolved
+- [x] **LLM-04**: Agent spec YAML frontmatter is parsed into Go AgentConfig structs -- model, tools, triggers resolved
 
 ### CLI
 
-- [ ] **CLI-01**: Cobra root command with all 37 subcommands registered -- `aether init`, `aether build`, etc.
-- [ ] **CLI-02**: Shell completion generated for bash/zsh/fish -- matches existing command UX
+- [x] **CLI-01**: Cobra root command with all 37 subcommands registered -- `aether init`, `aether build`, etc.
+- [x] **CLI-02**: Shell completion generated for bash/zsh/fish -- matches existing command UX
 - [ ] **CLI-03**: Status command displays colony dashboard -- output matches shell status output
 - [ ] **CLI-04**: All read-only commands (status, phase, flags, history, pheromones, memory-details) produce identical output to shell
 
@@ -118,16 +118,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GRAPH-02 | Phase 48 | Pending |
 | GRAPH-03 | Phase 48 | Pending |
 | GRAPH-04 | Phase 48 | Pending |
-| AGENT-01 | Phase 49 | Pending |
-| AGENT-02 | Phase 49 | Pending |
-| AGENT-03 | Phase 49 | Pending |
-| AGENT-04 | Phase 49 | Pending |
+| AGENT-01 | Phase 49 | Complete |
+| AGENT-02 | Phase 49 | Complete |
+| AGENT-03 | Phase 49 | Complete |
+| AGENT-04 | Phase 49 | Complete |
 | LLM-01 | Phase 49 | Pending |
 | LLM-02 | Phase 49 | Pending |
 | LLM-03 | Phase 49 | Pending |
-| LLM-04 | Phase 49 | Pending |
-| CLI-01 | Phase 50 | Pending |
-| CLI-02 | Phase 50 | Pending |
+| LLM-04 | Phase 49 | Complete |
+| CLI-01 | Phase 50 | Complete |
+| CLI-02 | Phase 50 | Complete |
 | CLI-03 | Phase 50 | Pending |
 | CLI-04 | Phase 50 | Pending |
 | XML-01 | Phase 51 | Pending |

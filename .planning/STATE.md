@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.4
 milestone_name: Shell-to-Go Rewrite
 status: executing
-stopped_at: Completed 45-02-PLAN.md
-last_updated: "2026-04-01T22:11:11.001Z"
-last_activity: 2026-04-01
+stopped_at: Completed 50-01-PLAN.md
+last_updated: "2026-04-02T06:47:01.606Z"
+last_activity: 2026-04-02
 progress:
   total_phases: 20
-  completed_phases: 12
-  total_plans: 43
-  completed_plans: 39
+  completed_phases: 14
+  total_plans: 59
+  completed_plans: 49
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 46 — event-bus
+**Current focus:** Phase 50 — cli-commands
 
 ## Current Position
 
-Phase: 47
-Plan: Not started
-Status: Executing Phase 46
-Last activity: 2026-04-01
+Phase: 50 (cli-commands) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-04-02
 
 ## Performance Metrics
 
@@ -70,6 +70,10 @@ Last activity: 2026-04-01
 | Phase 43 P01 | 3min | 2 tasks | 1 files |
 | Phase 44 P02 | 3min | 2 tasks | 3 files |
 | Phase 45 P02 | 12min | 2 tasks | 6 files |
+| Phase 49 P01 | 472 | 2 tasks | 6 files |
+| Phase 49 P04 | 1 | 1 tasks | 10 files |
+| Phase 49 P03 | 6min | 2 tasks | 4 files |
+| Phase 50 P01 | 25min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -133,6 +137,16 @@ Last activity: 2026-04-01
 - [45-02]: Used crypto/rand hex suffix for temp file naming instead of PID-only for concurrent safety
 - [45-02]: Used fmt.Fprintf to stderr for malformed JSONL logging instead of log.Printf
 - [45-02]: Created full Store type in storage.go since the file did not exist despite plan referencing it
+- [Phase 49]: Sentinel error types (DuplicateAgentError, AgentNotFoundError) for type-safe agent registry error handling
+- [Phase 49]: Registry.List/Match return agents sorted by name for deterministic ordering
+- [Phase 49]: YAML frontmatter parser strips leading whitespace before delimiter detection
+- [Phase 49]: Sentinel skips .jsonl files during corruption check since they are line-delimited, not single JSON objects
+- [Phase 49]: Curation ants return nil Triggers() since orchestrator handles event subscriptions for all ants
+- [Phase 49]: Pool mutex protects cancel/eventCh fields for concurrent Start/Stop safety (data race fix)
+- [Phase 49]: Spawn tree stores spawn entries and completion lines separately, merging on parse for shell format parity
+- [Phase 50]: Custom version template prints aether v<version> instead of default aether version v<version>
+- [Phase 50]: outputOK/outputError use manual JSON construction for exact key ordering matching shell json_ok/json_err format
+- [Phase 50]: stdout/stderr as package-level io.Writer vars for test injection rather than interface parameters
 
 ### Pending Todos
 
@@ -144,6 +158,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-04-01T20:28:17Z
-Stopped at: Completed 45-02-PLAN.md
+Last session: 2026-04-02T06:47:01.602Z
+Stopped at: Completed 50-01-PLAN.md
 Resume file: None

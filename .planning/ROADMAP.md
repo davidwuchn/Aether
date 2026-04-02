@@ -339,7 +339,12 @@ Plans:
   3. Promoted instincts include full provenance (source observation IDs, timestamp, confidence) and graph edges link source to instinct
   4. QUEEN.md sections written by Go match the existing 4-section template format -- no structural changes to the file
   5. Phase-end consolidation runs trust decay, archives entries below threshold, and checks promotion eligibility -- output matches shell consolidation
-**Plans**: TBD
+**Plans:** 3/3 plans complete
+
+Plans:
+- [x] 47-01-PLAN.md -- Trust scoring + observation capture with auto-promotion (MEM-01, MEM-02)
+- [x] 47-02-PLAN.md -- Instinct promotion + QUEEN.md writer (MEM-03, MEM-04)
+- [x] 47-03-PLAN.md -- Consolidation orchestrator + pipeline wiring (MEM-05)
 
 ### Phase 48: Graph Layer
 **Goal**: A directed graph tracks relationships between learnings, instincts, phases, and colonies -- queryable via BFS and cycle detection
@@ -350,7 +355,11 @@ Plans:
   2. 1-hop and 2-hop neighbor queries return the same set of connected nodes as the jq graph layer for identical input data
   3. Shortest path (BFS) finds the minimum-hop route between two nodes; cycle detection identifies all cycles in the graph
   4. Graph serializes to JSON and deserializes back without data loss -- round-trip parity verified against shell-produced graph JSON
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 48-01-PLAN.md -- Core graph types, CRUD operations, neighbor queries (GRAPH-01, GRAPH-02)
+- [ ] 48-02-PLAN.md -- BFS, cycle detection, JSON persistence, promote.go migration (GRAPH-03, GRAPH-04)
 
 ### Phase 49: Agent System + LLM
 **Goal**: Go agents run in goroutine pools with Anthropic LLM calls, replacing shell subprocess spawning and enabling tool-use loops
@@ -365,7 +374,13 @@ Plans:
   6. Streaming responses accumulate SSE chunks into a complete message -- caller receives the same result as a non-streaming call
   7. Tool use loop detects tool call blocks, executes the requested tool, and returns the result -- completes when the model returns a text-only response
   8. Agent YAML frontmatter (model, tools, triggers) parses into Go structs that configure agent behavior
-**Plans**: TBD
+**Plans:** 4/4 plans complete
+
+Plans:
+- [x] 49-01-PLAN.md -- Agent interface + YAML frontmatter parser (AGENT-01, LLM-04)
+- [ ] 49-02-PLAN.md -- LLM client + streaming + tool use loop (LLM-01, LLM-02, LLM-03)
+- [x] 49-03-PLAN.md -- Worker pool + spawn tree (AGENT-02, AGENT-03)
+- [x] 49-04-PLAN.md -- Curation ants with orchestrator (AGENT-04)
 
 ### Phase 50: CLI Commands
 **Goal**: All 37 colony commands are accessible via a Go binary with Cobra, producing output identical to the shell commands
@@ -376,7 +391,15 @@ Plans:
   2. Shell completion scripts for bash, zsh, and fish generate from the Cobra command tree -- tab completion works identically to shell command completion
   3. `aether status` output matches the shell `/ant:status` dashboard character-for-character in structure and data
   4. All read-only commands (status, phase, flags, history, pheromones, memory-details) produce byte-identical output to their shell counterparts for the same input data
-**Plans**: TBD
+**Plans:** 1/6 plans executed
+
+Plans:
+- [x] 50-01-PLAN.md -- CLI foundation: root command, Cobra setup, completion, output helpers (CLI-01, CLI-02)
+- [ ] 50-02-PLAN.md -- Status dashboard + read-only display commands (CLI-01, CLI-03, CLI-04)
+- [ ] 50-03-PLAN.md -- Write/mutation commands: pheromones, flags, spawn, state, learning, changelog (CLI-01)
+- [ ] 50-04-PLAN.md -- Swarm, hive, skills, midden, registry commands (CLI-01)
+- [ ] 50-05-PLAN.md -- Queen, immune, council, clash, autopilot commands (CLI-01)
+- [ ] 50-06-PLAN.md -- Remaining utilities + command_count_test (>= 145 registered) (CLI-01)
 **UI hint**: yes
 
 ### Phase 51: XML Exchange + Distribution + Testing
@@ -449,8 +472,8 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 44. Release Hygiene & Ship | v2.7 | - | Complete | 2026-03-31 |
 | 45. Core Storage | v5.4 | 1/2 | Complete    | 2026-04-01 |
 | 46. Event Bus | v5.4 | 0/2 | Complete    | 2026-04-01 |
-| 47. Memory Pipeline | v5.4 | 0/TBD | Not started | - |
-| 48. Graph Layer | v5.4 | 0/TBD | Not started | - |
-| 49. Agent System + LLM | v5.4 | 0/TBD | Not started | - |
-| 50. CLI Commands | v5.4 | 0/TBD | Not started | - |
+| 47. Memory Pipeline | v5.4 | 3/3 | Complete   | 2026-04-01 |
+| 48. Graph Layer | v5.4 | 0/2 | Not started | - |
+| 49. Agent System + LLM | v5.4 | 3/4 | Complete    | 2026-04-02 |
+| 50. CLI Commands | v5.4 | 1/6 | In Progress|  |
 | 51. XML Exchange + Dist + Testing | v5.4 | 0/TBD | Not started | - |
