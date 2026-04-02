@@ -355,7 +355,11 @@ Plans:
   2. 1-hop and 2-hop neighbor queries return the same set of connected nodes as the jq graph layer for identical input data
   3. Shortest path (BFS) finds the minimum-hop route between two nodes; cycle detection identifies all cycles in the graph
   4. Graph serializes to JSON and deserializes back without data loss -- round-trip parity verified against shell-produced graph JSON
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 48-01-PLAN.md -- Core graph types, CRUD operations, neighbor queries (GRAPH-01, GRAPH-02)
+- [ ] 48-02-PLAN.md -- BFS, cycle detection, JSON persistence, promote.go migration (GRAPH-03, GRAPH-04)
 
 ### Phase 49: Agent System + LLM
 **Goal**: Go agents run in goroutine pools with Anthropic LLM calls, replacing shell subprocess spawning and enabling tool-use loops
@@ -455,7 +459,7 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 45. Core Storage | v5.4 | 1/2 | Complete    | 2026-04-01 |
 | 46. Event Bus | v5.4 | 0/2 | Complete    | 2026-04-01 |
 | 47. Memory Pipeline | v5.4 | 3/3 | Complete   | 2026-04-01 |
-| 48. Graph Layer | v5.4 | 0/TBD | Not started | - |
+| 48. Graph Layer | v5.4 | 0/2 | Not started | - |
 | 49. Agent System + LLM | v5.4 | 0/TBD | Not started | - |
 | 50. CLI Commands | v5.4 | 0/TBD | Not started | - |
 | 51. XML Exchange + Dist + Testing | v5.4 | 0/TBD | Not started | - |
