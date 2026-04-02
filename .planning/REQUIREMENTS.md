@@ -50,8 +50,8 @@ Requirements for the Shell-to-Go rewrite. Each maps to roadmap phases.
 
 ### CLI
 
-- [ ] **CLI-01**: Cobra root command with all 37 subcommands registered -- `aether init`, `aether build`, etc.
-- [ ] **CLI-02**: Shell completion generated for bash/zsh/fish -- matches existing command UX
+- [x] **CLI-01**: Cobra root command with all 37 subcommands registered -- `aether init`, `aether build`, etc.
+- [x] **CLI-02**: Shell completion generated for bash/zsh/fish -- matches existing command UX
 - [ ] **CLI-03**: Status command displays colony dashboard -- output matches shell status output
 - [ ] **CLI-04**: All read-only commands (status, phase, flags, history, pheromones, memory-details) produce identical output to shell
 
@@ -126,8 +126,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-02 | Phase 49 | Pending |
 | LLM-03 | Phase 49 | Pending |
 | LLM-04 | Phase 49 | Complete |
-| CLI-01 | Phase 50 | Pending |
-| CLI-02 | Phase 50 | Pending |
+| CLI-01 | Phase 50 | Complete |
+| CLI-02 | Phase 50 | Complete |
 | CLI-03 | Phase 50 | Pending |
 | CLI-04 | Phase 50 | Pending |
 | XML-01 | Phase 51 | Pending |

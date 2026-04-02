@@ -391,10 +391,10 @@ Plans:
   2. Shell completion scripts for bash, zsh, and fish generate from the Cobra command tree -- tab completion works identically to shell command completion
   3. `aether status` output matches the shell `/ant:status` dashboard character-for-character in structure and data
   4. All read-only commands (status, phase, flags, history, pheromones, memory-details) produce byte-identical output to their shell counterparts for the same input data
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 
 Plans:
-- [ ] 50-01-PLAN.md -- CLI foundation: root command, Cobra setup, completion, output helpers (CLI-01, CLI-02)
+- [x] 50-01-PLAN.md -- CLI foundation: root command, Cobra setup, completion, output helpers (CLI-01, CLI-02)
 - [ ] 50-02-PLAN.md -- Status dashboard + read-only display commands (CLI-01, CLI-03, CLI-04)
 - [ ] 50-03-PLAN.md -- Write/mutation commands: pheromones, flags, spawn, state, learning, changelog (CLI-01)
 - [ ] 50-04-PLAN.md -- Swarm, hive, skills, midden, registry commands (CLI-01)
@@ -475,5 +475,5 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 47. Memory Pipeline | v5.4 | 3/3 | Complete   | 2026-04-01 |
 | 48. Graph Layer | v5.4 | 0/2 | Not started | - |
 | 49. Agent System + LLM | v5.4 | 3/4 | Complete    | 2026-04-02 |
-| 50. CLI Commands | v5.4 | 0/6 | Not started | - |
+| 50. CLI Commands | v5.4 | 1/6 | In Progress|  |
 | 51. XML Exchange + Dist + Testing | v5.4 | 0/TBD | Not started | - |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.4
 milestone_name: Shell-to-Go Rewrite
 status: executing
-stopped_at: Completed 49-03-PLAN.md
-last_updated: "2026-04-02T04:07:50.727Z"
+stopped_at: Completed 50-01-PLAN.md
+last_updated: "2026-04-02T06:47:01.606Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 20
-  completed_phases: 13
-  total_plans: 53
-  completed_plans: 47
+  completed_phases: 14
+  total_plans: 59
+  completed_plans: 49
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-29)
 
 **Core value:** Reliably interpret user requests, decompose into work, verify outputs, and ship correct work with minimal back-and-forth.
-**Current focus:** Phase 49 — agent-system-llm
+**Current focus:** Phase 50 — cli-commands
 
 ## Current Position
 
-Phase: 49 (agent-system-llm) — EXECUTING
-Plan: 4 of 4
+Phase: 50 (cli-commands) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
 Last activity: 2026-04-02
 
@@ -73,6 +73,7 @@ Last activity: 2026-04-02
 | Phase 49 P01 | 472 | 2 tasks | 6 files |
 | Phase 49 P04 | 1 | 1 tasks | 10 files |
 | Phase 49 P03 | 6min | 2 tasks | 4 files |
+| Phase 50 P01 | 25min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,9 @@ Last activity: 2026-04-02
 - [Phase 49]: Curation ants return nil Triggers() since orchestrator handles event subscriptions for all ants
 - [Phase 49]: Pool mutex protects cancel/eventCh fields for concurrent Start/Stop safety (data race fix)
 - [Phase 49]: Spawn tree stores spawn entries and completion lines separately, merging on parse for shell format parity
+- [Phase 50]: Custom version template prints aether v<version> instead of default aether version v<version>
+- [Phase 50]: outputOK/outputError use manual JSON construction for exact key ordering matching shell json_ok/json_err format
+- [Phase 50]: stdout/stderr as package-level io.Writer vars for test injection rather than interface parameters
 
 ### Pending Todos
 
@@ -154,6 +158,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-04-02T04:07:50.723Z
-Stopped at: Completed 49-03-PLAN.md
+Last session: 2026-04-02T06:47:01.602Z
+Stopped at: Completed 50-01-PLAN.md
 Resume file: None
