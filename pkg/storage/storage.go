@@ -150,6 +150,16 @@ func (s *Store) ReadJSONL(path string) ([]json.RawMessage, error) {
 	return results, nil
 }
 
+// ReadFile reads raw file content from the store.
+func (s *Store) ReadFile(path string) ([]byte, error) {
+	fullPath := s.resolvePath(path)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("storage: read %q: %w", fullPath, err)
+	}
+	return data, nil
+}
+
 // logMalformedLine logs a malformed JSONL line.
 // Extracted as a function for testability.
 func logMalformedLine(path, line string) {

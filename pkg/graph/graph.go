@@ -48,6 +48,7 @@ const (
 	// Cross-type edges
 	EdgeDependsOn      EdgeType = "depends_on"
 	EdgeInfluenced     EdgeType = "influenced"
+	EdgeConflictsWith  EdgeType = "conflicts_with"
 	EdgeSupersedesPhase EdgeType = "supersedes_phase"
 )
 
