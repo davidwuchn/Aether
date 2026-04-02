@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.4
 milestone_name: Shell-to-Go Rewrite
 status: executing
-stopped_at: Completed 49-01-PLAN.md
-last_updated: "2026-04-02T03:29:30.807Z"
+stopped_at: Completed 49-04-PLAN.md
+last_updated: "2026-04-02T04:01:58.006Z"
 last_activity: 2026-04-02
 progress:
   total_phases: 20
   completed_phases: 13
   total_plans: 53
-  completed_plans: 45
+  completed_plans: 46
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 ## Current Position
 
 Phase: 49 (agent-system-llm) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-02
 
@@ -71,6 +71,7 @@ Last activity: 2026-04-02
 | Phase 44 P02 | 3min | 2 tasks | 3 files |
 | Phase 45 P02 | 12min | 2 tasks | 6 files |
 | Phase 49 P01 | 472 | 2 tasks | 6 files |
+| Phase 49 P04 | 1 | 1 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,8 @@ Last activity: 2026-04-02
 - [Phase 49]: Sentinel error types (DuplicateAgentError, AgentNotFoundError) for type-safe agent registry error handling
 - [Phase 49]: Registry.List/Match return agents sorted by name for deterministic ordering
 - [Phase 49]: YAML frontmatter parser strips leading whitespace before delimiter detection
+- [Phase 49]: Sentinel skips .jsonl files during corruption check since they are line-delimited, not single JSON objects
+- [Phase 49]: Curation ants return nil Triggers() since orchestrator handles event subscriptions for all ants
 
 ### Pending Todos
 
@@ -148,6 +151,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-04-02T03:29:30.802Z
-Stopped at: Completed 49-01-PLAN.md
+Last session: 2026-04-02T04:01:58.002Z
+Stopped at: Completed 49-04-PLAN.md
 Resume file: None

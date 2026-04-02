@@ -39,7 +39,7 @@ Requirements for the Shell-to-Go rewrite. Each maps to roadmap phases.
 - [x] **AGENT-01**: Agent interface defines Name, Caste, Triggers, Execute -- all agents implement this interface
 - [ ] **AGENT-02**: Worker pool manages concurrent agent execution with bounded goroutines (errgroup with SetLimit)
 - [ ] **AGENT-03**: Spawn tracking records running agents in spawn tree -- matches spawn-tree.txt format
-- [ ] **AGENT-04**: Curation ants (8) implement event subscriptions and handle memory events -- matches shell ant behavior
+- [x] **AGENT-04**: Curation ants (8) implement event subscriptions and handle memory events -- matches shell ant behavior
 
 ### LLM
 
@@ -121,7 +121,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGENT-01 | Phase 49 | Complete |
 | AGENT-02 | Phase 49 | Pending |
 | AGENT-03 | Phase 49 | Pending |
-| AGENT-04 | Phase 49 | Pending |
+| AGENT-04 | Phase 49 | Complete |
 | LLM-01 | Phase 49 | Pending |
 | LLM-02 | Phase 49 | Pending |
 | LLM-03 | Phase 49 | Pending |
