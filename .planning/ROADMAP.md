@@ -374,7 +374,13 @@ Plans:
   6. Streaming responses accumulate SSE chunks into a complete message -- caller receives the same result as a non-streaming call
   7. Tool use loop detects tool call blocks, executes the requested tool, and returns the result -- completes when the model returns a text-only response
   8. Agent YAML frontmatter (model, tools, triggers) parses into Go structs that configure agent behavior
-**Plans**: TBD
+**Plans:** 1/4 plans executed
+
+Plans:
+- [x] 49-01-PLAN.md -- Agent interface + YAML frontmatter parser (AGENT-01, LLM-04)
+- [ ] 49-02-PLAN.md -- LLM client + streaming + tool use loop (LLM-01, LLM-02, LLM-03)
+- [ ] 49-03-PLAN.md -- Worker pool + spawn tree (AGENT-02, AGENT-03)
+- [ ] 49-04-PLAN.md -- Curation ants with orchestrator (AGENT-04)
 
 ### Phase 50: CLI Commands
 **Goal**: All 37 colony commands are accessible via a Go binary with Cobra, producing output identical to the shell commands
@@ -460,6 +466,6 @@ Phases execute in numeric order: 1 -> 2 -> ... -> 44 -> 45 -> 46 -> 47 -> 48 -> 
 | 46. Event Bus | v5.4 | 0/2 | Complete    | 2026-04-01 |
 | 47. Memory Pipeline | v5.4 | 3/3 | Complete   | 2026-04-01 |
 | 48. Graph Layer | v5.4 | 0/2 | Not started | - |
-| 49. Agent System + LLM | v5.4 | 0/TBD | Not started | - |
+| 49. Agent System + LLM | v5.4 | 1/4 | In Progress|  |
 | 50. CLI Commands | v5.4 | 0/TBD | Not started | - |
 | 51. XML Exchange + Dist + Testing | v5.4 | 0/TBD | Not started | - |
