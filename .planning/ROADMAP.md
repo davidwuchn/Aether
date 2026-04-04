@@ -108,7 +108,7 @@ Plans:
 
 Plans:
 - [x] 10-01-PLAN.md -- Parity harness + semantic comparators + 142 overlapping command parity tests (TEST-01, TEST-02)
-- [ ] 10-02-PLAN.md -- Go-only command functional tests: 99 commands smoke tests + 5 deeper functional tests (TEST-03)
+- [x] 10-02-PLAN.md -- Go-only command functional tests: 99 commands smoke tests + 5 deeper functional tests (TEST-03)
 - [ ] 10-03-PLAN.md -- Fix parity breaks, full suite verification, CI integration (TEST-04)
 
 ### Phase 11: Distribution
@@ -135,5 +135,5 @@ Phases execute in numeric order: 05 -> 06 -> 07 -> 08 -> 09 -> 10 -> 11
 | 07. Error Handling & Miscellaneous | 4/4 | Complete    | 2026-04-04 |
 | 08. Slash Command Wiring | 2/2 | Complete   | 2026-04-04 |
 | 09. Playbook Wiring | 2/2 | Complete    | 2026-04-04 |
-| 10. Integration Parity Tests | 1/3 | In Progress|  |
+| 10. Integration Parity Tests | 2/3 | In Progress|  |
 | 11. Distribution | 0/? | Not started | - |
