@@ -378,7 +378,7 @@ Plans:
 
 Plans:
 - [x] 49-01-PLAN.md -- Agent interface + YAML frontmatter parser (AGENT-01, LLM-04)
-- [ ] 49-02-PLAN.md -- LLM client + streaming + tool use loop (LLM-01, LLM-02, LLM-03)
+- [x] 49-02-PLAN.md -- Binary download wiring into npm postinstall (BIN-01)
 - [x] 49-03-PLAN.md -- Worker pool + spawn tree (AGENT-02, AGENT-03)
 - [x] 49-04-PLAN.md -- Curation ants with orchestrator (AGENT-04)
 

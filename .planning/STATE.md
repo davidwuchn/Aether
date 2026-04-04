@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v5.4
 milestone_name: Shell-to-Go Rewrite
 status: executing
-stopped_at: Completed 49-01-PLAN.md
-last_updated: "2026-04-04T19:06:24.745Z"
+stopped_at: Completed 49-02-PLAN.md
+last_updated: "2026-04-04T19:20:34.980Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 20
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 ## Current Position
 
 Phase: 50 (cli-commands) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-04-04
 
@@ -75,6 +75,7 @@ Last activity: 2026-04-04
 | Phase 49 P03 | 6min | 2 tasks | 4 files |
 | Phase 50 P01 | 25min | 2 tasks | 8 files |
 | Phase 49 P01 | 1min | 2 tasks | 2 files |
+| Phase 49 P02 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -151,6 +152,8 @@ Last activity: 2026-04-04
 - [Phase 49]: Internal helpers exported with _ prefix for testability (findChecksum, downloadWithRedirects, etc.)
 - [Phase 49]: downloadBinary never throws -- always returns {success, reason} for non-blocking pattern
 - [Phase 49]: SHA-256 hash computed during stream download, not as separate pass
+- [Phase 49]: Lazy require inside try block for binary download (not module-level) keeps postinstall lightweight
+- [Phase 49]: Source pattern contract test reads cli.js source rather than loading module (avoids side effects)
 
 ### Pending Todos
 
@@ -162,6 +165,6 @@ None active.
 
 ## Session Continuity
 
-Last session: 2026-04-04T19:06:24.741Z
-Stopped at: Completed 49-01-PLAN.md
+Last session: 2026-04-04T19:20:34.976Z
+Stopped at: Completed 49-02-PLAN.md
 Resume file: None
