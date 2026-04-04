@@ -1383,6 +1383,19 @@ async function performGlobalInstall() {
   log(c.colony('Setting up distribution hub...'));
   setupHub();
 
+  // Download Go binary (non-blocking)
+  try {
+    const { downloadBinary } = require('./lib/binary-downloader');
+    const result = await downloadBinary(VERSION);
+    if (result.success) {
+      log(`  ${c.colony('Binary:')} ${c.dim(result.path)}`);
+    } else {
+      log(`  ${c.warning('Binary:')} skipped (${result.reason})`);
+    }
+  } catch (err) {
+    log(`  ${c.warning('Binary:')} download failed (${err.message})`);
+  }
+
   log('');
   log(c.success('Install complete.'));
   log(`  ${c.queen('Claude Code:')} run /ant to get started`);
