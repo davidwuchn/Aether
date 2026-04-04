@@ -1,92 +1,82 @@
 ---
 phase: 49-agent-system-llm
 plan: 01
-subsystem: agent
-tags: [go, interface, registry, yaml, frontmatter, caste]
+subsystem: distribution
+tags: [node, binary, download, checksum, sha256, github-releases, platform-detection, atomic-install]
 
 # Dependency graph
 requires:
-  - phase: 48-memory-pipeline
-    provides: "Event bus with TopicMatch for agent trigger matching"
+  - phase: 48-goreleaser-release-pipeline
+    provides: "GitHub Releases with goreleaser archives and checksums.txt"
 provides:
-  - "Agent interface with Name, Caste, Triggers, Execute methods"
-  - "Caste type constants matching shell caste names"
-  - "Thread-safe Registry with Register, Get, List, Match"
-  - "YAML frontmatter parser (ParseAgentSpec, ParseAgentSpecFile)"
-  - "AgentConfig and TriggerConfig structs"
-affects: ["49-02", "49-03", "49-04"]
+  - "Platform detection mapping process.platform + process.arch to goreleaser naming"
+  - "HTTPS download with manual 302 redirect following"
+  - "SHA-256 stream-while-hashing download (zero extra I/O)"
+  - "Archive extraction via system tar command"
+  - "Atomic install via rename with chmod 0o755"
+  - "Non-blocking downloadBinary() returning {success, reason} instead of throwing"
+affects: ["49-02"]
 
 # Tech tracking
 tech-stack:
-  added: [gopkg.in/yaml.v3, golang.org/x/sync, github.com/anthropics/anthropic-sdk-go]
-  patterns: ["Agent interface pattern", "Thread-safe registry with RWMutex", "YAML frontmatter extraction"]
+  added: []
+  patterns: ["Stream-while-hashing for zero-overhead checksum", "Atomic rename for safe install", "Non-blocking error returns via {success, reason}"]
 
 key-files:
   created:
-    - pkg/agent/agent.go
-    - pkg/agent/agent_test.go
-    - pkg/llm/config.go
-    - pkg/llm/config_test.go
-  modified:
-    - go.mod
-    - go.sum
+    - bin/lib/binary-downloader.js
+    - tests/unit/binary-downloader.test.js
+  modified: []
 
 key-decisions:
-  - "Sentinel error types (DuplicateAgentError, AgentNotFoundError) for type-safe error handling"
-  - "Registry.Match uses events.TopicMatch for wildcard pattern matching"
-  - "YAML frontmatter parser strips leading whitespace before delimiter detection"
-  - "List() and Match() return agents sorted by name for deterministic ordering"
+  - "Internal helpers exported with _ prefix for testability (findChecksum, downloadWithRedirects, etc.)"
+  - "downloadBinary never throws -- always returns {success, reason} for non-blocking pattern"
+  - "SHA-256 hash computed during stream download, not as a separate pass"
 
 patterns-established:
-  - "Agent interface: 4-method contract (Name, Caste, Triggers, Execute)"
-  - "Registry pattern: RWMutex-protected map with sorted returns"
-  - "YAML frontmatter parsing: delimiter extraction between --- markers"
+  - "Binary download pipeline: detect platform -> download checksums -> download archive with hash -> verify -> extract -> atomic install"
+  - "Non-blocking error returns: {success: false, reason: string} instead of exceptions"
+  - "Internal exports with _ prefix for testability"
 
-requirements-completed: [AGENT-01, LLM-04]
+requirements-completed: [BIN-01, BIN-02, BIN-03, BIN-04]
 
 # Metrics
-duration: 8min
-completed: 2026-04-02
+duration: 1min
+completed: 2026-04-04
 ---
 
-# Phase 49: Agent System LLM Summary
+# Phase 49 Plan 01: Binary Downloader Summary
 
-**Agent interface with Caste types, thread-safe Registry, and YAML frontmatter parser for agent spec files**
+**Platform-aware Go binary downloader with SHA-256 stream hashing, HTTP redirect following, and atomic install using only Node.js built-ins**
 
 ## Performance
 
-- **Duration:** 8 min
-- **Started:** 2026-04-02T03:21:19Z
-- **Completed:** 2026-04-02T03:29:19Z
+- **Duration:** 1 min
+- **Started:** 2026-04-04T19:03:44Z
+- **Completed:** 2026-04-04T19:04:35Z
 - **Tasks:** 2
-- **Files modified:** 6
+- **Files modified:** 2
 
 ## Accomplishments
-- Agent interface established as the contract all colony agents implement
-- Thread-safe Registry with Register, Get, List, Match operations supporting wildcard topic matching
-- YAML frontmatter parser handles real agent definition files with edge case coverage
-- 17 tests passing across both packages with zero vet warnings
+- Self-contained download module with zero npm dependencies (https, crypto, fs, stream/promises only)
+- 16 unit tests passing with full mock coverage for platform detection, checksum parsing, redirect following, and download flow
+- Atomic install pattern: download to temp, verify checksum, rename to final path (no corrupted files on failure)
 
 ## Task Commits
 
 Each task was committed atomically:
 
-1. **Task 1: Agent interface, Caste types, and Registry** - `b2ba6bb` (feat)
-2. **Task 2: YAML frontmatter parser for agent specs** - `7038753` (feat)
+1. **Task 1: Create binary-downloader module** - `20c56dd` (feat)
+2. **Task 2: Write comprehensive unit tests** - `4b454ca` (test)
 
 ## Files Created/Modified
-- `pkg/agent/agent.go` - Agent interface, Caste type with 9 constants, Trigger struct, Registry with RWMutex
-- `pkg/agent/agent_test.go` - 7 table-driven tests covering interface, registration, lookup, matching
-- `pkg/llm/config.go` - AgentConfig struct, ParseAgentSpec, ParseAgentSpecFile with delimiter extraction
-- `pkg/llm/config_test.go` - 10 table-driven tests covering valid/minimal/error/edge cases
-- `go.mod` - Added gopkg.in/yaml.v3, golang.org/x/sync, anthropic-sdk-go
-- `go.sum` - Dependency checksums
+- `bin/lib/binary-downloader.js` - 267-line download engine with platform detection, redirect following, stream hashing, archive extraction, atomic install
+- `tests/unit/binary-downloader.test.js` - 430-line test suite with 16 tests using ava + sinon + proxyquire
 
 ## Decisions Made
-- Used sentinel error types (DuplicateAgentError, AgentNotFoundError) instead of fmt.Errorf for type-safe error matching in callers
-- Registry.List() and Match() return agents sorted by name for deterministic ordering in tests and UI
-- YAML frontmatter parser strips leading whitespace before checking for opening delimiter, matching how real .md files are structured
-- Added golang.org/x/sync now (needed for errgroup in Plan 03) to keep go.mod stable across plans
+- Exported internal helpers with `_` prefix (`_findChecksum`, `_downloadWithRedirects`, `_downloadText`, `_downloadAndHash`, `_extractBinary`, `_atomicInstall`) for testability while signaling internal status
+- `downloadBinary()` never throws -- wraps entire flow in try/catch returning `{success: false, reason}` on any error
+- SHA-256 hash computed during stream download via `response.on('data', chunk => hash.update(chunk))` -- no separate I/O pass
 
 ## Deviations from Plan
 
@@ -99,16 +89,16 @@ None
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Agent interface ready for worker pool implementation (Plan 03)
-- YAML parser ready to load real agent definition files (Plan 02)
-- Registry ready for agent registration and topic-based dispatch
+- Binary downloader ready for npm install wiring (Plan 02)
+- All 6 platform combos (darwin/linux/windows x amd64/arm64) mapped correctly
+- Checksum verification ensures binary integrity before install
 
 ## Self-Check: PASSED
 
-- All 4 created files exist on disk
-- Both task commits found in git log (b2ba6bb, 7038753)
-- All 17 tests pass across pkg/agent and pkg/llm
+- Both created files exist on disk
+- Both task commits found in git log (20c56dd, 4b454ca)
+- All 16 tests pass
 
 ---
 *Phase: 49-agent-system-llm*
-*Completed: 2026-04-02*
+*Completed: 2026-04-04*
