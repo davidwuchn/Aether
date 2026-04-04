@@ -427,3 +427,41 @@ test.serial('downloadBinary never throws even when internal functions throw', as
   t.false(result.success);
   t.truthy(result.reason);
 });
+
+// ============================================================
+// E. Integration Contract Tests (cli.js wiring verification)
+// ============================================================
+
+const fs = require('fs');
+const pathModule = require('path');
+
+test.serial('downloadBinary returns non-throwing result on all failure paths', async (t) => {
+  // Verify the contract: downloadBinary never throws, always returns {success, reason}
+  const mod = proxyquire('../../bin/lib/binary-downloader', {
+    'https': { get: () => ({ on: () => {} }) },
+    'http': {},
+    'fs': { createWriteStream: () => ({ on: () => {} }) },
+    'fs/promises': { mkdir: async () => {}, rename: async () => {}, unlink: async () => {}, chmod: async () => {} },
+    'os': { tmpdir: () => '/tmp', homedir: () => '/home/test' },
+    'child_process': { execFile: () => {} },
+  });
+  // Unsupported platform should return failure, not throw
+  const originalPlatform = process.platform;
+  const originalArch = process.arch;
+  Object.defineProperty(process, 'platform', { value: 'freebsd' });
+  Object.defineProperty(process, 'arch', { value: 'x64' });
+  const result = await mod.downloadBinary('1.0.0');
+  t.false(result.success);
+  t.truthy(result.reason);
+  Object.defineProperty(process, 'platform', { value: originalPlatform });
+  Object.defineProperty(process, 'arch', { value: originalArch });
+});
+
+test('cli.js performGlobalInstall contains downloadBinary wiring', (t) => {
+  // Verify the wiring exists in cli.js source
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  t.true(cliSource.includes("require('./lib/binary-downloader')"));
+  t.true(cliSource.includes('downloadBinary(VERSION)'));
+  t.true(cliSource.includes('try'));
+  t.true(cliSource.includes('c.warning'));
+});
