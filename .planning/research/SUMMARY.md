@@ -1,211 +1,201 @@
 # Project Research Summary
 
-**Project:** Aether v2.6 Bugfix & Hardening
-**Domain:** Bash/jq shell script hardening -- multi-agent colony orchestration system
-**Researched:** 2026-03-29
+**Project:** Aether v5.5 Go Binary Release
+**Domain:** Binary release, auto-install, and version-gated YAML wiring for existing npm-distributed Go CLI
+**Researched:** 2026-04-04
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Aether v2.6 is a hardening milestone for a mature 5,200+ line bash/jq colony orchestration system. The research reveals no need for new dependencies -- all fixes use idiomatic bash (`grep -F --`, `jq --arg`) and established patterns already present in parts of the codebase. The core work is standardizing inconsistent patterns across ~30 grep call sites and ~25 JSON construction sites that evolved over 2+ years of incremental development.
+Aether v5.4 completed a full shell-to-Go rewrite, producing a Go binary with 254+ Cobra commands that replaces the bash-based dispatcher. However, the binary has never been distributed to users -- it only exists locally via `make build`. The v5.5 milestone closes this gap: goreleaser produces cross-platform binaries on GitHub Releases, the npm install flow downloads the correct platform binary, `aether update` keeps it current, and a version gate prevents YAML commands from calling a binary that does not exist or is outdated. This is an integration project, not a greenfield build -- the YAML command files already call `aether <subcommand>`, and the Go binary already responds to all 254+ subcommands. The missing piece is distribution.
 
-The v2.6 scope breaks into four distinct work streams with clear dependencies: (1) input escaping and JSON hardening (the foundation -- everything else depends on safe variable handling), (2) cross-colony isolation fixes (LOCK_DIR mutation and QUEEN.md scoping), (3) colony depth selector (a new feature that gates Oracle/Architect spawns by effort level), and (4) YAML command generator (eliminates duplication between Claude Code and OpenCode command directories). Streams 1-2 are pure hardening with zero behavioral change for current inputs. Stream 3 is the only feature addition. Stream 4 is the highest-risk, lowest-urgency item and is a strong candidate for deferral to v2.7.
+The recommended approach is minimal and safe. goreleaser v2 (already 90% configured) handles cross-platform builds and GitHub Release creation. A Node.js binary downloader (using only stdlib `https` + `crypto` + `tar` package) fetches the correct platform binary during `npm install` or `aether update`. The critical design decision is that the npm `aether` command becomes a thin shim that delegates to the Go binary when present and falls back to Node.js when it is not. This means binary download failure never breaks the user's workflow -- it is a progressive enhancement, not a hard requirement. The version gate is a simple three-condition check: binary exists, is executable, and `aether version` matches the expected version. Only when all three pass does the system consider the binary safe to use.
 
-The key risk is the grep double-escape trap: the codebase has three different escaping conventions (sed-style, grep -F, and raw interpolation) used across different modules. A naive global fix would break more than it fixes. The research prescribes a per-call-site audit categorized by context (literal string vs BRE regex vs ERE regex) followed by targeted fixes using `grep -F` for all user-derived variables.
+The key risks are: (1) the half-updated state where YAML is wired to Go but the binary is broken -- prevented by strict two-phase rollout (binary first, wiring second); (2) PATH collision between npm's `aether` shim and the Go binary -- prevented by hub-scoped install to `~/.aether/bin/` with the npm shim delegating to it; (3) non-atomic binary replacement leaving a corrupted binary -- prevented by download-to-temp, verify, then rename pattern. The research found that Aether's version-gated YAML wiring approach is genuinely novel among Go CLI tools distributed via npm (esbuild, turbo, biome use binary-or-bust patterns), providing a resilience advantage.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies. All fixes use existing tools with established patterns already partially in use within the codebase.
+Minimal stack additions -- no new Go dependencies, only one new npm dependency (`tar`). All research is grounded in direct codebase inspection of existing files.
 
-**Core patterns to adopt:**
-- `grep -F --` for all user-derived variable searches -- eliminates regex escaping entirely for literal string matching, POSIX-standard, zero maintenance
-- `jq -n --arg` for all JSON string construction -- handles quotes, backslashes, newlines, control characters, and unicode correctly; replaces ~25 instances of fragile string interpolation
-- `acquire_lock` with optional `--lock-dir` parameter -- replaces fragile global `LOCK_DIR` save/restore pattern in hive.sh with explicit scope passing
-- ShellCheck 0.11.0 at `warning` severity -- currently only 6 of 29+ scripts are linted at `error` severity; expanding coverage catches the unescaped variable class of bugs
+**Core technologies:**
+- goreleaser v2.15.2: Cross-platform binary build + GitHub Release -- `.goreleaser.yml` already exists with 6-platform config, only needs universal binaries and release workflow
+- goreleaser-action v7.0.0: Run goreleaser in GitHub Actions -- latest stable (2026-02-21), requires Node 24/ESM
+- actions/checkout v6.0.2 + actions/setup-go v6.4.0: CI foundation -- prior research had stale versions (v4/v5), now corrected
+- Node.js stdlib `https` + `crypto`: Binary download and SHA-256 checksum verification -- zero new dependencies for HTTP and hashing
+- `tar` npm package v7.5.13: Extract `.tar.gz` archives -- already in package.json overrides, promote to direct dependency
+- Custom semver comparison: 10-line function for version gating -- `semver` npm package is overkill for "is X >= Y"
 
-**Version requirements:** bash 3.2+ (macOS default), jq 1.6+ (currently 1.8.1), shellcheck 0.10+ (currently 0.11.0). All met.
+**What NOT to use:** Cosign/SBOM (oversized for current scale), Docker/Snap/nfpm (wrong distribution model), bundled binaries in npm (100MB+ package), `node-fetch`/`got`/`axios` (stdlib handles GitHub redirects fine).
 
 ### Expected Features
 
-**Must have (table stakes -- the core depth selector):**
-- Named depth levels matching existing plan.md convention (`minimal`/`standard`/`deep`/`full`) -- consistent UX
-- Default to `standard` (current behavior minus Oracle/Architect) -- saves 2 opus-tier spawns per build by default
-- Per-build CLI flag override (`--depth <level>`) -- primary use case: "this one phase is simple"
-- Spawn plan header reflects active depth -- visibility into what runs
-- Colony-level depth preference in COLONY_STATE.json -- set once with `/ant:depth`, use always
-- No behavior change for existing colonies that don't use the flag
+**Must have (table stakes -- P1 for v5.5 launch):**
+- goreleaser release pipeline -- tag-triggered CI producing 6 platform binaries (darwin/linux/windows x amd64/arm64) with checksums
+- Binary download during `aether install` -- platform detection, download from GitHub Releases, install to `~/.aether/bin/`
+- Binary download during `aether update` -- check binary version, refresh if outdated, non-blocking on failure
+- Version gate logic -- three-condition check (exists + executable + version matches) before routing to Go binary
+- npm shim delegation -- `bin/cli.js` delegates to Go binary when present, falls back to Node.js when not
 
-**Should have (competitive -- depth selector polish):**
-- Phase-type auto-suggestion -- Queen analyzes phase name and suggests depth
-- Continue flow respects build depth -- Gatekeeper/Auditor always run (safety nets), Probe gated by depth
-- Autopilot depth consistency -- `/ant:run` uses same depth across all phases
-- Cost/time estimate per depth level -- "Standard: ~5 spawns. Full: ~8 spawns (+3 opus-tier)"
+**Should have (competitive -- P2 after validation):**
+- Checksum verification on download -- fetch `checksums.txt`, verify SHA-256 against downloaded binary
+- Homebrew tap distribution -- goreleaser `brews` section pushing to `calcosmic/homebrew-tap`
+- Atomic binary swap with backup -- keep `aether.old` for rollback capability
 
-**Defer (v2+):**
-- YAML command generator (v2.7 candidate) -- highest risk, lowest urgency; partial generation is worse than none
-- Per-caste toggles -- explodes API surface; named depth levels are the right abstraction
-- Auto-detect optimal depth -- misclassification is costly; suggestion-only is the right balance
+**Defer (v5.6+):**
+- Binary self-update (`aether update-self`) -- conflicts with npm update flow, too complex for current scope
+- Code signing (Apple Developer + Windows) -- cost/benefit does not justify for current user base
+- Remove shell fallback entirely -- shell fallback is insurance against binary issues, keep it indefinitely
+- `go:embed` for self-contained binary -- separate milestone, not distribution
 
 ### Architecture Approach
 
-The codebase operates across two storage scopes: **colony-local** (`.aether/` per repo) and **hub-shared** (`~/.aether/` across all colonies). The v2.6 fixes enforce this two-scope model by eliminating three architectural bugs that undermine cross-colony isolation.
+This is an integration project into an existing system. The Go binary (254+ commands), YAML command files (87 files with 275 `aether <subcommand>` calls), playbooks (11 files with 275 Go calls), and npm distribution (`bin/cli.js` with install/update/hub management) all already exist. The v5.5 work adds four components that connect these pieces.
 
-**Major components affected:**
-
-1. **file-lock.sh** -- Add optional `lock_dir_override` parameter to `acquire_lock` so hive.sh can lock hub resources without mutating the global `LOCK_DIR`. This is the linchpin fix for cross-colony isolation.
-2. **hive.sh** -- Replace 6 separate LOCK_DIR save/restore blocks with a `_hive_acquire_lock` helper that passes the lock directory as a parameter. Create `~/.aether/hive/locks/` as a dedicated lock directory (currently locks sit alongside data files).
-3. **spawn.sh / spawn-tree.sh / swarm.sh** -- Convert 10 grep calls with `ant_name` interpolation from regex mode to `grep -F` (fixed-string). Add input validation at spawn-tree entry point as defense in depth.
-4. **aether-utils.sh / error-handler.sh** -- Migrate ~25 `json_ok`/`json_err` call sites from string interpolation to `jq -n --arg`. Refactor `json_err` to use jq internally for correct escaping of all error fields.
-5. **queen.sh** -- Add `--scope local|hub` parameter to `queen-promote` so high-confidence wisdom can be written to the hub QUEEN.md (currently always writes local).
+**Major components:**
+1. **Release workflow** (`.github/workflows/release.yml`) -- goreleaser action triggered on `v*` tag push, produces platform binaries uploaded to GitHub Releases. Separate from existing `ci.yml`.
+2. **Binary downloader** (`bin/lib/binary-downloader.js`) -- Detects platform, downloads from GitHub Releases, verifies checksum, installs to `~/.aether/bin/aether` with atomic rename (download to `.new`, verify, rename).
+3. **Version gate** (`bin/lib/version-gate.js`) -- Runs `aether version`, compares against minimum required version, returns pass/fail. Used by npm shim and update flow.
+4. **npm shim enhancement** (`bin/cli.js` modification) -- `aether` entry point delegates to Go binary when version gate passes, falls back to Node.js CLI when it does not.
 
 **Key patterns to follow:**
-- Parameterized lock acquisition (pass scope as argument, never mutate globals)
-- Fixed-string grep for user data (`grep -F --`)
-- jq-native JSON construction (never string interpolation)
-- Explicit scope for cross-colony writes (colony-local vs hub)
+- Non-blocking binary download -- failures never block install/update; YAML/agent sync is primary distribution
+- Single source of truth for version -- `package.json` is canonical; Makefile reads it; goreleaser reads git tag; CI asserts they match
+- Hub-local binary storage -- `~/.aether/bin/aether`, not npm global bin (npm may clean its directory)
+- Checksum verification before install -- every downloaded binary verified against published checksums.txt
+- Binary download runs OUTSIDE UpdateTransaction -- file sync transaction handles repo files; binary is a separate concern with simpler rollback (delete file)
 
 ### Critical Pitfalls
 
-1. **The Double-Escape Trap** -- The codebase has three grep escaping conventions (sed-style, grep -F, raw interpolation) used across different modules. Adding a global escape function without per-call-site audit will double-escape strings already escaped upstream (e.g., learning.sh line 1248 sed-escaping followed by grep). Prevention: audit and categorize every grep call before writing any fix. Prefer `grep -F` which eliminates escaping entirely for literal searches.
+1. **The Half-Updated State** -- Installing binary AND swapping YAML in one step creates a window where a failed binary download leaves 45 commands broken simultaneously. Prevention: strict two-phase rollout -- binary first (Phase 2), YAML wiring only after binary confirmed working (Phase 4). The version gate must check all three conditions (exists + executable + version), not just existence.
 
-2. **JSON Construction With printf** -- At least 6 call sites construct JSON by interpolating bash variables into printf format strings. If the variable contains quotes, backslashes, or newlines, the JSON becomes invalid and downstream jq parsing fails silently. Prevention: migrate all user-derived variables to `jq -n --arg`. Do NOT change the `json_ok` function signature -- fix the callers.
+2. **PATH Collision Between npm `aether` and Binary `aether`** -- Two executables with the same name on different PATH entries create unpredictable behavior across shells, terminals, and install methods. Prevention: install binary to `~/.aether/bin/` (hub-scoped), have npm shim delegate to it when available. Both paths lead to the same binary, eliminating the collision.
 
-3. **LOCK_DIR Mutation Leak** -- hive.sh temporarily mutates the global `LOCK_DIR` for hub-level locking. If a signal handler, trap, or concurrent operation fires between save and restore, colony-local locks land in the hub directory, breaking mutual exclusion. Prevention: add `lock_dir_override` parameter to `acquire_lock` instead of mutating a global. Use subshell isolation for any remaining save/restore patterns.
+3. **Non-Atomic Binary Replacement** -- Writing directly to the final path means network interruption or disk-full leaves a corrupted binary with no way to recover. Prevention: download to `aether.new`, verify checksum, verify executable, rename `aether` to `aether.old`, rename `aether.new` to `aether`, verify, then delete `aether.old`. This is the single most important safety mechanism for the milestone.
 
-4. **Depth Selector Breaks Build Assumptions** -- Adding a depth selector that reduces spawn capacity can break build playbooks that assume depth 1 always allows 4 spawns. Oracle's RALF loop spawns sub-agents at depth 2 that would be blocked in `minimal` mode. Prevention: "standard" mode must match current hardcoded limits exactly. Swarm spawns should be exempt from depth limits. Oracle needs special handling to allow at least 1 sub-agent at depth 2.
+4. **Version Drift Between npm and Binary** -- Two independent versioning channels (npm registry vs git tags) can desync, causing YAML commands to use flags the binary does not have. Prevention: single source of truth (package.json), CI assertion that git tag matches package.json version, binary self-reports version via ldflags injection, update flow compares versions before proceeding.
 
-5. **YAML Generator Synchronization Debt** -- Generating only a subset of commands is worse than generating none (developers must remember which commands are YAML-sourced and which are hand-maintained). Prevention: generate ALL 44 commands or defer entirely. Add generated-file headers. Consider deferring to v2.7.
+5. **goreleaser Config Gaps** -- The existing config lacks universal binaries for macOS, `.exe` naming for Windows, and has `go mod tidy` in before-hooks (which can fail in CI). Prevention: add `universal_binaries` section, set `binary: aether.exe` for Windows, move `go mod tidy` to a separate CI step.
 
 ## Implications for Roadmap
 
 Based on research, suggested phase structure:
 
-### Phase 1: Input Escaping & JSON Hardening
-**Rationale:** This is the foundation. Every subsequent phase touches grep patterns or JSON construction. Getting escaping right first prevents cascading breakage. Zero behavioral change for current inputs -- purely defensive.
-**Delivers:** Safe grep patterns across all modules, safe JSON construction across all helpers, expanded shellcheck coverage, bash 3.2 compatibility fixes
-**Addresses:** FEATURES table stakes T6 (backward compatibility -- no behavior change), STACK patterns 1 and 2
-**Avoids:** Pitfalls 1 (double-escape), 2 (JSON injection), 6 (awk regex injection), 7 (timing.log prefix match), 8 (bash 3.2 `((depth++))`), 10 (missing `--` separator), 11 (changelog JSON concatenation), 13 (jq -Rs trailing newline), 12 (duplicated depth logic)
+### Phase 1: goreleaser Release Pipeline
+**Rationale:** Foundation for everything else. Must produce downloadable binaries before any download logic can be tested. Independent of npm changes -- zero risk to existing users. Pure CI addition.
+**Delivers:** `.github/workflows/release.yml` triggered on `v*` tags, completed `.goreleaser.yml` (universal binaries, `.exe` naming, strip flags), goreleaser snapshot validation in CI, first GitHub Release with 6 platform archives + checksums
+**Addresses:** STACK goreleaser v2.15.2, ARCHITECTURE Integration Point 1
+**Avoids:** PITFALLS #3 (goreleaser config gaps), #5 (version drift -- CI version alignment)
 
 **Concrete work items:**
-- Audit and categorize all ~30 grep call sites with variable interpolation (literal vs BRE vs ERE)
-- Convert user-derived grep calls to `grep -F --`
-- Migrate ~25 `json_ok` call sites from string interpolation to `jq -n --arg`
-- Refactor `json_err`/`json_warn` to use jq internally
-- Add `.shellcheckrc`, expand lint targets to all utils/*.sh files, lower severity to `warning`
-- Fix `((depth++))` to `$((depth + 1))` in spawn-tree.sh
-- Consolidate duplicated depth logic between spawn.sh and spawn-tree.sh
+- Complete `.goreleaser.yml`: add `id: aether`, `binary: aether`/`aether.exe`, `-s -w` ldflags, `universal_binaries` for macOS, `ignore: windows/arm64`, LICENSE in archives
+- Remove `go mod tidy` from before-hooks, run in CI separately
+- Create `.github/workflows/release.yml` with test job + goreleaser release job
+- Add `goreleaser check` to existing `ci.yml`
+- Pin action versions: checkout@v6, setup-go@v6, goreleaser-action@v7
+- Test by pushing `v5.5.0-beta.1` tag
 
-### Phase 2: Cross-Colony Isolation
-**Rationale:** Depends on Phase 1 because the grep fixes touch spawn.sh and spawn-tree.sh which the isolation work also modifies. Isolation fixes must come before the depth selector because the depth selector changes spawn behavior that isolation correctness depends on.
-**Delivers:** Parameterized lock acquisition, hive.sh LOCK_DIR refactor, QUEEN.md scope parameter, validate-package.sh content integrity checks, CLAUDE.md documentation correction
-**Addresses:** STACK pattern 3 (LOCK_DIR parameter), ARCHITECTURE bugs 1-2 (LOCK_DIR mutation, QUEEN.md scoping), ARCHITECTURE bug 4 (atomic-write contract documentation)
-**Avoids:** Pitfall 3 (LOCK_DIR leak), Pitfall 9 (validate-package.sh content gaps)
-
-**Concrete work items:**
-- Add `lock_dir_override` parameter to `acquire_lock` in file-lock.sh
-- Create `_hive_acquire_lock` helper, replace all 6 save/restore blocks in hive.sh
-- Create `~/.aether/hive/locks/` directory
-- Add `--scope local|hub` to `queen-promote` in queen.sh
-- Add content integrity checks to validate-package.sh (function existence, shell syntax, JSON parse)
-- Fix CLAUDE.md LOCK_DIR path documentation (`.aether/locks/` not `.aether/data/locks/`)
-- Add CONTRACT comment to atomic-write.sh
-
-### Phase 3: Colony Depth Selector
-**Rationale:** Feature addition that depends on safe grep/JSON handling (Phase 1) and correct spawn isolation (Phase 2). This is the only user-facing feature change in v2.6.
-**Delivers:** Four depth levels (minimal/standard/deep/full), `--depth` CLI flag, `/ant:depth` preference command, spawn plan header updates, build summary depth field, one-time migration notice
-**Addresses:** FEATURES all P1 items (T1-T6, D1), ARCHITECTURE pattern for spawn gating
-**Avoids:** Pitfall 4 (depth selector breaks build assumptions), Pitfall 8 (bash 3.2 compatibility)
+### Phase 2: Binary Downloader + npm Install Integration
+**Rationale:** Depends on Phase 1 (needs release artifacts to download). This is the core delivery -- users get the Go binary on their machines for the first time.
+**Delivers:** `bin/lib/binary-downloader.js` (platform detection, download, checksum verify, atomic install), modified `performGlobalInstall()` in `bin/cli.js`, `~/.aether/bin/` creation, PATH management, version recording in `~/.aether/version.json`
+**Addresses:** FEATURES P1 (binary download during install), ARCHITECTURE Integration Point 2
+**Avoids:** PITFALLS #3 (non-atomic replacement), #1 (half-updated state -- binary verified before anything depends on it)
 
 **Concrete work items:**
-- Define depth-to-caste mapping table (minimal/standard/deep/full)
-- Add `--depth` argument parsing to build.md and build-prep.md
-- Gate Oracle spawn on depth >= deep in build-wave.md Step 5.0.1
-- Gate Architect spawn on depth >= deep in build-wave.md Step 5.0.2
-- Gate Chaos spawn on depth >= standard in build-wave.md Step 5.1
-- Add `build_depth` field to COLONY_STATE.json schema
-- Create `/ant:depth` command for colony-level preference
-- Update spawn plan header and BUILD SUMMARY to reflect depth
-- Add one-time migration notice for existing colonies
-- Pass depth through to `/ant:run` autopilot
-- Mirror all changes to OpenCode commands
+- Create `bin/lib/binary-downloader.js` with platform detection (process.platform + process.arch mapping, Rosetta check via sysctl)
+- Implement atomic download: fetch to `.new`, verify checksum, verify executable, rename
+- Add `tar` to package.json dependencies (promote from overrides)
+- Modify `performGlobalInstall()` to call binary downloader after hub setup
+- Implement PATH management (idempotent profile injection for `~/.aether/bin/`)
+- Update `~/.aether/version.json` schema with binaryVersion, binaryPlatform, binaryInstalledAt, binaryChecksum
+- Update `.npmignore` to exclude Go source files
 
-### Phase 4: YAML Command Generator (Conditional)
-**Rationale:** Lowest urgency, highest risk. Should only proceed if Phases 1-3 complete with capacity to spare. Deferral to v2.7 is a valid and likely outcome.
-**Delivers:** YAML source-of-truth for all 44 commands, generator script, generated-file headers, CI check for staleness
-**Addresses:** FEATURES deferred item (YAML generator)
-**Avoids:** Pitfall 5 (synchronization debt)
+### Phase 3: Update Flow Binary Refresh
+**Rationale:** Depends on Phase 2 (needs binary-downloader.js). Keeps the binary current across npm updates. Can run in parallel with Phase 4.
+**Delivers:** `bin/lib/version-gate.js`, modified update command handler, non-blocking binary refresh after file sync
+**Addresses:** FEATURES P1 (binary download during update), ARCHITECTURE Integration Point 3
+**Avoids:** PITFALLS #4 (version drift -- update compares binary vs npm version)
 
-**Concrete work items (only if proceeding):**
-- Design YAML schema for command definitions
-- Create `.aether/commands/` source directory
-- Build generator that produces both `.claude/commands/ant/` and `.opencode/commands/ant/`
-- Generate ALL 44 commands (partial generation is unacceptable)
-- Add generated-file headers (`<!-- GENERATED: do not edit manually -->`)
-- Add `npm run generate:commands` script
-- Update validate-package.sh for new file structure
-- Decide: commit generated files or gitignore + postinstall hook
+**Concrete work items:**
+- Create `bin/lib/version-gate.js` with custom semver comparison (no npm dependency)
+- Modify update command handler to check binary version after file sync
+- Non-blocking download: warn on failure, never block the update
+- Version comparison: if binary < npm, download new binary; if binary > npm, warn about drift
+
+### Phase 4: npm Shim Delegation + Version Gate
+**Rationale:** Depends on Phase 2 (needs version gate logic). This is the final piece that routes YAML commands through the Go binary safely. Can run in parallel with Phase 3.
+**Delivers:** Modified `bin/run.js` or `bin/cli.js` entry point that delegates to Go binary when version gate passes, falls back to Node.js CLI when it does not. The 87 YAML files and 275 Go calls require zero changes -- they already call `aether <subcommand>`.
+**Addresses:** FEATURES P1 (version gate logic, npm shim delegation), ARCHITECTURE Integration Point 4
+**Avoids:** PITFALLS #1 (half-updated state -- wiring only happens when binary confirmed), #2 (PATH collision -- shim delegates, does not compete)
+
+**Concrete work items:**
+- Implement shim delegation: check `~/.aether/bin/aether` exists and is executable, run `aether version`, compare against `MIN_BINARY_VERSION`
+- If version gate passes: `spawn(binaryPath, args, { stdio: 'inherit' })`
+- If version gate fails: fall back to existing Node.js CLI implementation
+- Binary search order: (1) hub `~/.aether/bin/aether`, (2) PATH `aether`
+- Add pre-flight binary check to critical YAML commands (init.yaml, build.yaml, continue.yaml)
+- Update `package.json` bin entry if needed
 
 ### Phase Ordering Rationale
 
-- Phase 1 first because escaping fixes are the foundation -- every subsequent phase touches the same grep/JSON patterns, and getting escaping wrong in Phase 1 would cascade into Phase 2-3 changes
-- Phase 2 second because isolation fixes modify file-lock.sh and hive.sh (the locking infrastructure that the depth selector depends on for correct spawn behavior)
-- Phase 3 third because it is the feature addition that builds on hardened infrastructure -- it modifies spawn.sh, build playbooks, and COLONY_STATE.json, all of which are touched by earlier phases
-- Phase 4 last (or deferred) because it is orthogonal to the hardening work and has the highest risk of introducing synchronization problems
+- Phase 1 is independent and zero-risk -- pure CI addition, no user-facing changes
+- Phase 2 depends on Phase 1 -- needs a GitHub Release with downloadable binaries
+- Phases 3 and 4 both depend on Phase 2 only -- they can run in parallel
+- Phase ordering avoids the two most dangerous pitfalls: half-updated state (binary and YAML never change in the same step) and PATH collision (npm shim delegates to binary, does not compete with it)
 
 ### Research Flags
 
 Phases likely needing deeper research during planning:
-- **Phase 3:** The depth selector has nuanced interactions with Oracle's RALF sub-agent spawning, swarm's independent cap system, and the continue flow's Gatekeeper/Auditor/Probe agents. The boundary between "build effort" and "post-build safety" needs design decisions during phase planning.
-- **Phase 4:** YAML generator has an unresolved decision on whether to commit generated files or gitignore them. Each approach has tradeoffs that need stakeholder input.
+- **Phase 2:** Binary downloader has platform-specific edge cases (Rosetta detection on macOS, Windows PATH management via `setx`, corporate proxy handling). The research identified these but did not produce implementation-ready code for each platform.
+- **Phase 4:** The npm shim delegation pattern has an unresolved question about how to handle commands that only exist in the Node.js CLI (like `install`, `update`, `setupHub`). These must stay in Node.js even when the Go binary is active. A command routing table is needed.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1:** Well-documented bash hardening patterns. The research has already identified every call site that needs fixing with specific before/after code.
-- **Phase 2:** Lock parameterization and scope-based writes are established architectural patterns. All code locations are identified.
+- **Phase 1:** goreleaser + GitHub Actions is a well-documented, widely-used pattern. The `.goreleaser.yml` is already 90% complete. The release workflow is ~30 lines of standard YAML.
+- **Phase 3:** Version gate comparison is trivial (string split + numeric compare). The update flow modification is a well-understood enhancement to existing code.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All recommendations are standard bash/jq idioms already partially in use. No new dependencies. Verified tool versions on target machine. |
-| Features | HIGH | Depth selector design is grounded in direct analysis of existing build playbooks, plan.md precedent, and all 8 caste definitions. Edge cases thoroughly explored. |
-| Architecture | HIGH | All four architectural bugs identified with specific line numbers, concrete failure modes, and tested fix patterns. Direct codebase inspection of all affected files. |
-| Pitfalls | HIGH | 13 pitfalls identified from direct codebase inspection. Each has concrete evidence (file, line number), failure mode description, and prevention strategy. macOS bash 3.2 compatibility matrix included. |
+| Stack | HIGH | All recommendations grounded in direct codebase inspection. goreleaser config verified against existing `.goreleaser.yml`. Action versions checked against current GitHub releases. Only gap: web search was rate-limited, so goreleaser v2.15.2 version is from training data, not live verification. |
+| Features | HIGH | Feature landscape grounded in direct analysis of 87 YAML command files, 11 playbooks, and competitor analysis (esbuild, turbo, biome). P1 features are tightly scoped and have clear implementation paths. |
+| Architecture | HIGH | All four integration points identified with specific file locations, line numbers, and data flow diagrams. The key insight (YAML already wired, gap is distribution) is verified by pattern analysis across all command files. |
+| Pitfalls | HIGH | 6 critical pitfalls identified from direct codebase inspection of goreleaser.yml, package.json, bin/cli.js, UpdateTransaction class, and 45 YAML command files. Each has concrete failure modes and prevention strategies. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **bash version constraint ambiguity:** PROJECT.md states "bash 4+" but CLAUDE.md and emoji-audit.sh reference macOS bash 3.2 compatibility. The research assumed bash 3.2 is required. This should be explicitly resolved during Phase 1 planning -- if bash 4+ is truly required, several fixes become simpler (associative arrays, `mapfile`, etc.).
+- **goreleaser-action v7 ESM requirement:** The research notes v7 requires Node 24 and ESM, but the exact impact on workflow syntax was not verified against live documentation. Check during Phase 1 planning that the workflow YAML is compatible with v7's ESM migration.
 
-- **"standard" default user impact:** The depth selector's default (`standard` = current behavior minus Oracle/Architect) is a behavioral change for existing users. Research identified a one-time migration notice as mitigation, but real-world validation is needed to confirm this is sufficient.
+- **macOS Rosetta architecture detection:** The research identifies that `uname -m` reports `x86_64` under Rosetta on Apple Silicon, but the exact `sysctl` command (`sysctl -n sysctl_proc_translated`) needs platform testing. The universal binary approach (single `_darwin_all.tar.gz`) mitigates this by not needing arch detection for macOS at all -- but it needs verification.
 
-- **YAML generator file strategy:** Whether to commit generated command files or gitignore them is unresolved. Committing creates large PR diffs; gitignoring adds a required setup step after cloning. This decision should be made before Phase 4 planning begins.
+- **npm shim command routing table:** The research identifies that some commands (install, update, setupHub) must stay in Node.js while operational commands route to Go. A specific command routing table (which commands stay Node.js vs delegate to Go) needs to be defined during Phase 4 planning.
 
-- **Web search rate limiting:** Stack and pitfalls research note that web search was rate-limited, so some findings are based on training data rather than live sources. This is low-risk because the recommendations are standard shell scripting practices that have not fundamentally changed, but it means no current-year edge cases were discovered from external sources.
+- **GitHub API rate limits for binary download:** The research notes that unauthenticated GitHub API access is rate-limited to 60 requests/hour. GitHub Releases CDN serves assets without rate limits for public repos, so this is likely a non-issue, but it should be confirmed during Phase 2.
+
+- **Windows PATH management:** The research mentions `setx` for adding `~/.aether/bin` to PATH on Windows but does not provide implementation details. Windows users are a secondary audience but the download script must handle `win32` platform correctly.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct codebase inspection of `aether-utils.sh` (5,200+ lines, 40+ json_ok sites, 30+ grep instances)
-- Direct codebase inspection of all 10 domain modules (spawn.sh, spawn-tree.sh, hive.sh, queen.sh, learning.sh, file-lock.sh, atomic-write.sh, state-api.sh, swarm.sh, suggest.sh)
-- Direct codebase inspection of all build playbooks (build-prep, build-wave, build-verify, build-complete, continue-verify, continue-gates)
-- Direct codebase inspection of agent definitions (workers.md), command definitions (plan.md depth levels), and COLONY_STATE.json schema
-- Verified tool versions: bash 3.2.57, jq 1.8.1, shellcheck 0.11.0 on target macOS machine
-- PROJECT.md v2.6 scope definition (lines 43-55)
+- Direct codebase inspection: `.goreleaser.yml`, `package.json`, `bin/cli.js`, `bin/lib/update-transaction.js`, `cmd/root.go`, `cmd/version.go`, `cmd/aether/main.go`, `Makefile`, `.npmignore`, `.github/workflows/ci.yml`
+- Direct analysis: 87 YAML command files (133 `aether <subcommand>` calls), 11 playbook files (275 Go binary calls), 4 YAML files with 11 remaining `bash .aether/...` calls
+- PROJECT.md v5.5 scope definition and milestone history
+- Existing git tag history (v1.1.2 through v5.4) confirming tag-based release convention
 
 ### Secondary (MEDIUM confidence)
-- ShellCheck documentation on SC2086 (double quote to prevent globbing) and SC2061 (quote grep pattern) -- training data
-- `jq --arg` safety properties and `grep -F` POSIX specification -- well-established, verified on target
-- CLI UX best practices for verbosity/depth controls (-v/-vv, named levels) -- established domain knowledge
-- Existing plan.md depth system (--fast/--balanced/--deep/--exhaustive) as design precedent
+- goreleaser documentation (training data -- HIGH confidence given config is already written and working)
+- goreleaser-action v7, actions/setup-go v6, actions/checkout v6 GitHub release pages (version numbers verified via training data, not live API calls)
+- npm binary distribution patterns from esbuild, turbo, biome, prisma (well-established patterns from training data)
+- `tar` npm package v7.5.13 API (already in project overrides)
 
 ### Tertiary (LOW confidence)
-- Multi-agent orchestration tool comparisons (CrewAI, AutoGen, LangGraph) -- web search rate-limited
-- Whether "standard" default will satisfy most users -- needs real-world validation
-- macOS bash 3.2 vs bash 4 edge case differences -- well-documented but not verified against all v2.6 code paths
+- Homebrew tap distribution via goreleaser `brews` section -- deferred to v5.6+, not researched in depth
+- macOS Gatekeeper behavior for unsigned binaries -- acceptable for v5.5 with `xattr -cr` workaround
+- Windows SmartScreen behavior for unsigned binaries -- acceptable for v5.5
 
 ---
-*Research completed: 2026-03-29*
+*Research completed: 2026-04-04*
 *Ready for roadmap: yes*

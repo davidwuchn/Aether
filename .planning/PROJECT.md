@@ -40,8 +40,9 @@ The system must reliably interpret a user request, decompose it into executable 
 
 ### Active
 
-- Distribution packaging — cross-platform Go binary distribution via goreleaser
-- CLI dashboard — status/phase/flags commands producing shell-identical output
+- goreleaser config — produce platform binaries (darwin/linux/windows, amd64/arm64)
+- Binary install on update — `aether update` downloads binary if missing from PATH
+- Version-gated YAML wiring — only swap Go-wired YAML when binary confirmed working
 
 ### Validated (v5.4)
 
@@ -68,7 +69,14 @@ The system must reliably interpret a user request, decompose it into executable 
 - LLM-generated prompts — non-deterministic and untestable; bash + jq assembly is deterministic
 - Full deep survey on every init — too slow; lightweight scan + suggestion instead
 
-## Current Milestone: Planning Next
+## Current Milestone: v5.5 Go Binary Release
+
+**Goal:** Ship the Go binary as a downloadable release and wire the update flow to install it, eliminating the shell dependency for end users.
+
+**Target features:**
+- goreleaser config producing platform binaries (darwin/linux/windows, amd64/arm64)
+- `aether update` auto-installs the binary if missing from PATH
+- Version gate preventing YAML wiring until binary is confirmed working
 
 **Previous: v5.4 Shell-to-Go Rewrite** (completed 2026-04-04)
 
@@ -130,4 +138,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after v5.4 milestone completion*
+*Last updated: 2026-04-04 after v5.5 milestone started*

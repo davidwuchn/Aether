@@ -1,207 +1,331 @@
-# Stack Research: Living Wisdom Pipeline -- Making It Actually Populate
+# Technology Stack: Go Binary Release and Distribution
 
-**Domain:** Multi-agent colony orchestration -- wisdom accumulation, hive brain, and agent definition gaps
-**Researched:** 2026-03-27
-**Confidence:** HIGH (based on direct codebase analysis of 22 agent files, 9 domain modules, 580+ tests, and build/continue playbook flow)
+**Project:** Aether v5.5 Go Binary Release
+**Researched:** 2026-04-04
+**Scope:** goreleaser binary releases, binary install on update, version-gated YAML wiring
+**Predecessor:** `.planning/research/STACK-GO-SHIPPING.md` (v5.4 era -- superseded by this document)
 
 ---
 
 ## Executive Summary
 
-The wisdom pipeline exists as complete, tested shell infrastructure but has a **liveness gap**: QUEEN.md sections and hive brain entries remain template-only in real colony work because the pipeline depends on colony work actually running through the full build/continue flow, and the flow itself has several friction points where wisdom extraction is optional, silently skipped, or depends on AI agent behavior rather than deterministic shell.
+Aether v5.4 shipped 254+ Go commands via Cobra CLI. The Go binary works locally (`make build` produces `./aether`). Now the goal is: (1) publish cross-platform binaries via goreleaser on GitHub Releases, (2) make `aether update` download and install the Go binary automatically, and (3) only wire YAML commands to the Go binary once it is confirmed present and working.
 
-This research identifies **three categories of work** needed to close the gap:
+The stack additions are minimal: goreleaser v2 for release automation, a Node.js binary downloader as npm postinstall, and a version-gate check in the npm CLI wrapper. No new Go dependencies are needed -- version comparison is trivial with semver strings and stdlib.
 
-1. **Agent definition files** -- Oracle and Architect are referenced in docs but have no dedicated `.md` agent files in `.claude/agents/ant/` or `.opencode/agents/`. They are currently handled as inline prompts or absorbed by other agents.
-2. **Build flow integration hardening** -- The continue-advance and continue-finalize playbooks have the right steps but depend on colony name extraction from `COLONY_STATE.json`, observation threshold gating, and AI agent willingness to extract learnings. These need deterministic fallbacks.
-3. **Hive brain population** -- `hive-promote` only fires during `/ant:seal` (colony completion), meaning cross-colony wisdom never accumulates unless a colony is fully sealed. Mid-colony promotion hooks are missing.
+**Critical correction from prior research:** goreleaser-action is now at v7 (not v6 as STACK-GO-SHIPPING.md stated). setup-go is at v6 (not v5). actions/checkout is at v6 (not v4). The prior research had stale action versions.
 
 ---
 
-## Recommended Stack (Changes Only)
+## Recommended Stack
 
-### New Agent Definition Files
+### Release Automation
 
-| File | Purpose | Model | Tools | Why |
-|------|---------|-------|-------|-----|
-| `.claude/agents/ant/aether-oracle.md` | Dedicated Oracle agent for deep research (RALF loop) | opus | Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch | Oracle is currently invoked via `/ant:oracle` command wizard only -- no agent definition means Queen cannot spawn an Oracle worker during builds. The Deep Research workflow pattern in `aether-queen.md` references "Oracle-led" but has no agent to delegate to. |
-| `.claude/agents/ant/aether-architect.md` | Dedicated Architect agent for system design decisions | opus | Read, Write, Edit, Bash, Grep, Glob | Workers.md line 647 says "Architect responsibilities are now handled by Keeper" but the merge is incomplete: there is no architecture-specific agent that Queen can spawn for design work. The caste emoji `🏛️🐜` is still defined and used in naming. |
-| `.opencode/agents/aether-oracle.md` | OpenCode mirror of Oracle agent | inherit | Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch | Agent parity requirement from CLAUDE.md. |
-| `.opencode/agents/aether-architect.md` | OpenCode mirror of Architect agent | inherit | Read, Write, Edit, Bash, Grep, Glob | Agent parity requirement. |
-| `.aether/agents-claude/aether-oracle.md` | Packaging mirror for Claude agents | opus | (same as .claude) | Byte-identical mirror requirement. |
-| `.aether/agents-claude/aether-architect.md` | Packaging mirror for Architect | opus | (same as .claude) | Byte-identical mirror requirement. |
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| goreleaser | v2.15.2 | Cross-platform binary build + release | Industry standard for Go releases. `.goreleaser.yml` already exists with basic config. Handles cross-compilation, checksums, archives, Homebrew taps, and changelogs in one tool. |
+| goreleaser/goreleaser-action | v7.0.0 | Run goreleaser in GitHub Actions | Official GitHub Action. v7 (released 2026-02-21) requires Node 24 and ESM. Must use v7 since GitHub Actions runners have Node 24+. |
 
-**Total: 6 new agent `.md` files.**
+### GitHub Actions (Updated Versions)
 
-**Oracle agent design notes:**
-- Currently the Oracle is a slash command wizard (`/ant:oracle`) that launches a bash RALF loop via `oracle.sh` in a tmux session. It is NOT a spawnable agent.
-- The Queen's "Deep Research" pattern says "Oracle-led" but cannot actually spawn an Oracle because no agent definition exists.
-- The Oracle agent should be a read-heavy research agent with WebSearch/WebFetch for external research, NOT the tmux-based loop. The tmux loop stays as the `/ant:oracle` command. The agent is for when Queen needs to spawn an Oracle worker during a build.
-- Key difference from Scout: Oracle has Write tool (can write findings), deeper research mandate, and `model: opus` (needs reasoning depth). Scout is `model: sonnet`, read-only, quick lookup.
+| Action | Version | Purpose | Why |
+|--------|---------|---------|-----|
+| actions/checkout | v6.0.2 | Clone repository in CI | Latest stable. Prior research referenced v4 which is outdated. |
+| actions/setup-go | v6.4.0 | Install Go in CI | Latest stable with `cache: true` support. Prior research referenced v5. |
+| goreleaser/goreleaser-action | v7.0.0 | Run goreleaser in CI | Latest stable. Breaking change from v6: requires ESM/Node 24. |
 
-**Architect agent design notes:**
-- Workers.md line 647 says "merged into Keeper" but this merge is incomplete:
-  - Keeper (`aether-keeper.md`) exists and handles knowledge curation
-  - Route-Setter (`aether-route-setter.md`) exists and handles phase planning
-  - Neither handles the Architect's original role: making system design decisions during builds
-  - The caste emoji `🏛️🐜` is still defined and used in ant naming
-- The Architect agent should bridge the gap: when Queen encounters a phase that needs architecture decisions, she should be able to spawn an Architect rather than trying to make those decisions herself or delegating to Keeper (who curates existing knowledge, not designs new architecture).
+### Binary Download (npm Integration)
 
-### Build Flow Integration Hardening
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| Node.js `https` module | stdlib | HTTP download from GitHub Releases | Zero dependencies. Follows redirects for GitHub release downloads. |
+| `tar` npm package | v7.5.13 | Extract `.tar.gz` archives | Already in `package.json` overrides at v7.5.11. Must promote to direct dependency. Supports `tar.x()` stream extraction. Requires Node >=18 (already the constraint from `engines`). |
+| Node.js `crypto` module | stdlib | SHA-256 checksum verification | Verify downloaded binary against goreleaser `checksums.txt`. Zero dependencies. |
+| Node.js `child_process` module | stdlib | Spawn Go binary from npm wrapper | `spawn(binaryPath, args, { stdio: 'inherit' })` -- zero overhead process proxy. |
 
-| Component | Current State | Required Change | Why |
-|-----------|--------------|-----------------|-----|
-| `continue-advance.md` Step 2 (learnings extraction) | Depends on AI agent extracting learnings from phase work and writing them to `memory.phase_learnings` | Add deterministic fallback: if no learnings extracted by AI, run a bash-based learning extraction from git diff + test results | AI agents frequently skip learning extraction because it is not a hard gate. A fallback ensures wisdom always accumulates. |
-| `continue-advance.md` Step 2.5 (memory-capture loop) | Correctly calls `memory-capture` for each learning | No change needed -- this step is well-designed | Already fires `learning-observe` + `pheromone-write` + `learning-promote-auto` for each learning. |
-| `continue-advance.md` Step 2.1.6 (batch auto-promotion) | Sweeps all observations and auto-promotes those meeting thresholds | No change needed -- this step is well-designed | Correctly iterates `learning-observations.json` and calls `learning-promote-auto`. |
-| `continue-advance.md` Step 2.1.7 (queen-write-learnings) | Correctly calls `queen-write-learnings` for current phase | No change needed | Already bypasses observation thresholds -- every build writes learnings. |
-| `continue-advance.md` Step 3c (instinct promotion to QUEEN.md) | Sweeps instincts with confidence >= 0.8 and promotes via `queen-promote-instinct` | No change needed | Correctly runs every `/ant:continue`. |
-| `build-complete.md` Step 5.9 (success capture) | Captures up to 2 patterns from `learning.patterns_observed` | **FRAGILE**: depends on builder including `learning.patterns_observed` in synthesis JSON. Most builders don't include this field. | Need to add a fallback pattern extraction step that runs regardless of builder output. |
-| Colony name extraction | `jq -r '.session_id | split("_")[1]' COLONY_STATE.json` used in multiple places | Create a dedicated `colony-name` subcommand that handles edge cases (missing session_id, malformed format) | Colony name is used by `memory-capture`, `queen-promote`, `hive-promote`, and `learning-promote-auto`. A single source of truth prevents silent failures. |
+### Version Gating (No New Dependencies)
 
-### Hive Brain Population
+| Technology | Purpose | Why |
+|------------|---------|-----|
+| Node.js semver comparison (custom) | Check binary version >= required version | Simple string split + numeric compare. No need for the `semver` npm package. A 10-line function is sufficient. |
+| Go `Version` ldflags | Embed version in binary at build time | Already implemented in `cmd/root.go` via `-X github.com/aether-colony/aether/cmd.Version={{.Version}}`. Already working. |
+| `aether version` command | Runtime version check | Already implemented in `cmd/version.go`. Outputs the version string. Already working. |
 
-| Component | Current State | Required Change | Why |
-|-----------|--------------|-----------------|-----|
-| `hive-promote` call site | Only in `/ant:seal` Step 3.7 | Add `hive-promote` call to `/ant:continue` Step 2.1.7 (after queen-write-learnings) | Hive only gets populated when a colony is sealed. Most colonies never get sealed. Mid-colony promotion ensures cross-colony wisdom accumulates. |
-| `queen-seed-from-hive` call site | Only in `/ant:init` Step 322 | Add call to `/ant:build` Step 4 (colony-prime loading) as a pre-build seed step | Hive wisdom is only seeded at colony init. If a colony runs multiple phases, new hive wisdom from other colonies never arrives. |
-| Domain tag detection | `_domain_detect()` exists but is only called during seal | Call `_domain_detect()` during `/ant:continue` when promoting to hive | Domain tags are needed for `hive-promote --domain`. Without them, wisdom has no domain scoping and retrieval is less useful. |
+### Homebrew Distribution (Deferred -- Not v5.5)
 
-### What NOT to Touch
-
-| Component | Why Not |
-|-----------|---------|
-| `queen.sh` (1242 lines) | Complete, well-tested. The functions `_queen_init`, `_queen_read`, `_queen_promote`, `_queen_write_learnings`, `_queen_promote_instinct`, `_queen_seed_from_hive`, `_queen_migrate` all work correctly. The problem is not in these functions -- it is in the calling code. |
-| `hive.sh` (562 lines) | Complete, well-tested. `_hive_init`, `_hive_store`, `_hive_read`, `_hive_abstract`, `_hive_promote` all work correctly. The problem is call sites. |
-| `learning.sh` (1553 lines) | Complete, well-tested. The full pipeline (`_learning_observe` -> `_learning_promote_auto` -> `queen-promote` -> `instinct-create`) works end-to-end. The problem is that it is not triggered reliably. |
-| `pheromone.sh` (`_colony_prime`) | Context assembly works. The problem is upstream -- if QUEEN.md has no content, colony-prime correctly injects empty sections. |
-| Agent definitions (existing 22) | No changes needed to existing agent `.md` files. The new Oracle and Architect agents are additive. |
-| `aether-utils.sh` dispatcher | Only needs new subcommand for `colony-name` (trivial 10-line addition). No changes to existing dispatch. |
-| Test suite (580+ tests) | No existing tests need modification. New tests for new functionality only. |
-
----
-
-## Installation
-
-```bash
-# No new npm packages needed -- all changes are bash + markdown files
-
-# New agent files to create (6 files):
-# .claude/agents/ant/aether-oracle.md
-# .claude/agents/ant/aether-architect.md
-# .opencode/agents/aether-oracle.md
-# .opencode/agents/aether-architect.md
-# .aether/agents-claude/aether-oracle.md
-# .aether/agents-claude/aether-architect.md
-
-# Existing files to modify (4 files):
-# .aether/aether-utils.sh (add colony-name subcommand)
-# .aether/docs/command-playbooks/continue-advance.md (add fallback learning extraction + hive-promote)
-# .aether/docs/command-playbooks/build-complete.md (add deterministic pattern extraction)
-# .claude/commands/ant/build.md (if hive-seed step needed)
-```
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| goreleaser `brews` section | v2 | Auto-publish Homebrew formula | goreleaser pushes formula to `calcosmic/homebrew-tap` repo automatically. Requires creating that repo once. **Defer until npm download is working.** Not needed for v5.5. |
 
 ---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| New Oracle agent `.md` | Add Oracle logic to Scout agent | Scout is `model: sonnet` (fast, cheap) and read-only. Oracle needs `model: opus` (deep reasoning) and Write tool for synthesis documents. Merging would dilute both roles. |
-| New Architect agent `.md` | Keep merged in Keeper | Keeper's role is "knowledge curation and pattern archiving" -- it preserves existing wisdom. Architect's role is "making new design decisions" -- it creates new wisdom. These are fundamentally different operations. |
-| Add `hive-promote` to `/ant:continue` | Add `hive-promote` to `/ant:build` | Build is about implementation, not wisdom accumulation. Continue is the right place -- it already extracts learnings and promotes instincts. Hive promotion is a natural extension of Step 2.1.7. |
-| Deterministic learning extraction from git diff | Keep relying on AI agent extraction | AI agents work well when the phase produces clear learnings, but silently skip extraction when they are focused on implementation. A deterministic fallback ensures wisdom ALWAYS accumulates, even if lower quality. |
-| `colony-name` subcommand | Keep inline `jq` extraction | The colony name extraction pattern `jq -r '.session_id | split("_")[1]'` is repeated in at least 6 locations across playbooks and utility code. A single subcommand is DRY and handles edge cases (missing session_id returns "unknown" instead of producing errors). |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Release automation | goreleaser v2 | Manual `go build` + `gh release create` | goreleaser handles 6 platform targets, checksums, archives, and changelogs automatically. Manual approach is error-prone and tedious per release. |
+| Release automation | goreleaser v2 | nfpm (deb/rpm/apk) | Aether is a developer CLI, not a system package. npm + direct download covers the audience. |
+| Binary download | postinstall script | Platform-specific npm packages (`aether-darwin-arm64`, etc.) | Requires publishing 5+ packages per release. Turborepo and esbuild do this at massive scale. Aether does not need this complexity. Single package + download is simpler. |
+| Binary download | postinstall script | Bundle binaries in npm package | 6 platform binaries would be ~30-50MB. npm install becomes slow for all users. Download-on-demand means only the needed platform binary is fetched. |
+| Binary download | postinstall script | Compile from source during npm install | Requires Go toolchain on the user's machine. Most Aether users are AI-assisted developers, not Go developers. |
+| Binary download | `https` stdlib | `node-fetch` or `got` | `https.get()` with redirect following handles GitHub release downloads fine. No need for a dependency for a single GET request with redirects. |
+| Version gate | Custom semver compare function | `semver` npm package | Aether only needs "is X >= Y" for dotted version strings. A 10-line function does this. The `semver` package (v7.x) adds 30KB of node_modules for a trivial comparison. |
+| Version gate | Custom semver compare function | `hashicorp/go-version` (Go side) | The version gate runs in Node.js (the npm wrapper), not in Go. No Go-side dependency needed. |
 
 ---
 
 ## What NOT to Use
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Modifying `queen-promote` threshold logic | Thresholds are calibrated and tested. Changing them risks either noise (too low) or silence (too high). | Add more call sites instead of lowering thresholds |
-| Adding new wisdom types | The 6 existing types (philosophy, pattern, redirect, stack, decree, failure) cover all colony learning categories | Map new learning sources to existing types |
-| Making hive-promote synchronous/blocking | Hive promotion should never block phase advancement. The existing non-blocking pattern from seal.md is correct. | Fire-and-forget with error logging, same as seal.md |
-| Creating a new "wisdom daemon" or background process | Adds complexity, failure modes, and maintenance burden. The existing on-demand pattern (promote when work completes) is sufficient. | Hook into existing build/continue flow |
+| Avoid | Why |
+|-------|-----|
+| Cosign / Fulcio / SBOM | Aether is not in supply-chain-sensitive environments. `checksums.txt` from goreleaser is sufficient for current scale. |
+| Docker image distribution | Aether runs in the user's terminal alongside Claude Code. Docker makes no sense for a CLI tool. |
+| Snap packages | Linux-specific, requires Snapcraft account. npm covers Linux users. |
+| nfpm (deb/rpm) | Developer CLI, not a system package. No one installs CLI dev tools via apt. |
+| `semver` npm package | 30KB dependency for what a 10-line function handles. Overkill. |
+| `node-fetch` / `got` / `axios` | `https` stdlib handles GitHub release downloads with redirect following. Zero dependencies. |
+| goreleaser-action v6 | v7 is the current release (2026-02-21). v6 is not getting updates. v7's breaking change is internal (ESM migration) -- workflow usage is identical. |
 
 ---
 
-## Stack Patterns by Variant
+## Detailed Configuration
 
-**If colony runs single-phase builds (common for small tasks):**
-- The `/ant:continue` step will fire once and extract learnings from that single phase
-- Hive promotion will fire once with whatever observations accumulated
-- This is sufficient -- single-phase colonies don't produce enough wisdom to justify more complexity
+### 1. goreleaser.yml (Updated from existing)
 
-**If colony runs multi-phase builds (5+ phases):**
-- Each `/ant:continue` will extract learnings from the completed phase
-- Observations accumulate across phases (same content hash increments count)
-- After 2+ phases with similar learnings, `learning-promote-auto` fires and promotes to QUEEN.md
-- Hive promotion fires each continue, gradually building cross-colony wisdom
-- This is the primary use case for the deterministic fallback -- multi-phase colonies produce the most learning opportunities
+The existing `.goreleaser.yml` needs these additions: binary id, strip flags, universal binaries for macOS, and archive files list.
 
-**If colony is sealed (`/ant:seal`):**
-- Seal already promotes high-confidence instincts to hive (Step 3.7)
-- Adding hive-promote to continue means seal promotes a second time (idempotent due to dedup)
-- No conflict -- hive-store's dedup handles same-content promotion gracefully
-
----
-
-## Version Compatibility
-
-| Component | Compatible With | Notes |
-|-----------|-----------------|-------|
-| New agent `.md` files | Claude Code 1.0.x, OpenCode 0.x | Standard frontmatter format used by all 22 existing agents |
-| `colony-name` subcommand | aether-utils.sh dispatcher (v2.0+) | New subcommand in existing dispatcher case statement |
-| `continue-advance.md` changes | All existing phases | Changes are additive (new steps + fallbacks), not modifying existing flow |
-| `build-complete.md` changes | All existing phases | Pattern extraction fallback runs after synthesis, does not replace it |
-| `hive-promote` in continue | `hive.sh` (v1.0+) | `_hive_promote` already handles all edge cases (dedup, confidence boosting, LRU eviction) |
-
----
-
-## Root Cause Analysis: Why Wisdom Stays Empty
-
-After analyzing the full pipeline, the root cause is not a single bug but a **chain of soft dependencies**:
-
-```
-Build completes
-  -> Builder MAY include learning.patterns_observed in synthesis JSON (Step 5.9)
-    -> If missing: no success patterns captured, memory-capture never fires for successes
-  -> Continue fires, AI extracts learnings to memory.phase_learnings (Step 2)
-    -> If AI skips: no learnings extracted, pipeline gets nothing
-  -> memory-capture fires for each learning (Step 2.5)
-    -> learning-observe records observation (always works if called)
-    -> pheromone-write emits FEEDBACK (always works if called)
-    -> learning-promote-auto checks threshold (works but needs threshold to be met)
-  -> queen-write-learnings fires (Step 2.1.7)
-    -> Writes to QUEEN.md Build Learnings (always works if learnings exist)
-  -> queen-promote-instinct fires for confidence >= 0.8 (Step 3c)
-    -> Promotes to QUEEN.md Instincts (always works if instincts exist with high confidence)
-  -> hive-promote fires ONLY during seal (Step 3.7 of seal.md)
-    -> NEVER fires during normal build/continue flow
+**Current state** (verified 2026-04-04):
+```yaml
+version: 2
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: ./cmd/aether/
+    ldflags:
+      - -X github.com/aether-colony/aether/cmd.Version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
 ```
 
-**The break points:**
-1. Builder synthesis JSON may not include `learning.patterns_observed` -- no fallback
-2. AI agent may not extract learnings during continue -- no fallback
-3. Hive promotion is seal-only -- no mid-colony promotion
-4. Colony name extraction can silently fail if `session_id` is missing -- no fallback
+**Required changes:**
+- Add `id: aether` and `binary: aether` to the build (required for `universal_binaries` reference)
+- Add `-s -w` to ldflags (strip debug info, 20-30% size reduction -- the binary is a CLI tool, no one debugs it with gdb)
+- Add `universal_binaries` section for macOS fat binary (one download works on Intel and Apple Silicon)
+- Add `ignore` for `windows/arm64` (poor Go toolchain support, negligible user base)
+- Add `files` to archives section to include LICENSE
 
-**The fix:** Add deterministic fallbacks at each break point so wisdom accumulates even when the AI-dependent path skips.
+No Homebrew tap in v5.5 -- defer to a later milestone. The core goal is npm binary download first.
+
+### 2. GitHub Actions: Add Release Workflow
+
+Create a new `.github/workflows/release.yml` file. Do NOT modify the existing `ci.yml` -- the CI workflow stays as-is for PR testing. The release workflow triggers only on version tags.
+
+```yaml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - run: go test -race -count=1 ./...
+      - run: go vet ./...
+      - run: go build -ldflags "-X github.com/aether-colony/aether/cmd.Version=${{ github.ref_name }}" ./cmd/aether/
+      - run: ./aether version
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+**Why separate release.yml, not added to ci.yml:** The release workflow only triggers on tags. CI triggers on PRs and pushes to main. Mixing them creates conditional job complexity. Separate files are cleaner and easier to debug.
+
+**Why goreleaser-action v7 not v6:** v7 is the current release (2026-02-21). v6 is not getting updates. v7's breaking change is internal (ESM migration) -- usage in workflows is identical to v6.
+
+**Why actions/setup-go v6:** Latest release (2026-03-30). Supports `cache: true` for Go module caching. Prior research referenced v5 which is outdated.
+
+### 3. npm Binary Download Script
+
+Two new files in `bin/`:
+
+**bin/download-binary.js** -- Downloads platform-correct binary from GitHub Releases.
+
+Key design decisions:
+- Use `https` stdlib with redirect following (GitHub Releases uses 302 redirects to CDN)
+- Use `tar` package (v7.5.13) for `.tar.gz` extraction, `zlib.createGunzip()` for decompression
+- macOS universal binary: download `_darwin_all.tar.gz` regardless of arch
+- Linux/Windows: download `_linux_amd64.tar.gz` or `_windows_amd64.zip` etc.
+- Checksum verification against `checksums.txt` from the same release
+- Non-fatal: if download fails, the Node.js CLI still works
+- Idempotent: if binary already exists and version matches, skip download
+
+**bin/run.js** -- Thin wrapper that proxies to Go binary if present, falls back to Node.js CLI.
+
+Key design decisions:
+- `spawn(binaryPath, args, { stdio: 'inherit' })` -- zero overhead process proxy
+- Version gate: run `aether version` and compare against `MIN_BINARY_VERSION` before routing to binary
+- If binary missing or version too old: fall back to `require('./cli.js')`
+- Binary search order: (1) local `bin/aether`, (2) hub `~/.aether/bin/aether`, (3) PATH `aether`
+
+**package.json changes:**
+```json
+{
+  "bin": {
+    "aether": "bin/run.js",
+    "aether-colony": "bin/npx-entry.js"
+  },
+  "scripts": {
+    "postinstall": "node bin/download-binary.js"
+  },
+  "dependencies": {
+    "tar": "^7.5.13"
+  }
+}
+```
+
+The `tar` package moves from `overrides` to `dependencies` since the download script needs it directly.
+
+### 4. Version-Gated YAML Wiring
+
+The version gate lives in `bin/run.js` and works like this:
+
+```
+1. Check if Go binary exists at bin/aether (or bin/aether.exe)
+2. If exists: spawn `aether version`, capture output
+3. Parse version string (strip leading 'v', split by '.', compare numerically)
+4. If version >= MIN_BINARY_VERSION: proxy to Go binary
+5. If version < MIN_BINARY_VERSION or binary missing: fall back to Node.js CLI
+```
+
+`MIN_BINARY_VERSION` is a constant in `bin/run.js` set to `"5.5.0"` -- the first release that includes the Go binary.
+
+This means:
+- Existing users with v5.4 npm package: YAML commands still route through Node.js CLI (no behavior change)
+- Users who `npm update` to v5.5+: postinstall downloads the Go binary, YAML commands route through it
+- Users on air-gapped networks: Go binary download fails silently, Node.js CLI still works
+- If the Go binary is somehow corrupted: version check fails, Node.js CLI still works
+
+The YAML command files (`.claude/commands/ant/*.md`) do NOT need changes. They already call `aether <subcommand>` which resolves to the `bin` entry point in `package.json`. The `run.js` wrapper handles routing.
+
+### 5. Update Flow: `aether update` Enhances to Download Binary
+
+The existing `aether update` command in `bin/cli.js` syncs system files from hub to repo. For v5.5, it gains an additional step:
+
+```
+After syncing system files:
+1. Check if Go binary exists in ~/.aether/bin/ (hub-level binary)
+2. If not: download from GitHub Releases using same logic as postinstall
+3. Verify binary runs and version matches
+4. Report binary status in update summary
+```
+
+This is an enhancement to the existing `performGlobalInstall()` function in `bin/cli.js`, not a new command. The install flow becomes:
+
+```
+performGlobalInstall():
+  1. Sync commands (existing)
+  2. Sync agents (existing)
+  3. Setup hub (existing)
+  4. Download Go binary to ~/.aether/bin/aether (NEW)
+  5. Verify binary runs and version matches (NEW)
+```
+
+The binary lives at `~/.aether/bin/aether` (hub level) so all repos share one binary. The `bin/run.js` wrapper checks this location as a fallback if the local `bin/aether` does not exist.
+
+---
+
+## .npmignore Updates
+
+Add these to `.npmignore` to exclude Go source code from the npm package (the binary is downloaded, not shipped as source):
+
+```
+# Go source (binary is downloaded, not shipped)
+cmd/
+pkg/
+go.mod
+go.sum
+.goreleaser.yml
+Makefile
+*.exe
+aether
+```
+
+This reduces npm package size significantly. The Go binary is ~15-25MB compiled; the source code is unnecessary in the npm package since the binary is downloaded at install time.
+
+---
+
+## Installation (After v5.5)
+
+```bash
+# Option 1: npm (existing users, seamless upgrade)
+npm install -g aether-colony
+# postinstall downloads Go binary automatically; falls back to Node.js CLI
+
+# Option 2: Direct download from GitHub Releases
+# Download from https://github.com/calcosmic/Aether/releases/latest
+# Extract and place on PATH
+
+# Option 3: go install (Go developers)
+go install github.com/aether-colony/aether/cmd/aether@latest
+```
 
 ---
 
 ## Sources
 
-- HIGH: Direct codebase analysis of `.aether/utils/queen.sh` (1242 lines), `.aether/utils/hive.sh` (562 lines), `.aether/utils/learning.sh` (1553 lines)
-- HIGH: Playbook analysis of `build-complete.md`, `continue-advance.md`, `continue-finalize.md`
-- HIGH: Agent definition analysis of all 22 existing agents in `.claude/agents/ant/`
-- HIGH: workers.md line 647 (Architect merge note), oracle.md (Oracle command wizard)
-- HIGH: QUEEN.md template (`.aether/templates/QUEEN.md.template`)
-- HIGH: Local QUEEN.md content showing actual population state (1 codebase pattern, 1 build learning, 1 instinct from ~20 phases of work)
-- HIGH: `aether-utils.sh` dispatcher (subcommand registration)
-- HIGH: `colony-prime` in `pheromone.sh` (context assembly logic)
+- `.goreleaser.yml` -- Existing config, verified 2026-04-04. Uses `version: 2` schema. (HIGH confidence)
+- `go.mod` -- Go 1.26.1 with Cobra v1.10.2, go-pretty v6.7.8. (HIGH confidence)
+- `package.json` -- npm package `aether-colony` v5.3.3, bin entries, `tar` in overrides. (HIGH confidence)
+- `.github/workflows/ci.yml` -- Existing CI pipeline with Go test job already present. (HIGH confidence)
+- `cmd/root.go`, `cmd/version.go` -- Version injection via ldflags, `aether version` command. (HIGH confidence)
+- `bin/cli.js` -- Existing install/update commands, `performGlobalInstall()`. (HIGH confidence)
+- `.npmignore` -- Current exclusion rules, no Go source exclusions. (HIGH confidence)
+- goreleaser GitHub releases API -- goreleaser v2.15.2 (latest, 2026-03-31). (HIGH confidence)
+- goreleaser-action GitHub releases API -- v7.0.0 (latest, 2026-02-21). Breaking change from v6: ESM/Node 24. (HIGH confidence)
+- actions/setup-go GitHub releases API -- v6.4.0 (latest, 2026-03-30). (HIGH confidence)
+- actions/checkout GitHub releases API -- v6.0.2 (latest, 2026-01-09). (HIGH confidence)
+- npm registry API -- `tar` package v7.5.13 (latest), requires Node >=18. (HIGH confidence)
+- `bin/npx-entry.js`, `bin/npx-install.js` -- Entry point routing, verified unchanged. (HIGH confidence)
+- YAML commands (`.claude/commands/ant/*.md`) -- 133 `aether <subcommand>` calls across 42 files, already calling `aether` directly. (HIGH confidence)
 
 ---
-*Stack research for: Living Wisdom Pipeline -- Making It Actually Populate*
-*Researched: 2026-03-27*
+
+*Stack research for: Aether v5.5 Go Binary Release and Distribution*
+*Researched: 2026-04-04*
