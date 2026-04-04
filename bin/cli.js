@@ -1204,6 +1204,71 @@ function setupHub() {
   }
 }
 
+/**
+ * Refresh the Go binary during update flow.
+ * Downloads if missing or outdated. Non-blocking — failures are logged, never thrown.
+ *
+ * @param {string} version - Target version string
+ * @param {object} [options] - Options
+ * @param {boolean} [options.quiet=false] - Suppress output
+ * @returns {Promise<{refreshed: boolean, reason?: string}>} Result
+ */
+async function refreshBinary(version, options = {}) {
+  const { quiet = false } = options;
+
+  // Binary refresh is non-blocking — update always completes
+  try {
+    const binaryPath = path.join(HOME, '.aether', 'bin',
+      process.platform === 'win32' ? 'aether.exe' : 'aether');
+
+    // Check if binary exists
+    if (!fs.existsSync(binaryPath)) {
+      if (!quiet) log(`  ${c.colony('Binary:')} missing, downloading v${version}...`);
+      const { downloadBinary } = require('./lib/binary-downloader');
+      const result = await downloadBinary(version);
+      if (result.success) {
+        if (!quiet) log(`  ${c.success('Binary:')} installed v${version} -> ${c.dim(result.path)}`);
+        return { refreshed: true };
+      } else {
+        if (!quiet) log(`  ${c.warning('Binary:')} download skipped (${result.reason})`);
+        return { refreshed: false, reason: result.reason };
+      }
+    }
+
+    // Binary exists — check version
+    let installedVersion = null;
+    try {
+      const { execFileSync } = require('child_process');
+      const output = execFileSync(binaryPath, ['version'], { encoding: 'utf8', timeout: 5000 });
+      // Parse version from output like "aether v5.3.3" or just "v5.3.3"
+      const match = output.match(/v?(\d+\.\d+\.\d+)/);
+      if (match) installedVersion = match[1];
+    } catch {
+      // Can't determine version — download fresh
+    }
+
+    if (!installedVersion || installedVersion !== version) {
+      if (!quiet) log(`  ${c.colony('Binary:')} updating ${installedVersion || 'unknown'} -> v${version}...`);
+      const { downloadBinary } = require('./lib/binary-downloader');
+      const result = await downloadBinary(version);
+      if (result.success) {
+        if (!quiet) log(`  ${c.success('Binary:')} updated to v${version}`);
+        return { refreshed: true };
+      } else {
+        if (!quiet) log(`  ${c.warning('Binary:')} update skipped (${result.reason})`);
+        return { refreshed: false, reason: result.reason };
+      }
+    }
+
+    // Binary is up to date
+    if (!quiet) log(`  ${c.dim(`Binary: v${version} (up to date)`)}`);
+    return { refreshed: false, reason: 'up to date' };
+  } catch (err) {
+    if (!quiet) log(`  ${c.warning('Binary:')} refresh failed (${err.message})`);
+    return { refreshed: false, reason: err.message };
+  }
+}
+
 async function updateRepo(repoPath, sourceVersion, opts) {
   opts = opts || {};
   const dryRun = opts.dryRun || false;
@@ -1577,6 +1642,11 @@ program
         writeJsonSync(HUB_REGISTRY, registry);
       }
 
+      // Binary refresh is non-blocking — update always completes
+      if (!dryRun) {
+        await refreshBinary(sourceVersion, { quiet: false });
+      }
+
       const label = dryRun ? 'would update' : 'updated';
       let summary = `\nSummary: ${updated} ${label}, ${upToDate} up to date, ${pruned} pruned`;
       if (dirty > 0) summary += `, ${dirty} dirty (skipped)`;
@@ -1670,6 +1740,12 @@ program
         if (result.checkpoint_id) {
           console.log(`  Checkpoint: ${result.checkpoint_id}`);
         }
+
+        // Binary refresh is non-blocking — update always completes
+        if (!dryRun) {
+          await refreshBinary(sourceVersion);
+        }
+
         console.log('  Colony data (.aether/data/) untouched.');
       } catch (error) {
         // Handle UpdateError with prominent recovery commands (UPDATE-04)
@@ -2226,6 +2302,7 @@ module.exports = {
   loadCheckpointMetadata,
   saveCheckpointMetadata,
   isUserData,
+  refreshBinary,
   syncDirWithCleanup,
   syncSkillsToHub,
   listFilesRecursive,

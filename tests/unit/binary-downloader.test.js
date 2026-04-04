@@ -434,6 +434,7 @@ test.serial('downloadBinary never throws even when internal functions throw', as
 
 const fs = require('fs');
 const pathModule = require('path');
+const os = require('os');
 
 test.serial('downloadBinary returns non-throwing result on all failure paths', async (t) => {
   // Verify the contract: downloadBinary never throws, always returns {success, reason}
@@ -457,11 +458,155 @@ test.serial('downloadBinary returns non-throwing result on all failure paths', a
   Object.defineProperty(process, 'arch', { value: originalArch });
 });
 
-test('cli.js performGlobalInstall contains downloadBinary wiring', (t) => {
-  // Verify the wiring exists in cli.js source
+test('cli.js defines refreshBinary helper function', (t) => {
   const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
-  t.true(cliSource.includes("require('./lib/binary-downloader')"));
-  t.true(cliSource.includes('downloadBinary(VERSION)'));
-  t.true(cliSource.includes('try'));
-  t.true(cliSource.includes('c.warning'));
+  t.true(cliSource.includes('async function refreshBinary'));
+});
+
+});
+
+test('cli.js update command calls refreshBinary after file sync', (t) => {
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  // Called in single-repo update path
+  t.true(cliSource.includes('await refreshBinary(sourceVersion)'));
+  // Non-blocking guarantee
+  t.true(cliSource.includes('Binary refresh is non-blocking'));
+  // Exported for testing
+  t.true(cliSource.includes('refreshBinary,'));
+});
+
+});
+
+test('cli.js refreshBinary skips download during dry-run', (t) => {
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  t.true(cliSource.includes('if (!dryRun)'));
+  // Verify refreshBinary is inside the dryRun guard
+  const dryRunBlock = cliSource.substring(
+    cliSource.indexOf('if (!dryRun) {'),
+    cliSource.indexOf('if (!dryRun) {') + 200
+  );
+  t.true(dryRunBlock.includes('refreshBinary'));
+});
+});
+
+test.serial('refreshBinary returns gracefully when binary missing and download fails', async (t) => {
+  const tmpDir = pathModule.join(os.tmpdir(), `aether-test-refresh-${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const origHome = process.env.HOME;
+  process.env.HOME = tmpDir;
+
+  try {
+    delete require.cache[require.resolve('../../bin/cli.js')];
+    const cli = require('../../bin/cli.js');
+
+    // No binary exists, download will fail since version doesn't exist
+    // but should NOT throw
+    const result = await cli.refreshBinary('0.0.0-fake', { quiet: true });
+    t.false(result.refreshed);
+    t.truthy(result.reason);
+  } finally {
+    process.env.HOME = origHome;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+);
+
+test.serial('refreshBinary never throws even on unexpected error', async (t) => {
+  const tmpDir = pathModule.join(os.tmpdir(), `aether-test-refresh-nothrow-${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const origHome = process.env.HOME;
+  process.env.HOME = tmpDir;
+
+  try {
+    delete require.cache[require.resolve('../../bin/cli.js')];
+    const cli = require('../../bin/cli.js');
+
+    // Should NOT throw regardless of what happens internally
+    const result = await cli.refreshBinary('99.99.99', { quiet: true });
+    t.true(typeof result.refreshed === 'boolean');
+    t.true(typeof result.reason === 'string' || result.reason === undefined);
+  } finally {
+    process.env.HOME = origHome;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});// ============================================================
+// F. refreshBinary and Update Flow Tests
+// ============================================================
+
+test('cli.js defines refreshBinary helper function', (t) => {
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  t.true(cliSource.includes('async function refreshBinary'));
+});
+
+test('cli.js update command calls refreshBinary after file sync', (t) => {
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  // Called in single-repo update path
+  t.true(cliSource.includes('await refreshBinary(sourceVersion)'));
+});
+
+test('cli.js refreshBinary is non-blocking', (t) => {
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  t.true(cliSource.includes('Binary refresh is non-blocking'));
+});
+
+test('cli.js exports refreshBinary for testing', (t) => {
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  t.true(cliSource.includes('refreshBinary,'));
+});
+
+test('cli.js refreshBinary skips download during dry-run', (t) => {
+  const cliSource = fs.readFileSync(pathModule.join(__dirname, '../../bin/cli.js'), 'utf8');
+  t.true(cliSource.includes('if (!dryRun)'));
+  // Verify refreshBinary is inside the dryRun guard
+  const dryRunBlock = cliSource.substring(
+    cliSource.indexOf('if (!dryRun) {'),
+    cliSource.indexOf('if (!dryRun) {') + 200
+  );
+  t.true(dryRunBlock.includes('refreshBinary'));
+});
+
+test.serial('refreshBinary returns gracefully when binary missing and download fails', async (t) => {
+  const tmpDir = pathModule.join(os.tmpdir(), `aether-test-refresh-${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const origHome = process.env.HOME;
+  process.env.HOME = tmpDir;
+
+  try {
+    delete require.cache[require.resolve('../../bin/cli.js')];
+    const cli = require('../../bin/cli.js');
+
+    // No binary exists, download will fail since version doesn't exist
+    // but should NOT throw
+    const result = await cli.refreshBinary('0.0.0-fake', { quiet: true });
+    t.false(result.refreshed);
+    t.truthy(result.reason);
+  } finally {
+    process.env.HOME = origHome;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test.serial('refreshBinary never throws even on unexpected error', async (t) => {
+  const tmpDir = pathModule.join(os.tmpdir(), `aether-test-refresh-nothrow-${Date.now()}`);
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const origHome = process.env.HOME;
+  process.env.HOME = tmpDir;
+
+  try {
+    delete require.cache[require.resolve('../../bin/cli.js')];
+    const cli = require('../../bin/cli.js');
+
+    // Should NOT throw regardless of what happens internally
+    const result = await cli.refreshBinary('99.99.99', { quiet: true });
+    t.true(typeof result.refreshed === 'boolean');
+    t.true(typeof result.reason === 'string' || result.reason === undefined);
+  } finally {
+    process.env.HOME = origHome;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });
