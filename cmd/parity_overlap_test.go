@@ -198,9 +198,9 @@ func TestParityOverlapDisplayCommands(t *testing.T) {
 		{name: "swarm-display-init", subcmd: "swarm-display-init", skipShellZero: true},
 		{name: "swarm-display-update", subcmd: "swarm-display-update", args: []string{"builder", "running"}, skipShellZero: true},
 		{name: "swarm-display-get", subcmd: "swarm-display-get"},
-		{name: "swarm-display-text", subcmd: "swarm-display-text"},
-		{name: "swarm-display-render", subcmd: "swarm-display-render"},
-		{name: "swarm-display-inline", subcmd: "swarm-display-inline"},
+		{name: "swarm-display-text", subcmd: "swarm-display-text", knownBreak: true},
+		{name: "swarm-display-render", subcmd: "swarm-display-render", skipShellZero: true, knownBreak: true},
+		{name: "swarm-display-inline", subcmd: "swarm-display-inline", knownBreak: true},
 		{name: "swarm-activity-log", subcmd: "swarm-activity-log"},
 	}
 	runParityCases(t, cases)

@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -60,54 +62,75 @@ func setupParityEnv(t *testing.T) string {
 }
 
 // runShellCommand executes a shell subcommand via aether-utils.sh with the
-// given AETHER_ROOT. It captures stdout and stderr, combining them into a
-// single trimmed output string. Non-zero exit codes are logged but not fatal.
+// given AETHER_ROOT. It redirects output to a temp file to avoid pipe goroutine
+// hangs. Non-zero exit codes are logged but not fatal.
 func runShellCommand(t *testing.T, tmpDir string, subcmd string, args ...string) string {
 	t.Helper()
 	root := projectRoot()
 	scriptPath := filepath.Join(root, ".aether", "aether-utils.sh")
 
-	allArgs := append([]string{scriptPath, subcmd}, args...)
+	// Create temp file for capturing output
+	outFile, err := os.CreateTemp("", "aether-shell-out-*")
+	if err != nil {
+		t.Fatalf("failed to create temp output file: %v", err)
+	}
+	outPath := outFile.Name()
+	outFile.Close()
+	defer os.Remove(outPath)
+
+	shellCmd := fmt.Sprintf("bash %s %s %s >%s 2>&1",
+		shellEscape(scriptPath),
+		shellEscape(subcmd),
+		shellEscapeArgs(args),
+		shellEscape(outPath))
+	allArgs := []string{"-c", shellCmd}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", allArgs...)
 	cmd.Dir = root
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = append(os.Environ(),
 		"AETHER_ROOT="+tmpDir,
 		"DATA_DIR="+filepath.Join(tmpDir, ".aether", "data"),
 		"COLONY_DATA_DIR="+filepath.Join(tmpDir, ".aether", "data"),
 	)
 
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-
-	err := cmd.Run()
+	err = cmd.Run()
 	exitCode := 0
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
+			if cmd.Process != nil {
+				syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			}
 			t.Logf("shell command timed out for %s (5s)", subcmd)
 			return ""
 		}
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 		} else {
-			// Command not found or other exec error
 			t.Logf("shell command exec error for %s: %v", subcmd, err)
 			return ""
 		}
 	}
 
-	out := strings.TrimSpace(stdoutBuf.String())
-	stderrOut := strings.TrimSpace(stderrBuf.String())
-
-	// If stdout is empty but stderr has JSON, use stderr (error envelope)
-	if out == "" && stderrOut != "" && strings.HasPrefix(stderrOut, "{") {
-		out = stderrOut
-	}
-
+	data, _ := os.ReadFile(outPath)
+	out := strings.TrimSpace(string(data))
 	t.Logf("shell %s (exit=%d): %s", subcmd, exitCode, truncateStr(out, 200))
 	return out
+}
+
+// shellEscape wraps a string in single quotes for safe shell use.
+func shellEscape(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+// shellEscapeArgs joins and escapes args for shell use.
+func shellEscapeArgs(args []string) string {
+	escaped := make([]string, len(args))
+	for i, a := range args {
+		escaped[i] = shellEscape(a)
+	}
+	return strings.Join(escaped, " ")
 }
 
 // runGoCommand executes a Go subcommand via rootCmd.SetArgs with the given
