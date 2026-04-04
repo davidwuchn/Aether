@@ -3,8 +3,11 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"github.com/aether-colony/aether/pkg/storage"
 )
 
 // outputOK writes a JSON success envelope to stdout:
@@ -56,4 +59,48 @@ func mustGetInt(cmd *cobra.Command, flag string) int {
 		return 0
 	}
 	return val
+}
+
+// mustGetBool retrieves a required bool flag, calling outputError and
+// returning false if the flag is missing.
+func mustGetBool(cmd *cobra.Command, flag string) bool {
+	val, err := cmd.Flags().GetBool(flag)
+	if err != nil {
+		outputError(1, fmt.Sprintf("missing flag --%s", flag), nil)
+		return false
+	}
+	return val
+}
+
+// mustGetFloat64 retrieves a required float64 flag, calling outputError and
+// returning 0 if the flag is missing.
+func mustGetFloat64(cmd *cobra.Command, flag string) float64 {
+	val, err := cmd.Flags().GetFloat64(flag)
+	if err != nil {
+		outputError(1, fmt.Sprintf("missing flag --%s", flag), nil)
+		return 0
+	}
+	return val
+}
+
+// resolveHubPath returns the hub directory path (~/.aether/).
+func resolveHubPath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		outputError(1, fmt.Sprintf("cannot determine home directory: %v", err), nil)
+		return ""
+	}
+	return filepath.Join(home, ".aether")
+}
+
+// hubStore returns a new Store rooted at the hub directory.
+// Returns nil on failure (error already reported via outputError).
+func hubStore() *storage.Store {
+	dir := resolveHubPath()
+	s, err := storage.NewStore(dir)
+	if err != nil {
+		outputError(1, fmt.Sprintf("failed to initialize hub store: %v", err), nil)
+		return nil
+	}
+	return s
 }

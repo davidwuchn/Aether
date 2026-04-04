@@ -496,6 +496,65 @@ func (g *Graph) ShortestPath(from, to string) ([]string, error) {
 }
 
 // ============================================================================
+// Reachability
+// ============================================================================
+
+// ReachResult holds the output of a reachability search.
+type ReachResult struct {
+	Reachable    []string `json:"reachable"`
+	Count        int      `json:"count"`
+	HopsSearched int      `json:"hops_searched"`
+}
+
+// Reach performs a BFS reachability search from the given node, following
+// edges up to maxHops hops and only traversing edges with weight >= minWeight.
+func (g *Graph) Reach(startNode string, maxHops int, minWeight float64) (*ReachResult, error) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	if _, ok := g.nodes[startNode]; !ok {
+		return nil, fmt.Errorf("node %q not found", startNode)
+	}
+
+	visited := map[string]bool{startNode: true}
+	queue := []struct {
+		node string
+		hop  int
+	}{{startNode, 0}}
+
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		if curr.hop >= maxHops {
+			continue
+		}
+		for _, e := range g.outEdges[curr.node] {
+			if !visited[e.Target] && e.Weight >= minWeight {
+				visited[e.Target] = true
+				queue = append(queue, struct {
+					node string
+					hop  int
+				}{e.Target, curr.hop + 1})
+			}
+		}
+	}
+
+	reachable := make([]string, 0, len(visited)-1)
+	for id := range visited {
+		if id != startNode {
+			reachable = append(reachable, id)
+		}
+	}
+	sort.Strings(reachable)
+
+	return &ReachResult{
+		Reachable:    reachable,
+		Count:        len(reachable),
+		HopsSearched: maxHops,
+	}, nil
+}
+
+// ============================================================================
 // Cycle Detection
 // ============================================================================
 
