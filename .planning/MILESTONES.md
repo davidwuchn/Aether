@@ -1,5 +1,24 @@
 # Milestones
 
+## v5.4 Shell-to-Go Conversion (Shipped: 2026-04-04)
+
+**Phases completed:** 7 phases, 13 plans, 21 tasks
+
+**Key accomplishments:**
+
+- Converted 220 shell dispatcher calls across 5 core playbooks to direct Go binary invocations, eliminating shell dependency in build and continue flows.
+- All 11 playbook files fully converted from shell dispatcher to Go binary calls, closing the MIGRATE-05 gap with 275 total Go invocations and zero remaining shell calls.
+- Four data integrity fixes: jq tonumber coercion in hive-read, PID-scoped midden temp files with retry-once, learning-observations circuit breaker with backup recovery, and state-checkpoint subcommand for pre-build backups
+- Locked state-write subcommand closing the continue-advance lock gap, plus visible [trimmed]/[!trimmed] stderr notifications when colony-prime drops context sections
+- _aether_log_error function added to error-handler.sh with [error] prefix, and 449 intentional suppressions annotated with SUPPRESS:OK comments across 7 categories in aether-utils.sh
+- 40 silent error suppressions replaced with _aether_log_error warnings across cp backups, shasum fallbacks, self-invocation side effects, cache writes, and display/export operations in aether-utils.sh
+- 1. [Rule 3 - Blocking] Shell command pipe goroutine hangs
+- 1. [Rule 1 - Bug] Swarm command test isolation
+- Deprecation warnings added to 18 confirmed-dead subcommands in aether-utils.sh with help JSON markers and a Deprecated section
+- Updated 6 test files to handle stderr deprecation warnings from 18 deprecated subcommands, adding explicit deprecation assertions for 7 subcommands
+
+---
+
 ## v1.3 Maintenance & Pheromone Integration (Shipped: 2026-03-19)
 
 **Phases completed:** 8 phases, 17 plans, 49 commits
@@ -7,6 +26,7 @@
 **Changes:** 79 files, +10,860 / -1,710 lines
 
 **Key accomplishments:**
+
 - Purged all test artifacts from colony state files — clean baseline for real data
 - Pheromone signals flow end-to-end: emit → store → inject into worker context → influence behavior
 - Workers (builder, watcher, scout) have pheromone_protocol sections acting on REDIRECT/FOCUS/FEEDBACK
@@ -24,6 +44,7 @@
 **Last phase number:** 16
 
 **Key accomplishments:**
+
 - Error handling hardened: 438 suppression patterns classified, dangerous ones fixed, intentional ones documented
 - Dead code deprecated: 18 unused subcommands marked with stderr warnings
 - State API centralized: single facade for all COLONY_STATE.json access + verify-claims lie detector
@@ -40,6 +61,7 @@
 **Timeline:** 2026-03-24 to 2026-03-25
 
 **Key accomplishments:**
+
 - QUEEN.md template with 4 structured sections (User Preferences, Codebase Patterns, Build Learnings, Instincts)
 - Continue playbooks auto-write build learnings and promote instincts to QUEEN.md
 - Post-extraction wisdom filtering via _filter_wisdom_entries() prevents noise
@@ -54,6 +76,7 @@
 **Timeline:** 2026-03-27 (single day)
 
 **Key accomplishments:**
+
 - Test infrastructure refactored: centralized mock profile helper, zero hardcoded model strings
 - Per-caste model routing: 8 opus castes configured with model frontmatter in agent definitions
 - getModelSlotForCaste() + model-slot CLI with get/list/validate verbs
@@ -69,6 +92,7 @@
 **Timeline:** 2026-03-27 (single day)
 
 **Key accomplishments:**
+
 - Oracle and Architect agent definitions created (model: opus, 24-agent roster)
 - Oracle + Architect spawn steps wired into build-wave playbook
 - Wisdom pipeline wiring: hive-promote in continue-advance, consolidated summary in continue-finalize
@@ -86,6 +110,7 @@
 **New tests:** 50 (616+ total passing)
 
 **Key accomplishments:**
+
 - Repo scanning module (scan.sh): 10th domain module with tech stack detection, directory analysis, git history, survey staleness, and complexity estimation under 2 seconds
 - Charter management: colony-name derivation and charter-write function populating existing QUEEN.md v2 sections with re-init safety
 - Smart init rewrite: `/ant:init` now runs scan-assemble-approve-create flow with structured approval prompt from research data
@@ -93,4 +118,3 @@
 - 50 new integration tests validating the full smart init pipeline (12/12 requirements satisfied)
 
 ---
-

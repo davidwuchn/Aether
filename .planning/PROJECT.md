@@ -40,17 +40,23 @@ The system must reliably interpret a user request, decompose it into executable 
 
 ### Active
 
-- Go CLI with Cobra — all 37 commands ported from shell — v5.4
-- ✓ Event bus — channels + JSONL replacing file-based pub/sub — v5.4 (Phase 46)
-- ✓ Trust scoring — native float64 replacing bc subprocess — v5.4 (Phase 47)
-- ✓ Memory pipeline — observation → instinct → QUEEN promotion — v5.4 (Phase 47)
-- Graph layer — BFS, cycle detection, relationship tracking — v5.4
-- Agent/worker system — goroutine pools replacing shell subprocesses — v5.4
-- LLM integration — Anthropic Go SDK for agent Claude calls — v5.4
-- XML exchange — native Go replacing xmllint/xmlstarlet — v5.4
-- ✓ Storage layer — typed Go structs for all colony data, atomic writes, backup rotation, path resolution — Phase 45
-- Full test parity — all existing tests ported to Go — v5.4
-- Distribution — Go binary replacing npm package — v5.4
+- Distribution packaging — cross-platform Go binary distribution via goreleaser
+- CLI dashboard — status/phase/flags commands producing shell-identical output
+
+### Validated (v5.4)
+
+- ✓ Go CLI with Cobra — 254+ commands ported from shell, all slash commands and playbooks wired — v5.4
+- ✓ Event bus — channels + JSONL replacing file-based pub/sub — v5.4
+- ✓ Trust scoring — native float64 replacing bc subprocess — v5.4
+- ✓ Memory pipeline — observation → instinct → QUEEN promotion — v5.4
+- ✓ Graph layer — BFS, cycle detection, relationship tracking — v5.4
+- ✓ Agent/worker system — goroutine pools replacing shell subprocesses — v5.4
+- ✓ LLM integration — Anthropic Go SDK with streaming and tool-use loop — v5.4
+- ✓ XML exchange — native Go replacing xmllint/xmlstarlet — v5.4
+- ✓ Storage layer — typed Go structs, atomic writes, backup rotation, path resolution — v5.4
+- ✓ Full test parity — 254 commands tested (142 parity + 217 smoke), CI integrated — v5.4
+- ✓ Slash command wiring — 87 YAML sources calling Go binary — v5.4
+- ✓ Playbook wiring — 11 playbooks (275 Go calls, 0 shell) — v5.4
 
 ### Out of Scope
 
@@ -62,22 +68,13 @@ The system must reliably interpret a user request, decompose it into executable 
 - LLM-generated prompts — non-deterministic and untestable; bash + jq assembly is deterministic
 - Full deep survey on every init — too slow; lightweight scan + suggestion instead
 
-## Current Milestone: v5.4 Shell-to-Go Rewrite
+## Current Milestone: Planning Next
 
-**Goal:** Replace all shell scripts with a native Go binary, eliminating bash/jq/curl dependencies while preserving exact behavioral parity with the existing system.
-
-**Target features:**
-- Complete Go implementation of all colony runtime (60+ shell scripts → Go packages)
-- Cobra CLI with all 37 commands ported
-- Event bus (channels + JSONL), trust scoring, memory pipeline, graph layer
-- LLM integration via Anthropic Go SDK
-- XML exchange layer (32 functions, native Go replacing xmllint)
-- All existing tests ported + new Go tests for parity verification
-- Distribution changes from npm package to Go binary
+**Previous: v5.4 Shell-to-Go Rewrite** (completed 2026-04-04)
 
 ## Context
 
-- Aether is at v5.3.2 on npm, transitioning from shell to Go
+- v5.4 shipped: Full shell-to-Go conversion — 254+ Go commands, 47 phases, 553 commits over 16 days
 - v2.7 shipped: PR workflow, clash detection, pheromone propagation, release hygiene
 - v2.6 shipped: Input escaping, cross-colony isolation, depth gating, YAML command generator
 - v2.5 shipped: Smart init (repo scanning, charter management, approval flow), 50 new tests
@@ -85,9 +82,8 @@ The system must reliably interpret a user request, decompose it into executable 
 - v2.3 shipped: Per-caste model routing, model-slot CLI, 24 agents configured
 - v2.2 shipped: QUEEN.md structured wisdom, cross-colony hive brain, wisdom injection
 - v2.1 shipped: Error handling hardened, monolith modularized (10 modules), state API centralized
-- Phase 45 complete: typed Go structs for all colony data files (7 types), storage package (atomic writes, backup rotation, path resolution), 74 tests passing
-- 60+ shell scripts, ~44 commands, 24 agents, ~150+ subcommands across 10 domain modules
-- Oracle research completed (25 iterations, 100% confidence) covering full conversion spec
+- Go binary has 254+ commands replacing ~305 shell subcommands
+- 47 phase directories completed, 16 with formal VERIFICATION.md
 
 ## Constraints
 
@@ -134,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after Phase 47 (memory pipeline) completion*
+*Last updated: 2026-04-04 after v5.4 milestone completion*
