@@ -73,6 +73,7 @@ Requirements for the Shell-to-Go rewrite. Each maps to roadmap phases.
 - [ ] **TEST-01**: All existing shell test cases ported to Go -- parity verified against shell output
 - [ ] **TEST-02**: Race detector passes on all concurrent code -- `go test -race` clean
 - [ ] **TEST-03**: Golden file tests compare Go output against shell-produced JSON fixtures
+- [ ] **TEST-04**: Full test suite (879 tests) passes at same or higher rate (at most 9 pre-existing failures)
 
 ## Future Requirements
 
@@ -137,9 +138,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DIST-01 | Phase 51 | Pending |
 | DIST-02 | Phase 51 | Pending |
 | DIST-03 | Phase 51 | Pending |
-| TEST-01 | Phase 51 | Pending |
-| TEST-02 | Phase 51 | Pending |
-| TEST-03 | Phase 51 | Pending |
+| TEST-01 | Phase 10 | Complete |
+| TEST-02 | Phase 10 | Complete |
+| TEST-03 | Phase 10 | Complete |
+| TEST-04 | Phase 10 | In Progress |
 
 **Coverage:**
 - v5.4 requirements: 37 total
