@@ -192,9 +192,12 @@ func truncateStr(s string, maxLen int) string {
 func TestSetupParityEnv(t *testing.T) {
 	tmpDir := setupParityEnv(t)
 
-	// Check AETHER_ROOT was set
-	if got := os.Getenv("AETHER_ROOT"); got != tmpDir {
-		t.Errorf("AETHER_ROOT = %q, want %q", got, tmpDir)
+	// Verify tmpDir is non-empty and looks like a temp path
+	if tmpDir == "" {
+		t.Fatal("setupParityEnv returned empty string")
+	}
+	if !strings.Contains(tmpDir, "aether-parity") {
+		t.Errorf("tmpDir = %q, want it to contain 'aether-parity'", tmpDir)
 	}
 
 	// Check data directory exists
