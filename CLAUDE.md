@@ -1,6 +1,6 @@
 # CLAUDE.md — Aether Development Guide
 
-> **Current Version:** v2.0.0 (documentation version; npm package version in package.json)
+> **Current Version:** v1.0.0 (documentation version; npm package version in package.json)
 > **Architecture:** v5.0 (Go binary — shell scripts and Node.js runtime removed)
 > **Last Updated:** 2026-04-05
 
@@ -10,7 +10,7 @@
 
 | What | Count/Status |
 |------|--------------|
-| Version | v2.0.0 |
+| Version | v1.0.0 |
 | Slash commands | ~45 (Claude) + ~45 (OpenCode) |
 | Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
@@ -28,45 +28,38 @@
 │                                                                  │
 │   cmd/                 ← Go source code (primary)              │
 │   ├── main.go         CLI entry point                          │
-│   └── *.go            Command implementations                 │
+│   └── *.go            Command implementations (80+ subcommands)│
 │                                                                  │
-│   .aether/             ← SOURCE OF TRUTH (packaged directly)    │
-│   ├── workers.md       (edit here)                              │
-│   ├── utils/           (templates, docs, skills)                │
-│   │   ├── Domain modules (9):                                   │
-│   │   │   flag.sh, spawn.sh, session.sh, suggest.sh,            │
-│   │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh,        │
-│   │   │   state-api.sh                                          │
-│   │   ├── Infrastructure:                                       │
-│   │   │   file-lock.sh, atomic-write.sh, error-handler.sh,      │
-│   │   │   hive.sh, midden.sh, skills.sh                         │
-│   │   ├── Structural Learning Stack:                            │
-│   │   │   trust-scoring.sh, event-bus.sh, instinct-store.sh,    │
-│   │   │   graph.sh, consolidation.sh, consolidation-seal.sh     │
-│   │   ├── XML + other:                                          │
-│   │   │   xml-core.sh, xml-query.sh, xml-compose.sh,            │
-│   │   │   xml-convert.sh, xml-utils.sh, swarm-display.sh, ...   │
-│   │   └── curation-ants/ (8 ants + orchestrator):              │
-│   │       orchestrator.sh, archivist.sh, critic.sh,             │
-│   │       herald.sh, janitor.sh, librarian.sh,                  │
-│   │       nurse.sh, scribe.sh, sentinel.sh                      │
-│   ├── skills/          colony/ (10) + domain/ (18)              │
-│   ├── docs/            (distributed documentation)              │
-│   └── templates/       (12 templates)                           │
+│   pkg/                 ← Shared Go packages                    │
+│   ├── agent/          Agent pool, spawn tree, curation ants    │
+│   ├── downloader/     Binary download + extraction             │
+│   ├── events/         Event bus with TTL                       │
+│   ├── exchange/       XML import/export                        │
+│   ├── graph/          Knowledge graph persistence              │
+│   ├── memory/         Learning pipeline, instincts, promotion  │
+│   └── storage/        JSON store, file locking                 │
 │                                                                  │
-│   .aether/data/        ← LOCAL ONLY (excluded by .npmignore)    │
-│   .aether/dreams/      ← LOCAL ONLY (excluded by .npmignore)    │
+│   .aether/             ← Companion files (distributed via npm)  │
+│   ├── commands/*.yaml   Slash command source definitions        │
+│   ├── agents-claude/    Agent definition mirror (packaging)     │
+│   ├── skills/           colony/ (10) + domain/ (18)            │
+│   ├── docs/             Distributed documentation              │
+│   └── templates/        Colony state, pheromones, etc.          │
 │                                                                  │
-│   .claude/commands/ant/ ← 45 slash commands (Claude Code)       │
-│   .claude/agents/ant/   ← 24 agent definitions                  │
-│   .opencode/commands/ant/ ← 45 slash commands (OpenCode)        │
-│   .opencode/agents/     ← Agent definitions (OpenCode)          │
+│   .aether/data/        ← LOCAL ONLY (gitignored)               │
+│   .aether/dreams/      ← LOCAL ONLY (gitignored)               │
 │                                                                  │
-│   ~/.aether/           ← HUB (cross-colony, user-level)         │
-│   ├── QUEEN.md         (wisdom + user preferences)               │
-│   ├── hive/            (Hive Brain — cross-colony wisdom)        │
-│   │   └── wisdom.json  (200-entry cap, LRU eviction)            │
-│   └── eternal/         (hive memory — high-value signals)        │
+│   .claude/commands/ant/ ← Slash commands (Claude Code)         │
+│   .claude/agents/ant/   ← Agent definitions (Claude Code)      │
+│   .opencode/commands/ant/ ← Slash commands (OpenCode)          │
+│   .opencode/agents/     ← Agent definitions (OpenCode)         │
+│                                                                  │
+│   ~/.aether/           ← HUB (cross-colony, user-level)        │
+│   ├── system/          Companion file source (populated by install)│
+│   ├── QUEEN.md         (wisdom + user preferences)              │
+│   ├── hive/            (Hive Brain — cross-colony wisdom)       │
+│   │   └── wisdom.json  (200-entry cap, LRU eviction)           │
+│   └── eternal/         (hive memory — high-value signals)       │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -710,4 +703,4 @@ For OpenCode-specific rules and agents, see `.opencode/OPENCODE.md`
 
 ---
 
-*Updated for Aether v2.0.0 — 2026-04-05*
+*Updated for Aether v1.0.0 — 2026-04-05*

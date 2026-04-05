@@ -81,10 +81,14 @@ logs/
 .aether/backups/
 .aether/locks/
 .aether/temp/
+.aether/oracle/
+.aether/archive/
 .aether/HANDOFF.md
 .aether/PAUSE_HANDOFF.md
 .aether/error_ledger.json
 .aether/checkpoints/
+.aether/ledger.jsonl
+.aether/manifest.json
 .aether/work/
 .aether/examples/
 .aether/stdlib/
