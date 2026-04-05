@@ -21,8 +21,8 @@ Full shell-to-Go rewrite producing 254+ Cobra commands, 11 playbooks with 275 Go
 
 - [x] **Phase 48: goreleaser Release Pipeline** - Cross-platform binary builds on tag push (completed 2026-04-04)
 - [x] **Phase 49: Binary Downloader + npm Install** - Users receive Go binary on npm install (completed 2026-04-04)
-- [ ] **Phase 50: Update Flow Binary Refresh** - aether update downloads binary when missing or outdated
-- [ ] **Phase 51: npm Shim Delegation + Version Gate** - aether command routes to Go binary when available
+- [x] **Phase 50: Update Flow Binary Refresh** - aether update downloads binary when missing or outdated
+- [x] **Phase 51: npm Shim Delegation + Version Gate** - aether command routes to Go binary when available
 
 ## Phase Details
 
@@ -88,5 +88,5 @@ Phases 50 and 51 both depend only on Phase 49 and can execute in parallel.
 |-------|----------------|--------|-----------|
 | 48. goreleaser Release Pipeline | 2/2 | Complete    | 2026-04-04 |
 | 49. Binary Downloader + npm Install | 0/2 | Complete    | 2026-04-04 |
-| 50. Update Flow Binary Refresh | 0/? | Not started | - |
+| 50. Update Flow Binary Refresh | 0/? | Complete    | 2026-04-05 |
 | 51. npm Shim Delegation + Version Gate | 0/? | Not started | - |
