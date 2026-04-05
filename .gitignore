@@ -102,6 +102,7 @@ node_modules/
 # Allow bin/lib (Aether CLI libraries)
 !bin/lib/
 .worktrees/
+.claude/worktrees/
 
 # GSD planning files
 # .planning/ — tracked for this project
