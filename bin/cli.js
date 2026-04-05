@@ -5,7 +5,6 @@ const path = require('path');
 const crypto = require('crypto');
 const { execSync, spawnSync } = require('child_process');
 const { program } = require('commander');
-const { shouldDelegate, getBinaryPath } = require('./lib/version-gate');
 
 // Error handling imports
 const {
