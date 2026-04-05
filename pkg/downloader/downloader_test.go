@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"archive/zip"
 	"bufio"
 	"fmt"
 	"net/http"
@@ -344,5 +345,165 @@ func TestParseChecksum_Stream(t *testing.T) {
 	}
 	if hash != "deadbeef" {
 		t.Errorf("got %q, want %q", hash, "deadbeef")
+	}
+}
+
+// --- ZIP Extraction ---
+
+// createTestZip creates a ZIP archive containing a single binary file
+// nested inside a top-level directory (mimicking goreleaser output).
+func createTestZip(t *testing.T, zipPath, topDir, binName, content string) {
+	t.Helper()
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("create zip: %v", err)
+	}
+	defer zipFile.Close()
+
+	w := zip.NewWriter(zipFile)
+	// Add directory entry for the top-level dir
+	if _, err := w.Create(topDir + "/"); err != nil {
+		t.Fatalf("create dir entry: %v", err)
+	}
+	// Add the binary file inside the top-level dir
+	f, err := w.Create(topDir + "/" + binName)
+	if err != nil {
+		t.Fatalf("create file entry: %v", err)
+	}
+	if _, err := f.Write([]byte(content)); err != nil {
+		t.Fatalf("write file entry: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close zip writer: %v", err)
+	}
+}
+
+func TestExtractZipImpl_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	zipPath := filepath.Join(tmpDir, "test.zip")
+	stageDir := filepath.Join(tmpDir, "stage")
+	destDir := filepath.Join(tmpDir, "dest")
+	binName := "aether"
+	binContent := "fake binary content"
+
+	if err := os.MkdirAll(stageDir, 0755); err != nil {
+		t.Fatalf("mkdir stage: %v", err)
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	createTestZip(t, zipPath, "aether_v1.0.0_darwin_amd64", binName, binContent)
+
+	err := extractZipImpl(zipPath, stageDir, destDir, binName)
+	if err != nil {
+		t.Fatalf("extractZipImpl returned error: %v", err)
+	}
+
+	// Verify the binary was moved to destDir
+	destBin := filepath.Join(destDir, binName)
+	data, err := os.ReadFile(destBin)
+	if err != nil {
+		t.Fatalf("read dest binary: %v", err)
+	}
+	if string(data) != binContent {
+		t.Errorf("content mismatch: got %q, want %q", string(data), binContent)
+	}
+}
+
+func TestExtractZipImpl_BinaryNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	zipPath := filepath.Join(tmpDir, "test.zip")
+	stageDir := filepath.Join(tmpDir, "stage")
+	destDir := filepath.Join(tmpDir, "dest")
+
+	if err := os.MkdirAll(stageDir, 0755); err != nil {
+		t.Fatalf("mkdir stage: %v", err)
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	// Create a zip with a different binary name
+	createTestZip(t, zipPath, "aether_v1.0.0_darwin_amd64", "other.exe", "content")
+
+	err := extractZipImpl(zipPath, stageDir, destDir, "aether")
+	if err == nil {
+		t.Fatal("expected error when binary not found")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention 'not found', got: %v", err)
+	}
+}
+
+func TestExtractZipImpl_BadArchive(t *testing.T) {
+	tmpDir := t.TempDir()
+	badZip := filepath.Join(tmpDir, "bad.zip")
+	stageDir := filepath.Join(tmpDir, "stage")
+	destDir := filepath.Join(tmpDir, "dest")
+
+	if err := os.WriteFile(badZip, []byte("not a zip file"), 0644); err != nil {
+		t.Fatalf("write bad zip: %v", err)
+	}
+	if err := os.MkdirAll(stageDir, 0755); err != nil {
+		t.Fatalf("mkdir stage: %v", err)
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	err := extractZipImpl(badZip, stageDir, destDir, "aether")
+	if err == nil {
+		t.Fatal("expected error for invalid zip archive")
+	}
+}
+
+func TestExtractZipImpl_WithSubdirs(t *testing.T) {
+	tmpDir := t.TempDir()
+	zipPath := filepath.Join(tmpDir, "test.zip")
+	stageDir := filepath.Join(tmpDir, "stage")
+	destDir := filepath.Join(tmpDir, "dest")
+	binName := "aether"
+	binContent := "nested binary"
+
+	if err := os.MkdirAll(stageDir, 0755); err != nil {
+		t.Fatalf("mkdir stage: %v", err)
+	}
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatalf("mkdir dest: %v", err)
+	}
+
+	// Create a zip with the binary nested in a subdirectory
+	zipFile, err := os.Create(zipPath)
+	if err != nil {
+		t.Fatalf("create zip: %v", err)
+	}
+	defer zipFile.Close()
+
+	w := zip.NewWriter(zipFile)
+	// top-level dir -> subdir -> binary
+	f, err := w.Create("aether_v1.0.0_linux_amd64/subdir/" + binName)
+	if err != nil {
+		t.Fatalf("create nested file: %v", err)
+	}
+	if _, err := f.Write([]byte(binContent)); err != nil {
+		t.Fatalf("write nested file: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+
+	err = extractZipImpl(zipPath, stageDir, destDir, binName)
+	if err != nil {
+		t.Fatalf("extractZipImpl nested: %v", err)
+	}
+
+	destBin := filepath.Join(destDir, binName)
+	data, err := os.ReadFile(destBin)
+	if err != nil {
+		t.Fatalf("read dest binary: %v", err)
+	}
+	if string(data) != binContent {
+		t.Errorf("content mismatch: got %q, want %q", string(data), binContent)
 	}
 }

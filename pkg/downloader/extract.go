@@ -2,6 +2,7 @@ package downloader
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -92,9 +93,57 @@ func findBinaryInDir(dir, bin string) string {
 }
 
 // extractZipImpl extracts a zip archive, finds the binary, and moves it to destDir.
-// Uses archive/zip from the standard library.
 func extractZipImpl(archivePath, stageDir, destDir, bin string) error {
-	// Defer to extractTarGzImpl -- this is a placeholder that will be implemented
-	// if/when Windows zip support is needed. For now, return an error.
-	return fmt.Errorf("zip extraction not yet implemented; use tar.gz on non-Windows platforms")
+	reader, err := zip.OpenReader(archivePath)
+	if err != nil {
+		return fmt.Errorf("open zip: %w", err)
+	}
+	defer reader.Close()
+
+	for _, entry := range reader.File {
+		// Skip directories
+		if entry.FileInfo().IsDir() {
+			continue
+		}
+
+		relPath := entry.Name
+		// Strip leading "./" or top-level dir
+		parts := strings.SplitN(relPath, "/", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		relPath = parts[1]
+
+		targetPath := filepath.Join(stageDir, relPath)
+
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			return fmt.Errorf("mkdir parent: %w", err)
+		}
+
+		rc, err := entry.Open()
+		if err != nil {
+			return fmt.Errorf("open entry %s: %w", entry.Name, err)
+		}
+
+		outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, entry.Mode())
+		if err != nil {
+			rc.Close()
+			return fmt.Errorf("create file: %w", err)
+		}
+
+		_, err = io.Copy(outFile, rc)
+		outFile.Close()
+		rc.Close()
+		if err != nil {
+			return fmt.Errorf("write file: %w", err)
+		}
+	}
+
+	// Find and move the binary
+	foundPath := findBinaryInDir(stageDir, bin)
+	if foundPath == "" {
+		return fmt.Errorf("binary %q not found in archive", bin)
+	}
+
+	return os.Rename(foundPath, filepath.Join(destDir, bin))
 }
