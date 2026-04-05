@@ -63,7 +63,8 @@ func TopicMatch(pattern, topic string) bool {
 }
 
 // GenerateEventID creates an event ID matching the shell format:
-//   evt_{unix_timestamp}_{4_hex_chars}
+//
+//	evt_{unix_timestamp}_{4_hex_chars}
 //
 // Shell: evt_$(date +%s)_$(head -c 2 /dev/urandom | od -An -tx1 | tr -d ' \n')
 func GenerateEventID(now time.Time, randomBytes []byte) string {
@@ -81,7 +82,8 @@ func GenerateEventID(now time.Time, randomBytes []byte) string {
 }
 
 // FormatTimestamp formats a time as ISO-8601 UTC matching the shell output:
-//   date -u +%Y-%m-%dT%H:%M:%SZ
+//
+//	date -u +%Y-%m-%dT%H:%M:%SZ
 func FormatTimestamp(t time.Time) string {
 	return t.UTC().Format("2006-01-02T15:04:05Z")
 }

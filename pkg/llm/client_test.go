@@ -84,10 +84,10 @@ func TestSendMessageMock(t *testing.T) {
 
 		// Return a mock response matching Anthropic API format
 		resp := map[string]interface{}{
-			"id":         "msg_test123",
-			"type":       "message",
-			"role":       "assistant",
-			"model":      "claude-sonnet-4-20250514",
+			"id":          "msg_test123",
+			"type":        "message",
+			"role":        "assistant",
+			"model":       "claude-sonnet-4-20250514",
 			"stop_reason": "end_turn",
 			"content": []map[string]interface{}{
 				{"type": "text", "text": "Hello from mock"},

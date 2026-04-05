@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -265,9 +266,9 @@ var incidentRuleAddCmd = &cobra.Command{
 
 		now := time.Now().UTC().Format(time.RFC3339)
 		rules = append(rules, map[string]interface{}{
-			"rule":      rule,
-			"type":      ruleType,
-			"priority":  priority,
+			"rule":       rule,
+			"type":       ruleType,
+			"priority":   priority,
 			"created_at": now,
 		})
 
@@ -294,7 +295,7 @@ var bootstrapSystemCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		hub := resolveHubPath()
-		aetherRoot := storage.ResolveAetherRoot()
+		aetherRoot := storage.ResolveAetherRoot(context.Background())
 
 		// Files to bootstrap from hub templates to colony
 		templateFiles := []string{
@@ -493,9 +494,9 @@ var spawnGetDepthCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"name":   name,
-			"depth":  depth,
-			"found":  found,
+			"name":  name,
+			"depth": depth,
+			"found": found,
 		})
 		return nil
 	},
@@ -589,12 +590,12 @@ var swarmDisplayGetCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"goal":         goalStr(state.Goal),
-			"milestone":    state.Milestone,
-			"state":        string(state.State),
+			"goal":          goalStr(state.Goal),
+			"milestone":     state.Milestone,
+			"state":         string(state.State),
 			"current_phase": state.CurrentPhase,
-			"phases":       state.Plan.Phases,
-			"colony_count": len(state.Plan.Phases),
+			"phases":        state.Plan.Phases,
+			"colony_count":  len(state.Plan.Phases),
 		})
 		return nil
 	},

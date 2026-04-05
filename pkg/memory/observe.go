@@ -101,9 +101,9 @@ func (s *ObservationService) CaptureWithTrust(ctx context.Context, content, wisd
 
 			// Publish learning.observe event
 			payload, _ := json.Marshal(map[string]string{
-				"content":      content,
-				"wisdom_type":  wisdomType,
-				"colony_name":  colonyName,
+				"content":     content,
+				"wisdom_type": wisdomType,
+				"colony_name": colonyName,
 			})
 			s.bus.Publish(ctx, "learning.observe", payload, "observe")
 
@@ -150,9 +150,9 @@ func (s *ObservationService) CaptureWithTrust(ctx context.Context, content, wisd
 
 	// Publish learning.observe event
 	payload, _ := json.Marshal(map[string]string{
-		"content":      content,
-		"wisdom_type":  wisdomType,
-		"colony_name":  colonyName,
+		"content":     content,
+		"wisdom_type": wisdomType,
+		"colony_name": colonyName,
 	})
 	s.bus.Publish(ctx, "learning.observe", payload, "observe")
 

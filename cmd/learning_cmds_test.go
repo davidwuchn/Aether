@@ -121,15 +121,15 @@ func TestLearningPromote(t *testing.T) {
 
 	// Create a minimal COLONY_STATE.json
 	colonyData := map[string]interface{}{
-		"version":        "2.0",
-		"state":          "READY",
-		"current_phase":  1,
-		"plan":           map[string]interface{}{"phases": []interface{}{}},
-		"memory":         map[string]interface{}{"phase_learnings": []interface{}{}, "decisions": []interface{}{}, "instincts": []interface{}{}},
-		"errors":         map[string]interface{}{"records": []interface{}{}, "flagged_patterns": []interface{}{}},
-		"signals":        []interface{}{},
-		"graveyards":     []interface{}{},
-		"events":         []interface{}{},
+		"version":       "2.0",
+		"state":         "READY",
+		"current_phase": 1,
+		"plan":          map[string]interface{}{"phases": []interface{}{}},
+		"memory":        map[string]interface{}{"phase_learnings": []interface{}{}, "decisions": []interface{}{}, "instincts": []interface{}{}},
+		"errors":        map[string]interface{}{"records": []interface{}{}, "flagged_patterns": []interface{}{}},
+		"signals":       []interface{}{},
+		"graveyards":    []interface{}{},
+		"events":        []interface{}{},
 	}
 	writeTestJSON(t, store.BasePath(), "COLONY_STATE.json", colonyData)
 

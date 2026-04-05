@@ -51,14 +51,14 @@ type Orchestrator struct {
 	eventCh <-chan events.Event
 
 	// All 8 curation ants
-	sentinel   *Sentinel
-	nurse      *Nurse
-	critic     *Critic
-	herald     *Herald
-	janitor    *Janitor
-	archivist  *Archivist
-	librarian  *Librarian
-	scribe     *Scribe
+	sentinel  *Sentinel
+	nurse     *Nurse
+	critic    *Critic
+	herald    *Herald
+	janitor   *Janitor
+	archivist *Archivist
+	librarian *Librarian
+	scribe    *Scribe
 
 	// steps is the ordered slice for sequential execution
 	steps []struct {

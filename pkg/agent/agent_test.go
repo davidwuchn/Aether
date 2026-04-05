@@ -15,9 +15,9 @@ type mockAgent struct {
 	execErr  error
 }
 
-func (m *mockAgent) Name() string                { return m.name }
-func (m *mockAgent) Caste() Caste                { return m.caste }
-func (m *mockAgent) Triggers() []Trigger         { return m.triggers }
+func (m *mockAgent) Name() string        { return m.name }
+func (m *mockAgent) Caste() Caste        { return m.caste }
+func (m *mockAgent) Triggers() []Trigger { return m.triggers }
 func (m *mockAgent) Execute(_ context.Context, _ events.Event) error {
 	return m.execErr
 }
@@ -157,21 +157,21 @@ func TestRegistryMatchMultiple(t *testing.T) {
 
 	learningAgent := &mockAgent{
 		name:  "learning-handler",
-		caste:  CasteCurator,
+		caste: CasteCurator,
 		triggers: []Trigger{
 			{Topic: "learning.*"},
 		},
 	}
 	memoryAgent := &mockAgent{
 		name:  "memory-handler",
-		caste:  CasteCurator,
+		caste: CasteCurator,
 		triggers: []Trigger{
 			{Topic: "memory.*"},
 		},
 	}
 	bothAgent := &mockAgent{
 		name:  "multi-handler",
-		caste:  CasteCurator,
+		caste: CasteCurator,
 		triggers: []Trigger{
 			{Topic: "learning.*"},
 			{Topic: "memory.*"},

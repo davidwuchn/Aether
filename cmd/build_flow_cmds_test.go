@@ -144,11 +144,11 @@ func TestMilestoneDetect(t *testing.T) {
 	goal := "test goal"
 	name := "test-colony"
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:  "2.0",
-		Goal:     &goal,
+		Version:    "2.0",
+		Goal:       &goal,
 		ColonyName: &name,
-		State:    colony.StateREADY,
-		Milestone: "Open Chambers",
+		State:      colony.StateREADY,
+		Milestone:  "Open Chambers",
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
 				{ID: 1, Name: "Phase 1", Status: "completed"},
@@ -181,11 +181,11 @@ func TestMilestoneDetectAutoDetect(t *testing.T) {
 	goal := "test goal"
 	name := "test-colony"
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:     "2.0",
-		Goal:        &goal,
-		ColonyName:  &name,
-		State:       colony.StateREADY,
-		Milestone:   "", // No milestone set
+		Version:    "2.0",
+		Goal:       &goal,
+		ColonyName: &name,
+		State:      colony.StateREADY,
+		Milestone:  "", // No milestone set
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
 				{ID: 1, Name: "Phase 1", Status: "completed"},
@@ -221,10 +221,10 @@ func TestUpdateProgress(t *testing.T) {
 	goal := "test goal"
 	name := "test-colony"
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:     "2.0",
-		Goal:        &goal,
-		ColonyName:  &name,
-		State:       colony.StateEXECUTING,
+		Version:      "2.0",
+		Goal:         &goal,
+		ColonyName:   &name,
+		State:        colony.StateEXECUTING,
 		CurrentPhase: 1,
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
@@ -346,11 +346,11 @@ func TestPrintNextUpExecuting(t *testing.T) {
 	goal := "test goal"
 	name := "test-colony"
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:       "2.0",
-		Goal:          &goal,
-		ColonyName:    &name,
-		State:         colony.StateEXECUTING,
-		CurrentPhase:  2,
+		Version:      "2.0",
+		Goal:         &goal,
+		ColonyName:   &name,
+		State:        colony.StateEXECUTING,
+		CurrentPhase: 2,
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
 				{ID: 1, Name: "Phase 1", Status: "completed"},

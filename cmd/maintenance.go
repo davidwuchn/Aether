@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -168,7 +169,7 @@ var tempCleanCmd = &cobra.Command{
 	Short: "Remove temp files older than 7 days",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		aetherRoot := storage.ResolveAetherRoot()
+		aetherRoot := storage.ResolveAetherRoot(context.Background())
 		tempDir := filepath.Join(aetherRoot, ".aether", "temp")
 
 		entries, err := os.ReadDir(tempDir)

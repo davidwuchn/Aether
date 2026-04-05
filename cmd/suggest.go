@@ -244,11 +244,11 @@ var suggestAnalyzeCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"suggestions":   suggestions,
-			"count":         len(suggestions),
+			"suggestions":    suggestions,
+			"count":          len(suggestions),
 			"analyzed_files": analyzedFiles,
 			"patterns_found": patternsFound,
-			"deduplicated":  deduplicated,
+			"deduplicated":   deduplicated,
 		})
 		return nil
 	},
@@ -425,8 +425,8 @@ var suggestCheckCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"suggestions":       filtered,
-			"count":             len(filtered),
+			"suggestions":          filtered,
+			"count":                len(filtered),
 			"deduplicated_against": deduplicatedAgainst,
 		})
 		return nil

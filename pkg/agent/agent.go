@@ -14,14 +14,14 @@ import (
 type Caste string
 
 const (
-	CasteBuilder      Caste = "builder"
-	CasteWatcher      Caste = "watcher"
-	CasteScout        Caste = "scout"
-	CasteOracle       Caste = "oracle"
-	CasteCurator      Caste = "curator"
-	CasteArchitect    Caste = "architect"
-	CasteRouteSetter  Caste = "route_setter"
-	CasteColonizer    Caste = "colonizer"
+	CasteBuilder       Caste = "builder"
+	CasteWatcher       Caste = "watcher"
+	CasteScout         Caste = "scout"
+	CasteOracle        Caste = "oracle"
+	CasteCurator       Caste = "curator"
+	CasteArchitect     Caste = "architect"
+	CasteRouteSetter   Caste = "route_setter"
+	CasteColonizer     Caste = "colonizer"
 	CasteArchaeologist Caste = "archaeologist"
 )
 

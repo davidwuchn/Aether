@@ -172,8 +172,8 @@ var spawnTreeActiveCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"active":  entries,
-			"count":   len(entries),
+			"active": entries,
+			"count":  len(entries),
 		})
 		return nil
 	},

@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -36,14 +37,14 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	// Custom version printer to match expected format "aether v<version>"
-	Version:       "v" + Version,
+	Version: "v" + Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip store initialization for commands that don't need it.
 		if skipStoreInit(cmd) {
 			return nil
 		}
 
-		dataDir := storage.ResolveDataDir()
+		dataDir := storage.ResolveDataDir(context.Background())
 		s, err := storage.NewStore(dataDir)
 		if err != nil {
 			return fmt.Errorf("failed to initialize store: %w", err)

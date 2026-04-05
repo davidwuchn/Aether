@@ -22,12 +22,12 @@ type skillFrontmatter struct {
 }
 
 type skillIndexEntry struct {
-	Name        string   `json:"name"`
-	Category    string   `json:"category"`
-	Path        string   `json:"path"`
-	IsUserCreated bool   `json:"is_user_created"`
-	Detect      []string `json:"detect,omitempty"`
-	Roles       []string `json:"roles,omitempty"`
+	Name          string   `json:"name"`
+	Category      string   `json:"category"`
+	Path          string   `json:"path"`
+	IsUserCreated bool     `json:"is_user_created"`
+	Detect        []string `json:"detect,omitempty"`
+	Roles         []string `json:"roles,omitempty"`
 }
 
 type skillIndexData struct {
@@ -434,10 +434,10 @@ var skillDiffCmd = &cobra.Command{
 		}
 
 		result := map[string]interface{}{
-			"skill":     name,
-			"user_exists":   userErr == nil,
+			"skill":          name,
+			"user_exists":    userErr == nil,
 			"shipped_exists": shippedErr == nil,
-			"identical":     false,
+			"identical":      false,
 		}
 
 		if userErr == nil && shippedErr == nil {

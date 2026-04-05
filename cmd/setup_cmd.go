@@ -141,7 +141,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		gitignoreContent := "# Aether local state - not versioned\ndata/\ncheckpoints/\nlocks/\n"
 		if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err == nil {
 			results = append(results, map[string]interface{}{
-				"label": ".gitignore",
+				"label":  ".gitignore",
 				"copied": 1,
 			})
 			totalCopied++

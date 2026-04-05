@@ -27,12 +27,12 @@ type SignalXML struct {
 
 // WisdomXML is the root XML element for queen wisdom exchange.
 type WisdomXML struct {
-	XMLName      xml.Name         `xml:"queen-wisdom"`
-	Version      string           `xml:"version,attr"`
-	ColonyID     string           `xml:"colony_id,attr"`
-	GeneratedAt  string           `xml:"generated_at,attr"`
-	Philosophies []PhilosophyXML  `xml:"philosophies>philosophy"`
-	Patterns     []PatternXML     `xml:"patterns>pattern"`
+	XMLName      xml.Name        `xml:"queen-wisdom"`
+	Version      string          `xml:"version,attr"`
+	ColonyID     string          `xml:"colony_id,attr"`
+	GeneratedAt  string          `xml:"generated_at,attr"`
+	Philosophies []PhilosophyXML `xml:"philosophies>philosophy"`
+	Patterns     []PatternXML    `xml:"patterns>pattern"`
 }
 
 // PhilosophyXML represents a queen philosophy entry.
@@ -67,13 +67,13 @@ type RegistryXML struct {
 
 // ColonyXML represents a colony in registry XML.
 type ColonyXML struct {
-	XMLName  xml.Name    `xml:"colony"`
-	ID       string      `xml:"id,attr"`
-	Status   string      `xml:"status,attr"`
-	Name     string      `xml:"name"`
-	ParentID string      `xml:"parent_id,omitempty"`
-	Lineage  *LineageXML `xml:"lineage,omitempty"`
-	CreatedAt string     `xml:"created_at,attr"`
+	XMLName   xml.Name    `xml:"colony"`
+	ID        string      `xml:"id,attr"`
+	Status    string      `xml:"status,attr"`
+	Name      string      `xml:"name"`
+	ParentID  string      `xml:"parent_id,omitempty"`
+	Lineage   *LineageXML `xml:"lineage,omitempty"`
+	CreatedAt string      `xml:"created_at,attr"`
 }
 
 // LineageXML represents colony ancestry.

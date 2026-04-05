@@ -49,7 +49,6 @@ func TestPheromoneWrite(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -81,7 +80,6 @@ func TestPheromoneWriteRedirect(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -110,7 +108,6 @@ func TestPheromoneWriteFeedback(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -136,7 +133,6 @@ func TestPheromoneWriteInvalidType(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -160,7 +156,6 @@ func TestPheromoneWriteMissingFlags(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -181,7 +176,6 @@ func TestPheromoneExpire(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -227,7 +221,6 @@ func TestPheromoneExpireNotFound(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -252,7 +245,6 @@ func TestFlagAdd(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -286,7 +278,6 @@ func TestFlagAddBlocker(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -312,7 +303,6 @@ func TestFlagAddInvalidSeverity(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -333,7 +323,6 @@ func TestFlagCheckBlockers(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -372,7 +361,6 @@ func TestFlagResolve(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -410,7 +398,6 @@ func TestFlagAutoResolve(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -446,7 +433,6 @@ func TestSpawnLog(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -481,7 +467,6 @@ func TestSpawnComplete(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -512,7 +497,6 @@ func TestSpawnCanSpawn(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -537,7 +521,6 @@ func TestSpawnTreeDepth(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -567,7 +550,6 @@ func TestSpawnEfficiency(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -601,7 +583,6 @@ func TestStateMutate(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -648,7 +629,6 @@ func TestStateMutateInvalidTransition(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -678,7 +658,6 @@ func TestLoadState(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -715,7 +694,6 @@ func TestValidateState(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -748,7 +726,6 @@ func TestValidateStateInvalid(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -776,7 +753,6 @@ func TestColonyName(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -810,7 +786,6 @@ func TestColonyNameFallbackToGoal(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -842,7 +817,6 @@ func TestColonyDepthGet(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -867,7 +841,6 @@ func TestColonyDepthSet(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -896,7 +869,6 @@ func TestColonyDepthSetInvalid(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -921,7 +893,6 @@ func TestDomainDetect(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -960,7 +931,6 @@ func TestLearningObserve(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -992,7 +962,6 @@ func TestLearningCheckPromotion(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -1031,7 +1000,6 @@ func TestLearningPromoteAuto(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -1046,8 +1014,8 @@ func TestLearningPromoteAuto(t *testing.T) {
 				TrustScore:  &score,
 			},
 			{
-				ContentHash: "sha256:noteligible",
-				WisdomType:  "philosophy",
+				ContentHash:      "sha256:noteligible",
+				WisdomType:       "philosophy",
 				ObservationCount: 1,
 			},
 		},
@@ -1075,7 +1043,6 @@ func TestActivityLog(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -1104,7 +1071,6 @@ func TestActivityLogRead(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -1137,7 +1103,6 @@ func TestChangelogCollectPlanData(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -1175,7 +1140,6 @@ func TestPheromonePrime(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -1234,7 +1198,6 @@ func TestValidateWorkerResponse(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -1259,7 +1222,6 @@ func TestValidateWorkerResponseInvalidJSON(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)

@@ -21,55 +21,55 @@ func init() {
 // Slash commands reference the flat names directly.
 
 var pheromoneExportXMLCmd = &cobra.Command{
-	Use:   "pheromone-export-xml",
-	Short: "Export pheromone signals to XML (alias for export pheromones)",
+	Use:          "pheromone-export-xml",
+	Short:        "Export pheromone signals to XML (alias for export pheromones)",
 	SilenceUsage: true,
-	RunE:  runExportPheromones,
+	RunE:         runExportPheromones,
 }
 
 var pheromoneImportXMLCmd = &cobra.Command{
-	Use:   "pheromone-import-xml <file>",
-	Short: "Import pheromone signals from XML (alias for import pheromones)",
-	Args:  cobra.ExactArgs(1),
+	Use:          "pheromone-import-xml <file>",
+	Short:        "Import pheromone signals from XML (alias for import pheromones)",
+	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
-	RunE:  runImportPheromones,
+	RunE:         runImportPheromones,
 }
 
 var wisdomExportXMLCmd = &cobra.Command{
-	Use:   "wisdom-export-xml",
-	Short: "Export queen wisdom to XML (alias for export wisdom)",
+	Use:          "wisdom-export-xml",
+	Short:        "Export queen wisdom to XML (alias for export wisdom)",
 	SilenceUsage: true,
-	RunE:  runExportWisdom,
+	RunE:         runExportWisdom,
 }
 
 var wisdomImportXMLCmd = &cobra.Command{
-	Use:   "wisdom-import-xml <file>",
-	Short: "Import queen wisdom from XML (alias for import wisdom)",
-	Args:  cobra.ExactArgs(1),
+	Use:          "wisdom-import-xml <file>",
+	Short:        "Import queen wisdom from XML (alias for import wisdom)",
+	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
-	RunE:  runImportWisdom,
+	RunE:         runImportWisdom,
 }
 
 var registryExportXMLCmd = &cobra.Command{
-	Use:   "registry-export-xml",
-	Short: "Export colony registry to XML (alias for export registry)",
+	Use:          "registry-export-xml",
+	Short:        "Export colony registry to XML (alias for export registry)",
 	SilenceUsage: true,
-	RunE:  runExportRegistry,
+	RunE:         runExportRegistry,
 }
 
 var registryImportXMLCmd = &cobra.Command{
-	Use:   "registry-import-xml <file>",
-	Short: "Import colony registry from XML (alias for import registry)",
-	Args:  cobra.ExactArgs(1),
+	Use:          "registry-import-xml <file>",
+	Short:        "Import colony registry from XML (alias for import registry)",
+	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
-	RunE:  runImportRegistry,
+	RunE:         runImportRegistry,
 }
 
 var colonyArchiveXMLCmd = &cobra.Command{
-	Use:   "colony-archive-xml",
-	Short: "Export complete colony archive to XML (alias for export archive)",
+	Use:          "colony-archive-xml",
+	Short:        "Export complete colony archive to XML (alias for export archive)",
 	SilenceUsage: true,
-	RunE:  runExportArchive,
+	RunE:         runExportArchive,
 }
 
 func init() {

@@ -135,7 +135,7 @@ var swarmDisplayInlineCmd = &cobra.Command{
 
 		sections := map[string]interface{}{
 			"progress": fmt.Sprintf("Phase %d/%d (%d complete)", state.CurrentPhase, totalPhases, completedPhases),
-			"memory":   fmt.Sprintf("%d learnings | %d instincts",
+			"memory": fmt.Sprintf("%d learnings | %d instincts",
 				len(state.Memory.PhaseLearnings), len(state.Memory.Instincts)),
 		}
 

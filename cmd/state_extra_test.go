@@ -16,7 +16,6 @@ func TestStateCheckpoint(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -65,7 +64,6 @@ func TestStateCheckpointMissingName(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -86,7 +84,6 @@ func TestStateCheckpointNoStateFile(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -109,7 +106,6 @@ func TestStateWrite(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -160,7 +156,6 @@ func TestStateWriteMissingField(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -183,7 +178,6 @@ func TestPhaseInsert(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -244,7 +238,6 @@ func TestPhaseInsertAtEnd(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -290,7 +283,6 @@ func TestPhaseInsertInvalidAfter(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -325,7 +317,6 @@ func TestValidateOracleState(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -364,7 +355,6 @@ func TestValidateOracleStateMissing(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -393,7 +383,6 @@ func TestValidateOracleStateInvalidJSON(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -423,7 +412,6 @@ func TestViewStateInit(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -452,7 +440,6 @@ func TestViewStateGetNotFound(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -480,7 +467,6 @@ func TestViewStateSetAndGet(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -524,7 +510,6 @@ func TestViewStateToggle(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -564,7 +549,6 @@ func TestViewStateExpand(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -607,7 +591,6 @@ func TestViewStateCollapse(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -634,7 +617,6 @@ func TestGraveAdd(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -666,7 +648,6 @@ func TestGraveAddWithoutPhase(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -709,7 +690,6 @@ func TestGraveCheckFound(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -744,7 +724,6 @@ func TestGraveCheckNotFound(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -773,7 +752,6 @@ func TestGraveCheckNoFile(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -803,7 +781,6 @@ func TestStateCheckpointNilStore(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)

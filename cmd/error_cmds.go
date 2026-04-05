@@ -187,8 +187,8 @@ var errorFlagPatternCmd = &cobra.Command{
 				}
 
 				outputOK(map[string]interface{}{
-					"updated":    true,
-					"pattern":    name,
+					"updated":     true,
+					"pattern":     name,
 					"occurrences": pf.Patterns[i].Occurrences,
 				})
 				return nil
@@ -262,9 +262,9 @@ var errorSummaryCmd = &cobra.Command{
 // --- error-pattern-check (deprecated) ---
 
 var errorPatternCheckCmd = &cobra.Command{
-	Use:   "error-pattern-check",
-	Short: "Check for recurring error patterns (deprecated)",
-	Args:  cobra.NoArgs,
+	Use:        "error-pattern-check",
+	Short:      "Check for recurring error patterns (deprecated)",
+	Args:       cobra.NoArgs,
 	Deprecated: "use error-flag-pattern instead",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if store == nil {

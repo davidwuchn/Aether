@@ -11,13 +11,13 @@ import (
 )
 
 var (
-	eventTopic     string
-	eventPayload   string
-	eventSource    string
-	eventPattern   string
-	eventSince     string
-	eventLimit     int
-	eventDryRun    bool
+	eventTopic   string
+	eventPayload string
+	eventSource  string
+	eventPattern string
+	eventSince   string
+	eventLimit   int
+	eventDryRun  bool
 )
 
 // newEventBus creates an event bus backed by the current store.
@@ -174,7 +174,7 @@ var eventBusCleanupCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"removed":  removed,
+			"removed":   removed,
 			"remaining": remaining,
 			"dry_run":   eventDryRun,
 		})
@@ -205,4 +205,3 @@ func init() {
 	rootCmd.AddCommand(eventBusCleanupCmd)
 	eventBusCleanupCmd.Flags().BoolVar(&eventDryRun, "dry-run", false, "Report counts without modifying the file")
 }
-

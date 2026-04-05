@@ -69,17 +69,6 @@ aether setup    # Sync companion files to local repo
 
 Five commands from zero to shipped.
 
-**Option 2: Companion file package (also works with Go CLI)**
-
-```bash
-# Install companion files via npm
-npm install -g aether-colony
-```
-
-Then in any project: `/ant:lay-eggs` to set up.
-
- Or use `/ant:update` to get the latest.
-
 ## Key Features
 
 | | Feature | Description |

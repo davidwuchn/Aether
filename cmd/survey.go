@@ -85,9 +85,9 @@ var surveyVerifyCmd = &cobra.Command{
 		allValid := true
 
 		type fileCheck struct {
-			Name     string `json:"name"`
-			Exists   bool   `json:"exists"`
-			ValidJSON bool  `json:"valid_json"`
+			Name      string `json:"name"`
+			Exists    bool   `json:"exists"`
+			ValidJSON bool   `json:"valid_json"`
 		}
 
 		var checks []fileCheck

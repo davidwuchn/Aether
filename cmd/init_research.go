@@ -10,8 +10,8 @@ import (
 
 // projectDetectors maps a marker file to a project type description.
 var projectDetectors = []struct {
-	file    string
-	typ     string
+	file       string
+	typ        string
 	frameworks []string
 }{
 	{"package.json", "node", []string{"node"}},

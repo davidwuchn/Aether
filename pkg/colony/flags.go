@@ -13,6 +13,6 @@ type FlagEntry struct {
 
 // FlagsFile represents the top-level pending-decisions.json file.
 type FlagsFile struct {
-	Version   string     `json:"version"`
+	Version   string      `json:"version"`
 	Decisions []FlagEntry `json:"decisions"`
 }

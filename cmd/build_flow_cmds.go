@@ -17,8 +17,8 @@ const versionCacheFile = ".aether/data/.version-check-cache"
 
 // versionCacheEntry represents a cached version check result.
 type versionCacheEntry struct {
-	Version   string `json:"version"`
-	CachedAt  string `json:"cached_at"`
+	Version  string `json:"version"`
+	CachedAt string `json:"cached_at"`
 }
 
 var versionCheckCachedCmd = &cobra.Command{
@@ -37,9 +37,9 @@ var versionCheckCachedCmd = &cobra.Command{
 				cachedAt, parseErr := time.Parse(time.RFC3339, entry.CachedAt)
 				if parseErr == nil && time.Since(cachedAt) < 24*time.Hour {
 					outputOK(map[string]interface{}{
-						"version":    entry.Version,
-						"cached":     true,
-						"cached_at":  entry.CachedAt,
+						"version":   entry.Version,
+						"cached":    true,
+						"cached_at": entry.CachedAt,
 					})
 					return nil
 				}
@@ -60,9 +60,9 @@ var versionCheckCachedCmd = &cobra.Command{
 		os.WriteFile(cachePath, entryData, 0644)
 
 		outputOK(map[string]interface{}{
-			"version":    currentVersion,
-			"cached":     false,
-			"cached_at":  now,
+			"version":   currentVersion,
+			"cached":    false,
+			"cached_at": now,
 		})
 		return nil
 	},
@@ -264,14 +264,14 @@ var dataSafetyStatsCmd = &cobra.Command{
 		info, err := os.Stat(dataDir)
 		if err != nil {
 			outputOK(map[string]interface{}{
-				"data_dir":          dataDir,
-				"exists":            false,
-				"file_count":        0,
-				"state_exists":      false,
-				"state_size_bytes":  0,
-				"pheromones_count":  0,
-				"session_active":    false,
-				"lock_files_count":  0,
+				"data_dir":         dataDir,
+				"exists":           false,
+				"file_count":       0,
+				"state_exists":     false,
+				"state_size_bytes": 0,
+				"pheromones_count": 0,
+				"session_active":   false,
+				"lock_files_count": 0,
 			})
 			return nil
 		}
@@ -325,14 +325,14 @@ var dataSafetyStatsCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"data_dir":          dataDir,
-			"exists":            true,
-			"file_count":        fileCount,
-			"state_exists":      stateExists,
-			"state_size_bytes":  stateSize,
-			"pheromones_count":  pheromonesCount,
-			"session_active":    sessionActive,
-			"lock_files_count":  lockCount,
+			"data_dir":         dataDir,
+			"exists":           true,
+			"file_count":       fileCount,
+			"state_exists":     stateExists,
+			"state_size_bytes": stateSize,
+			"pheromones_count": pheromonesCount,
+			"session_active":   sessionActive,
+			"lock_files_count": lockCount,
 		})
 		return nil
 	},

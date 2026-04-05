@@ -1,11 +1,16 @@
 package storage
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// resolveTimeout is the timeout used for git commands when resolving paths.
+const resolveTimeout = 30 * time.Second
 
 // ResolveAetherRoot resolves the Aether root directory using a 3-tier fallback:
 //  1. AETHER_ROOT environment variable (if set)
@@ -21,12 +26,14 @@ import (
 //	        AETHER_ROOT="$(pwd)"
 //	    fi
 //	fi
-func ResolveAetherRoot() string {
+func ResolveAetherRoot(ctx context.Context) string {
 	if root := os.Getenv("AETHER_ROOT"); root != "" {
 		return root
 	}
 	// Try git root
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	gitCtx, cancel := context.WithTimeout(ctx, resolveTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(gitCtx, "git", "rev-parse", "--show-toplevel")
 	if out, err := cmd.Output(); err == nil {
 		return strings.TrimSpace(string(out))
 	}
@@ -41,9 +48,9 @@ func ResolveAetherRoot() string {
 //
 // This matches the COLONY_DATA_DIR override logic from the shell codebase
 // where per-colony data directories are resolved via environment variable.
-func ResolveDataDir() string {
+func ResolveDataDir(ctx context.Context) string {
 	if dir := os.Getenv("COLONY_DATA_DIR"); dir != "" {
 		return dir
 	}
-	return filepath.Join(ResolveAetherRoot(), ".aether", "data")
+	return filepath.Join(ResolveAetherRoot(ctx), ".aether", "data")
 }

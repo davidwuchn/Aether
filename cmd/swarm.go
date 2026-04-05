@@ -15,24 +15,24 @@ type swarmFinding struct {
 }
 
 type swarmFindingsFile struct {
-	SwarmID  string          `json:"swarm_id"`
-	Findings []swarmFinding  `json:"findings"`
-	Solution string          `json:"solution,omitempty"`
+	SwarmID  string         `json:"swarm_id"`
+	Findings []swarmFinding `json:"findings"`
+	Solution string         `json:"solution,omitempty"`
 }
 
 type swarmAgentStatus struct {
-	Agent   string `json:"agent"`
-	Status  string `json:"status"`
+	Agent  string `json:"agent"`
+	Status string `json:"status"`
 }
 
 type swarmDisplayFile struct {
-	SwarmID string            `json:"swarm_id"`
+	SwarmID string             `json:"swarm_id"`
 	Agents  []swarmAgentStatus `json:"agents"`
 }
 
 type swarmTimingFile struct {
-	SwarmID  string `json:"swarm_id"`
-	StartAt  string `json:"start_at"`
+	SwarmID string `json:"swarm_id"`
+	StartAt string `json:"start_at"`
 }
 
 // --- swarm-findings-init ---
@@ -333,8 +333,8 @@ var swarmTimingGetCmd = &cobra.Command{
 		elapsed := time.Since(start).Seconds()
 
 		outputOK(map[string]interface{}{
-			"swarm_id": id,
-			"start_at": tf.StartAt,
+			"swarm_id":        id,
+			"start_at":        tf.StartAt,
 			"elapsed_seconds": elapsed,
 		})
 		return nil
@@ -381,11 +381,11 @@ var swarmTimingEtaCmd = &cobra.Command{
 		etaTime := time.Now().Add(time.Duration(etaSeconds) * time.Second).UTC().Format(time.RFC3339)
 
 		outputOK(map[string]interface{}{
-			"swarm_id":       id,
+			"swarm_id":        id,
 			"elapsed_seconds": elapsed,
-			"progress":       progress,
-			"eta_seconds":    etaSeconds,
-			"eta_at":         etaTime,
+			"progress":        progress,
+			"eta_seconds":     etaSeconds,
+			"eta_at":          etaTime,
 		})
 		return nil
 	},

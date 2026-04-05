@@ -15,14 +15,14 @@ import (
 // Hive types for wisdom management.
 
 type hiveWisdomEntry struct {
-	ID         string  `json:"id"`
-	Text       string  `json:"text"`
-	Domain     string  `json:"domain"`
-	SourceRepo string  `json:"source_repo"`
-	Confidence float64 `json:"confidence"`
-	CreatedAt  string  `json:"created_at"`
-	AccessedAt string  `json:"accessed_at"`
-	AccessCount int    `json:"access_count"`
+	ID          string  `json:"id"`
+	Text        string  `json:"text"`
+	Domain      string  `json:"domain"`
+	SourceRepo  string  `json:"source_repo"`
+	Confidence  float64 `json:"confidence"`
+	CreatedAt   string  `json:"created_at"`
+	AccessedAt  string  `json:"accessed_at"`
+	AccessCount int     `json:"access_count"`
 }
 
 type hiveWisdomData struct {
@@ -123,13 +123,13 @@ var hiveStoreCmd = &cobra.Command{
 
 		now := time.Now().UTC().Format(time.RFC3339)
 		entry := hiveWisdomEntry{
-			ID:         fmt.Sprintf("%s_%s", domain, textHash[:12]),
-			Text:       text,
-			Domain:     domain,
-			SourceRepo: sourceRepo,
-			Confidence: 0.5,
-			CreatedAt:  now,
-			AccessedAt: now,
+			ID:          fmt.Sprintf("%s_%s", domain, textHash[:12]),
+			Text:        text,
+			Domain:      domain,
+			SourceRepo:  sourceRepo,
+			Confidence:  0.5,
+			CreatedAt:   now,
+			AccessedAt:  now,
 			AccessCount: 0,
 		}
 
@@ -214,8 +214,8 @@ var hiveAbstractCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"original":  instinct,
-			"abstracted": abstracted,
+			"original":    instinct,
+			"abstracted":  abstracted,
 			"source_repo": sourceRepo,
 		})
 		return nil

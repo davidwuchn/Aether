@@ -16,9 +16,9 @@ type councilPosition struct {
 }
 
 type councilDeliberation struct {
-	Topic     string             `json:"topic"`
-	CreatedAt string             `json:"created_at"`
-	Positions []councilPosition  `json:"positions"`
+	Topic     string            `json:"topic"`
+	CreatedAt string            `json:"created_at"`
+	Positions []councilPosition `json:"positions"`
 }
 
 type councilHistoryData struct {
@@ -267,10 +267,10 @@ var councilBudgetCheckCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"topics":       len(ch.Deliberations),
-			"positions":    totalPositions,
-			"max_budget":   maxBudget,
-			"remaining":    remaining,
+			"topics":     len(ch.Deliberations),
+			"positions":  totalPositions,
+			"max_budget": maxBudget,
+			"remaining":  remaining,
 		})
 		return nil
 	},

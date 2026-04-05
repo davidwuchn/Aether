@@ -450,8 +450,8 @@ func TestSignatureScanFound(t *testing.T) {
 	s.SaveJSON("signatures.json", map[string]interface{}{
 		"signatures": []interface{}{
 			map[string]interface{}{
-				"name":                "test-sig",
-				"pattern_string":      "fmt.Println",
+				"name":                 "test-sig",
+				"pattern_string":       "fmt.Println",
 				"confidence_threshold": 0.8,
 			},
 		},

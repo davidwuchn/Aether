@@ -11,7 +11,6 @@ func TestPendingDecisionAdd(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -44,7 +43,6 @@ func TestPendingDecisionAddWithFlags(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -96,7 +94,6 @@ func TestPendingDecisionListEmpty(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -128,7 +125,6 @@ func TestPendingDecisionListFilterUnresolved(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -187,7 +183,6 @@ func TestPendingDecisionListFilterType(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -219,7 +214,6 @@ func TestPendingDecisionResolve(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -251,7 +245,6 @@ func TestPendingDecisionResolveNotFound(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)

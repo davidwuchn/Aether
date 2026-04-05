@@ -113,8 +113,8 @@ var viewStateSetCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"key":  key,
-			"set":  true,
+			"key": key,
+			"set": true,
 		})
 		return nil
 	},

@@ -124,13 +124,13 @@ func (s *PromoteService) Promote(ctx context.Context, obs colony.Observation, co
 	// Step 7: Create new instinct entry
 	action := fmt.Sprintf("When %s, apply observed pattern", truncateStr(obs.Content, 100))
 	entry := colony.InstinctEntry{
-		ID:                 instID,
-		Trigger:            obs.Content,
-		Action:             action,
-		Domain:             obs.WisdomType,
-		TrustScore:         trustScore,
-		TrustTier:          tierName,
-		Confidence:         confidence,
+		ID:         instID,
+		Trigger:    obs.Content,
+		Action:     action,
+		Domain:     obs.WisdomType,
+		TrustScore: trustScore,
+		TrustTier:  tierName,
+		Confidence: confidence,
 		Provenance: colony.InstinctProvenance{
 			Source:           obs.ContentHash,
 			SourceType:       obs.SourceType,
@@ -219,7 +219,7 @@ func (s *PromoteService) writeGraphEdge(from, to string, createdAt string) {
 
 func (s *PromoteService) publishPromoteEvent(ctx context.Context, instinctID, sourceHash string) {
 	payload, _ := json.Marshal(map[string]string{
-		"instinct_id":  instinctID,
+		"instinct_id": instinctID,
 		"source_hash": sourceHash,
 	})
 	s.bus.Publish(ctx, "instinct.promote", payload, "promote")

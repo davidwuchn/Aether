@@ -183,8 +183,8 @@ var learningExtractFallbackCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"category":  category,
-			"extracted": extracted,
+			"category":      category,
+			"extracted":     extracted,
 			"used_fallback": extracted == fallback,
 		})
 		return nil
@@ -430,7 +430,7 @@ var learningUndoPromotionsCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"undone":          count,
+			"undone":              count,
 			"remaining_instincts": len(state.Memory.Instincts),
 		})
 		return nil

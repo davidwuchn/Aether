@@ -23,7 +23,7 @@ var pheromonePrimeCmd = &cobra.Command{
 		var pf colony.PheromoneFile
 		if err := store.LoadJSON("pheromones.json", &pf); err != nil {
 			outputOK(map[string]interface{}{
-				"section":   "",
+				"section":      "",
 				"signal_count": 0,
 			})
 			return nil
@@ -95,9 +95,9 @@ var pheromonePrimeCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"section":      section,
-			"signal_count": total,
-			"focus_count":  len(focus),
+			"section":        section,
+			"signal_count":   total,
+			"focus_count":    len(focus),
 			"redirect_count": len(redirect),
 			"feedback_count": len(feedback),
 		})
@@ -122,8 +122,8 @@ var colonyPrimeCmd = &cobra.Command{
 		}
 
 		var sections []struct {
-			name    string
-			content string
+			name     string
+			content  string
 			priority int // lower = trimmed first
 		}
 
@@ -244,11 +244,11 @@ var colonyPrimeCmd = &cobra.Command{
 		}
 
 		result := map[string]interface{}{
-			"context":       strings.TrimSpace(assembled.String()),
-			"budget":        budget,
-			"used":          currentLen,
-			"sections":      len(sections),
-			"trimmed":       trimmed,
+			"context":  strings.TrimSpace(assembled.String()),
+			"budget":   budget,
+			"used":     currentLen,
+			"sections": len(sections),
+			"trimmed":  trimmed,
 		}
 
 		outputOK(result)

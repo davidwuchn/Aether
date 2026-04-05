@@ -2,8 +2,8 @@ package colony
 
 import (
 	"bytes"
-	"os"
 	"encoding/json"
+	"os"
 	"testing"
 )
 

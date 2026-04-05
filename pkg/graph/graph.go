@@ -33,11 +33,11 @@ const (
 	EdgePromotedFrom EdgeType = "promoted_from"
 	EdgeDerivedFrom  EdgeType = "derived_from"
 	// Instinct-to-Instinct edges (matching shell graph.sh)
-	EdgeReinforces EdgeType = "reinforces"
+	EdgeReinforces  EdgeType = "reinforces"
 	EdgeContradicts EdgeType = "contradicts"
-	EdgeExtends    EdgeType = "extends"
-	EdgeSupersedes EdgeType = "supersedes"
-	EdgeRelated    EdgeType = "related"
+	EdgeExtends     EdgeType = "extends"
+	EdgeSupersedes  EdgeType = "supersedes"
+	EdgeRelated     EdgeType = "related"
 	// Instinct-to-Queen edges
 	EdgePromotedTo EdgeType = "promoted_to"
 	// Phase-to-Learning/Instinct edges
@@ -47,9 +47,9 @@ const (
 	EdgeContains       EdgeType = "contains"
 	EdgeColonyInstinct EdgeType = "colony_instinct"
 	// Cross-type edges
-	EdgeDependsOn      EdgeType = "depends_on"
-	EdgeInfluenced     EdgeType = "influenced"
-	EdgeConflictsWith  EdgeType = "conflicts_with"
+	EdgeDependsOn       EdgeType = "depends_on"
+	EdgeInfluenced      EdgeType = "influenced"
+	EdgeConflictsWith   EdgeType = "conflicts_with"
 	EdgeSupersedesPhase EdgeType = "supersedes_phase"
 )
 
@@ -62,21 +62,21 @@ type Node struct {
 // Edge represents a directed relationship between two nodes.
 // JSON field names match the shell graph.sh format exactly.
 type Edge struct {
-	ID           string  `json:"edge_id"`
-	Source       string  `json:"source"`
-	Target       string  `json:"target"`
+	ID           string   `json:"edge_id"`
+	Source       string   `json:"source"`
+	Target       string   `json:"target"`
 	Relationship EdgeType `json:"relationship"`
-	Weight       float64 `json:"weight"`
-	CreatedAt    string  `json:"created_at"`
+	Weight       float64  `json:"weight"`
+	CreatedAt    string   `json:"created_at"`
 }
 
 // Neighbor represents a node connected to a query node.
 type Neighbor struct {
-	ID           string  `json:"id"`
+	ID           string   `json:"id"`
 	Relationship EdgeType `json:"relationship"`
-	Weight       float64 `json:"weight"`
-	Direction    string  `json:"direction"` // "out" or "in"
-	Hop          int     `json:"hop,omitempty"`
+	Weight       float64  `json:"weight"`
+	Direction    string   `json:"direction"` // "out" or "in"
+	Hop          int      `json:"hop,omitempty"`
 }
 
 // NeighborsResult holds the result of a neighbor query.
@@ -508,8 +508,8 @@ type ReachNode struct {
 
 // ReachResult holds the result of a reachability query.
 type ReachResult struct {
-	Reachable     []ReachNode `json:"reachable"`
-	Count         int         `json:"count"`
+	Reachable    []ReachNode `json:"reachable"`
+	Count        int         `json:"count"`
 	HopsSearched int         `json:"hops_searched"`
 }
 

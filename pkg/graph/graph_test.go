@@ -455,7 +455,7 @@ func TestNeighborsBoth(t *testing.T) {
 	g.AddNode(Node{ID: "a", Type: NodeInstinct})
 	g.AddNode(Node{ID: "b", Type: NodeInstinct})
 	g.AddNode(Node{ID: "c", Type: NodeInstinct})
-	g.AddEdge("a", "b", EdgeReinforces, 0.8, "2026-04-01T00:00:00Z") // a -> b (out)
+	g.AddEdge("a", "b", EdgeReinforces, 0.8, "2026-04-01T00:00:00Z")  // a -> b (out)
 	g.AddEdge("c", "a", EdgeContradicts, 0.4, "2026-04-01T00:00:00Z") // c -> a (in)
 
 	result, err := g.Neighbors("a", "both", "", 0)

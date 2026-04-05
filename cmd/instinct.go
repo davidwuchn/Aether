@@ -90,12 +90,12 @@ var instinctCreateCmd = &cobra.Command{
 		id := fmt.Sprintf("inst_%d", time.Now().Unix())
 		tierName, tierIndex := memory.Tier(confidence)
 		entry := colony.InstinctEntry{
-			ID:        id,
-			Trigger:   trigger,
-			Action:    action,
-			Domain:    domain,
+			ID:         id,
+			Trigger:    trigger,
+			Action:     action,
+			Domain:     domain,
 			TrustScore: confidence,
-			TrustTier: tierName,
+			TrustTier:  tierName,
 			Confidence: confidence,
 			Provenance: colony.InstinctProvenance{
 				Source:           source,
@@ -138,15 +138,15 @@ var instinctCreateCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"id":              id,
-			"trigger":         trigger,
-			"action":          action,
-			"confidence":      confidence,
-			"trust_tier":      tierName,
+			"id":               id,
+			"trigger":          trigger,
+			"action":           action,
+			"confidence":       confidence,
+			"trust_tier":       tierName,
 			"trust_tier_index": tierIndex,
-			"status":          "active",
-			"duplicate":       duplicate,
-			"total_instincts": len(file.Instincts),
+			"status":           "active",
+			"duplicate":        duplicate,
+			"total_instincts":  len(file.Instincts),
 		})
 		return nil
 	},

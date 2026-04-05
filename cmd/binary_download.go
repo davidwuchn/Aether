@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/spf13/cobra"
 	"github.com/calcosmic/Aether/pkg/downloader"
+	"github.com/spf13/cobra"
 )
 
 // binaryDownloadCmd implements "aether binary-download" which downloads the

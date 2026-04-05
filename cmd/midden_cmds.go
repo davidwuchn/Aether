@@ -336,9 +336,9 @@ var middenCrossPRAnalysisCmd = &cobra.Command{
 		})
 
 		outputOK(map[string]interface{}{
-			"patterns":       patterns,
-			"pattern_count":  len(patterns),
-			"total_entries":  len(mf.Entries),
+			"patterns":      patterns,
+			"pattern_count": len(patterns),
+			"total_entries": len(mf.Entries),
 		})
 		return nil
 	},
@@ -387,10 +387,10 @@ var middenPruneCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"pruned": before - len(mf.Entries),
+			"pruned":    before - len(mf.Entries),
 			"remaining": len(mf.Entries),
-			"before": before,
-			"days": days,
+			"before":    before,
+			"days":      days,
 		})
 		return nil
 	},

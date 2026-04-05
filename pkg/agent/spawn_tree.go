@@ -226,7 +226,7 @@ func (st *SpawnTree) Active() []SpawnEntry {
 
 // spawnTreeJSON matches the shell parse_spawn_tree output format.
 type spawnTreeJSON struct {
-	Spawns []spawnEntryJSON `json:"spawns"`
+	Spawns   []spawnEntryJSON `json:"spawns"`
 	Metadata struct {
 		TotalCount     int `json:"total_count"`
 		ActiveCount    int `json:"active_count"`

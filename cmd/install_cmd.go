@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/calcosmic/Aether/pkg/downloader"
+	"github.com/spf13/cobra"
 )
 
 // installCmd implements "aether install" which copies commands, agents,

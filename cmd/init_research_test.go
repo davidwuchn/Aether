@@ -12,7 +12,6 @@ func TestInitResearchGo(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -47,7 +46,6 @@ func TestInitResearchNode(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -75,7 +73,6 @@ func TestInitResearchUnknown(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -107,7 +104,6 @@ func TestInitResearchMissingGoal(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)

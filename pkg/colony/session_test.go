@@ -2,8 +2,8 @@ package colony
 
 import (
 	"bytes"
-	"os"
 	"encoding/json"
+	"os"
 	"testing"
 )
 
@@ -14,9 +14,9 @@ func TestSessionFileRoundTrip(t *testing.T) {
 		ColonyGoal: "Build something great", CurrentPhase: 4,
 		CurrentMilestone: "First Mound", SuggestedNext: "/ant:build 5",
 		ContextCleared: false, BaselineCommit: "abc123",
-		ResumedAt: nil,
-		ActiveTodos:  []string{"Task A", "Task B"},
-		Summary:      "Phase 4 complete",
+		ResumedAt:   nil,
+		ActiveTodos: []string{"Task A", "Task B"},
+		Summary:     "Phase 4 complete",
 	}
 	data, err := json.Marshal(file)
 	if err != nil {

@@ -258,7 +258,7 @@ func TestRecurrenceConfidence(t *testing.T) {
 
 func TestWisdomThresholds(t *testing.T) {
 	tests := []struct {
-		wisdomType string
+		wisdomType  string
 		wantPropose int
 		wantAuto    int
 	}{

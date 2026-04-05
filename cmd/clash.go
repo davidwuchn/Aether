@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -23,8 +24,14 @@ var clashCheckCmd = &cobra.Command{
 		}
 
 		// List all worktrees and check if the file is modified in any of them
-		out, err := exec.Command("git", "worktree", "list", "--porcelain").Output()
+		ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "git", "worktree", "list", "--porcelain").Output()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				outputError(2, fmt.Sprintf("git worktree list timed out after %v", GitTimeout), nil)
+				return nil
+			}
 			outputOK(map[string]interface{}{"clash": false, "reason": "not a git worktree repo"})
 			return nil
 		}
@@ -35,7 +42,9 @@ var clashCheckCmd = &cobra.Command{
 		worktreePaths := parseWorktreePaths(string(out))
 		for _, wtPath := range worktreePaths {
 			// Check if file has changes in that worktree
-			diffCmd := exec.Command("git", "-C", wtPath, "diff", "--name-only", "HEAD", "--", file)
+			diffCtx, diffCancel := context.WithTimeout(context.Background(), GitTimeout)
+			defer diffCancel()
+			diffCmd := exec.CommandContext(diffCtx, "git", "-C", wtPath, "diff", "--name-only", "HEAD", "--", file)
 			diffOut, diffErr := diffCmd.Output()
 			if diffErr == nil && strings.TrimSpace(string(diffOut)) != "" {
 				clashingWorktrees = append(clashingWorktrees, wtPath)
@@ -44,10 +53,10 @@ var clashCheckCmd = &cobra.Command{
 
 		if len(clashingWorktrees) > 0 {
 			outputOK(map[string]interface{}{
-				"clash":      true,
-				"file":       file,
-				"worktrees":  clashingWorktrees,
-				"count":      len(clashingWorktrees),
+				"clash":     true,
+				"file":      file,
+				"worktrees": clashingWorktrees,
+				"count":     len(clashingWorktrees),
 			})
 		} else {
 			outputOK(map[string]interface{}{"clash": false, "file": file})
@@ -79,11 +88,21 @@ var clashSetupCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Set up git merge driver for clash detection
 		driverCmd := "aether clash-check --file %A"
-		if err := exec.Command("git", "config", "--local", "merge.aether-clash.name", "Aether Clash Detection").Run(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer cancel()
+		if err := exec.CommandContext(ctx, "git", "config", "--local", "merge.aether-clash.name", "Aether Clash Detection").Run(); err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				outputError(2, fmt.Sprintf("git config timed out after %v", GitTimeout), nil)
+				return nil
+			}
 			outputError(2, fmt.Sprintf("failed to set merge driver name: %v", err), nil)
 			return nil
 		}
-		if err := exec.Command("git", "config", "--local", "merge.aether-clash.driver", driverCmd).Run(); err != nil {
+		if err := exec.CommandContext(ctx, "git", "config", "--local", "merge.aether-clash.driver", driverCmd).Run(); err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				outputError(2, fmt.Sprintf("git config timed out after %v", GitTimeout), nil)
+				return nil
+			}
 			outputError(2, fmt.Sprintf("failed to set merge driver: %v", err), nil)
 			return nil
 		}
@@ -106,8 +125,14 @@ var worktreeCreateCmd = &cobra.Command{
 		}
 
 		// Create worktree
-		out, err := exec.Command("git", "worktree", "add", branch, "-b", branch).CombinedOutput()
+		ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "git", "worktree", "add", branch, "-b", branch).CombinedOutput()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				outputError(2, fmt.Sprintf("git worktree add timed out after %v", GitTimeout), nil)
+				return nil
+			}
 			outputError(2, fmt.Sprintf("failed to create worktree: %v: %s", err, string(out)), nil)
 			return nil
 		}
@@ -134,14 +159,22 @@ var worktreeCleanupCmd = &cobra.Command{
 		}
 
 		// Remove worktree
-		out, err := exec.Command("git", "worktree", "remove", branch, "--force").CombinedOutput()
+		ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "git", "worktree", "remove", branch, "--force").CombinedOutput()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				outputError(2, fmt.Sprintf("git worktree remove timed out after %v", GitTimeout), nil)
+				return nil
+			}
 			outputError(2, fmt.Sprintf("failed to remove worktree: %v: %s", err, string(out)), nil)
 			return nil
 		}
 
 		// Prune stale references
-		exec.Command("git", "worktree", "prune").Run()
+		pruneCtx, pruneCancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer pruneCancel()
+		exec.CommandContext(pruneCtx, "git", "worktree", "prune").Run()
 
 		outputOK(map[string]interface{}{
 			"cleaned": true,

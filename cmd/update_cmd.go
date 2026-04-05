@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/calcosmic/Aether/pkg/downloader"
+	"github.com/spf13/cobra"
 )
 
 // updateCmd implements "aether update" which syncs companion files from the
@@ -68,8 +68,8 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	// Sync companion files from hub
 	if dryRun {
 		outputOK(map[string]interface{}{
-			"message": "Dry run — would sync companion files from hub",
-			"hub_version": hubVersion,
+			"message":       "Dry run — would sync companion files from hub",
+			"hub_version":   hubVersion,
 			"local_version": Version,
 			"actions": []string{
 				"Sync .aether/ system files (commands, agents, skills, templates, docs)",
@@ -82,7 +82,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	} else {
 		syncResult := runUpdateSync(hubDir, repoDir)
 		outputOK(map[string]interface{}{
-			"message": fmt.Sprintf("Updated: %d files copied, %d unchanged", syncResult.copied, syncResult.skipped),
+			"message":       fmt.Sprintf("Updated: %d files copied, %d unchanged", syncResult.copied, syncResult.skipped),
 			"hub_version":   hubVersion,
 			"local_version": Version,
 			"details":       syncResult.details,

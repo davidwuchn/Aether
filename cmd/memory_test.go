@@ -16,7 +16,6 @@ func TestMemoryMetrics(t *testing.T) {
 	var buf bytes.Buffer
 
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -61,7 +60,6 @@ func TestMemoryMetricsEmpty(t *testing.T) {
 	var buf bytes.Buffer
 
 	stdout = &buf
-	
 
 	// Create empty store
 	tmpDir := t.TempDir()
@@ -93,7 +91,6 @@ func TestColonyVitalSigns(t *testing.T) {
 	var buf bytes.Buffer
 
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)

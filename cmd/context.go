@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -50,9 +51,9 @@ var resumeDashboardCmd = &cobra.Command{
 					"goal":       "",
 				},
 				"memory_health": map[string]interface{}{
-					"wisdom_count":      0,
+					"wisdom_count":       0,
 					"pending_promotions": 0,
-					"recent_failures":   0,
+					"recent_failures":    0,
 				},
 				"data_safety": map[string]interface{}{},
 				"recent": map[string]interface{}{
@@ -60,7 +61,7 @@ var resumeDashboardCmd = &cobra.Command{
 					"events":    []interface{}{},
 				},
 				"drill_down": map[string]interface{}{
-					"command":  "/ant:memory-details",
+					"command":   "/ant:memory-details",
 					"available": true,
 				},
 			})
@@ -119,9 +120,9 @@ var resumeDashboardCmd = &cobra.Command{
 				"goal":       goal,
 			},
 			"memory_health": map[string]interface{}{
-				"wisdom_count":      wisdomCount,
+				"wisdom_count":       wisdomCount,
 				"pending_promotions": pendingCount,
-				"recent_failures":   failureCount,
+				"recent_failures":    failureCount,
 			},
 			"data_safety": dataSafety,
 			"recent": map[string]interface{}{
@@ -129,7 +130,7 @@ var resumeDashboardCmd = &cobra.Command{
 				"events":    recentEvents,
 			},
 			"drill_down": map[string]interface{}{
-				"command":  "/ant:memory-details",
+				"command":   "/ant:memory-details",
 				"available": true,
 			},
 		})
@@ -414,12 +415,12 @@ var prContextCmd = &cobra.Command{
 			}
 			phaseName := lookupPhaseName(colState, colState.CurrentPhase)
 			colonyStateMap = map[string]interface{}{
-				"exists":       true,
-				"goal":         goal,
-				"state":        string(colState.State),
+				"exists":        true,
+				"goal":          goal,
+				"state":         string(colState.State),
 				"current_phase": colState.CurrentPhase,
-				"total_phases": len(colState.Plan.Phases),
-				"phase_name":   phaseName,
+				"total_phases":  len(colState.Plan.Phases),
+				"phase_name":    phaseName,
 			}
 			cacheStatus["colony_state"] = "read"
 		}
@@ -434,8 +435,8 @@ var prContextCmd = &cobra.Command{
 			cacheStatus["blockers"] = "read"
 		}
 		blockersMap := map[string]interface{}{
-			"count":  len(blockerList),
-			"items":  blockerList,
+			"count": len(blockerList),
+			"items": blockerList,
 		}
 
 		// 8. decisions: From COLONY_STATE.json
@@ -1031,7 +1032,9 @@ var _ = os.ReadFile
 
 // resolveAetherRootPath returns the Aether root directory.
 func resolveAetherRootPath() string {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	ctx, cancel := context.WithTimeout(context.Background(), GeneralTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	if out, err := cmd.Output(); err == nil {
 		return strings.TrimSpace(string(out))
 	}
@@ -1114,7 +1117,7 @@ func readHiveWisdom(hubDir string, limit int, fallbacks *[]string) []string {
 	if data, err := os.ReadFile(wisdomPath); err == nil {
 		var wf struct {
 			Entries []struct {
-				Text       string `json:"text"`
+				Text       string  `json:"text"`
 				Confidence float64 `json:"confidence"`
 			} `json:"entries"`
 		}
@@ -1209,7 +1212,9 @@ func removePRSection(prompt, header string) string {
 
 // detectGitBranch returns the current git branch name.
 func detectGitBranch() string {
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if out, err := cmd.Output(); err == nil {
 		return strings.TrimSpace(string(out))
 	}

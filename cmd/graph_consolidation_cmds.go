@@ -14,15 +14,15 @@ import (
 )
 
 var (
-	graphSource       string
-	graphTarget      string
-	graphRelationship string
-	graphWeight       float64
-	graphNode         string
-	graphDirection    string
-	graphFilterRel    string
-	graphMinWeight    float64
-	graphMaxHops      int
+	graphSource         string
+	graphTarget         string
+	graphRelationship   string
+	graphWeight         float64
+	graphNode           string
+	graphDirection      string
+	graphFilterRel      string
+	graphMinWeight      float64
+	graphMaxHops        int
 	consolidationDryRun bool
 )
 
@@ -66,12 +66,12 @@ var graphLinkCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"edge_id":     edge.ID,
-			"source":      edge.Source,
-			"target":      edge.Target,
+			"edge_id":      edge.ID,
+			"source":       edge.Source,
+			"target":       edge.Target,
 			"relationship": edge.Relationship,
-			"weight":      edge.Weight,
-			"status":      status,
+			"weight":       edge.Weight,
+			"status":       status,
 		})
 		return nil
 	},
@@ -145,8 +145,8 @@ var graphReachCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"reachable":    result.Reachable,
-			"count":        result.Count,
+			"reachable":     result.Reachable,
+			"count":         result.Count,
 			"hops_searched": result.HopsSearched,
 		})
 		return nil
@@ -219,7 +219,7 @@ var consolidationPhaseEndCmd = &cobra.Command{
 				"observations_decayed": result.ObservationsDecayed,
 				"promotion_candidates": len(result.PromotionCandidates),
 				"queen_eligible":       len(result.QueenEligible),
-				"dry_run":             true,
+				"dry_run":              true,
 			})
 			return nil
 		}
@@ -289,7 +289,7 @@ var consolidationSealCmd = &cobra.Command{
 		eventPublished := false
 		if !dryRun {
 			payload, _ := json.Marshal(map[string]string{
-				"type": "consolidation.seal",
+				"type":      "consolidation.seal",
 				"timestamp": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 			})
 			_, pubErr := bus.Publish(ctx, "consolidation.seal", payload, "seal")

@@ -43,7 +43,6 @@ func TestChamberCreate(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -86,7 +85,6 @@ func TestChamberCreateWithPhases(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -123,7 +121,6 @@ func TestChamberCreateMissingName(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -147,7 +144,6 @@ func TestChamberCreateNilStore(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -180,7 +176,6 @@ func TestChamberVerify(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -213,7 +208,6 @@ func TestChamberVerifyMissing(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -234,7 +228,6 @@ func TestChamberListEmpty(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -263,7 +256,6 @@ func TestChamberListWithEntries(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -301,7 +293,6 @@ func TestSuggestApproveAll(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -335,7 +326,6 @@ func TestSuggestApproveById(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -368,7 +358,6 @@ func TestSuggestApproveNoFile(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -393,7 +382,6 @@ func TestSuggestQuickDismiss(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -426,7 +414,6 @@ func TestSuggestQuickDismissNoFile(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -453,7 +440,6 @@ func TestDataCleanDryRun(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -493,7 +479,6 @@ func TestDataCleanConfirm(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -537,7 +522,6 @@ func TestBackupPruneGlobal(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -572,7 +556,6 @@ func TestBackupPruneGlobalNoDir(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -600,7 +583,6 @@ func TestTempClean(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)
@@ -642,7 +624,6 @@ func TestTempCleanNoDir(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStoreWithRoot(t)
 	defer os.RemoveAll(tmpDir)

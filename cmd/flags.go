@@ -15,9 +15,9 @@ var (
 )
 
 var flagsCmd = &cobra.Command{
-	Use:   "flag-list",
-	Short: "List all flags",
-	Args:  cobra.NoArgs,
+	Use:     "flag-list",
+	Short:   "List all flags",
+	Args:    cobra.NoArgs,
 	Aliases: []string{"flags"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if store == nil {

@@ -14,7 +14,6 @@ func TestSurveyLoadNoSurveyDir(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -46,7 +45,6 @@ func TestSurveyLoadWithFiles(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -91,7 +89,6 @@ func TestSurveyLoadNilStore(t *testing.T) {
 	var buf bytes.Buffer
 	saveGlobals(t)
 	stderr = &buf
-	
 
 	store = nil
 
@@ -114,7 +111,6 @@ func TestSurveyVerifyNoSurveyDir(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -148,7 +144,6 @@ func TestSurveyVerifyWithValidFiles(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -178,7 +173,6 @@ func TestSurveyVerifyInvalidJSON(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -225,7 +219,6 @@ func TestVerifyClaimsValid(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -240,8 +233,8 @@ func TestVerifyClaimsValid(t *testing.T) {
 				map[string]interface{}{"title": "phase 2"},
 			},
 		},
-		"current_phase": float64(1),
-		"milestone":     "Brood Stable",
+		"current_phase":        float64(1),
+		"milestone":            "Brood Stable",
 		"milestone_updated_at": "2026-01-01T00:00:00Z",
 	}
 	s.SaveJSON("COLONY_STATE.json", state)
@@ -269,7 +262,6 @@ func TestVerifyClaimsMissingVersion(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -301,7 +293,6 @@ func TestVerifyClaimsExecutingNoTimestamp(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -329,7 +320,6 @@ func TestVerifyClaimsPhaseOutOfRange(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -365,7 +355,6 @@ func TestAutofixCheckpoint(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -415,7 +404,6 @@ func TestAutofixCheckpointMissingIssue(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -436,7 +424,6 @@ func TestAutofixRollback(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -484,7 +471,6 @@ func TestAutofixRollbackNotFound(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := newTestStore(t)
 	defer os.RemoveAll(tmpDir)

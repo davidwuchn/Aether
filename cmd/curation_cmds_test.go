@@ -290,7 +290,7 @@ func TestCurationRunDryRun(t *testing.T) {
 	var envelope struct {
 		OK     bool `json:"ok"`
 		Result struct {
-			Steps      []struct {
+			Steps []struct {
 				Name    string `json:"name"`
 				Success bool   `json:"success"`
 			} `json:"steps"`

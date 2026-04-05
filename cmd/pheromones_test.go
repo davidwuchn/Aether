@@ -15,7 +15,6 @@ func TestPheromoneRead(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -63,7 +62,6 @@ func TestPheromoneReadEmpty(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	// Create empty store with no pheromones
 	tmpDir := t.TempDir()
@@ -97,7 +95,6 @@ func TestPheromoneCount(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -142,7 +139,6 @@ func TestPheromoneCountEmpty(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	tmpDir := t.TempDir()
 	dataDir := tmpDir + "/.aether/data"

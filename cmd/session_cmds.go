@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
@@ -295,7 +296,7 @@ var sessionClearCmd = &cobra.Command{
 			return nil
 		}
 
-		baseDir := storage.ResolveAetherRoot()
+		baseDir := storage.ResolveAetherRoot(context.Background())
 		dir := filepath.Join(baseDir, entry.dir)
 
 		var cleared []string
@@ -382,7 +383,7 @@ var sessionVerifyFreshCmd = &cobra.Command{
 			return nil
 		}
 
-		baseDir := storage.ResolveAetherRoot()
+		baseDir := storage.ResolveAetherRoot(context.Background())
 		dir := filepath.Join(baseDir, entry.dir)
 
 		var fresh, stale, missing []string
@@ -480,7 +481,9 @@ func randomHex(n int) string {
 
 // getGitHEAD returns the current git HEAD commit hash, or "" on error.
 func getGitHEAD() string {
-	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "rev-parse", "HEAD").Output()
 	if err != nil {
 		return ""
 	}
@@ -530,8 +533,8 @@ func rotateSpawnTree(s *storage.Store) {
 // mirrorToLegacy copies session.json to the legacy path if COLONY_DATA_DIR
 // is set and differs from the default data directory.
 func mirrorToLegacy(s *storage.Store) {
-	dataDir := storage.ResolveDataDir()
-	defaultDir := filepath.Join(storage.ResolveAetherRoot(), ".aether", "data")
+	dataDir := storage.ResolveDataDir(context.Background())
+	defaultDir := filepath.Join(storage.ResolveAetherRoot(context.Background()), ".aether", "data")
 	if dataDir == defaultDir {
 		return // no mirror needed
 	}

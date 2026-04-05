@@ -46,10 +46,10 @@ type MiddenSpawnMetrics struct {
 
 // MiddenFile represents the top-level midden.json file.
 type MiddenFile struct {
-	Version         string               `json:"version"`
-	ArchivedAtCount *int                 `json:"archived_at_count,omitempty"`
+	Version         string                 `json:"version"`
+	ArchivedAtCount *int                   `json:"archived_at_count,omitempty"`
 	Signals         []MiddenArchivedSignal `json:"signals"`
-	Entries         []MiddenEntry        `json:"entries"`
-	EntryCount      *int                 `json:"entry_count,omitempty"`
-	SpawnMetrics    *MiddenSpawnMetrics  `json:"spawn_metrics,omitempty"`
+	Entries         []MiddenEntry          `json:"entries"`
+	EntryCount      *int                   `json:"entry_count,omitempty"`
+	SpawnMetrics    *MiddenSpawnMetrics    `json:"spawn_metrics,omitempty"`
 }

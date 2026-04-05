@@ -43,24 +43,24 @@ const (
 
 // ColonyState is the top-level colony state matching COLONY_STATE.json.
 type ColonyState struct {
-	Version        string      `json:"version"`
-	Goal           *string     `json:"goal"`
-	ColonyName     *string     `json:"colony_name"`
-	ColonyVersion  int         `json:"colony_version"`
-	State          State       `json:"state"`
-	CurrentPhase   int         `json:"current_phase"`
-	SessionID      *string     `json:"session_id"`
-	InitializedAt  *time.Time  `json:"initialized_at"`
-	BuildStartedAt *time.Time  `json:"build_started_at"`
-	Plan           Plan        `json:"plan"`
-	Memory         Memory      `json:"memory"`
-	Errors         Errors      `json:"errors"`
-	Signals        []Signal    `json:"signals"`
-	Graveyards     []Graveyard `json:"graveyards"`
-	Events            []string `json:"events"`
-	ColonyDepth       string      `json:"colony_depth,omitempty"`
-	Milestone         string      `json:"milestone"`
-	MilestoneUpdatedAt *string    `json:"milestone_updated_at,omitempty"`
+	Version            string      `json:"version"`
+	Goal               *string     `json:"goal"`
+	ColonyName         *string     `json:"colony_name"`
+	ColonyVersion      int         `json:"colony_version"`
+	State              State       `json:"state"`
+	CurrentPhase       int         `json:"current_phase"`
+	SessionID          *string     `json:"session_id"`
+	InitializedAt      *time.Time  `json:"initialized_at"`
+	BuildStartedAt     *time.Time  `json:"build_started_at"`
+	Plan               Plan        `json:"plan"`
+	Memory             Memory      `json:"memory"`
+	Errors             Errors      `json:"errors"`
+	Signals            []Signal    `json:"signals"`
+	Graveyards         []Graveyard `json:"graveyards"`
+	Events             []string    `json:"events"`
+	ColonyDepth        string      `json:"colony_depth,omitempty"`
+	Milestone          string      `json:"milestone"`
+	MilestoneUpdatedAt *string     `json:"milestone_updated_at,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
@@ -108,11 +108,11 @@ type Memory struct {
 
 // PhaseLearning captures learnings from a specific phase.
 type PhaseLearning struct {
-	ID         string     `json:"id"`
-	Phase      int        `json:"phase"`
-	PhaseName  string     `json:"phase_name"`
-	Learnings  []Learning `json:"learnings"`
-	Timestamp  string     `json:"timestamp"`
+	ID        string     `json:"id"`
+	Phase     int        `json:"phase"`
+	PhaseName string     `json:"phase_name"`
+	Learnings []Learning `json:"learnings"`
+	Timestamp string     `json:"timestamp"`
 }
 
 // Learning represents a single learned claim.
@@ -135,20 +135,20 @@ type Decision struct {
 
 // Instinct represents a learned behavioral pattern.
 type Instinct struct {
-	ID          string   `json:"id"`
-	Trigger     string   `json:"trigger"`
-	Action      string   `json:"action"`
-	Confidence  float64  `json:"confidence"`
-	Status      string   `json:"status"`
-	Domain      string   `json:"domain"`
-	Source      string   `json:"source"`
-	Evidence    []string `json:"evidence"`
-	Tested      bool     `json:"tested"`
-	CreatedAt   string   `json:"created_at"`
-	LastApplied *string  `json:"last_applied"`
-	Applications int     `json:"applications"`
-	Successes   int      `json:"successes"`
-	Failures    int      `json:"failures"`
+	ID           string   `json:"id"`
+	Trigger      string   `json:"trigger"`
+	Action       string   `json:"action"`
+	Confidence   float64  `json:"confidence"`
+	Status       string   `json:"status"`
+	Domain       string   `json:"domain"`
+	Source       string   `json:"source"`
+	Evidence     []string `json:"evidence"`
+	Tested       bool     `json:"tested"`
+	CreatedAt    string   `json:"created_at"`
+	LastApplied  *string  `json:"last_applied"`
+	Applications int      `json:"applications"`
+	Successes    int      `json:"successes"`
+	Failures     int      `json:"failures"`
 }
 
 // ---------------------------------------------------------------------------

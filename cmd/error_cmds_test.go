@@ -461,7 +461,9 @@ func TestErrorPatternCheckNoStateFile(t *testing.T) {
 }
 
 // parseErrorPatternsFile is a test helper to read error-patterns.json
-func parseErrorPatternsFile(t *testing.T, store interface{ LoadJSON(string, interface{}) error }) map[string]interface{} {
+func parseErrorPatternsFile(t *testing.T, store interface {
+	LoadJSON(string, interface{}) error
+}) map[string]interface{} {
 	t.Helper()
 	var result map[string]interface{}
 	if err := store.LoadJSON("error-patterns.json", &result); err != nil {

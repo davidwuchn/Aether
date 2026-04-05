@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/calcosmic/Aether/pkg/storage"
+	"github.com/spf13/cobra"
 )
 
 // outputOK writes a JSON success envelope to stdout:

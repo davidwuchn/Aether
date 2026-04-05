@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/calcosmic/Aether/pkg/storage"
 	"fmt"
+	"github.com/calcosmic/Aether/pkg/storage"
 	"os"
 	"strings"
 	"testing"

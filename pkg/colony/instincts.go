@@ -7,7 +7,7 @@ type InstinctProvenance struct {
 	Evidence         string  `json:"evidence"`
 	CreatedAt        string  `json:"created_at"`
 	LastApplied      *string `json:"last_applied"`
-	ApplicationCount int    `json:"application_count"`
+	ApplicationCount int     `json:"application_count"`
 }
 
 // InstinctEntry represents a single instinct in the standalone instincts.json file.
@@ -29,6 +29,6 @@ type InstinctEntry struct {
 
 // InstinctsFile represents the standalone instincts.json file.
 type InstinctsFile struct {
-	Version  string         `json:"version"`
+	Version   string          `json:"version"`
 	Instincts []InstinctEntry `json:"instincts"`
 }

@@ -2,8 +2,8 @@ package colony
 
 import (
 	"bytes"
-	"os"
 	"encoding/json"
+	"os"
 	"testing"
 )
 
@@ -17,9 +17,9 @@ func TestMiddenFileRoundTrip(t *testing.T) {
 			{
 				ID: "sig_redirect_001", Type: "REDIRECT", Priority: "high", Source: "system",
 				CreatedAt: "2026-02-16T08:00:00Z", Active: false,
-				Content: json.RawMessage(`{"text":"Avoid editing runtime/"}`),
-				Tags:      []PheromoneTag{{Value: "safety", Weight: 1.0, Category: "constraint"}},
-				Scope:     &PheromoneScope{Global: true},
+				Content:    json.RawMessage(`{"text":"Avoid editing runtime/"}`),
+				Tags:       []PheromoneTag{{Value: "safety", Weight: 1.0, Category: "constraint"}},
+				Scope:      &PheromoneScope{Global: true},
 				ArchivedAt: strPtr("2026-03-20T19:50:49Z"),
 			},
 		},

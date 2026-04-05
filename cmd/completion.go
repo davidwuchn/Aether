@@ -47,8 +47,8 @@ PowerShell:
   PS> aether completion powershell > aether.ps1
   # and source this file from your PowerShell profile.
 `,
-	Args:              cobra.ExactValidArgs(1),
-	ValidArgs:         []string{"bash", "zsh", "fish", "powershell"},
+	Args:      cobra.ExactValidArgs(1),
+	ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		switch args[0] {
 		case "bash":

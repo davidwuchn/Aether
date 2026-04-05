@@ -17,11 +17,11 @@ type TriggerConfig struct {
 
 // AgentConfig holds the parsed agent specification from YAML frontmatter.
 type AgentConfig struct {
-	Name        string         `yaml:"name"`
-	Description string         `yaml:"description"`
-	Tools       []string       `yaml:"tools"`
-	Color       string         `yaml:"color"`
-	Model       string         `yaml:"model"`
+	Name        string          `yaml:"name"`
+	Description string          `yaml:"description"`
+	Tools       []string        `yaml:"tools"`
+	Color       string          `yaml:"color"`
+	Model       string          `yaml:"model"`
 	Triggers    []TriggerConfig `yaml:"triggers"`
 }
 

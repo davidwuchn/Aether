@@ -25,7 +25,7 @@ func TestValidTransitions(t *testing.T) {
 		{StateREADY, StateCOMPLETED},
 	}
 	for _, tt := range tests {
-		t.Run(string(tt.from) + "->" + string(tt.to), func(t *testing.T) {
+		t.Run(string(tt.from)+"->"+string(tt.to), func(t *testing.T) {
 			if err := Transition(tt.from, tt.to); err != nil {
 				t.Fatalf("expected no error for %s->%s, got: %v", tt.from, tt.to, err)
 			}
@@ -49,7 +49,7 @@ func TestInvalidTransitions(t *testing.T) {
 		{StateBUILT, StateCOMPLETED},
 	}
 	for _, tt := range tests {
-		t.Run(string(tt.from) + "->" + string(tt.to), func(t *testing.T) {
+		t.Run(string(tt.from)+"->"+string(tt.to), func(t *testing.T) {
 			if err := Transition(tt.from, tt.to); err == nil {
 				t.Fatalf("expected error for %s->%s, got nil", tt.from, tt.to)
 			}
@@ -126,17 +126,17 @@ func TestRoundTripColonyState(t *testing.T) {
 	taskID := "1.1"
 
 	input := ColonyState{
-		Version:           "3.0",
-		Goal:              &goal,
-		ColonyName:        strPtr("Test Colony"),
-		ColonyVersion:     1,
-		State:             StateREADY,
-		CurrentPhase:      1,
-		SessionID:         strPtr("session_123_abc"),
-		InitializedAt:     &now,
-		BuildStartedAt:    &now,
-		ColonyDepth:       "standard",
-		Milestone:         "Crowned Anthill",
+		Version:            "3.0",
+		Goal:               &goal,
+		ColonyName:         strPtr("Test Colony"),
+		ColonyVersion:      1,
+		State:              StateREADY,
+		CurrentPhase:       1,
+		SessionID:          strPtr("session_123_abc"),
+		InitializedAt:      &now,
+		BuildStartedAt:     &now,
+		ColonyDepth:        "standard",
+		Milestone:          "Crowned Anthill",
 		MilestoneUpdatedAt: &milestoneAt,
 		Plan: Plan{
 			GeneratedAt: &now,
@@ -170,7 +170,7 @@ func TestRoundTripColonyState(t *testing.T) {
 				},
 			},
 		},
-		Signals:    []Signal{},
+		Signals: []Signal{},
 		Graveyards: []Graveyard{
 			{
 				ID: "grave_1", File: "test.ts", AntName: "Builder-1",
@@ -638,6 +638,14 @@ func TestRealColonyStateDataIntegrity(t *testing.T) {
 	var state ColonyState
 	if err := json.Unmarshal(data, &state); err != nil {
 		t.Fatalf("unmarshal: %v", err)
+	}
+
+	// Skip if no colony initialized or not yet planned
+	if state.Goal == nil || *state.Goal == "" {
+		t.Skip("no colony initialized — skipping integrity check")
+	}
+	if len(state.Plan.Phases) == 0 {
+		t.Skip("no plan phases — colony initialized but not yet planned")
 	}
 
 	// Check top-level fields

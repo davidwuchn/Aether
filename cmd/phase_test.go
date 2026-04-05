@@ -125,7 +125,6 @@ func TestPhaseCurrentPhase(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -163,7 +162,6 @@ func TestPhaseSpecificNumber(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -196,7 +194,6 @@ func TestPhaseInvalidNumber(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stderr = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -223,7 +220,6 @@ func TestPhaseTaskCompletion(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)

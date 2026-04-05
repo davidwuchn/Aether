@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -30,7 +31,7 @@ var chamberCreateCmd = &cobra.Command{
 		phasesCompleted, _ := cmd.Flags().GetInt("phases-completed")
 		totalPhases, _ := cmd.Flags().GetInt("total-phases")
 
-		aetherRoot := storage.ResolveAetherRoot()
+		aetherRoot := storage.ResolveAetherRoot(context.Background())
 		chamberDir := filepath.Join(aetherRoot, ".aether", "chambers", name)
 
 		if err := os.MkdirAll(chamberDir, 0755); err != nil {
@@ -78,7 +79,7 @@ var chamberVerifyCmd = &cobra.Command{
 			return nil
 		}
 
-		aetherRoot := storage.ResolveAetherRoot()
+		aetherRoot := storage.ResolveAetherRoot(context.Background())
 		chamberDir := filepath.Join(aetherRoot, ".aether", "chambers", name)
 
 		manifestPath := filepath.Join(chamberDir, "manifest.json")
@@ -120,7 +121,7 @@ var chamberListCmd = &cobra.Command{
 	Short: "List all chambers",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		aetherRoot := storage.ResolveAetherRoot()
+		aetherRoot := storage.ResolveAetherRoot(context.Background())
 		chambersDir := filepath.Join(aetherRoot, ".aether", "chambers")
 
 		entries, err := os.ReadDir(chambersDir)

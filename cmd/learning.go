@@ -54,13 +54,13 @@ var learningObserveCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"captured":          true,
-			"is_new":            result.IsNew,
-			"observation_id":    result.Observation.ContentHash,
-			"observation_count": result.Observation.ObservationCount,
-			"trust_score":       result.Observation.TrustScore,
+			"captured":           true,
+			"is_new":             result.IsNew,
+			"observation_id":     result.Observation.ContentHash,
+			"observation_count":  result.Observation.ObservationCount,
+			"trust_score":        result.Observation.TrustScore,
 			"promotion_eligible": result.PromotionEligible,
-			"promotion_reason":  result.PromotionReason,
+			"promotion_reason":   result.PromotionReason,
 		})
 		return nil
 	},
@@ -103,10 +103,10 @@ var learningCheckPromotionCmd = &cobra.Command{
 		eligible, reason := memory.CheckPromotion(*found)
 
 		outputOK(map[string]interface{}{
-			"promotable":       eligible,
-			"reason":           reason,
+			"promotable":        eligible,
+			"reason":            reason,
 			"observation_count": found.ObservationCount,
-			"trust_score":      found.TrustScore,
+			"trust_score":       found.TrustScore,
 		})
 		return nil
 	},
@@ -137,8 +137,8 @@ var learningPromoteAutoCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"promoted":        promoted,
-			"total_observed":  len(file.Observations),
+			"promoted":       promoted,
+			"total_observed": len(file.Observations),
 		})
 		return nil
 	},
@@ -174,8 +174,8 @@ var memoryCaptureCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"captured":   true,
-			"is_new":     result.IsNew,
+			"captured":    true,
+			"is_new":      result.IsNew,
 			"trust_score": result.Observation.TrustScore,
 		})
 		return nil

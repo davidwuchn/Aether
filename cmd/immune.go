@@ -78,11 +78,11 @@ func diagnoseError(errMsg string) map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"error":      errMsg,
-		"strategy":   strategy,
-		"retryable":  retryable,
-		"backoff_s":  backoff,
-		"diagnosed":  time.Now().UTC().Format(time.RFC3339),
+		"error":     errMsg,
+		"strategy":  strategy,
+		"retryable": retryable,
+		"backoff_s": backoff,
+		"diagnosed": time.Now().UTC().Format(time.RFC3339),
 	}
 }
 
@@ -102,10 +102,10 @@ var trophallaxisRetryCmd = &cobra.Command{
 		maxAttempts := 3
 		if attempt >= maxAttempts {
 			outputOK(map[string]interface{}{
-				"retry":    false,
-				"reason":   "max_attempts_reached",
-				"attempt":  attempt,
-				"max":      maxAttempts,
+				"retry":   false,
+				"reason":  "max_attempts_reached",
+				"attempt": attempt,
+				"max":     maxAttempts,
 			})
 			return nil
 		}
@@ -114,10 +114,10 @@ var trophallaxisRetryCmd = &cobra.Command{
 		backoff := int(math.Pow(2, float64(attempt)) * 2)
 
 		outputOK(map[string]interface{}{
-			"retry":      true,
-			"attempt":    attempt + 1,
-			"backoff_s":  backoff,
-			"max":        maxAttempts,
+			"retry":     true,
+			"attempt":   attempt + 1,
+			"backoff_s": backoff,
+			"max":       maxAttempts,
 		})
 		return nil
 	},

@@ -183,7 +183,7 @@ func downloadText(url string) (string, error) {
 
 // HashResult holds the computed SHA-256 hash and path of a downloaded file.
 type HashResult struct {
-	Hash   string
+	Hash    string
 	TmpPath string
 }
 
@@ -213,7 +213,7 @@ func downloadAndHash(url, tmpPath string) (*HashResult, error) {
 	}
 
 	return &HashResult{
-		Hash:   fmt.Sprintf("%x", hash.Sum(nil)),
+		Hash:    fmt.Sprintf("%x", hash.Sum(nil)),
 		TmpPath: tmpPath,
 	}, nil
 }

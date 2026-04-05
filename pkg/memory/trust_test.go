@@ -142,9 +142,9 @@ func TestTrustCalculate_Floor(t *testing.T) {
 
 func TestTrustDecay(t *testing.T) {
 	tests := []struct {
-		name      string
-		score     float64
-		days      int
+		name       string
+		score      float64
+		days       int
 		wantApprox float64
 	}{
 		{"decay_30_days", 0.8, 30, 0.566},

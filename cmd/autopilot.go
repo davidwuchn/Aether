@@ -10,20 +10,20 @@ import (
 // Autopilot manages automated build-verify-advance cycles.
 
 type autopilotPhaseStatus struct {
-	Phase   int    `json:"phase"`
-	Status  string `json:"status"`
-	At      string `json:"at,omitempty"`
+	Phase  int    `json:"phase"`
+	Status string `json:"status"`
+	At     string `json:"at,omitempty"`
 }
 
 type autopilotState struct {
-	InitializedAt   string                `json:"initialized_at"`
-	TotalPhases     int                   `json:"total_phases"`
-	CurrentPhase    int                   `json:"current_phase"`
-	Status          string                `json:"status"` // running, paused, stopped, completed
-	Headless        bool                  `json:"headless"`
-	ReplanInterval  int                   `json:"replan_interval"`
-	Phases          []autopilotPhaseStatus `json:"phases"`
-	LastUpdated     string                `json:"last_updated"`
+	InitializedAt  string                 `json:"initialized_at"`
+	TotalPhases    int                    `json:"total_phases"`
+	CurrentPhase   int                    `json:"current_phase"`
+	Status         string                 `json:"status"` // running, paused, stopped, completed
+	Headless       bool                   `json:"headless"`
+	ReplanInterval int                    `json:"replan_interval"`
+	Phases         []autopilotPhaseStatus `json:"phases"`
+	LastUpdated    string                 `json:"last_updated"`
 }
 
 const autopilotStatePath = "autopilot/state.json"
@@ -43,14 +43,14 @@ var autopilotInitCmd = &cobra.Command{
 
 		now := time.Now().UTC().Format(time.RFC3339)
 		state := autopilotState{
-			InitializedAt: now,
-			TotalPhases:   phases,
-			CurrentPhase:  0,
-			Status:        "initialized",
-			Headless:      false,
+			InitializedAt:  now,
+			TotalPhases:    phases,
+			CurrentPhase:   0,
+			Status:         "initialized",
+			Headless:       false,
 			ReplanInterval: 3,
-			Phases:        make([]autopilotPhaseStatus, 0, phases),
-			LastUpdated:   now,
+			Phases:         make([]autopilotPhaseStatus, 0, phases),
+			LastUpdated:    now,
 		}
 
 		if err := store.SaveJSON(autopilotStatePath, state); err != nil {
@@ -59,9 +59,9 @@ var autopilotInitCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"initialized":   true,
-			"total_phases":  phases,
-			"status":        "initialized",
+			"initialized":  true,
+			"total_phases": phases,
+			"status":       "initialized",
 		})
 		return nil
 	},
@@ -120,11 +120,11 @@ var autopilotUpdateCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"updated":      true,
-			"phase":        phase,
-			"status":       status,
-			"current":      state.CurrentPhase,
-			"total":        state.TotalPhases,
+			"updated": true,
+			"phase":   phase,
+			"status":  status,
+			"current": state.CurrentPhase,
+			"total":   state.TotalPhases,
 		})
 		return nil
 	},
@@ -231,11 +231,11 @@ var autopilotCheckReplanCmd = &cobra.Command{
 
 		if interval > 0 && completedPhases > 0 && completedPhases%interval == 0 {
 			outputOK(map[string]interface{}{
-				"replan":          true,
-				"reason":          "interval_reached",
-				"completed":       completedPhases,
-				"interval":        interval,
-				"next_replan_at":  completedPhases + interval,
+				"replan":         true,
+				"reason":         "interval_reached",
+				"completed":      completedPhases,
+				"interval":       interval,
+				"next_replan_at": completedPhases + interval,
 			})
 		} else {
 			nextReplan := completedPhases + interval - (completedPhases % interval)
@@ -243,10 +243,10 @@ var autopilotCheckReplanCmd = &cobra.Command{
 				nextReplan = interval
 			}
 			outputOK(map[string]interface{}{
-				"replan":          false,
-				"completed":       completedPhases,
-				"interval":        interval,
-				"next_replan_at":  nextReplan,
+				"replan":         false,
+				"completed":      completedPhases,
+				"interval":       interval,
+				"next_replan_at": nextReplan,
 			})
 		}
 		return nil

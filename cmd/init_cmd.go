@@ -61,14 +61,14 @@ var initCmd = &cobra.Command{
 
 		// Create COLONY_STATE.json v3.0
 		state := colony.ColonyState{
-			Version:        "3.0",
-			Goal:           &goal,
-			ColonyVersion:  0,
-			State:          colony.StateREADY,
-			CurrentPhase:   0,
-			SessionID:      &sessionID,
-			InitializedAt:  &now,
-			Plan:           colony.Plan{Phases: []colony.Phase{}},
+			Version:       "3.0",
+			Goal:          &goal,
+			ColonyVersion: 0,
+			State:         colony.StateREADY,
+			CurrentPhase:  0,
+			SessionID:     &sessionID,
+			InitializedAt: &now,
+			Plan:          colony.Plan{Phases: []colony.Phase{}},
 			Memory: colony.Memory{
 				PhaseLearnings: []colony.PhaseLearning{},
 				Decisions:      []colony.Decision{},

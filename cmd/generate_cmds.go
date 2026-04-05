@@ -219,12 +219,12 @@ var generateThresholdBarCmd = &cobra.Command{
 		percentage := int(value * 100 / maxVal)
 
 		outputOK(map[string]interface{}{
-			"bar":         "[" + bar + "]",
-			"percentage":  percentage,
-			"value":       value,
-			"threshold":   threshold,
-			"max":         maxVal,
-			"exceeds":     value > threshold,
+			"bar":        "[" + bar + "]",
+			"percentage": percentage,
+			"value":      value,
+			"threshold":  threshold,
+			"max":        maxVal,
+			"exceeds":    value > threshold,
 		})
 		return nil
 	},

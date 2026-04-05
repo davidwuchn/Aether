@@ -101,7 +101,7 @@ var pheromoneWriteCmd = &cobra.Command{
 		case "FEEDBACK":
 			expires := time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339)
 			signal.ExpiresAt = &expires
-		// FOCUS: no ExpiresAt (expires at phase end)
+			// FOCUS: no ExpiresAt (expires at phase end)
 		}
 
 		// Load existing pheromones file

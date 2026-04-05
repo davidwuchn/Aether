@@ -97,7 +97,6 @@ func TestHistoryDefault(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -142,7 +141,6 @@ func TestHistoryWithLimit(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -182,7 +180,6 @@ func TestHistoryWithFilter(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
@@ -209,7 +206,6 @@ func TestHistoryEmpty(t *testing.T) {
 	resetRootCmd(t)
 	var buf bytes.Buffer
 	stdout = &buf
-	
 
 	// Create store with colony state but no events
 	tmpDir := t.TempDir()

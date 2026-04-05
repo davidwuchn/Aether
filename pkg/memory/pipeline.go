@@ -28,10 +28,10 @@ type Pipeline struct {
 	Queen       *QueenService
 	Consolidate *ConsolidationService
 
-	observeCh        <-chan events.Event
-	consolidationCh  <-chan events.Event
-	cancel           context.CancelFunc
-	wg               sync.WaitGroup
+	observeCh       <-chan events.Event
+	consolidationCh <-chan events.Event
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
 }
 
 // NewPipeline creates a new pipeline with all services wired together.
@@ -92,9 +92,9 @@ func (p *Pipeline) observeLoop(ctx context.Context) {
 // handleObserveEvent processes an observation event and promotes if eligible.
 func (p *Pipeline) handleObserveEvent(ctx context.Context, evt events.Event) {
 	var payload struct {
-		Content     string `json:"content"`
-		WisdomType  string `json:"wisdom_type"`
-		ColonyName  string `json:"colony_name"`
+		Content    string `json:"content"`
+		WisdomType string `json:"wisdom_type"`
+		ColonyName string `json:"colony_name"`
 	}
 	if err := json.Unmarshal(evt.Payload, &payload); err != nil {
 		return

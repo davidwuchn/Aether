@@ -15,11 +15,11 @@ import (
 
 // AntipatternFinding represents a single finding from the antipattern scanner.
 type AntipatternFinding struct {
-	Pattern  string `json:"pattern"`
-	File     string `json:"file"`
-	Line     int    `json:"line,omitempty"`
-	Count    int    `json:"count,omitempty"`
-	Message  string `json:"message"`
+	Pattern string `json:"pattern"`
+	File    string `json:"file"`
+	Line    int    `json:"line,omitempty"`
+	Count   int    `json:"count,omitempty"`
+	Message string `json:"message"`
 }
 
 var checkAntipatternCmd = &cobra.Command{
@@ -232,9 +232,9 @@ var signatureScanCmd = &cobra.Command{
 		// Load signatures file
 		var sigFile struct {
 			Signatures []struct {
-				Name               string  `json:"name"`
-				Description        string  `json:"description"`
-				PatternString      string  `json:"pattern_string"`
+				Name                string  `json:"name"`
+				Description         string  `json:"description"`
+				PatternString       string  `json:"pattern_string"`
 				ConfidenceThreshold float64 `json:"confidence_threshold"`
 			} `json:"signatures"`
 		}
@@ -248,9 +248,9 @@ var signatureScanCmd = &cobra.Command{
 
 		// Find the named signature
 		var found *struct {
-			Name               string  `json:"name"`
-			Description        string  `json:"description"`
-			PatternString      string  `json:"pattern_string"`
+			Name                string  `json:"name"`
+			Description         string  `json:"description"`
+			PatternString       string  `json:"pattern_string"`
 			ConfidenceThreshold float64 `json:"confidence_threshold"`
 		}
 		for i := range sigFile.Signatures {
@@ -288,8 +288,8 @@ var signatureScanCmd = &cobra.Command{
 
 		if matchCount > 0 {
 			outputOK(map[string]interface{}{
-				"found":      true,
-				"signature":  found,
+				"found":       true,
+				"signature":   found,
 				"match_count": matchCount,
 			})
 			return nil

@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,7 +27,9 @@ var worktreeMergeCmd = &cobra.Command{
 
 		target, _ := cmd.Flags().GetString("target")
 		if target == "" {
-			out, _ := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output()
+			ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+			defer cancel()
+			out, _ := exec.CommandContext(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD").Output()
 			target = strings.TrimSpace(string(out))
 			if target == "" {
 				target = "main"
@@ -44,8 +47,14 @@ var worktreeMergeCmd = &cobra.Command{
 		}
 
 		// Safety check 2: Commits ahead of target.
-		out, err := exec.Command("git", "-C", gitDir, "rev-list", "--count", target+".."+branch).Output()
+		ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, "git", "-C", gitDir, "rev-list", "--count", target+".."+branch).Output()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				outputError(1, fmt.Sprintf("git rev-list timed out after %v", GitTimeout), nil)
+				return nil
+			}
 			outputError(1, fmt.Sprintf("failed to check commits ahead: %v", err), nil)
 			return nil
 		}
@@ -63,9 +72,17 @@ var worktreeMergeCmd = &cobra.Command{
 
 		// Perform the merge.
 		mergeMsg := fmt.Sprintf("merge: worktree branch %s into %s", branch, target)
-		out, err = exec.Command("git", "-C", gitDir, "merge", branch, "--no-edit", "--no-ff", "-m", mergeMsg).CombinedOutput()
+		mergeCtx, mergeCancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer mergeCancel()
+		out, err = exec.CommandContext(mergeCtx, "git", "-C", gitDir, "merge", branch, "--no-edit", "--no-ff", "-m", mergeMsg).CombinedOutput()
 		if err != nil {
-			exec.Command("git", "-C", gitDir, "merge", "--abort").Run()
+			if mergeCtx.Err() == context.DeadlineExceeded {
+				outputError(2, fmt.Sprintf("git merge timed out after %v", GitTimeout), nil)
+				return nil
+			}
+			abortCtx, abortCancel := context.WithTimeout(context.Background(), GitTimeout)
+			defer abortCancel()
+			exec.CommandContext(abortCtx, "git", "-C", gitDir, "merge", "--abort").Run()
 			outputError(2, fmt.Sprintf("merge failed: %s", strings.TrimSpace(string(out))), nil)
 			return nil
 		}
@@ -73,25 +90,39 @@ var worktreeMergeCmd = &cobra.Command{
 		// Safety check 4: Build verification (only when go.mod exists).
 		// Per D-05, verify the merged code compiles. Skip if not a Go project.
 		if _, err := os.Stat(gitDir + "/go.mod"); err == nil {
-			out, err = exec.Command("go", "build", "-C", gitDir, "./cmd/aether").CombinedOutput()
+			buildCtx, buildCancel := context.WithTimeout(context.Background(), BuildTimeout)
+			defer buildCancel()
+			out, err = exec.CommandContext(buildCtx, "go", "build", "-C", gitDir, "./cmd/aether").CombinedOutput()
 			if err != nil {
-				exec.Command("git", "-C", gitDir, "merge", "--abort").Run()
+				if buildCtx.Err() == context.DeadlineExceeded {
+					outputError(2, fmt.Sprintf("go build timed out after %v", BuildTimeout), nil)
+					return nil
+				}
+				abortCtx2, abortCancel2 := context.WithTimeout(context.Background(), GitTimeout)
+				defer abortCancel2()
+				exec.CommandContext(abortCtx2, "git", "-C", gitDir, "merge", "--abort").Run()
 				outputError(2, fmt.Sprintf("build failed after merge: %s", strings.TrimSpace(string(out))), nil)
 				return nil
 			}
 		}
 
-			// Restore .aether/data/ to target branch version.
-			// Per MERGE-03: .aether/data/ conflicts prefer the target (main) version.
-			// This prevents worktree-local colony state from overriding main's data.
-			// Use HEAD^1 (first parent of merge = pre-merge target) to restore files.
-			dataCheckOut, _ := exec.Command("git", "-C", gitDir, "ls-tree", "-r", "--name-only", "HEAD^1", ".aether/data/").Output()
-			if len(strings.TrimSpace(string(dataCheckOut))) > 0 {
-				exec.Command("git", "-C", gitDir, "checkout", "HEAD^1", "--", ".aether/data/").Run()
-			}
+		// Restore .aether/data/ to target branch version.
+		// Per MERGE-03: .aether/data/ conflicts prefer the target (main) version.
+		// This prevents worktree-local colony state from overriding main's data.
+		// Use HEAD^1 (first parent of merge = pre-merge target) to restore files.
+		lsCtx, lsCancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer lsCancel()
+		dataCheckOut, _ := exec.CommandContext(lsCtx, "git", "-C", gitDir, "ls-tree", "-r", "--name-only", "HEAD^1", ".aether/data/").Output()
+		if len(strings.TrimSpace(string(dataCheckOut))) > 0 {
+			coCtx, coCancel := context.WithTimeout(context.Background(), GitTimeout)
+			defer coCancel()
+			exec.CommandContext(coCtx, "git", "-C", gitDir, "checkout", "HEAD^1", "--", ".aether/data/").Run()
+		}
 
-			// Success: report merge result.
-		mergeSHA, _ := exec.Command("git", "-C", gitDir, "rev-parse", "HEAD").Output()
+		// Success: report merge result.
+		shaCtx, shaCancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer shaCancel()
+		mergeSHA, _ := exec.CommandContext(shaCtx, "git", "-C", gitDir, "rev-parse", "HEAD").Output()
 		outputOK(map[string]interface{}{
 			"merged": true,
 			"branch": branch,
@@ -115,8 +146,13 @@ func resolveGitDir() string {
 // checkDirtyWorktree checks for uncommitted changes in the working tree,
 // excluding .aether/ paths which are local-only colony state.
 func checkDirtyWorktree(gitDir, branch string) error {
-	out, err := exec.Command("git", "-C", gitDir, "status", "--porcelain").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "git", "-C", gitDir, "status", "--porcelain").Output()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("git status timed out after %v", GitTimeout)
+		}
 		return nil // If status fails, proceed (might not be in a git repo)
 	}
 
@@ -143,15 +179,25 @@ func checkDirtyWorktree(gitDir, branch string) error {
 // checkMergeConflicts uses git merge-tree to detect conflicts before merging.
 func checkMergeConflicts(gitDir, target, branch string) error {
 	// Find the merge base between target and branch.
-	baseOut, err := exec.Command("git", "-C", gitDir, "merge-base", target, branch).Output()
+	baseCtx, baseCancel := context.WithTimeout(context.Background(), GitTimeout)
+	defer baseCancel()
+	baseOut, err := exec.CommandContext(baseCtx, "git", "-C", gitDir, "merge-base", target, branch).Output()
 	if err != nil {
+		if baseCtx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("git merge-base timed out after %v", GitTimeout)
+		}
 		return fmt.Errorf("failed to find merge base: %v", err)
 	}
 	base := strings.TrimSpace(string(baseOut))
 
 	// Dry-run merge to detect conflicts.
-	out, err := exec.Command("git", "-C", gitDir, "merge-tree", base, target, branch).Output()
+	treeCtx, treeCancel := context.WithTimeout(context.Background(), GitTimeout)
+	defer treeCancel()
+	out, err := exec.CommandContext(treeCtx, "git", "-C", gitDir, "merge-tree", base, target, branch).Output()
 	if err != nil {
+		if treeCtx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("git merge-tree timed out after %v", GitTimeout)
+		}
 		return fmt.Errorf("conflict detection failed: %v", err)
 	}
 

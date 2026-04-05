@@ -16,14 +16,14 @@ func init() {
 }
 
 var exportCmd = &cobra.Command{
-	Use:   "export [pheromones|wisdom|registry|archive]",
-	Short: "Export colony data to XML format",
+	Use:          "export [pheromones|wisdom|registry|archive]",
+	Short:        "Export colony data to XML format",
 	SilenceUsage: true,
 }
 
 var importCmd = &cobra.Command{
-	Use:   "import [pheromones|wisdom|registry]",
-	Short: "Import colony data from XML format",
+	Use:          "import [pheromones|wisdom|registry]",
+	Short:        "Import colony data from XML format",
 	SilenceUsage: true,
 }
 
