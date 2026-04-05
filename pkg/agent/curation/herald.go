@@ -3,9 +3,9 @@ package curation
 import (
 	"context"
 
-	"github.com/aether-colony/aether/pkg/agent"
-	"github.com/aether-colony/aether/pkg/events"
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // Herald promotes high-confidence instincts to QUEEN.md. It reads instincts

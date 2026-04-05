@@ -1,4 +1,4 @@
-module github.com/aether-colony/aether
+module github.com/calcosmic/Aether
 
 go 1.26.1
 

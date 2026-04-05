@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 // --- state-checkpoint tests ---

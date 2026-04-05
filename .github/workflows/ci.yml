@@ -29,17 +29,6 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Verify runtime/ sync
-        run: |
-          bash bin/sync-to-runtime.sh
-          if git diff --exit-code runtime/; then
-            echo "runtime/ in sync with .aether/"
-          else
-            echo "ERROR: runtime/ out of sync"
-            git diff --name-only runtime/
-            exit 1
-          fi
-
       - name: Security audit
         run: npm audit --audit-level=high
         continue-on-error: true

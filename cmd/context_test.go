@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aether-colony/aether/pkg/colony"
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // newTestStoreCmd creates a temp directory with .aether/data/ and returns a Store.

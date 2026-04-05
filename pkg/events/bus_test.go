@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 func newTestBus(t *testing.T) (*Bus, string) {

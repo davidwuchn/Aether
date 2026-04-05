@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aether-colony/aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/events"
 	"github.com/spf13/cobra"
 )
 

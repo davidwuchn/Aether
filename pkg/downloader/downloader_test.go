@@ -83,15 +83,15 @@ func TestBuildArchiveURL(t *testing.T) {
 	}{
 		{
 			"1.0.0", "darwin", "amd64",
-			"https://github.com/aether-colony/aether/releases/download/v1.0.0/aether_v1.0.0_darwin_amd64.tar.gz",
+			"https://github.com/calcosmic/Aether/releases/download/v1.0.0/aether_v1.0.0_darwin_amd64.tar.gz",
 		},
 		{
 			"2.3.0", "linux", "arm64",
-			"https://github.com/aether-colony/aether/releases/download/v2.3.0/aether_v2.3.0_linux_arm64.tar.gz",
+			"https://github.com/calcosmic/Aether/releases/download/v2.3.0/aether_v2.3.0_linux_arm64.tar.gz",
 		},
 		{
 			"0.1.0", "windows", "amd64",
-			"https://github.com/aether-colony/aether/releases/download/v0.1.0/aether_v0.1.0_windows_amd64.zip",
+			"https://github.com/calcosmic/Aether/releases/download/v0.1.0/aether_v0.1.0_windows_amd64.zip",
 		},
 	}
 	for _, tc := range tests {
@@ -106,7 +106,7 @@ func TestBuildArchiveURL(t *testing.T) {
 
 func TestBuildChecksumsURL(t *testing.T) {
 	got := buildChecksumsURL("2.5.0")
-	want := "https://github.com/aether-colony/aether/releases/download/v2.5.0/aether_v2.5.0_checksums.txt"
+	want := "https://github.com/calcosmic/Aether/releases/download/v2.5.0/aether_v2.5.0_checksums.txt"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}

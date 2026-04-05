@@ -7,7 +7,7 @@ import (
 	"runtime"
 
 	"github.com/spf13/cobra"
-	"github.com/aether-colony/aether/pkg/downloader"
+	"github.com/calcosmic/Aether/pkg/downloader"
 )
 
 // binaryDownloadCmd implements "aether binary-download" which downloads the
@@ -18,7 +18,7 @@ var binaryDownloadCmd = &cobra.Command{
 	Long: `Download the aether Go binary from GitHub Releases for the current platform.
 
 Detects your OS and architecture, downloads the correct archive from
-https://github.com/aether-colony/aether/releases, verifies the SHA-256
+https://github.com/calcosmic/Aether/releases, verifies the SHA-256
 checksum, and installs the binary atomically to ~/.aether/bin/aether.
 
 Use this to update the binary without reinstalling everything.`,

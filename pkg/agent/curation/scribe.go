@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aether-colony/aether/pkg/agent"
-	"github.com/aether-colony/aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/events"
 )
 
 // Scribe generates a text report summarizing the curation run results. It

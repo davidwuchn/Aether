@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/events"
 )
 
 // mockAgent is a test double implementing the Agent interface.

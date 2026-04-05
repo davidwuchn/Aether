@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 // TestExportPheromonesXSDValidation verifies Go-produced pheromone XML is

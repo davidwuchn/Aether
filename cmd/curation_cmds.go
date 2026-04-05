@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aether-colony/aether/pkg/agent/curation"
-	"github.com/aether-colony/aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/agent/curation"
+	"github.com/calcosmic/Aether/pkg/events"
 	"github.com/spf13/cobra"
 )
 

@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/agent"
-	"github.com/aether-colony/aether/pkg/events"
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // setupTestStore creates a temp directory with valid JSON for the 6 stores

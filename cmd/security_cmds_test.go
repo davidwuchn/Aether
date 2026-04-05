@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 // --- check-antipattern tests ---

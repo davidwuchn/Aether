@@ -7,7 +7,7 @@ before:
 builds:
   - main: ./cmd/aether/
     ldflags:
-      - -X github.com/aether-colony/aether/cmd.Version={{.Version}}
+      - -X github.com/calcosmic/Aether/cmd.Version={{.Version}}
     env:
       - CGO_ENABLED=0
     goos:

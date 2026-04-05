@@ -3,7 +3,7 @@ package graph
 import (
 	"fmt"
 
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // LoadFromStore loads the graph from a JSON file via storage.Store.

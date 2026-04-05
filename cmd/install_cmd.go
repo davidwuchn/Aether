@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/aether-colony/aether/pkg/downloader"
+	"github.com/calcosmic/Aether/pkg/downloader"
 )
 
 // installCmd implements "aether install" which copies commands, agents,

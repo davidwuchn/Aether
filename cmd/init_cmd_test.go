@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/colony"
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // --- aether init tests ---

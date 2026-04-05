@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aether-colony/aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/events"
 	"golang.org/x/sync/errgroup"
 )
 

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aether-colony/aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/spf13/cobra"
 )
 

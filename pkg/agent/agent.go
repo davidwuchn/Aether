@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/aether-colony/aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/events"
 )
 
 // Caste represents the role category of an agent, matching the shell caste names.

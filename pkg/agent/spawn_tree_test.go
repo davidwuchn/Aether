@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 func TestSpawnTreeRecordSpawn(t *testing.T) {

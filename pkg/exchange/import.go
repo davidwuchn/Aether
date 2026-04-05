@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/aether-colony/aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 // ImportPheromones imports pheromone signals from XML.

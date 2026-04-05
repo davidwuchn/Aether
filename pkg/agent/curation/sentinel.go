@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aether-colony/aether/pkg/agent"
-	"github.com/aether-colony/aether/pkg/events"
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // Sentinel is the health-check curation ant. It verifies that colony data

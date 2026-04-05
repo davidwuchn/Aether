@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // subscriber holds a subscriber's channel and the topic pattern it matches.

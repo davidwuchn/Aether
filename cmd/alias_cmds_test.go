@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 // TestPheromoneExportXMLHelp verifies the pheromone-export-xml command exists and shows help.

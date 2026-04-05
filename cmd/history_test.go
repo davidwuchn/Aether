@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 func TestHistoryJSON(t *testing.T) {

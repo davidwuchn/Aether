@@ -28,7 +28,7 @@ const (
 	defaultDownloadTimeout = 60 * time.Second
 
 	// baseReleaseURL is the GitHub Releases URL template for aether downloads.
-	baseReleaseURL = "https://github.com/aether-colony/aether/releases/download/v%s"
+	baseReleaseURL = "https://github.com/calcosmic/Aether/releases/download/v%s"
 
 	// defaultDestSubdir is the default subdirectory under the home dir for the binary.
 	defaultDestSubdir = ".aether/bin"

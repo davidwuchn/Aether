@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aether-colony/aether/pkg/colony"
-	"github.com/aether-colony/aether/pkg/exchange"
+	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/exchange"
 	"github.com/spf13/cobra"
 )
 

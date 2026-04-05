@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aether-colony/aether/pkg/colony"
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // setupBuildFlowTest creates a temp directory with store initialized for testing.

@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/aether-colony/aether/pkg/memory"
+	"github.com/calcosmic/Aether/pkg/memory"
 	"github.com/spf13/cobra"
 )
 

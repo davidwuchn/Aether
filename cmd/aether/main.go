@@ -2,7 +2,7 @@
 package main
 
 import (
-	"github.com/aether-colony/aether/cmd"
+	"github.com/calcosmic/Aether/cmd"
 )
 
 func main() {

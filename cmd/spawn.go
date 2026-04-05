@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aether-colony/aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/agent"
 	"github.com/spf13/cobra"
 )
 

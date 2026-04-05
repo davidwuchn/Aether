@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aether-colony/aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 // setupContextUpdateTest creates a temp dir and configures COLONY_DATA_DIR
