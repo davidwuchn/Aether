@@ -492,11 +492,10 @@ aether clash-setup --install 2>/dev/null || true
 This installs the PreToolUse hook that prevents conflicting edits across worktrees.
 Non-blocking — if it fails, init continues normally.
 
-Also configure the merge driver for package-lock.json:
+Also configure the merge driver for lock files:
 
 ```bash
-git config merge.lockfile.driver "bash .aether/utils/merge-driver-lockfile.sh %O %A %B" 2>/dev/null || true
-git config merge.lockfile.name "npm lockfile auto-merge" 2>/dev/null || true
+aether gitconfig merge-driver 2>/dev/null || true
 ```
 
 ### Step 8: Display Result

@@ -114,7 +114,7 @@ git add .
 git commit -m "your message"
 
 # 3. Validate and push to hub
-npm install -g .   # Runs validate-package.sh, then setupHub()
+npm install -g .   # Runs postinstall, then run `aether install`
 
 # 4. In other repos, pull updates
 aether update      # or /ant:update
@@ -129,30 +129,17 @@ aether update      # or /ant:update
 ```
 .aether/
 ├── workers.md           # Worker definitions, spawn protocol
-├── utils/               # Templates, docs, skills (shell scripts removed in Go port)
-│   ├── Domain modules (9 -- extracted from monolith in Phase 13):
-│   │   flag.sh, spawn.sh, session.sh, suggest.sh,
-│   │   queen.sh, swarm.sh, learning.sh, pheromone.sh, state-api.sh
-│   ├── Infrastructure:
-│   │   file-lock.sh, atomic-write.sh, error-handler.sh,
-│   │   hive.sh, midden.sh, skills.sh
-│   ├── Structural Learning Stack:
-│   │   trust-scoring.sh, event-bus.sh, instinct-store.sh,
-│   │   graph.sh, consolidation.sh, consolidation-seal.sh
-│   ├── XML utilities:
-│   │   xml-core.sh, xml-query.sh, xml-compose.sh,
-│   │   xml-convert.sh, xml-utils.sh
-│   ├── Other:
-│   │   swarm-display.sh, spawn-tree.sh, oracle.sh, ...
-│   └── curation-ants/   # 8 ants + orchestrator
-│       orchestrator.sh, archivist.sh, critic.sh, herald.sh,
-│       janitor.sh, librarian.sh, nurse.sh, scribe.sh, sentinel.sh
+├── utils/               # Runtime utilities
+│   ├── oracle/oracle.md # Oracle loop instructions (loaded by /ant:oracle)
+│   └── queen-to-md.xsl  # XSL transform for queen wisdom export
+├── skills/              # colony/ (10) + domain/ (18) skill definitions
 ├── templates/           # 12 templates (colony-state, pheromones, etc.)
 ├── docs/                # Distributed documentation
 ├── exchange/            # XML exchange modules (pheromone-xml, wisdom-xml)
 ├── agents-claude/       # Claude agent mirror used for packaging
+├── commands/            # YAML source definitions for slash commands
 ├── data/                # LOCAL ONLY (never distributed)
-│   ├── COLONY_STATE.json  # includes colony_version (seal/entomb lifecycle counter)
+│   ├── COLONY_STATE.json  # Colony state with phase tracking
 │   ├── pheromones.json
 │   ├── constraints.json
 │   ├── midden/          # Failure tracking
@@ -375,7 +362,7 @@ Colony-prime assembles worker context within a character budget to avoid prompt 
 8. Pheromone signals (trimmed last -- highest retention priority)
 9. Blockers (NEVER trimmed)
 
-Trimmed sections are logged for debugging. See `pheromone.sh` lines 1284-1340 for implementation.
+Trimmed sections are logged for debugging. See `pheromone-write` subcommand for implementation.
 
 ---
 
@@ -559,22 +546,23 @@ Automated changelog collection:
 ## Verification Commands
 
 ```bash
-# Verify command and agent sync policy
-npm run lint:sync
-
-# Run all linters
-npm run lint
-
-# Run all tests
-npm test
-
-# Verify package before publishing
-bash bin/validate-package.sh
-
-# See what npm would package
-npm pack --dry-run
-
 # Run Go tests
+go test ./...
+
+# Run Go tests with race detection
+go test ./... -race
+
+# Verify Go binary builds
+go build ./cmd/aether
+
+# Run Go vet
+go vet ./...
+
+# Verify goreleaser config
+goreleaser check
+
+# Build snapshot (no tag required)
+goreleaser build --snapshot --clean
 go test ./...
 
 # Verify binary works
@@ -630,7 +618,7 @@ observations that flow through the system and become reusable wisdom.
 | 1a. Trust score | `trust-score-compute` | Assigns weighted trust score to observation (40/35/25, 7 tiers) |
 | 1b. Event bus | `event-bus-publish` | Publishes scored event to JSONL event bus with TTL |
 | 2. Auto-promote | (internal: `learning-promote-auto`) | Triggers after threshold (2 observations for patterns) |
-| 3. Instinct | `instinct-create` | Stores in instinct-store.sh + COLONY_STATE.json with provenance |
+| 3. Instinct | `instinct-create` | Stores in COLONY_STATE.json with provenance |
 | 4. QUEEN.md | `queen-promote` | Writes to QUEEN.md Patterns/Philosophies section |
 | 5. Inject | `colony-prime` prompt_section | QUEEN.md wisdom + instincts injected into worker context |
 | 6. Hive store | `hive-promote` | Abstracts instinct, stores in hive wisdom.json (confidence >= 0.8) |
@@ -667,15 +655,15 @@ Key additions:
 
 | Ant | Role |
 |-----|------|
-| `orchestrator.sh` | Coordinates curation pipeline execution |
-| `archivist.sh` | Archives and retrieves historical observations |
-| `critic.sh` | Evaluates instinct quality and confidence |
-| `herald.sh` | Broadcasts high-confidence instincts to hive |
-| `janitor.sh` | Cleans stale events and expired TTL entries |
-| `librarian.sh` | Indexes and catalogs instinct relationships |
-| `nurse.sh` | Heals low-confidence instincts with supporting evidence |
-| `scribe.sh` | Records curation decisions and audit trail |
-| `sentinel.sh` | Guards against instinct corruption and conflicts |
+| `orchestrator` | Coordinates curation pipeline execution |
+| `archivist` | Archives and retrieves historical observations |
+| `critic` | Evaluates instinct quality and confidence |
+| `herald` | Broadcasts high-confidence instincts to hive |
+| `janitor` | Cleans stale events and expired TTL entries |
+| `librarian` | Indexes and catalogs instinct relationships |
+| `nurse` | Heals low-confidence instincts with supporting evidence |
+| `scribe` | Records curation decisions and audit trail |
+| `sentinel` | Guards against instinct corruption and conflicts |
 
 ---
 
