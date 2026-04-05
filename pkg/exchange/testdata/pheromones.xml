@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pheromones version="1.0" generated_at="2026-04-01T10:00:00Z" colony_id="test-colony" count="3">
+  <signal id="sig_focus_001" type="FOCUS" priority="normal" source="user" created_at="2026-04-01T10:00:00Z" active="true">
+    <content><text>Focus on security patterns</text></content>
+  </signal>
+  <signal id="sig_redirect_002" type="REDIRECT" priority="high" source="system" created_at="2026-04-01T10:01:00Z" active="true">
+    <content><text>Avoid using grep without -F flag</text></content>
+  </signal>
+  <signal id="sig_feedback_003" type="FEEDBACK" priority="low" source="builder" created_at="2026-04-01T10:02:00Z" active="false">
+    <content><text>Prefer table-driven tests</text></content>
+  </signal>
+</pheromones>

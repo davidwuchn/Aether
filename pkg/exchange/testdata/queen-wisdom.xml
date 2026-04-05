@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<queen-wisdom>
+  <metadata>
+    <version>1.0</version>
+    <created>2026-04-01T12:00:00Z</created>
+    <modified>2026-04-01T12:00:00Z</modified>
+    <colony_id>test-colony</colony_id>
+  </metadata>
+  <philosophies>
+    <philosophy id="phil_001" confidence="0.85" domain="testing" source="instinct" created_at="2026-04-01T12:00:00Z">
+      <content>Always write tests first</content>
+    </philosophy>
+  </philosophies>
+  <patterns>
+    <pattern id="pat_001" confidence="0.70" domain="architecture" source="observation" created_at="2026-04-01T12:00:00Z">
+      <content>Prefer composition over inheritance</content>
+    </pattern>
+  </patterns>
+</queen-wisdom>

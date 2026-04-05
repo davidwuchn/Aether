@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<colony-registry version="1.0" generated_at="2026-04-01T10:00:00Z">
+  <colony id="colony_alpha" status="active" created_at="2026-04-01T10:00:00Z">
+    <name>Alpha Colony</name>
+    <parent_id>colony_parent</parent_id>
+    <lineage>
+      <ancestor id="colony_grandparent" depth="2"/>
+      <ancestor id="colony_parent" depth="1"/>
+    </lineage>
+  </colony>
+  <colony id="colony_beta" status="sealed" created_at="2026-04-01T11:00:00Z">
+    <name>Beta Colony</name>
+  </colony>
+</colony-registry>

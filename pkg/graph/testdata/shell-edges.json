@@ -1,0 +1,8 @@
+{
+  "version": "1.0",
+  "edges": [
+    {"edge_id": "edge_1000_a1b2", "source": "inst_100_alpha", "target": "inst_200_beta", "relationship": "reinforces", "weight": 0.8, "created_at": "2026-04-01T12:00:00Z"},
+    {"edge_id": "edge_1001_c3d4", "source": "inst_200_beta", "target": "inst_300_gamma", "relationship": "extends", "weight": 0.6, "created_at": "2026-04-01T12:01:00Z"},
+    {"edge_id": "edge_1002_e5f6", "source": "obs_hash123", "target": "inst_100_alpha", "relationship": "promoted_from", "weight": 0.7, "created_at": "2026-04-01T12:02:00Z"}
+  ]
+}

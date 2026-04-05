@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/aether-colony/aether/pkg/downloader"
 )
 
 // installCmd implements "aether install" which copies commands, agents,
@@ -32,13 +33,19 @@ Also creates the hub directory at ~/.aether/ for cross-repo coordination.`,
 
 // installFlags holds the parsed flags for the install command.
 var (
-	installPackageDir string
-	installHomeDir    string
+	installPackageDir     string
+	installHomeDir        string
+	installDownloadBinary bool
+	installBinaryDest     string
+	installBinaryVersion  string
 )
 
 func init() {
 	installCmd.Flags().String("package-dir", "", "Path to the Aether package directory (contains .claude/, .opencode/, .aether/)")
 	installCmd.Flags().String("home-dir", "", "User home directory (default: $HOME)")
+	installCmd.Flags().Bool("download-binary", false, "Also download the Go binary from GitHub Releases")
+	installCmd.Flags().String("binary-dest", "", "Destination directory for binary (default: ~/.aether/bin)")
+	installCmd.Flags().String("binary-version", "", "Binary version to download (default: current version)")
 
 	rootCmd.AddCommand(installCmd)
 }
@@ -125,6 +132,14 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		"message": fmt.Sprintf("Install complete: %d files copied, %d unchanged", totalCopied, totalSkipped),
 		"details": results,
 	})
+
+	// Download Go binary if requested
+	downloadBinary, _ := cmd.Flags().GetBool("download-binary")
+	if downloadBinary {
+		if err := runBinaryDownloadFromInstall(cmd, homeDir); err != nil {
+			return fmt.Errorf("install succeeded but binary download failed: %w", err)
+		}
+	}
 
 	return nil
 }
@@ -322,4 +337,39 @@ func setupInstallHub(hubDir, packageDir string) map[string]interface{} {
 	result["removed"] = 0
 
 	return result
+}
+
+// runBinaryDownloadFromInstall handles the --download-binary flag on the install command.
+func runBinaryDownloadFromInstall(cmd *cobra.Command, homeDir string) error {
+	version, _ := cmd.Flags().GetString("binary-version")
+	if version == "" {
+		version = Version
+	}
+
+	destDir, _ := cmd.Flags().GetString("binary-dest")
+	if destDir == "" {
+		destDir = filepath.Join(homeDir, downloader.DefaultDestSubdir())
+	}
+
+	outputOK(map[string]interface{}{
+		"message": fmt.Sprintf("Downloading aether v%s binary...", version),
+		"version": version,
+		"dest":    destDir,
+	})
+
+	result, err := downloader.DownloadBinary(version, destDir)
+	if err != nil {
+		if downloader.IsVersionNotFoundErr(err) {
+			return fmt.Errorf("version v%s not found: %w", version, err)
+		}
+		return err
+	}
+
+	outputOK(map[string]interface{}{
+		"message": fmt.Sprintf("Binary installed to %s", result.Path),
+		"path":    result.Path,
+		"version": result.Version,
+	})
+
+	return nil
 }

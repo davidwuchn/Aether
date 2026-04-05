@@ -4,7 +4,7 @@
   "colony_name": "Aether Colony",
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 2,
+  "current_phase": 5,
   "session_id": "session_1775399622_32247",
   "initialized_at": "2026-04-05T14:33:42Z",
   "build_started_at": null,
@@ -16,10 +16,12 @@
         "id": 1,
         "name": "Implement Critical Missing Go Commands",
         "description": "Add init, install, and setup commands to Go binary",
+        "status": "completed",
         "tasks": [
           {
             "id": "1.1",
             "goal": "Implement aether init command",
+            "status": "",
             "constraints": [
               "Create COLONY_STATE.json v3.0 with goal, session.json, CONTEXT.md, activity.log"
             ],
@@ -28,12 +30,12 @@
             ],
             "success_criteria": [
               "aether init works end-to-end"
-            ],
-            "depends_on": []
+            ]
           },
           {
             "id": "1.2",
             "goal": "Implement aether install command",
+            "status": "",
             "constraints": [
               "Sync commands/agents to ~/.claude/, setup hub"
             ],
@@ -42,12 +44,12 @@
             ],
             "success_criteria": [
               "Commands and agents copied to correct locations"
-            ],
-            "depends_on": []
+            ]
           },
           {
             "id": "1.3",
             "goal": "Implement aether setup command",
+            "status": "",
             "constraints": [
               "Copy hub files to local .aether/"
             ],
@@ -64,6 +66,7 @@
           {
             "id": "1.4",
             "goal": "Fix existing Go test failures",
+            "status": "",
             "constraints": [
               "pkg/colony and pkg/exchange tests fail"
             ],
@@ -72,24 +75,24 @@
             ],
             "success_criteria": [
               "go test ./... passes"
-            ],
-            "depends_on": []
+            ]
           }
         ],
         "success_criteria": [
           "Go binary has init/install/setup",
           "All tests pass"
-        ],
-        "status": "completed"
+        ]
       },
       {
         "id": 2,
         "name": "Port Remaining Shell Commands to Go",
         "description": "Port ~13 remaining shell subcommands to Go",
+        "status": "completed",
         "tasks": [
           {
             "id": "2.1",
             "goal": "Port build lifecycle commands (build-start/progress/complete)",
+            "status": "",
             "constraints": [
               "Track build state in COLONY_STATE.json"
             ],
@@ -106,6 +109,7 @@
           {
             "id": "2.2",
             "goal": "Port semantic commands and minor gaps",
+            "status": "",
             "constraints": [
               "6 semantic-* + survey-clear/verify-fresh + others"
             ],
@@ -122,6 +126,7 @@
           {
             "id": "2.3",
             "goal": "Add Go binary download to install command",
+            "status": "",
             "constraints": [
               "Download from GitHub Releases, verify SHA-256"
             ],
@@ -145,10 +150,12 @@
         "id": 3,
         "name": "Update Commands and Remove GSD",
         "description": "Update slash commands to use Go binary, remove 168 GSD files",
+        "status": "completed",
         "tasks": [
           {
             "id": "3.1",
             "goal": "Update 4 slash commands referencing aether-utils.sh",
+            "status": "",
             "constraints": [
               "init.md, lay-eggs.md, oracle.md, resume.md"
             ],
@@ -166,6 +173,7 @@
           {
             "id": "3.2",
             "goal": "Remove all 168 GSD system files",
+            "status": "",
             "constraints": [
               "Commands, agents, hooks, manifests, worktrees"
             ],
@@ -174,12 +182,12 @@
             ],
             "success_criteria": [
               "No gsd files remain"
-            ],
-            "depends_on": []
+            ]
           },
           {
             "id": "3.3",
             "goal": "Update CLAUDE.md and docs for Go-only architecture",
+            "status": "",
             "constraints": [
               "Remove all shell references, update architecture"
             ],
@@ -203,10 +211,12 @@
         "id": 4,
         "name": "Remove Shell Scripts and Node.js Runtime",
         "description": "Delete 58 shell scripts, Node.js CLI/libs, update npm package",
+        "status": "completed",
         "tasks": [
           {
             "id": "4.1",
             "goal": "Remove all 58 shell scripts",
+            "status": "completed",
             "constraints": [
               "Keep templates/, skills/, docs/"
             ],
@@ -225,6 +235,7 @@
           {
             "id": "4.2",
             "goal": "Remove Node.js CLI and libraries",
+            "status": "completed",
             "constraints": [
               "Remove bin/cli.js, bin/lib/, npx-entry.js"
             ],
@@ -243,6 +254,7 @@
           {
             "id": "4.3",
             "goal": "Update package.json for Go-only distribution",
+            "status": "completed",
             "constraints": [
               "Remove Node.js deps, update files array, update scripts"
             ],
@@ -266,10 +278,12 @@
         "id": 5,
         "name": "Final Verification and Cleanup",
         "description": "Verify everything works, clean up artifacts, prepare for release",
+        "status": "",
         "tasks": [
           {
             "id": "5.1",
             "goal": "Run full test suite and fix remaining failures",
+            "status": "",
             "constraints": [
               "go test -race ./... must pass"
             ],
@@ -288,6 +302,7 @@
           {
             "id": "5.2",
             "goal": "Verify npm package installs correctly",
+            "status": "",
             "constraints": [
               "npm pack --dry-run, simulated install"
             ],
@@ -304,6 +319,7 @@
           {
             "id": "5.3",
             "goal": "Clean up stale files and artifacts",
+            "status": "",
             "constraints": [
               "Remove worktrees/, chambers/, .tmp files"
             ],
@@ -343,6 +359,14 @@
     "2026-04-05T14:58:06Z|plan_generated|plan|Generated 5 phases with 88% confidence",
     "2026-04-05T14:58:28Z|plan_generated|plan|Generated 5 phases with 88% confidence",
     "2026-04-05T15:03:11Z|phase_started|build|Phase 1: Implement Critical Missing Go Commands started",
-    "2026-04-05T15:26:07Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
-  ]
+    "2026-04-05T15:26:07Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
+    "2026-04-05T15:28:41Z|phase_started|build|Phase 2: Port Remaining Shell Commands to Go started",
+    "2026-04-05T15:47:19Z|phase_built|build|Phase 2: Port Remaining Shell Commands to Go built successfully",
+    "2026-04-05T16:30:00Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
+    "2026-04-05T16:16:01Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
+    "2026-04-05T16:19:19Z|phase_started|build|Phase 4: Remove Shell Scripts and Node.js Runtime started",
+    "2026-04-05T16:28:17Z|phase_built|build|Phase 4: Remove Shell Scripts and Node.js Runtime built successfully",
+    "2026-04-05T16:36:12Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5"
+  ],
+  "milestone": ""
 }

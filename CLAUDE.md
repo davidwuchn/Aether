@@ -1,8 +1,8 @@
 # CLAUDE.md — Aether Development Guide
 
 > **Current Version:** v2.8.0 (documentation version; npm package version in package.json)
-> **Architecture:** v4.0 (runtime/ eliminated, direct packaging)
-> **Last Updated:** 2026-04-01
+> **Architecture:** v5.0 (Go binary — shell scripts and Node.js runtime removed)
+> **Last Updated:** 2026-04-05
 
 ---
 
@@ -14,10 +14,8 @@
 | Slash commands | ~45 (Claude) + ~45 (OpenCode) |
 | Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
-| aether-utils.sh | ~5,500 lines (dispatcher), ~130+ subcommands across all modules |
-| Utils | 50 scripts (41 top-level + 9 curation ants) |
+| Go binary | `aether` CLI (replaces aether-utils.sh) |
 | Tests | 524+ passing |
-| Curation Ants | 8 ants + 1 orchestrator (`.aether/utils/curation-ants/`) |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
 ---
@@ -28,10 +26,13 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                     AETHER REPO (this repo)                      │
 │                                                                  │
+│   cmd/                 ← Go source code (primary)              │
+│   ├── main.go         CLI entry point                          │
+│   └── *.go            Command implementations                 │
+│                                                                  │
 │   .aether/             ← SOURCE OF TRUTH (packaged directly)    │
 │   ├── workers.md       (edit here)                              │
-│   ├── aether-utils.sh  (dispatcher, ~5,500 lines, ~130+ subcmds) │
-│   ├── utils/           (50 scripts, modular architecture)       │
+│   ├── utils/           (templates, docs, skills)                │
 │   │   ├── Domain modules (9):                                   │
 │   │   │   flag.sh, spawn.sh, session.sh, suggest.sh,            │
 │   │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh,        │
@@ -85,8 +86,7 @@ and context capsule — all within a token budget (see Token Budget below).
 | What you're changing | Where to edit | Why |
 |---------------------|---------------|-----|
 | workers.md | `.aether/workers.md` | Source of truth |
-| aether-utils.sh | `.aether/aether-utils.sh` | Source of truth |
-| utils/*.sh | `.aether/utils/` | Source of truth |
+| Go commands | `cmd/` | Go source code |
 | User docs | `.aether/docs/` | Distributed directly |
 | Slash commands | `.claude/commands/ant/` | Claude Code commands |
 | OpenCode commands | `.opencode/commands/ant/` | OpenCode commands |
@@ -136,8 +136,7 @@ aether update      # or /ant:update
 ```
 .aether/
 ├── workers.md           # Worker definitions, spawn protocol
-├── aether-utils.sh      # Dispatcher (~5,500 lines, ~130+ subcommands across all modules)
-├── utils/               # 50 scripts (modular architecture)
+├── utils/               # Templates, docs, skills (shell scripts removed in Go port)
 │   ├── Domain modules (9 -- extracted from monolith in Phase 13):
 │   │   flag.sh, spawn.sh, session.sh, suggest.sh,
 │   │   queen.sh, swarm.sh, learning.sh, pheromone.sh, state-api.sh
@@ -582,16 +581,14 @@ bash bin/validate-package.sh
 # See what npm would package
 npm pack --dry-run
 
-# Audit emoji usage in command files against canonical reference map
-bash .aether/aether-utils.sh emoji-audit
+# Run Go tests
+go test ./...
 
-# Run Structural Learning Stack unit tests
-bash tests/bash/test-trust-scoring.sh
-bash tests/bash/test-event-bus.sh
-bash tests/bash/test-instinct-store.sh
-bash tests/bash/test-graph.sh
-bash tests/bash/test-consolidation.sh
-bash tests/bash/test-curation-ants.sh
+# Verify binary works
+aether version
+
+# Run all Go tests
+go test ./... -race
 ```
 
 ---

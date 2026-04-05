@@ -1,0 +1,204 @@
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/aether-colony/aether/pkg/colony"
+	"github.com/aether-colony/aether/pkg/events"
+	"github.com/aether-colony/aether/pkg/memory"
+	"github.com/spf13/cobra"
+)
+
+var learningObserveCmd = &cobra.Command{
+	Use:   "learning-observe",
+	Short: "Capture a learning observation",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		content := mustGetString(cmd, "content")
+		if content == "" {
+			return nil
+		}
+		wisdomType := mustGetString(cmd, "type")
+		if wisdomType == "" {
+			return nil
+		}
+
+		colonyName, _ := cmd.Flags().GetString("colony-name")
+		if colonyName == "" {
+			colonyName = "unknown"
+		}
+		sourceType, _ := cmd.Flags().GetString("source-type")
+		if sourceType == "" {
+			sourceType = "observation"
+		}
+		evidenceType, _ := cmd.Flags().GetString("evidence-type")
+		if evidenceType == "" {
+			evidenceType = "anecdotal"
+		}
+
+		bus := events.NewBus(store, events.DefaultConfig())
+		obsService := memory.NewObservationService(store, bus)
+
+		ctx := context.Background()
+		result, err := obsService.CaptureWithTrust(ctx, content, wisdomType, colonyName, sourceType, evidenceType)
+		if err != nil {
+			outputError(2, fmt.Sprintf("failed to capture observation: %v", err), nil)
+			return nil
+		}
+
+		outputOK(map[string]interface{}{
+			"captured":          true,
+			"is_new":            result.IsNew,
+			"observation_id":    result.Observation.ContentHash,
+			"observation_count": result.Observation.ObservationCount,
+			"trust_score":       result.Observation.TrustScore,
+			"promotion_eligible": result.PromotionEligible,
+			"promotion_reason":  result.PromotionReason,
+		})
+		return nil
+	},
+}
+
+var learningCheckPromotionCmd = &cobra.Command{
+	Use:   "learning-check-promotion",
+	Short: "Check if an observation is eligible for promotion",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		obsID := mustGetString(cmd, "observation-id")
+		if obsID == "" {
+			return nil
+		}
+
+		var file colony.LearningFile
+		if err := store.LoadJSON("learning-observations.json", &file); err != nil {
+			outputError(1, "learning-observations.json not found", nil)
+			return nil
+		}
+
+		var found *colony.Observation
+		for i := range file.Observations {
+			if file.Observations[i].ContentHash == obsID {
+				found = &file.Observations[i]
+				break
+			}
+		}
+
+		if found == nil {
+			outputError(1, fmt.Sprintf("observation %q not found", obsID), nil)
+			return nil
+		}
+
+		eligible, reason := memory.CheckPromotion(*found)
+
+		outputOK(map[string]interface{}{
+			"promotable":       eligible,
+			"reason":           reason,
+			"observation_count": found.ObservationCount,
+			"trust_score":      found.TrustScore,
+		})
+		return nil
+	},
+}
+
+var learningPromoteAutoCmd = &cobra.Command{
+	Use:   "learning-promote-auto",
+	Short: "Auto-promote eligible observations to instincts",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		var file colony.LearningFile
+		if err := store.LoadJSON("learning-observations.json", &file); err != nil {
+			outputOK(map[string]interface{}{"promoted": 0, "reason": "no observations file"})
+			return nil
+		}
+
+		promoted := 0
+		for _, obs := range file.Observations {
+			eligible, _ := memory.CheckPromotion(obs)
+			if eligible {
+				promoted++
+			}
+		}
+
+		outputOK(map[string]interface{}{
+			"promoted":        promoted,
+			"total_observed":  len(file.Observations),
+		})
+		return nil
+	},
+}
+
+var memoryCaptureCmd = &cobra.Command{
+	Use:   "memory-capture",
+	Short: "Capture a memory observation (simplified learning-observe)",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		content := mustGetString(cmd, "content")
+		if content == "" {
+			return nil
+		}
+		obsType, _ := cmd.Flags().GetString("type")
+		if obsType == "" {
+			obsType = "observation"
+		}
+
+		bus := events.NewBus(store, events.DefaultConfig())
+		obsService := memory.NewObservationService(store, bus)
+
+		ctx := context.Background()
+		result, err := obsService.Capture(ctx, content, obsType, "unknown")
+		if err != nil {
+			outputError(2, fmt.Sprintf("failed to capture: %v", err), nil)
+			return nil
+		}
+
+		outputOK(map[string]interface{}{
+			"captured":   true,
+			"is_new":     result.IsNew,
+			"trust_score": result.Observation.TrustScore,
+		})
+		return nil
+	},
+}
+
+func init() {
+	learningObserveCmd.Flags().String("content", "", "Observation content (required)")
+	learningObserveCmd.Flags().String("type", "", "Wisdom type (required)")
+	learningObserveCmd.Flags().String("colony-name", "", "Colony name")
+	learningObserveCmd.Flags().String("source-type", "", "Source type")
+	learningObserveCmd.Flags().String("evidence-type", "", "Evidence type")
+
+	learningCheckPromotionCmd.Flags().String("observation-id", "", "Observation content hash (required)")
+
+	memoryCaptureCmd.Flags().String("content", "", "Observation content (required)")
+	memoryCaptureCmd.Flags().String("type", "", "Wisdom type (default: observation)")
+
+	rootCmd.AddCommand(learningObserveCmd)
+	rootCmd.AddCommand(learningCheckPromotionCmd)
+	rootCmd.AddCommand(learningPromoteAutoCmd)
+	rootCmd.AddCommand(memoryCaptureCmd)
+}
+
+// unused import suppression
+var _ = time.Now

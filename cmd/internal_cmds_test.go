@@ -1,0 +1,297 @@
+package cmd
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestForceUnlock(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	// resolveDataDir uses AETHER_ROOT; create locks relative to data dir parent
+	// dataDir = <tmp>/.aether/data, so locksDir = <tmp>/.aether/locks
+	locksDir := filepath.Join(filepath.Dir(s.BasePath()), "locks")
+	os.MkdirAll(locksDir, 0755)
+	os.WriteFile(filepath.Join(locksDir, "test.lock"), []byte("{}"), 0644)
+
+	// Set AETHER_ROOT so resolveDataDir() finds the right location
+	os.Setenv("AETHER_ROOT", filepath.Dir(filepath.Dir(s.BasePath())))
+	t.Cleanup(func() { os.Unsetenv("AETHER_ROOT") })
+
+	rootCmd.SetArgs([]string{"force-unlock"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("force-unlock failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["unlocked"] != true {
+		t.Errorf("expected unlocked true, got %v", result["unlocked"])
+	}
+	count := int(result["count"].(float64))
+	if count != 1 {
+		t.Errorf("expected count 1, got %d", count)
+	}
+}
+
+func TestEntropyScore(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	// Create minimal COLONY_STATE.json
+	colonyData := map[string]interface{}{
+		"version":       "2.0",
+		"state":         "READY",
+		"current_phase": 1,
+		"plan":          map[string]interface{}{"phases": []interface{}{}},
+		"memory":        map[string]interface{}{"phase_learnings": []interface{}{}, "decisions": []interface{}{}, "instincts": []interface{}{}},
+		"errors":        map[string]interface{}{"records": []interface{}{}, "flagged_patterns": []interface{}{}},
+		"signals":       []interface{}{},
+		"graveyards":    []interface{}{},
+		"events":        []interface{}{},
+	}
+	writeTestJSON(t, s.BasePath(), "COLONY_STATE.json", colonyData)
+
+	rootCmd.SetArgs([]string{"entropy-score"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("entropy-score failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	score := result["score"].(float64)
+	if score < 0 || score > 100 {
+		t.Errorf("score %v out of range [0, 100]", score)
+	}
+}
+
+func TestEternalStore(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	// Use temp dir as hub
+	tmpHub := t.TempDir()
+	os.Setenv("AETHER_HUB_DIR", tmpHub)
+	defer os.Unsetenv("AETHER_HUB_DIR")
+
+	rootCmd.SetArgs([]string{"eternal-store",
+		"--content", "high value signal",
+		"--category", "critical",
+		"--confidence", "0.95",
+	})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("eternal-store failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["stored"] != true {
+		t.Errorf("expected stored true, got %v", result["stored"])
+	}
+
+	// Verify file was written
+	memoryPath := filepath.Join(tmpHub, "eternal", "memory.json")
+	data, err := os.ReadFile(memoryPath)
+	if err != nil {
+		t.Fatalf("reading eternal memory: %v", err)
+	}
+	var ed map[string]interface{}
+	json.Unmarshal(data, &ed)
+	entries := ed["entries"].([]interface{})
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+}
+
+func TestBootstrapSystem(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	// Create a mock hub with templates
+	tmpHub := t.TempDir()
+	os.Setenv("AETHER_HUB_DIR", tmpHub)
+	defer os.Unsetenv("AETHER_HUB_DIR")
+
+	templateDir := filepath.Join(tmpHub, "templates")
+	os.MkdirAll(templateDir, 0755)
+	os.WriteFile(filepath.Join(templateDir, "colony-state-template.json"), []byte("{}"), 0644)
+
+	rootCmd.SetArgs([]string{"bootstrap-system"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("bootstrap-system failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	copied := result["copied"].([]interface{})
+	// May or may not have copied depending on resolveAetherRoot
+	// but should not error
+	t.Logf("copied: %v, skipped: %v", copied, result["skipped"])
+}
+
+func TestInstinctRead(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	// Create COLONY_STATE with an instinct
+	colonyData := map[string]interface{}{
+		"version":       "2.0",
+		"state":         "READY",
+		"current_phase": 1,
+		"plan":          map[string]interface{}{"phases": []interface{}{}},
+		"memory": map[string]interface{}{
+			"phase_learnings": []interface{}{},
+			"decisions":       []interface{}{},
+			"instincts": []interface{}{
+				map[string]interface{}{
+					"id":          "inst_test_1",
+					"trigger":     "test_trigger",
+					"action":      "test_action",
+					"confidence":  0.8,
+					"status":      "active",
+					"applications": 3,
+					"successes":   2,
+					"failures":    1,
+				},
+			},
+		},
+		"errors":     map[string]interface{}{"records": []interface{}{}, "flagged_patterns": []interface{}{}},
+		"signals":    []interface{}{},
+		"graveyards": []interface{}{},
+		"events":     []interface{}{},
+	}
+	writeTestJSON(t, s.BasePath(), "COLONY_STATE.json", colonyData)
+
+	rootCmd.SetArgs([]string{"instinct-read", "inst_test_1"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("instinct-read failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["found"] != true {
+		t.Errorf("expected found true, got %v", result["found"])
+	}
+}
+
+func TestSpawnGetDepth(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	// Write a spawn tree file (pipe-delimited: timestamp|parent|caste|agentName|task|depth|status)
+	spawnData := "2026-01-01T00:00:00Z|colony-prime|builder|test_ant|build_code|2|active\n"
+	os.WriteFile(filepath.Join(s.BasePath(), "spawn-tree.txt"), []byte(spawnData), 0644)
+
+	rootCmd.SetArgs([]string{"spawn-get-depth", "--name", "test_ant"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("spawn-get-depth failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["found"] != true {
+		t.Errorf("expected found true, got %v", result["found"])
+	}
+}
+
+func TestSwarmDisplayGet(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	// Create COLONY_STATE.json
+	colonyData := map[string]interface{}{
+		"version":       "2.0",
+		"state":         "EXECUTING",
+		"current_phase": 2,
+		"milestone":     "Open Chambers",
+		"plan": map[string]interface{}{
+			"phases": []interface{}{
+				map[string]interface{}{"id": 1, "name": "Setup", "status": "completed"},
+				map[string]interface{}{"id": 2, "name": "Build", "status": "in_progress"},
+			},
+		},
+		"memory":     map[string]interface{}{"phase_learnings": []interface{}{}, "decisions": []interface{}{}, "instincts": []interface{}{}},
+		"errors":     map[string]interface{}{"records": []interface{}{}, "flagged_patterns": []interface{}{}},
+		"signals":    []interface{}{},
+		"graveyards": []interface{}{},
+		"events":     []interface{}{},
+	}
+	writeTestJSON(t, s.BasePath(), "COLONY_STATE.json", colonyData)
+
+	rootCmd.SetArgs([]string{"swarm-display-get"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("swarm-display-get failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["state"] != "EXECUTING" {
+		t.Errorf("expected state EXECUTING, got %v", result["state"])
+	}
+}
+
+func TestSwarmActivityLog(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	rootCmd.SetArgs([]string{"swarm-activity-log",
+		"--message", "build started",
+		"--severity", "info",
+	})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("swarm-activity-log failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["logged"] != true {
+		t.Errorf("expected logged true, got %v", result["logged"])
+	}
+
+	// Verify JSONL file was created
+	data, err := os.ReadFile(filepath.Join(s.BasePath(), "swarm-activity.jsonl"))
+	if err != nil {
+		t.Fatalf("reading activity log: %v", err)
+	}
+	if len(data) == 0 {
+		t.Error("activity log is empty")
+	}
+}
