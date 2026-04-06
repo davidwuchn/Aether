@@ -38,7 +38,7 @@ var castePrefixes = map[string][]string{
 var defaultPrefixes = []string{"Ant", "Worker", "Drone", "Toiler", "Marcher", "Runner", "Carrier", "Helper"}
 
 // validCommitTypes are the allowed values for generate-commit-message --type.
-var validCommitTypes = []string{"feat", "fix", "docs", "refactor", "test", "chore"}
+var validCommitTypes = []string{"feat", "fix", "docs", "refactor", "test", "chore", "seal", "milestone", "pause", "contextual"}
 
 var generateAntNameCmd = &cobra.Command{
 	Use:   "generate-ant-name [caste]",
@@ -236,7 +236,7 @@ var antNamePattern = regexp.MustCompile(`^[A-Z][A-Za-z0-9]+-\d{1,2}$`)
 func init() {
 	generateAntNameCmd.Flags().Int64("seed", 0, "Random seed for deterministic output")
 
-	generateCommitMessageCmd.Flags().String("type", "", "Commit type (required: feat, fix, docs, refactor, test, chore)")
+	generateCommitMessageCmd.Flags().String("type", "", "Commit type (required: feat, fix, docs, refactor, test, chore, seal, milestone, pause, contextual)")
 	generateCommitMessageCmd.Flags().String("scope", "", "Commit scope (optional)")
 	generateCommitMessageCmd.Flags().String("subject", "", "Commit subject (required)")
 	generateCommitMessageCmd.Flags().String("body", "", "Commit body (optional)")

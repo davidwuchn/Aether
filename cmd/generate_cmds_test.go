@@ -284,6 +284,58 @@ func TestGenerateCommitMessageInvalidType(t *testing.T) {
 	}
 }
 
+// TestGenerateCommitMessageColonyTypes tests that colony-specific commit types
+// (seal, milestone, pause, contextual) produce valid commit messages.
+func TestGenerateCommitMessageColonyTypes(t *testing.T) {
+	colonyTypes := []struct {
+		typeVal string
+		subject string
+		scope   string
+		want    string
+	}{
+		{"seal", "colony sealed at Crowned Anthill v1", "", "seal: colony sealed at Crowned Anthill v1"},
+		{"milestone", "reached Open Chambers", "", "milestone: reached Open Chambers"},
+		{"pause", "colony paused for replan", "", "pause: colony paused for replan"},
+		{"contextual", "user preference captured", "prefs", "contextual(prefs): user preference captured"},
+	}
+
+	for _, tc := range colonyTypes {
+		t.Run(tc.typeVal, func(t *testing.T) {
+			saveGlobals(t)
+			resetRootCmd(t)
+
+			stdout = &bytes.Buffer{}
+			stderr = &bytes.Buffer{}
+			store = nil
+
+			args := []string{"generate-commit-message", "--type", tc.typeVal, "--subject", tc.subject}
+			if tc.scope != "" {
+				args = append(args, "--scope", tc.scope)
+			}
+			rootCmd.SetArgs(args)
+
+			if err := rootCmd.Execute(); err != nil {
+				t.Fatalf("generate-commit-message --type %s returned error: %v", tc.typeVal, err)
+			}
+
+			output := stdout.(*bytes.Buffer).String()
+			if !strings.Contains(output, `"ok":true`) {
+				errOut := stderr.(*bytes.Buffer).String()
+				t.Errorf("expected ok:true for type %q, got stdout: %s, stderr: %s", tc.typeVal, output, errOut)
+			}
+
+			var result map[string]interface{}
+			json.Unmarshal([]byte(output), &result)
+			inner, _ := result["result"].(map[string]interface{})
+			message, _ := inner["message"].(string)
+
+			if message != tc.want {
+				t.Errorf("type %q: expected %q, got %q", tc.typeVal, tc.want, message)
+			}
+		})
+	}
+}
+
 // TestGenerateProgressBarCmd tests the progress bar command.
 func TestGenerateProgressBarCmd(t *testing.T) {
 	saveGlobals(t)

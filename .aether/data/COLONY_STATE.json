@@ -4,7 +4,7 @@
   "colony_name": null,
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 3,
+  "current_phase": 4,
   "session_id": "session_1775476123_26bc29c9",
   "initialized_at": "2026-04-06T11:48:43Z",
   "build_started_at": null,
@@ -130,6 +130,7 @@
         "description": "Go command only accepts 6 conventional commit types. seal.md calls with type seal which gets rejected.",
         "id": 3,
         "name": "Fix generate-commit-message seal/milestone types",
+        "status": "completed",
         "success_criteria": [
           "Accepts seal/milestone/pause/contextual types",
           "All tests pass"
@@ -492,6 +493,21 @@
         ],
         "phase": 2,
         "phase_name": "Fix XML archive export format and output handling"
+      },
+      {
+        "id": "learning_1743966000",
+        "learnings": [
+          {
+            "claim": "When extending conventional commit type allowlists in Cobra commands, update both the validation slice and the --flag help string to prevent drift — use a derived help string from the slice",
+            "disproven_by": null,
+            "evidence": "Added seal/milestone/pause/contextual to validCommitTypes; Auditor flagged help string duplication as MEDIUM; tests confirm all 4 new types work",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 3,
+        "phase_name": "Fix generate-commit-message seal/milestone types",
+        "timestamp": "2026-04-06T14:30:00Z"
       }
     ],
     "decisions": null,
@@ -504,15 +520,12 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-04-06T11:48:43Z|colony_initialized|init|Colony initialized with goal: Fix infrastructure bugs that break colony seal: state-mutate panic on nested fields, chamber-create path doubling in entomb YAML, and XML export output format quirks",
-    "2026-04-06T13:00:58Z|plan_generated|plan|Generated 8 phases with 94% confidence",
-    "2026-04-06T13:03:08Z|phase_started|build|Phase 1: Fix state-mutate panic on nested fields started",
-    "2026-04-06T13:22:07Z|phase_started|build|Phase 2: Fix XML archive export format and output handling started",
     ""
   ],
   "milestone": null,
   "milestone_updated_at": null
 }
+
 
 
 
