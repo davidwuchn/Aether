@@ -2,411 +2,423 @@
   "version": "3.0",
   "goal": "Fix infrastructure bugs that break colony seal: state-mutate panic on nested fields, chamber-create path doubling in entomb YAML, and XML export output format quirks",
   "colony_name": null,
-  "colony_version": 1,
-  "state": "READY",
+  "colony_version": 2,
+  "state": "IDLE",
   "current_phase": 6,
   "session_id": "session_1775476123_26bc29c9",
   "initialized_at": "2026-04-06T11:48:43Z",
-  "build_started_at": "2026-04-06T20:38:00Z",
+  "build_started_at": null,
   "plan": {
     "generated_at": "2026-04-06T13:00:58Z",
     "confidence": 94,
     "phases": [
       {
-        "description": "The setNestedFieldJSON function uses sjson.SetBytes which wraps string values in quotes, corrupting nested object/array paths. When seal.md calls state-mutate with nested dot-paths, the value gets double-quoted instead of properly set.",
         "id": 1,
         "name": "Fix state-mutate panic on nested fields",
-        "status": "in_progress",
-        "success_criteria": [
-          "state-mutate nested dot-paths work correctly",
-          "All existing tests pass"
-        ],
+        "description": "The setNestedFieldJSON function uses sjson.SetBytes which wraps string values in quotes, corrupting nested object/array paths. When seal.md calls state-mutate with nested dot-paths, the value gets double-quoted instead of properly set.",
+        "status": "completed",
         "tasks": [
           {
+            "id": "1.1",
+            "goal": "Write failing test for state-mutate --field with nested path",
+            "status": "",
             "constraints": [
               "Test file: cmd/state_cmds_test.go"
             ],
-            "depends_on": [],
-            "goal": "Write failing test for state-mutate --field with nested path",
             "hints": [
               "Test --field plan.confidence --value 85 sets numeric 85 not quoted string"
             ],
-            "id": "1.1",
             "success_criteria": [
               "Test fails: nested field produces double-quoted values"
             ]
           },
           {
+            "id": "1.2",
+            "goal": "Fix setNestedFieldJSON to detect JSON values and use sjson.SetRawBytes",
+            "status": "",
             "constraints": [
               "cmd/state_cmds.go line 597-599"
             ],
-            "depends_on": [
-              "1.1"
-            ],
-            "goal": "Fix setNestedFieldJSON to detect JSON values and use sjson.SetRawBytes",
             "hints": [
               "Try json.Unmarshal first; if valid JSON use SetRawBytes"
             ],
-            "id": "1.2",
             "success_criteria": [
               "Nested field values set correctly"
+            ],
+            "depends_on": [
+              "1.1"
             ]
           },
           {
-            "constraints": [],
-            "depends_on": [
-              "1.2"
-            ],
+            "id": "1.3",
             "goal": "Run state test suite",
+            "status": "",
             "hints": [
               "go test ./cmd/ -run TestState -v"
             ],
-            "id": "1.3",
             "success_criteria": [
               "All state_cmds tests pass"
+            ],
+            "depends_on": [
+              "1.2"
             ]
           }
+        ],
+        "success_criteria": [
+          "state-mutate nested dot-paths work correctly",
+          "All existing tests pass"
         ]
       },
       {
-        "description": "The export archive command passes nil to export functions instead of loading actual colony data. Alias commands use --output flag but seal.md/entomb.md pass positional paths.",
         "id": 2,
         "name": "Fix XML archive export format and output handling",
+        "description": "The export archive command passes nil to export functions instead of loading actual colony data. Alias commands use --output flag but seal.md/entomb.md pass positional paths.",
         "status": "completed",
-        "success_criteria": [
-          "colony-archive-xml writes valid XML",
-          "Positional arg backward compat",
-          "All export tests pass"
-        ],
         "tasks": [
           {
+            "id": "2.1",
+            "goal": "Write failing test for colony-archive-xml with --output and positional arg",
+            "status": "",
             "constraints": [
               "Test file: cmd/alias_cmds_test.go"
             ],
-            "depends_on": [],
-            "goal": "Write failing test for colony-archive-xml with --output and positional arg",
             "hints": [
               "Archive produces valid XML with header"
             ],
-            "id": "2.1",
             "success_criteria": [
               "Tests fail: archive empty/invalid"
             ]
           },
           {
+            "id": "2.2",
+            "goal": "Fix runExportArchive to load data and produce combined XML. Update aliases to accept positional arg",
+            "status": "",
             "constraints": [
               "cmd/exchange.go lines 205-230",
               "cmd/alias_cmds.go"
             ],
-            "depends_on": [
-              "2.1"
-            ],
-            "goal": "Fix runExportArchive to load data and produce combined XML. Update aliases to accept positional arg",
             "hints": [
               "Load pheromones, instincts, registry from store/hub"
             ],
-            "id": "2.2",
             "success_criteria": [
               "Archive produces valid XML file"
+            ],
+            "depends_on": [
+              "2.1"
             ]
           },
           {
-            "constraints": [],
-            "depends_on": [
-              "2.2"
-            ],
+            "id": "2.3",
             "goal": "Run exchange/alias test suite",
+            "status": "",
             "hints": [
               "go test ./pkg/exchange/ -v"
             ],
-            "id": "2.3",
             "success_criteria": [
               "All export tests pass"
+            ],
+            "depends_on": [
+              "2.2"
             ]
           }
+        ],
+        "success_criteria": [
+          "colony-archive-xml writes valid XML",
+          "Positional arg backward compat",
+          "All export tests pass"
         ]
       },
       {
-        "description": "Go command only accepts 6 conventional commit types. seal.md calls with type seal which gets rejected.",
         "id": 3,
         "name": "Fix generate-commit-message seal/milestone types",
+        "description": "Go command only accepts 6 conventional commit types. seal.md calls with type seal which gets rejected.",
         "status": "completed",
-        "success_criteria": [
-          "Accepts seal/milestone/pause/contextual types",
-          "All tests pass"
-        ],
         "tasks": [
           {
+            "id": "3.1",
+            "goal": "Write failing test for seal/milestone/pause/contextual types",
+            "status": "",
             "constraints": [
               "Test file: cmd/generate_cmds_test.go"
             ],
-            "depends_on": [],
-            "goal": "Write failing test for seal/milestone/pause/contextual types",
             "hints": [
               "Test --type seal --subject test"
             ],
-            "id": "3.1",
             "success_criteria": [
               "Test fails: invalid type seal"
             ]
           },
           {
+            "id": "3.2",
+            "goal": "Add seal/milestone/pause/contextual to validCommitTypes in cmd/generate_cmds.go line 41",
+            "status": "",
             "constraints": [
               "Keep existing conventional types"
             ],
-            "depends_on": [
-              "3.1"
-            ],
-            "goal": "Add seal/milestone/pause/contextual to validCommitTypes in cmd/generate_cmds.go line 41",
             "hints": [
               "cmd/generate_cmds.go line 41"
             ],
-            "id": "3.2",
             "success_criteria": [
               "--type seal works"
+            ],
+            "depends_on": [
+              "3.1"
             ]
           },
           {
-            "constraints": [],
-            "depends_on": [
-              "3.2"
-            ],
+            "id": "3.3",
             "goal": "Run generate test suite",
+            "status": "",
             "hints": [
               "go test ./cmd/ -run TestGenerate -v"
             ],
-            "id": "3.3",
             "success_criteria": [
               "All generate tests pass"
+            ],
+            "depends_on": [
+              "3.2"
             ]
           }
+        ],
+        "success_criteria": [
+          "Accepts seal/milestone/pause/contextual types",
+          "All tests pass"
         ]
       },
       {
-        "description": "learning-check-promotion requires --observation-id but seal.md calls without args. learning-promote-auto is a stub that counts but never promotes.",
         "id": 4,
         "name": "Fix learning-check-promotion --all and learning-promote-auto stub",
+        "description": "learning-check-promotion requires --observation-id but seal.md calls without args. learning-promote-auto is a stub that counts but never promotes.",
         "status": "completed",
-        "success_criteria": [
-          "learning-check-promotion --all returns eligible",
-          "learning-promote-auto promotes to instincts"
-        ],
         "tasks": [
           {
+            "id": "4.1",
+            "goal": "Write failing tests: --all returns eligible, promote-auto creates instincts",
+            "status": "",
             "constraints": [
               "Test file: cmd/learning_cmds_test.go"
             ],
-            "depends_on": [],
-            "goal": "Write failing tests: --all returns eligible, promote-auto creates instincts",
             "hints": [
-              "Create observations with count>=3"
+              "Create observations with count\u003e=3"
             ],
-            "id": "4.1",
             "success_criteria": [
               "Tests fail: --all not recognized, no instincts created"
             ]
           },
           {
+            "id": "4.2",
+            "goal": "Add --all flag to learning-check-promotion. Fix promote-auto to call PromoteService.Promote()",
+            "status": "",
             "constraints": [
               "cmd/learning.go"
             ],
-            "depends_on": [
-              "4.1"
-            ],
-            "goal": "Add --all flag to learning-check-promotion. Fix promote-auto to call PromoteService.Promote()",
             "hints": [
               "PromoteService in pkg/memory/promote.go"
             ],
-            "id": "4.2",
             "success_criteria": [
               "--all works, auto-promote creates instincts"
+            ],
+            "depends_on": [
+              "4.1"
             ]
           },
           {
-            "constraints": [],
-            "depends_on": [
-              "4.2"
-            ],
+            "id": "4.3",
             "goal": "Run learning test suite",
+            "status": "",
             "hints": [
               "go test ./cmd/ -run TestLearning -v",
               "go test ./pkg/memory/ -v"
             ],
-            "id": "4.3",
             "success_criteria": [
               "All learning tests pass"
+            ],
+            "depends_on": [
+              "4.2"
             ]
           }
+        ],
+        "success_criteria": [
+          "learning-check-promotion --all returns eligible",
+          "learning-promote-auto promotes to instincts"
         ]
       },
       {
-        "description": "entomb.md calls chamber-create with full path but Go command prepends .aether/chambers/. Fix entomb.md to use --name flag.",
         "id": 5,
         "name": "Fix chamber-create path doubling and verify chamber integrity",
-        "success_criteria": [
-          "chamber-create --name creates correct path",
-          "entomb.md uses Go flags"
-        ],
+        "description": "entomb.md calls chamber-create with full path but Go command prepends .aether/chambers/. Fix entomb.md to use --name flag.",
+        "status": "completed",
         "tasks": [
           {
-            "constraints": [],
-            "depends_on": [],
+            "id": "5.1",
             "goal": "Verify existing chamber tests cover path construction",
+            "status": "",
             "hints": [
               "go test ./cmd/ -run TestChamber -v"
             ],
-            "id": "5.1",
             "success_criteria": [
               "Current test coverage understood"
             ]
           },
           {
+            "id": "5.2",
+            "goal": "Fix entomb.md Steps 6 and 8 to use Go flag syntax",
+            "status": "",
             "constraints": [
               ".claude/commands/ant/entomb.md"
             ],
-            "depends_on": [
-              "5.1"
-            ],
-            "goal": "Fix entomb.md Steps 6 and 8 to use Go flag syntax",
             "hints": [
               "--name flag with bare name only"
             ],
-            "id": "5.2",
             "success_criteria": [
               "entomb.md uses --name flag"
+            ],
+            "depends_on": [
+              "5.1"
             ]
           },
           {
-            "constraints": [],
-            "depends_on": [
-              "5.2"
-            ],
+            "id": "5.3",
             "goal": "Run chamber tests",
+            "status": "",
             "hints": [
               "go test ./cmd/ -run TestChamber -v"
             ],
-            "id": "5.3",
             "success_criteria": [
               "All chamber tests pass"
+            ],
+            "depends_on": [
+              "5.2"
             ]
           }
         ],
-        "status": "completed"
+        "success_criteria": [
+          "chamber-create --name creates correct path",
+          "entomb.md uses Go flags"
+        ]
       },
       {
-        "description": "seal.md has 25 aether-utils.sh references. Convert all to aether subcommand with flag syntax. Add --active flag to registry-add.",
         "id": 6,
         "name": "Migrate seal.md from shell to Go binary calls",
-        "success_criteria": [
-          "Zero aether-utils.sh refs in seal.md",
-          "registry-add supports --active"
-        ],
+        "description": "seal.md has 25 aether-utils.sh references. Convert all to aether subcommand with flag syntax. Add --active flag to registry-add.",
+        "status": "completed",
         "tasks": [
           {
+            "id": "6.1",
+            "goal": "Convert seal.md Steps 2,3.5,5.5: milestone-detect, generate-ant-name, spawn-log, spawn-complete to flags",
+            "status": "",
             "constraints": [
               ".claude/commands/ant/seal.md"
             ],
-            "depends_on": [],
-            "goal": "Convert seal.md Steps 2,3.5,5.5: milestone-detect, generate-ant-name, spawn-log, spawn-complete to flags",
             "hints": [
               "spawn-log: --parent/--caste/--name/--task/--depth"
             ],
-            "id": "6.1",
             "success_criteria": [
               "Steps use aether binary with flags"
             ]
           },
           {
+            "id": "6.2",
+            "goal": "Convert seal.md Step 3.6 learning commands",
+            "status": "",
             "constraints": [
               ".claude/commands/ant/seal.md",
               "Depends on Phase 4"
             ],
-            "depends_on": [
-              "4.2"
-            ],
-            "goal": "Convert seal.md Step 3.6 learning commands",
             "hints": [
               "learning-promote-auto, learning-check-promotion --all"
             ],
-            "id": "6.2",
             "success_criteria": [
               "Step 3.6 uses Go binary"
+            ],
+            "depends_on": [
+              "4.2"
             ]
           },
           {
+            "id": "6.3",
+            "goal": "Convert seal.md Steps 4,4.4,5: activity-log, validate-state, state-checkpoint. Add --active to registry-add",
+            "status": "",
             "constraints": [
               ".claude/commands/ant/seal.md",
               "cmd/registry.go"
             ],
-            "depends_on": [],
-            "goal": "Convert seal.md Steps 4,4.4,5: activity-log, validate-state, state-checkpoint. Add --active to registry-add",
             "hints": [
               "activity-log: --command/--phase/--details"
             ],
-            "id": "6.3",
             "success_criteria": [
               "Steps use Go flags, registry-add supports --active"
             ]
           },
           {
+            "id": "6.4",
+            "goal": "Convert seal.md Steps 5.1,5.2,6.5,7.5: changelog, registry, XML exports, midden, commit-msg, hive-promote",
+            "status": "",
             "constraints": [
               ".claude/commands/ant/seal.md"
             ],
-            "depends_on": [
-              "3.2"
-            ],
-            "goal": "Convert seal.md Steps 5.1,5.2,6.5,7.5: changelog, registry, XML exports, midden, commit-msg, hive-promote",
             "hints": [
               "XML exports: --output flag"
             ],
-            "id": "6.4",
             "success_criteria": [
               "All 25 shell refs replaced"
+            ],
+            "depends_on": [
+              "3.2"
             ]
           }
         ],
-        "status": "completed"
+        "success_criteria": [
+          "Zero aether-utils.sh refs in seal.md",
+          "registry-add supports --active"
+        ]
       },
       {
-        "description": "entomb.md has 8 aether-utils.sh references. Convert all to Go binary calls.",
         "id": 7,
         "name": "Migrate entomb.md from shell to Go binary calls",
-        "success_criteria": [
-          "Zero aether-utils.sh refs in entomb.md"
-        ],
+        "description": "entomb.md has 8 aether-utils.sh references. Convert all to Go binary calls.",
+        "status": "completed",
         "tasks": [
           {
+            "id": "7.1",
+            "goal": "Convert all 8 entomb.md shell references to Go binary calls",
+            "status": "",
             "constraints": [
               ".claude/commands/ant/entomb.md",
               "Depends on Phases 4 and 5"
             ],
-            "depends_on": [
-              "5.2",
-              "4.2"
-            ],
-            "goal": "Convert all 8 entomb.md shell references to Go binary calls",
             "hints": [
               "learning-check-promotion --all, queen-init, chamber-verify --name"
             ],
-            "id": "7.1",
             "success_criteria": [
               "Zero shell refs in entomb.md"
+            ],
+            "depends_on": [
+              "5.2",
+              "4.2"
             ]
           }
+        ],
+        "success_criteria": [
+          "Zero aether-utils.sh refs in entomb.md"
         ]
       },
       {
-        "description": "Run full test suite, verify no shell references remain, build and smoke-test binary.",
         "id": 8,
         "name": "Integration verification",
-        "success_criteria": [
-          "Test suite passes with -race",
-          "Zero shell refs",
-          "Binary builds cleanly"
-        ],
+        "description": "Run full test suite, verify no shell references remain, build and smoke-test binary.",
+        "status": "completed",
         "tasks": [
           {
-            "constraints": [],
+            "id": "8.1",
+            "goal": "Run full test suite with race detection",
+            "status": "",
+            "hints": [
+              "go test ./... -race"
+            ],
+            "success_criteria": [
+              "All tests pass with -race"
+            ],
             "depends_on": [
               "1.3",
               "2.3",
@@ -415,46 +427,43 @@
               "5.3",
               "6.4",
               "7.1"
-            ],
-            "goal": "Run full test suite with race detection",
-            "hints": [
-              "go test ./... -race"
-            ],
-            "id": "8.1",
-            "success_criteria": [
-              "All tests pass with -race"
             ]
           },
           {
-            "constraints": [],
-            "depends_on": [
-              "6.4",
-              "7.1"
-            ],
+            "id": "8.2",
             "goal": "Verify zero shell references in seal.md and entomb.md",
+            "status": "",
             "hints": [
               "grep bash .aether/aether-utils.sh expect 0"
             ],
-            "id": "8.2",
             "success_criteria": [
               "Zero shell references"
-            ]
-          },
-          {
-            "constraints": [],
+            ],
             "depends_on": [
               "6.4",
               "7.1"
-            ],
+            ]
+          },
+          {
+            "id": "8.3",
             "goal": "Build binary and smoke-test modified commands",
+            "status": "",
             "hints": [
               "go build ./cmd/aether, test --help for new flags"
             ],
-            "id": "8.3",
             "success_criteria": [
               "Binary builds, flags visible"
+            ],
+            "depends_on": [
+              "6.4",
+              "7.1"
             ]
           }
+        ],
+        "success_criteria": [
+          "Test suite passes with -race",
+          "Zero shell refs",
+          "Binary builds cleanly"
         ]
       }
     ]
@@ -463,68 +472,70 @@
     "phase_learnings": [
       {
         "id": "learning_1743958800",
+        "phase": 1,
+        "phase_name": "Fix state-mutate panic on nested fields",
         "learnings": [
           {
             "claim": "When setting nested JSON fields via sjson, use SetRawBytes for raw JSON values (numbers, booleans, null, objects, arrays) and SetBytes only for plain strings — json.Unmarshal first to detect the type",
-            "disproven_by": null,
-            "evidence": "3 targeted tests pass: numeric values stored as numbers not quoted strings, deep nested paths work, array-indexed paths work",
             "status": "validated",
-            "tested": true
+            "tested": true,
+            "evidence": "3 targeted tests pass: numeric values stored as numbers not quoted strings, deep nested paths work, array-indexed paths work",
+            "disproven_by": null
           }
         ],
-        "phase": 1,
-        "phase_name": "Fix state-mutate panic on nested fields",
         "timestamp": "2026-04-06T13:20:00Z"
       },
       {
         "id": "learning_1743962400",
+        "phase": 2,
+        "phase_name": "Fix XML archive export format and output handling",
         "learnings": [
           {
             "claim": "When building colony archive XML exports, load actual data from colony store (pheromones.json, instincts.json) and hub store (registry/colonies.json) rather than passing nil — use struct-based XML unmarshal round-trip for reliable output",
-            "disproven_by": null,
-            "evidence": "3 tests pass: output flag, positional arg, all sections present. Archive produces valid XML with pheromones, wisdom, and registry sections.",
             "status": "validated",
-            "tested": true
+            "tested": true,
+            "evidence": "3 tests pass: output flag, positional arg, all sections present. Archive produces valid XML with pheromones, wisdom, and registry sections.",
+            "disproven_by": null
           },
           {
             "claim": "Cobra sticky-flag problem: flag values persist across Execute() calls on the same Command struct. Prefer positional args over --output flag to avoid stale flag values in alias commands",
-            "disproven_by": null,
-            "evidence": "TestColonyArchiveXMLPositionalArg passes with positional arg taking priority over --output flag",
             "status": "validated",
-            "tested": true
+            "tested": true,
+            "evidence": "TestColonyArchiveXMLPositionalArg passes with positional arg taking priority over --output flag",
+            "disproven_by": null
           }
         ],
-        "phase": 2,
-        "phase_name": "Fix XML archive export format and output handling"
+        "timestamp": ""
       },
       {
         "id": "learning_1743966000",
+        "phase": 3,
+        "phase_name": "Fix generate-commit-message seal/milestone types",
         "learnings": [
           {
             "claim": "When extending conventional commit type allowlists in Cobra commands, update both the validation slice and the --flag help string to prevent drift — use a derived help string from the slice",
-            "disproven_by": null,
-            "evidence": "Added seal/milestone/pause/contextual to validCommitTypes; Auditor flagged help string duplication as MEDIUM; tests confirm all 4 new types work",
             "status": "hypothesis",
-            "tested": true
+            "tested": true,
+            "evidence": "Added seal/milestone/pause/contextual to validCommitTypes; Auditor flagged help string duplication as MEDIUM; tests confirm all 4 new types work",
+            "disproven_by": null
           }
         ],
-        "phase": 3,
-        "phase_name": "Fix generate-commit-message seal/milestone types",
         "timestamp": "2026-04-06T14:30:00Z"
       },
       {
         "id": "learning_1775507705",
         "phase": 5,
         "phase_name": "Fix chamber-create path doubling and verify chamber integrity",
-        "timestamp": "2026-04-06T20:35:05Z",
         "learnings": [
           {
             "claim": "chamber-create and chamber-verify commands correctly construct paths using filepath.Join(aetherRoot, .aether, chambers, name)",
             "status": "validated",
             "tested": true,
-            "evidence": "All 8 chamber tests pass, entomb.md uses --name flag correctly"
+            "evidence": "All 8 chamber tests pass, entomb.md uses --name flag correctly",
+            "disproven_by": null
           }
-        ]
+        ],
+        "timestamp": "2026-04-06T20:35:05Z"
       }
     ],
     "decisions": null,
@@ -542,9 +553,9 @@
     "2026-04-06T20:35:05Z|phase_completed|build|Phase 5 completed",
     "2026-04-06T20:36:38Z|phase_advanced|continue|Completed Phase 5, advancing to Phase 6",
     "2026-04-06T20:38:00Z|phase_started|build|Phase 6: Migrate seal.md started",
-    "2026-04-06T20:48:51Z|phase_completed|build|Phase 6 completed"
+    "2026-04-06T20:48:51Z|phase_completed|build|Phase 6 completed",
+    ""
   ],
-  "milestone": null,
-  "milestone_updated_at": null
+  "milestone": "Crowned Anthill",
+  "milestone_updated_at": "2026-04-06T21:53:35Z"
 }
-
