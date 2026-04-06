@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/calcosmic/Aether/pkg/downloader"
 	"github.com/spf13/cobra"
@@ -30,12 +31,14 @@ var (
 	updateDownloadBinary bool
 	updateBinaryVersion  string
 	updateDryRun         bool
+	updateForce          bool
 )
 
 func init() {
 	updateCmd.Flags().Bool("download-binary", false, "Also download the latest binary from GitHub Releases")
 	updateCmd.Flags().String("binary-version", "", "Binary version to download (default: latest)")
 	updateCmd.Flags().Bool("dry-run", false, "Show what would be updated without making changes")
+	updateCmd.Flags().Bool("force", false, "Overwrite modified companion files and remove stale ones")
 
 	rootCmd.AddCommand(updateCmd)
 }
@@ -47,6 +50,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	force, _ := cmd.Flags().GetBool("force")
 
 	// Check hub exists
 	hubDir := filepath.Join(homeDir, ".aether")
@@ -67,10 +71,15 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	// Sync companion files from hub
 	if dryRun {
+		mode := "safe (new files only)"
+		if force {
+			mode = "force (overwrite changed + remove stale)"
+		}
 		outputOK(map[string]interface{}{
-			"message":       "Dry run — would sync companion files from hub",
+			"message":       fmt.Sprintf("Dry run — would sync companion files from hub [%s]", mode),
 			"hub_version":   hubVersion,
 			"local_version": Version,
+			"force":         force,
 			"actions": []string{
 				"Sync .aether/ system files (commands, agents, skills, templates, docs)",
 				"Sync .claude/commands/ant/",
@@ -80,11 +89,12 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			},
 		})
 	} else {
-		syncResult := runUpdateSync(hubDir, repoDir)
+		syncResult := runUpdateSync(hubDir, repoDir, force)
 		outputOK(map[string]interface{}{
 			"message":       fmt.Sprintf("Updated: %d files copied, %d unchanged", syncResult.copied, syncResult.skipped),
 			"hub_version":   hubVersion,
 			"local_version": Version,
+			"force":         force,
 			"details":       syncResult.details,
 		})
 	}
@@ -129,11 +139,21 @@ type updateSyncResult struct {
 }
 
 // runUpdateSync syncs companion files from hub to local repo.
-func runUpdateSync(hubDir, repoDir string) updateSyncResult {
+func runUpdateSync(hubDir, repoDir string, force bool) updateSyncResult {
 	result := updateSyncResult{}
 
 	hubSystem := filepath.Join(hubDir, "system")
 	localAether := filepath.Join(repoDir, ".aether")
+
+	// Directories to never overwrite or remove (user data)
+	protectedDirs := map[string]bool{
+		"data":    true,
+		"dreams":  true,
+	}
+	protectedFiles := map[string]bool{
+		"QUEEN.md":         true,
+		"CROWNED-ANTHILL.md": true,
+	}
 
 	syncPairs := []struct {
 		srcRel  string
@@ -151,7 +171,12 @@ func runUpdateSync(hubDir, repoDir string) updateSyncResult {
 		srcDir := filepath.Join(hubSystem, filepath.FromSlash(pair.srcRel))
 		destDir := filepath.Join(localAether, filepath.FromSlash(pair.destRel))
 
-		syncRes := setupSyncDir(srcDir, destDir)
+		var syncRes syncResult
+		if force {
+			syncRes = syncDirProtected(srcDir, destDir, protectedDirs, protectedFiles)
+		} else {
+			syncRes = setupSyncDir(srcDir, destDir)
+		}
 		result.details = append(result.details, map[string]interface{}{
 			"label":   pair.label,
 			"copied":  syncRes.copied,
@@ -159,6 +184,99 @@ func runUpdateSync(hubDir, repoDir string) updateSyncResult {
 		})
 		result.copied += syncRes.copied
 		result.skipped += syncRes.skipped
+	}
+
+	return result
+}
+
+// syncDirProtected copies files from src to dest like syncDirWithCleanup,
+// but skips protected directories and files.
+func syncDirProtected(src, dest string, protectedDirs, protectedFiles map[string]bool) syncResult {
+	result := syncResult{}
+
+	srcInfo, err := os.Stat(src)
+	if err != nil || !srcInfo.IsDir() {
+		return result
+	}
+
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return result
+	}
+
+	srcFiles := listFilesRecursive(src)
+	for _, relPath := range srcFiles {
+		// Skip protected paths
+		firstComponent := relPath
+		if idx := strings.Index(relPath, string(filepath.Separator)); idx >= 0 {
+			firstComponent = relPath[:idx]
+		}
+		if protectedDirs[firstComponent] {
+			result.skipped++
+			continue
+		}
+		if protectedFiles[filepath.Base(relPath)] {
+			result.skipped++
+			continue
+		}
+
+		srcPath := filepath.Join(src, relPath)
+		destPath := filepath.Join(dest, relPath)
+
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			continue
+		}
+
+		// Copy if new or changed (SHA-256 diff)
+		if info, err := os.Stat(destPath); err == nil {
+			srcHash, srcErr := fileSHA256(srcPath)
+			destHash, destErr := fileSHA256(destPath)
+			if srcErr == nil && destErr == nil && srcHash == destHash {
+				result.skipped++
+				continue
+			}
+			_ = info
+		}
+
+		if err := copyFile(srcPath, destPath); err != nil {
+			continue
+		}
+
+		if strings.HasSuffix(relPath, ".sh") {
+			os.Chmod(destPath, 0755)
+		}
+
+		result.copied++
+	}
+
+	// Remove stale files (in dest but not in src), respecting protections
+	destFiles := listFilesRecursive(dest)
+	srcSet := make(map[string]struct{}, len(srcFiles))
+	for _, f := range srcFiles {
+		srcSet[f] = struct{}{}
+	}
+
+	for _, relPath := range destFiles {
+		firstComponent := relPath
+		if idx := strings.Index(relPath, string(filepath.Separator)); idx >= 0 {
+			firstComponent = relPath[:idx]
+		}
+		if protectedDirs[firstComponent] {
+			continue
+		}
+		if protectedFiles[filepath.Base(relPath)] {
+			continue
+		}
+
+		if _, exists := srcSet[relPath]; !exists {
+			destPath := filepath.Join(dest, relPath)
+			if err := os.Remove(destPath); err == nil {
+				result.removed = append(result.removed, relPath)
+			}
+		}
+	}
+
+	if len(result.removed) > 0 {
+		cleanEmptyDirs(dest)
 	}
 
 	return result
