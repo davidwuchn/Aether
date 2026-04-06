@@ -1,383 +1,455 @@
 {
   "version": "3.0",
-  "goal": "Fix the top 5 architecture audit findings — file locking, exec timeouts, LLM retry, shared event bus, and context propagation — to bring the Go codebase from 25% system-thinking to idiomatic Go",
+  "goal": "Fix infrastructure bugs that break colony seal: state-mutate panic on nested fields, chamber-create path doubling in entomb YAML, and XML export output format quirks",
   "colony_name": null,
   "colony_version": 1,
-  "state": "COMPLETED",
-  "current_phase": 5,
-  "session_id": "session_1775424724_e24a467",
-  "initialized_at": "2026-04-05T21:32:04Z",
+  "state": "READY",
+  "current_phase": 2,
+  "session_id": "session_1775476123_26bc29c9",
+  "initialized_at": "2026-04-06T11:48:43Z",
   "build_started_at": null,
   "plan": {
-    "generated_at": "2026-04-05T22:01:46Z",
-    "confidence": 99,
+    "generated_at": "2026-04-06T13:00:58Z",
+    "confidence": 94,
     "phases": [
       {
+        "description": "The setNestedFieldJSON function uses sjson.SetBytes which wraps string values in quotes, corrupting nested object/array paths. When seal.md calls state-mutate with nested dot-paths, the value gets double-quoted instead of properly set.",
         "id": 1,
-        "name": "Exec Command Timeouts",
-        "description": "Convert all 23 bare exec.Command calls to exec.CommandContext with appropriate timeouts. Hung git operations block the CLI indefinitely.",
-        "status": "completed",
+        "name": "Fix state-mutate panic on nested fields",
+        "status": "in_progress",
+        "success_criteria": [
+          "state-mutate nested dot-paths work correctly",
+          "All existing tests pass"
+        ],
         "tasks": [
           {
+            "constraints": [
+              "Test file: cmd/state_cmds_test.go"
+            ],
+            "depends_on": [],
+            "goal": "Write failing test for state-mutate --field with nested path",
+            "hints": [
+              "Test --field plan.confidence --value 85 sets numeric 85 not quoted string"
+            ],
             "id": "1.1",
-            "goal": "Create timeout constants for different command categories",
-            "status": "completed",
-            "constraints": [
-              "Constants live in cmd/ package as exported vars",
-              "Git ops 60s, build verification 120s, general commands 30s"
-            ],
-            "hints": [
-              "See cmd/clash.go for 7 calls, cmd/worktree_merge.go for 12 calls"
-            ],
             "success_criteria": [
-              "Constants defined and exported from cmd/",
-              "go vet passes"
+              "Test fails: nested field produces double-quoted values"
             ]
           },
           {
+            "constraints": [
+              "cmd/state_cmds.go line 597-599"
+            ],
+            "depends_on": [
+              "1.1"
+            ],
+            "goal": "Fix setNestedFieldJSON to detect JSON values and use sjson.SetRawBytes",
+            "hints": [
+              "Try json.Unmarshal first; if valid JSON use SetRawBytes"
+            ],
             "id": "1.2",
-            "goal": "Convert exec.Command to exec.CommandContext in cmd/clash.go and cmd/worktree_merge.go",
-            "status": "completed",
-            "constraints": [
-              "19 calls across these two files",
-              "Context timeout errors wrapped with user-friendly messages",
-              "No change to command semantics"
-            ],
-            "hints": [
-              "cmd/clash.go lines 26,38,82,86,109,137,144",
-              "cmd/worktree_merge.go lines 29,47,66,68,76,78,88,90,94,118,146,153"
-            ],
             "success_criteria": [
-              "Zero exec.Command in clash.go and worktree_merge.go",
-              "All calls use timeout constants"
-            ],
-            "depends_on": [
-              "1.1"
+              "Nested field values set correctly"
             ]
           },
           {
+            "constraints": [],
+            "depends_on": [
+              "1.2"
+            ],
+            "goal": "Run state test suite",
+            "hints": [
+              "go test ./cmd/ -run TestState -v"
+            ],
             "id": "1.3",
-            "goal": "Convert exec.Command to exec.CommandContext in cmd/context.go, cmd/session_cmds.go, and pkg/storage/paths.go",
-            "status": "completed",
-            "constraints": [
-              "4 remaining calls across 3 files",
-              "pkg/storage/paths.go needs context parameter added to ResolveAetherRoot and ResolveDataDir"
-            ],
-            "hints": [
-              "cmd/context.go lines 1034,1212",
-              "cmd/session_cmds.go line 483",
-              "pkg/storage/paths.go ResolveAetherRoot"
-            ],
             "success_criteria": [
-              "Zero exec.Command in all 3 files",
-              "go build ./... passes"
-            ],
-            "depends_on": [
-              "1.1"
-            ]
-          },
-          {
-            "id": "1.4",
-            "goal": "Add tests proving exec commands time out correctly under hung subprocess conditions",
-            "status": "completed",
-            "constraints": [
-              "Test must simulate a command that never exits",
-              "Timeout must trigger within test-acceptable bounds",
-              "Test must not hang the test suite"
-            ],
-            "hints": [
-              "Use exec.CommandContext with a short timeout and a sleep command"
-            ],
-            "success_criteria": [
-              "Test passes proving context cancellation kills subprocess",
-              "go test ./cmd/... -timeout 30s completes"
-            ],
-            "depends_on": [
-              "1.2",
-              "1.3"
-            ]
-          },
-          {
-            "id": "1.5",
-            "goal": "Verify all callers of ResolveAetherRoot and ResolveDataDir pass context",
-            "status": "completed",
-            "constraints": [
-              "Called from cmd/chamber.go, cmd/internal_cmds.go, cmd/session_cmds.go, cmd/maintenance.go"
-            ],
-            "hints": [
-              "Grep for ResolveAetherRoot and ResolveDataDir across cmd/"
-            ],
-            "success_criteria": [
-              "All callers updated",
-              "go build ./... passes"
-            ],
-            "depends_on": [
-              "1.3"
+              "All state_cmds tests pass"
             ]
           }
-        ],
-        "success_criteria": [
-          "Zero bare exec.Command in codebase",
-          "Every external process invocation has a bounded lifetime",
-          "Tests prove timeout behavior works"
         ]
       },
       {
+        "description": "The export archive command passes nil to export functions instead of loading actual colony data. Alias commands use --output flag but seal.md/entomb.md pass positional paths.",
         "id": 2,
-        "name": "File Locking",
-        "description": "Create cross-process file locking using syscall.Flock, integrate into Store methods, and remove the unused sync.Map mutexes field.",
-        "status": "completed",
+        "name": "Fix XML archive export format and output handling",
+        "success_criteria": [
+          "colony-archive-xml writes valid XML",
+          "Positional arg backward compat",
+          "All export tests pass"
+        ],
         "tasks": [
           {
-            "id": "2.1",
-            "goal": "Create pkg/storage/lock.go with FileLocker using syscall.Flock for cross-process locking",
-            "status": "completed",
             "constraints": [
-              "New file pkg/storage/lock.go",
-              "FileLocker must be created from a file path",
-              "Must support exclusive and shared locks",
-              "Must be safe for concurrent use within a process",
-              "Must handle unlock even on error paths via defer"
+              "Test file: cmd/alias_cmds_test.go"
             ],
+            "depends_on": [],
+            "goal": "Write failing test for colony-archive-xml with --output and positional arg",
             "hints": [
-              "syscall.Flock provides OS-level file locking",
-              "Lock file should be path + '.lock' suffix"
+              "Archive produces valid XML with header"
             ],
+            "id": "2.1",
             "success_criteria": [
-              "FileLocker struct exists with Lock/Unlock/RLock/RUnlock methods",
-              "go vet passes",
-              "Unit tests for basic locking behavior"
+              "Tests fail: archive empty/invalid"
             ]
           },
           {
-            "id": "2.2",
-            "goal": "Integrate FileLocker into Store methods: AtomicWrite, AppendJSONL, and remove dead mutexes sync.Map field",
-            "status": "completed",
             "constraints": [
-              "AtomicWrite needs exclusive lock",
-              "AppendJSONL needs exclusive lock",
-              "ReadJSONL and LoadJSON need shared lock",
-              "Remove the unused mutexes sync.Map field from Store struct",
-              "Lock must be released even on error"
-            ],
-            "hints": [
-              "AppendJSONL at line 119 in storage.go",
-              "AtomicWrite at line 42 in storage.go",
-              "mutexes field at line 22 in storage.go"
-            ],
-            "success_criteria": [
-              "All write methods use FileLocker",
-              "All read methods use shared FileLocker",
-              "mutexes field removed from Store struct",
-              "Existing storage tests pass"
+              "cmd/exchange.go lines 205-230",
+              "cmd/alias_cmds.go"
             ],
             "depends_on": [
               "2.1"
+            ],
+            "goal": "Fix runExportArchive to load data and produce combined XML. Update aliases to accept positional arg",
+            "hints": [
+              "Load pheromones, instincts, registry from store/hub"
+            ],
+            "id": "2.2",
+            "success_criteria": [
+              "Archive produces valid XML file"
             ]
           },
           {
-            "id": "2.3",
-            "goal": "Add concurrent access tests proving AppendJSONL does not interleave under parallel writes",
-            "status": "completed",
-            "constraints": [
-              "Test must write from 10+ goroutines simultaneously",
-              "Each written line must be valid JSON when read back",
-              "No partial lines or interleaved content"
-            ],
-            "hints": [
-              "Reference TestConcurrentPublish in pkg/events/bus_test.go"
-            ],
-            "success_criteria": [
-              "Concurrent append test passes with zero malformed lines",
-              "go test ./pkg/storage/... -race passes"
-            ],
+            "constraints": [],
             "depends_on": [
               "2.2"
+            ],
+            "goal": "Run exchange/alias test suite",
+            "hints": [
+              "go test ./pkg/exchange/ -v"
+            ],
+            "id": "2.3",
+            "success_criteria": [
+              "All export tests pass"
             ]
           }
-        ],
-        "success_criteria": [
-          "FileLocker protects all write operations",
-          "Concurrent AppendJSONL writes produce valid JSONL",
-          "Race detector shows no data races in pkg/storage",
-          "Dead sync.Map field removed"
         ]
       },
       {
+        "description": "Go command only accepts 6 conventional commit types. seal.md calls with type seal which gets rejected.",
         "id": 3,
-        "name": "Context Propagation",
-        "description": "Replace 17 bare context.Background() calls in command handlers with cmd.Context() to enable Ctrl+C cancellation support.",
-        "status": "completed",
+        "name": "Fix generate-commit-message seal/milestone types",
+        "success_criteria": [
+          "Accepts seal/milestone/pause/contextual types",
+          "All tests pass"
+        ],
         "tasks": [
           {
+            "constraints": [
+              "Test file: cmd/generate_cmds_test.go"
+            ],
+            "depends_on": [],
+            "goal": "Write failing test for seal/milestone/pause/contextual types",
+            "hints": [
+              "Test --type seal --subject test"
+            ],
             "id": "3.1",
-            "goal": "Create a context helper in cmd/ that derives a timeout context from cobra cmd.Context()",
-            "status": "completed",
-            "constraints": [
-              "Must use cmd.Context() as parent",
-              "Default timeout 30s for most operations",
-              "Helper returns context and cancel function",
-              "Must work with existing cobra.RunE signature"
-            ],
-            "hints": [
-              "Cobra cmd.Context() handles OS signal propagation",
-              "17 bare context.Background() calls across cmd/"
-            ],
             "success_criteria": [
-              "Context helper function exists in cmd/",
-              "go vet passes"
+              "Test fails: invalid type seal"
             ]
           },
           {
+            "constraints": [
+              "Keep existing conventional types"
+            ],
+            "depends_on": [
+              "3.1"
+            ],
+            "goal": "Add seal/milestone/pause/contextual to validCommitTypes in cmd/generate_cmds.go line 41",
+            "hints": [
+              "cmd/generate_cmds.go line 41"
+            ],
             "id": "3.2",
-            "goal": "Replace all bare context.Background() in cmd/learning.go and cmd/curation_cmds.go",
-            "status": "completed",
-            "constraints": [
-              "learning.go has 2 calls at lines 49 and 169",
-              "curation_cmds.go has 9 calls at lines 26,56,86,116,147,177,208,236,267",
-              "Each handler must defer cancel()"
-            ],
-            "hints": [
-              "cmd/curation_cmds.go line 26: s.Run(context.Background(), dryRun)"
-            ],
             "success_criteria": [
-              "Zero context.Background() in learning.go and curation_cmds.go",
-              "go test ./cmd/... passes"
-            ],
-            "depends_on": [
-              "3.1"
+              "--type seal works"
             ]
           },
           {
+            "constraints": [],
+            "depends_on": [
+              "3.2"
+            ],
+            "goal": "Run generate test suite",
+            "hints": [
+              "go test ./cmd/ -run TestGenerate -v"
+            ],
             "id": "3.3",
-            "goal": "Replace bare context.Background() in cmd/graph_consolidation_cmds.go and verify cmd/eventbus.go timeouts",
-            "status": "completed",
-            "constraints": [
-              "graph_consolidation_cmds.go has 2 calls at lines 205 and 251",
-              "eventbus.go already uses WithTimeout(5s) — verify those timeouts are appropriate"
-            ],
-            "hints": [
-              "cmd/graph_consolidation_cmds.go line 251 uses bare context.Background()"
-            ],
             "success_criteria": [
-              "Zero bare context.Background() in graph_consolidation_cmds.go",
-              "Eventbus timeout values verified appropriate"
-            ],
-            "depends_on": [
-              "3.1"
-            ]
-          },
-          {
-            "id": "3.4",
-            "goal": "Add test proving Ctrl+C cancellation propagates to command handlers",
-            "status": "completed",
-            "constraints": [
-              "Test must simulate signal delivery",
-              "Must verify command exits cleanly on cancellation"
-            ],
-            "hints": [
-              "os/signal.NotifyContext can be used in tests"
-            ],
-            "success_criteria": [
-              "Cancellation test passes",
-              "go test ./cmd/... -timeout 30s completes"
-            ],
-            "depends_on": [
-              "3.2",
-              "3.3"
+              "All generate tests pass"
             ]
           }
-        ],
-        "success_criteria": [
-          "All command handlers respect cancellation",
-          "Zero bare context.Background() in cmd/ production code",
-          "Every context has a bounded lifetime"
         ]
       },
       {
+        "description": "learning-check-promotion requires --observation-id but seal.md calls without args. learning-promote-auto is a stub that counts but never promotes.",
         "id": 4,
-        "name": "Event Bus Cleanup",
-        "description": "Add configurable --timeout flag to eventbus commands and clean up any event bus code smells.",
-        "status": "in_progress",
-        "tasks": [
-          {
-            "id": "4.1",
-            "goal": "Add configurable timeout flag to the 4 eventbus command handlers in cmd/eventbus.go",
-            "status": "",
-            "constraints": [
-              "eventbus.go already uses WithTimeout(5s) at lines 49,86,129,167",
-              "Replace hardcoded 5s with a configurable flag defaulting to 5s",
-              "Must not break existing behavior"
-            ],
-            "hints": [
-              "cmd/eventbus.go uses WithTimeout(context.Background(), 5*time.Second) 4 times"
-            ],
-            "success_criteria": [
-              "--timeout flag available on eventbus commands",
-              "Default remains 5s",
-              "go test ./cmd/... passes"
-            ]
-          }
-        ],
+        "name": "Fix learning-check-promotion --all and learning-promote-auto stub",
         "success_criteria": [
-          "Eventbus commands accept configurable timeout",
-          "No hardcoded magic numbers for timeout values"
-        ]
-      },
-      {
-        "id": 5,
-        "name": "Integration Verification",
-        "description": "End-to-end verification that all fixes work together with race detector and build verification.",
-        "status": "completed",
+          "learning-check-promotion --all returns eligible",
+          "learning-promote-auto promotes to instincts"
+        ],
         "tasks": [
           {
-            "id": "5.1",
-            "goal": "Run full test suite with race detector and verify zero data races",
-            "status": "completed",
             "constraints": [
-              "Must run go test ./... -race",
-              "Must run go vet ./...",
-              "All existing tests must pass"
+              "Test file: cmd/learning_cmds_test.go"
             ],
+            "depends_on": [],
+            "goal": "Write failing tests: --all returns eligible, promote-auto creates instincts",
+            "hints": [
+              "Create observations with count\u003e=3"
+            ],
+            "id": "4.1",
             "success_criteria": [
-              "go test ./... -race exits 0",
-              "go vet ./... exits 0"
-            ],
-            "depends_on": [
-              "1.4",
-              "1.5",
-              "2.3",
-              "3.4",
-              "4.1"
+              "Tests fail: --all not recognized, no instincts created"
             ]
           },
           {
-            "id": "5.2",
-            "goal": "Run grep audit to verify all 5 audit findings are resolved and binary builds cleanly",
-            "status": "completed",
             "constraints": [
-              "grep exec.Command\\b returns 0 in production code",
-              "grep context.Background returns 0 in cmd/ production code",
-              "grep mutexes returns 0 in storage.go",
-              "go build ./cmd/aether exits 0"
+              "cmd/learning.go"
             ],
+            "depends_on": [
+              "4.1"
+            ],
+            "goal": "Add --all flag to learning-check-promotion. Fix promote-auto to call PromoteService.Promote()",
             "hints": [
-              "Exclude test files from grep audit"
+              "PromoteService in pkg/memory/promote.go"
             ],
+            "id": "4.2",
             "success_criteria": [
-              "All grep audits pass",
-              "go build ./cmd/aether exits 0",
-              "aether version outputs correctly"
+              "--all works, auto-promote creates instincts"
+            ]
+          },
+          {
+            "constraints": [],
+            "depends_on": [
+              "4.2"
+            ],
+            "goal": "Run learning test suite",
+            "hints": [
+              "go test ./cmd/ -run TestLearning -v",
+              "go test ./pkg/memory/ -v"
+            ],
+            "id": "4.3",
+            "success_criteria": [
+              "All learning tests pass"
+            ]
+          }
+        ]
+      },
+      {
+        "description": "entomb.md calls chamber-create with full path but Go command prepends .aether/chambers/. Fix entomb.md to use --name flag.",
+        "id": 5,
+        "name": "Fix chamber-create path doubling and verify chamber integrity",
+        "success_criteria": [
+          "chamber-create --name creates correct path",
+          "entomb.md uses Go flags"
+        ],
+        "tasks": [
+          {
+            "constraints": [],
+            "depends_on": [],
+            "goal": "Verify existing chamber tests cover path construction",
+            "hints": [
+              "go test ./cmd/ -run TestChamber -v"
+            ],
+            "id": "5.1",
+            "success_criteria": [
+              "Current test coverage understood"
+            ]
+          },
+          {
+            "constraints": [
+              ".claude/commands/ant/entomb.md"
             ],
             "depends_on": [
               "5.1"
+            ],
+            "goal": "Fix entomb.md Steps 6 and 8 to use Go flag syntax",
+            "hints": [
+              "--name flag with bare name only"
+            ],
+            "id": "5.2",
+            "success_criteria": [
+              "entomb.md uses --name flag"
+            ]
+          },
+          {
+            "constraints": [],
+            "depends_on": [
+              "5.2"
+            ],
+            "goal": "Run chamber tests",
+            "hints": [
+              "go test ./cmd/ -run TestChamber -v"
+            ],
+            "id": "5.3",
+            "success_criteria": [
+              "All chamber tests pass"
             ]
           }
-        ],
+        ]
+      },
+      {
+        "description": "seal.md has 25 aether-utils.sh references. Convert all to aether subcommand with flag syntax. Add --active flag to registry-add.",
+        "id": 6,
+        "name": "Migrate seal.md from shell to Go binary calls",
         "success_criteria": [
-          "Full test suite green with race detector",
-          "Binary builds and runs",
-          "All 5 audit findings addressed"
+          "Zero aether-utils.sh refs in seal.md",
+          "registry-add supports --active"
+        ],
+        "tasks": [
+          {
+            "constraints": [
+              ".claude/commands/ant/seal.md"
+            ],
+            "depends_on": [],
+            "goal": "Convert seal.md Steps 2,3.5,5.5: milestone-detect, generate-ant-name, spawn-log, spawn-complete to flags",
+            "hints": [
+              "spawn-log: --parent/--caste/--name/--task/--depth"
+            ],
+            "id": "6.1",
+            "success_criteria": [
+              "Steps use aether binary with flags"
+            ]
+          },
+          {
+            "constraints": [
+              ".claude/commands/ant/seal.md",
+              "Depends on Phase 4"
+            ],
+            "depends_on": [
+              "4.2"
+            ],
+            "goal": "Convert seal.md Step 3.6 learning commands",
+            "hints": [
+              "learning-promote-auto, learning-check-promotion --all"
+            ],
+            "id": "6.2",
+            "success_criteria": [
+              "Step 3.6 uses Go binary"
+            ]
+          },
+          {
+            "constraints": [
+              ".claude/commands/ant/seal.md",
+              "cmd/registry.go"
+            ],
+            "depends_on": [],
+            "goal": "Convert seal.md Steps 4,4.4,5: activity-log, validate-state, state-checkpoint. Add --active to registry-add",
+            "hints": [
+              "activity-log: --command/--phase/--details"
+            ],
+            "id": "6.3",
+            "success_criteria": [
+              "Steps use Go flags, registry-add supports --active"
+            ]
+          },
+          {
+            "constraints": [
+              ".claude/commands/ant/seal.md"
+            ],
+            "depends_on": [
+              "3.2"
+            ],
+            "goal": "Convert seal.md Steps 5.1,5.2,6.5,7.5: changelog, registry, XML exports, midden, commit-msg, hive-promote",
+            "hints": [
+              "XML exports: --output flag"
+            ],
+            "id": "6.4",
+            "success_criteria": [
+              "All 25 shell refs replaced"
+            ]
+          }
+        ]
+      },
+      {
+        "description": "entomb.md has 8 aether-utils.sh references. Convert all to Go binary calls.",
+        "id": 7,
+        "name": "Migrate entomb.md from shell to Go binary calls",
+        "success_criteria": [
+          "Zero aether-utils.sh refs in entomb.md"
+        ],
+        "tasks": [
+          {
+            "constraints": [
+              ".claude/commands/ant/entomb.md",
+              "Depends on Phases 4 and 5"
+            ],
+            "depends_on": [
+              "5.2",
+              "4.2"
+            ],
+            "goal": "Convert all 8 entomb.md shell references to Go binary calls",
+            "hints": [
+              "learning-check-promotion --all, queen-init, chamber-verify --name"
+            ],
+            "id": "7.1",
+            "success_criteria": [
+              "Zero shell refs in entomb.md"
+            ]
+          }
+        ]
+      },
+      {
+        "description": "Run full test suite, verify no shell references remain, build and smoke-test binary.",
+        "id": 8,
+        "name": "Integration verification",
+        "success_criteria": [
+          "Test suite passes with -race",
+          "Zero shell refs",
+          "Binary builds cleanly"
+        ],
+        "tasks": [
+          {
+            "constraints": [],
+            "depends_on": [
+              "1.3",
+              "2.3",
+              "3.3",
+              "4.3",
+              "5.3",
+              "6.4",
+              "7.1"
+            ],
+            "goal": "Run full test suite with race detection",
+            "hints": [
+              "go test ./... -race"
+            ],
+            "id": "8.1",
+            "success_criteria": [
+              "All tests pass with -race"
+            ]
+          },
+          {
+            "constraints": [],
+            "depends_on": [
+              "6.4",
+              "7.1"
+            ],
+            "goal": "Verify zero shell references in seal.md and entomb.md",
+            "hints": [
+              "grep bash .aether/aether-utils.sh expect 0"
+            ],
+            "id": "8.2",
+            "success_criteria": [
+              "Zero shell references"
+            ]
+          },
+          {
+            "constraints": [],
+            "depends_on": [
+              "6.4",
+              "7.1"
+            ],
+            "goal": "Build binary and smoke-test modified commands",
+            "hints": [
+              "go build ./cmd/aether, test --help for new flags"
+            ],
+            "id": "8.3",
+            "success_criteria": [
+              "Binary builds, flags visible"
+            ]
+          }
         ]
       }
     ]
@@ -385,101 +457,22 @@
   "memory": {
     "phase_learnings": [
       {
-        "id": "learning_1775427730",
-        "phase": 1,
-        "phase_name": "Exec Command Timeouts",
+        "id": "learning_1743958800",
         "learnings": [
           {
-            "claim": "defer cancel() inside for loops accumulates timers — extract to helper function or call cancel() explicitly",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "Auditor flagged cmd/clash.go:45 as HIGH",
-            "disproven_by": null
-          },
-          {
-            "claim": "Timeout constants should be exported var not const to allow test override",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "cmd/timeouts.go declares timeouts as var",
-            "disproven_by": null
-          },
-          {
-            "claim": "Silently swallowing context.DeadlineExceeded makes debugging impossible",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "cmd/context.go resolveAetherRootPath and detectGitBranch swallow timeout errors",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-04-05T22:22:10Z"
-      },
-      {
-        "id": "learning_1775429394",
-        "phase": 2,
-        "phase_name": "File Locking",
-        "learnings": [
-          {
-            "claim": "syscall.Flock provides clean cross-process locking but a single in-process Mutex serializes all paths — use per-path mutex for better concurrency under high contention",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "Auditor flagged lock.go:64 as HIGH — single sync.Mutex gates all lock paths",
-            "disproven_by": null
-          },
-          {
-            "claim": "Lock upgrade/downgrade (shared to exclusive or vice versa) is silently destructive with flock — the unlock-reacquire window breaks atomicity",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "Auditor flagged lock.go:69 as HIGH — non-atomic release-and-reacquire",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-04-05T22:49:54Z"
-      },
-      {
-        "id": "learning_1775430821",
-        "phase": 3,
-        "phase_name": "Context Propagation",
-        "learnings": [
-          {
-            "claim": "Cobra cmd.Context() provides OS signal propagation — deriving timeout contexts from it gives automatic Ctrl+C support without manual signal handling",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "cmd/ctxhelper.go timeoutCtx() uses cmd.Context() as parent; 7 tests prove cancellation propagation including signal-based tests",
-            "disproven_by": null
-          },
-          {
-            "claim": "Exporting timeout vars (not const) allows test overrides without build tags or interfaces — same pattern as Phase 1 timeout constants",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "cmd/ctxhelper.go:12 DefaultTimeout = GeneralTimeout; tests override it directly",
-            "disproven_by": null
-          },
-          {
-            "claim": "Context propagation should be scoped per-file — trying to convert all context.Background() calls at once risks breaking unrelated code paths",
-            "status": "hypothesis",
-            "tested": true,
-            "evidence": "Phase 3 only targeted learning.go, curation_cmds.go, graph_consolidation_cmds.go, eventbus.go — other files left for their respective phases",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-04-05T23:13:41Z"
-      },
-      {
-        "id": "learning_1775436600",
-        "phase": 5,
-        "phase_name": "Integration Verification",
-        "learnings": [
-          {
-            "claim": "All 5 audit findings verified resolved in single race-detector pass — Phase 5 integration test confirms Phase 1-4 fixes are compatible with zero data races",
+            "claim": "When setting nested JSON fields via sjson, use SetRawBytes for raw JSON values (numbers, booleans, null, objects, arrays) and SetBytes only for plain strings — json.Unmarshal first to detect the type",
+            "disproven_by": null,
+            "evidence": "3 targeted tests pass: numeric values stored as numbers not quoted strings, deep nested paths work, array-indexed paths work",
             "status": "validated",
-            "tested": true,
-            "evidence": "go test ./... -race: all 12 packages green, zero data races, go build and aether version both pass"
+            "tested": true
           }
         ],
-        "timestamp": "2026-04-06T00:10:00Z"
+        "phase": 1,
+        "phase_name": "Fix state-mutate panic on nested fields",
+        "timestamp": "2026-04-06T13:20:00Z"
       }
     ],
-    "decisions": [],
+    "decisions": null,
     "instincts": []
   },
   "errors": {
@@ -489,20 +482,16 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-04-05T21:32:04Z|colony_initialized|init|Colony initialized with goal: Fix the top 5 architecture audit findings",
-    "2026-04-05T22:01:46Z|plan_generated|plan|Generated 5 phases with 99% confidence",
-    "2026-04-05T22:05:28Z|phase_started|build|Phase 1: Exec Command Timeouts started",
-    "2026-04-05T22:09:24Z|territory_surveyed|colonize|Territory surveyed: 7 documents",
-    "2026-04-05T22:22:10Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
-    "2026-04-05T22:28:50Z|phase_started|build|Phase 2: File Locking started",
-    "2026-04-06T00:48:30Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
-    "2026-04-05T22:53:54Z|phase_started|build|Phase 3: Context Propagation started",
-    "2026-04-05T23:13:48Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
-    "2026-04-05T23:16:27Z|phase_started|build|Phase 4: Event Bus Cleanup started",
-    "2026-04-05T23:16:31Z|phase_started|build|Phase 4: Event Bus Cleanup started",
-    "2026-04-05T23:44:02Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5",
-    "2026-04-05T23:59:57Z|phase_started|build|Phase 5: Integration Verification started",
-    "2026-04-06T00:10:00Z|phase_advanced|continue|Completed Phase 5, all phases complete"
+    "2026-04-06T11:48:43Z|colony_initialized|init|Colony initialized with goal: Fix infrastructure bugs that break colony seal: state-mutate panic on nested fields, chamber-create path doubling in entomb YAML, and XML export output format quirks",
+    "2026-04-06T13:00:58Z|plan_generated|plan|Generated 8 phases with 94% confidence",
+    "2026-04-06T13:03:08Z|phase_started|build|Phase 1: Fix state-mutate panic on nested fields started",
+    ""
   ],
-  "milestone": ""
+  "milestone": null,
+  "milestone_updated_at": null
 }
+
+
+
+
+

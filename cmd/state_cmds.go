@@ -595,6 +595,13 @@ func compareValues(itemVal gjson.Result, matchVal interface{}) bool {
 }
 
 func setNestedFieldJSON(data []byte, fieldPath, value string) ([]byte, error) {
+	// Try to parse value as raw JSON. If it's valid JSON (number, boolean, null,
+	// object, array, or quoted string), use SetRawBytes to avoid double-encoding.
+	// If it fails, treat it as a plain string and let SetBytes handle quoting.
+	var raw json.RawMessage
+	if json.Unmarshal([]byte(value), &raw) == nil {
+		return sjson.SetRawBytes(data, fieldPath, []byte(value))
+	}
 	return sjson.SetBytes(data, fieldPath, value)
 }
 
