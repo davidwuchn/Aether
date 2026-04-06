@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/events"
@@ -46,7 +44,8 @@ var learningObserveCmd = &cobra.Command{
 		bus := events.NewBus(store, events.DefaultConfig())
 		obsService := memory.NewObservationService(store, bus)
 
-		ctx := context.Background()
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
 		result, err := obsService.CaptureWithTrust(ctx, content, wisdomType, colonyName, sourceType, evidenceType)
 		if err != nil {
 			outputError(2, fmt.Sprintf("failed to capture observation: %v", err), nil)
@@ -166,7 +165,8 @@ var memoryCaptureCmd = &cobra.Command{
 		bus := events.NewBus(store, events.DefaultConfig())
 		obsService := memory.NewObservationService(store, bus)
 
-		ctx := context.Background()
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
 		result, err := obsService.Capture(ctx, content, obsType, "unknown")
 		if err != nil {
 			outputError(2, fmt.Sprintf("failed to capture: %v", err), nil)
@@ -200,5 +200,5 @@ func init() {
 	rootCmd.AddCommand(memoryCaptureCmd)
 }
 
-// unused import suppression
-var _ = time.Now
+// ensure timeoutCtx is used (compile-time check)
+var _ = timeoutCtx

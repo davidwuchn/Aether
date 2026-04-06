@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -9,6 +8,8 @@ import (
 	"github.com/calcosmic/Aether/pkg/events"
 	"github.com/spf13/cobra"
 )
+
+const eventBusDefaultTimeout = 5 * time.Second
 
 var (
 	eventTopic   string
@@ -18,6 +19,7 @@ var (
 	eventSince   string
 	eventLimit   int
 	eventDryRun  bool
+	eventTimeout time.Duration
 )
 
 // newEventBus creates an event bus backed by the current store.
@@ -46,7 +48,7 @@ var eventBusPublishCmd = &cobra.Command{
 			return nil
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := timeoutCtxWith(cmd, eventTimeout)
 		defer cancel()
 
 		evt, err := bus.Publish(ctx, topic, json.RawMessage(payload), source)
@@ -83,7 +85,7 @@ var eventBusQueryCmd = &cobra.Command{
 			return nil
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := timeoutCtxWith(cmd, eventTimeout)
 		defer cancel()
 
 		var since time.Time
@@ -126,7 +128,7 @@ var eventBusReplayCmd = &cobra.Command{
 			return nil
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := timeoutCtxWith(cmd, eventTimeout)
 		defer cancel()
 
 		var since time.Time
@@ -164,7 +166,7 @@ var eventBusCleanupCmd = &cobra.Command{
 			return nil
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := timeoutCtxWith(cmd, eventTimeout)
 		defer cancel()
 
 		removed, remaining, err := bus.Cleanup(ctx, eventDryRun)
@@ -188,20 +190,24 @@ func init() {
 	eventBusPublishCmd.Flags().StringVar(&eventTopic, "topic", "", "Event topic (required)")
 	eventBusPublishCmd.Flags().StringVar(&eventPayload, "payload", "", "JSON payload (required)")
 	eventBusPublishCmd.Flags().StringVar(&eventSource, "source", "", "Event source")
+	eventBusPublishCmd.Flags().DurationVar(&eventTimeout, "timeout", eventBusDefaultTimeout, "Timeout for event bus operation")
 
 	// event-bus-query
 	rootCmd.AddCommand(eventBusQueryCmd)
 	eventBusQueryCmd.Flags().StringVar(&eventPattern, "pattern", "", "Topic pattern (supports trailing * wildcard)")
 	eventBusQueryCmd.Flags().StringVar(&eventSince, "since", "", "Only return events after this RFC3339 timestamp")
 	eventBusQueryCmd.Flags().IntVar(&eventLimit, "limit", 0, "Maximum events to return (0 for default)")
+	eventBusQueryCmd.Flags().DurationVar(&eventTimeout, "timeout", eventBusDefaultTimeout, "Timeout for event bus operation")
 
 	// event-bus-replay
 	rootCmd.AddCommand(eventBusReplayCmd)
 	eventBusReplayCmd.Flags().StringVar(&eventTopic, "topic", "", "Exact topic to replay")
 	eventBusReplayCmd.Flags().StringVar(&eventSince, "since", "", "Only return events after this RFC3339 timestamp")
 	eventBusReplayCmd.Flags().IntVar(&eventLimit, "limit", 0, "Maximum events to return (0 for default)")
+	eventBusReplayCmd.Flags().DurationVar(&eventTimeout, "timeout", eventBusDefaultTimeout, "Timeout for event bus operation")
 
 	// event-bus-cleanup
 	rootCmd.AddCommand(eventBusCleanupCmd)
 	eventBusCleanupCmd.Flags().BoolVar(&eventDryRun, "dry-run", false, "Report counts without modifying the file")
+	eventBusCleanupCmd.Flags().DurationVar(&eventTimeout, "timeout", eventBusDefaultTimeout, "Timeout for event bus operation")
 }

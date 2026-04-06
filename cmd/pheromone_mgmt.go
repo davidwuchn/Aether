@@ -179,12 +179,41 @@ var colonyPrimeCmd = &cobra.Command{
 			}
 		}
 
-		// 3. Load instincts from state
-		if state.Memory.Instincts != nil && len(state.Memory.Instincts) > 0 {
+		// 3. Load instincts — from instincts.json (source of truth), falling back to state
+		var instincts []struct {
+			trigger    string
+			action     string
+			confidence float64
+		}
+		// Primary source: instincts.json (written by instinct-create)
+		var instFile colony.InstinctsFile
+		if err := store.LoadJSON("instincts.json", &instFile); err == nil {
+			for _, inst := range instFile.Instincts {
+				if inst.Archived {
+					continue
+				}
+				instincts = append(instincts, struct {
+					trigger    string
+					action     string
+					confidence float64
+				}{inst.Trigger, inst.Action, inst.Confidence})
+			}
+		}
+		// Fallback: state memory instincts (if instincts.json had nothing)
+		if len(instincts) == 0 && state.Memory.Instincts != nil {
+			for _, inst := range state.Memory.Instincts {
+				instincts = append(instincts, struct {
+					trigger    string
+					action     string
+					confidence float64
+				}{inst.Trigger, inst.Action, inst.Confidence})
+			}
+		}
+		if len(instincts) > 0 {
 			var instSB strings.Builder
 			instSB.WriteString("## Active Instincts\n\n")
-			for _, inst := range state.Memory.Instincts {
-				instSB.WriteString(fmt.Sprintf("- [%s] %s (confidence: %.2f)\n", inst.Trigger, inst.Action, inst.Confidence))
+			for _, inst := range instincts {
+				instSB.WriteString(fmt.Sprintf("- [%s] %s (confidence: %.2f)\n", inst.trigger, inst.action, inst.confidence))
 			}
 			sections = append(sections, struct {
 				name     string

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/calcosmic/Aether/pkg/agent/curation"
@@ -23,7 +22,9 @@ var curationSentinelCmd = &cobra.Command{
 		dryRun := mustGetBool(cmd, "dry-run")
 		s := curation.NewSentinel(store)
 
-		sr, err := s.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := s.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("sentinel failed: %v", err), nil)
 			return nil
@@ -53,7 +54,9 @@ var curationNurseCmd = &cobra.Command{
 		dryRun := mustGetBool(cmd, "dry-run")
 		n := curation.NewNurse(store)
 
-		sr, err := n.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := n.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("nurse failed: %v", err), nil)
 			return nil
@@ -83,7 +86,9 @@ var curationCriticCmd = &cobra.Command{
 		dryRun := mustGetBool(cmd, "dry-run")
 		c := curation.NewCritic(store)
 
-		sr, err := c.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := c.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("critic failed: %v", err), nil)
 			return nil
@@ -113,7 +118,9 @@ var curationHeraldCmd = &cobra.Command{
 		dryRun := mustGetBool(cmd, "dry-run")
 		h := curation.NewHerald(store)
 
-		sr, err := h.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := h.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("herald failed: %v", err), nil)
 			return nil
@@ -144,7 +151,9 @@ var curationJanitorCmd = &cobra.Command{
 		bus := events.NewBus(store, events.DefaultConfig())
 		j := curation.NewJanitor(store, bus)
 
-		sr, err := j.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := j.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("janitor failed: %v", err), nil)
 			return nil
@@ -174,7 +183,9 @@ var curationArchivistCmd = &cobra.Command{
 		dryRun := mustGetBool(cmd, "dry-run")
 		a := curation.NewArchivist(store)
 
-		sr, err := a.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := a.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("archivist failed: %v", err), nil)
 			return nil
@@ -205,7 +216,9 @@ var curationLibrarianCmd = &cobra.Command{
 		bus := events.NewBus(store, events.DefaultConfig())
 		l := curation.NewLibrarian(store, bus)
 
-		sr, err := l.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := l.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("librarian failed: %v", err), nil)
 			return nil
@@ -233,7 +246,9 @@ var curationScribeCmd = &cobra.Command{
 		dryRun := mustGetBool(cmd, "dry-run")
 		s := curation.NewScribe()
 
-		sr, err := s.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		sr, err := s.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("scribe failed: %v", err), nil)
 			return nil
@@ -264,7 +279,9 @@ var curationRunCmd = &cobra.Command{
 		bus := events.NewBus(store, events.DefaultConfig())
 		o := curation.NewOrchestrator(store, bus)
 
-		result, err := o.Run(context.Background(), dryRun)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
+		result, err := o.Run(ctx, dryRun)
 		if err != nil {
 			outputError(2, fmt.Sprintf("curation run failed: %v", err), nil)
 			return nil

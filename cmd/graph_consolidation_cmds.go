@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -202,7 +201,7 @@ var consolidationPhaseEndCmd = &cobra.Command{
 		queenPath := store.BasePath() + "/QUEEN.md"
 		service := memory.NewConsolidationService(store, bus, queenPath, "unknown")
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := timeoutCtx(cmd)
 		defer cancel()
 
 		result, err := service.Run(ctx)
@@ -248,7 +247,8 @@ var consolidationSealCmd = &cobra.Command{
 
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		bus := events.NewBus(store, events.DefaultConfig())
-		ctx := context.Background()
+		ctx, cancel := timeoutCtx(cmd)
+			defer cancel()
 
 		type stepInfo struct {
 			Name    string `json:"name"`
