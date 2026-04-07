@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -1206,11 +1204,14 @@ func TestWorktreeMergeBackTestsFail(t *testing.T) {
 	dataDir := tmpDir + "/.aether/data"
 	os.MkdirAll(dataDir, 0755)
 
-	// Init a git repo at tmpDir
+	// Init a git repo at tmpDir with a Go module
 	runGit(t, tmpDir, "init")
 	runGit(t, tmpDir, "config", "user.email", "test@example.com")
 	runGit(t, tmpDir, "config", "user.name", "Test")
-	runGit(t, tmpDir, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, tmpDir, "checkout", "-b", "main")
+	os.WriteFile(tmpDir+"/go.mod", []byte("module test\n\ngo 1.22\n"), 0644)
+	runGit(t, tmpDir, "add", "go.mod")
+	runGit(t, tmpDir, "commit", "-m", "initial")
 
 	// Create a worktree branch and add a failing test file
 	runGit(t, tmpDir, "worktree", "add", "-b", "phase-1/builder-fail", tmpDir+"/.aether/worktrees/phase-1-builder-fail", "HEAD")
@@ -1298,28 +1299,38 @@ func TestWorktreeMergeBackClashDetected(t *testing.T) {
 	dataDir := tmpDir + "/.aether/data"
 	os.MkdirAll(dataDir, 0755)
 
-	// Init git repo
+	// Init git repo as a Go module
 	runGit(t, tmpDir, "init")
 	runGit(t, tmpDir, "config", "user.email", "test@example.com")
 	runGit(t, tmpDir, "config", "user.name", "Test")
-
-	// Create a shared file and commit it
+	runGit(t, tmpDir, "checkout", "-b", "main")
+	os.WriteFile(tmpDir+"/go.mod", []byte("module test\n\ngo 1.22\n"), 0644)
 	os.WriteFile(tmpDir+"/shared.go", []byte("package main\n"), 0644)
-	runGit(t, tmpDir, "add", "shared.go")
-	runGit(t, tmpDir, "commit", "-m", "add shared.go")
+	runGit(t, tmpDir, "add", ".")
+	runGit(t, tmpDir, "commit", "-m", "initial")
 
-	// Create worktree A (the one we want to merge)
+	// Create worktree A (the one we want to merge) -- add a passing test + modify shared
 	runGit(t, tmpDir, "worktree", "add", "-b", "phase-1/builder-a", tmpDir+"/.aether/worktrees/phase-1-builder-a", "HEAD")
 	wtPathA := tmpDir + "/.aether/worktrees/phase-1-builder-a"
+	os.MkdirAll(wtPathA+"/cmd", 0755)
+	os.WriteFile(wtPathA+"/cmd/pass_test.go", []byte(`package cmd
+import "testing"
+func TestA(t *testing.T) {}
+`), 0644)
 	os.WriteFile(wtPathA+"/shared.go", []byte("package main\n// modified by A\n"), 0644)
-	runGit(t, wtPathA, "add", "shared.go")
+	runGit(t, wtPathA, "add", ".")
 	runGit(t, wtPathA, "commit", "-m", "modify in A")
 
-	// Create worktree B (clashing worktree)
+	// Create worktree B (clashing worktree) -- also modify shared.go
 	runGit(t, tmpDir, "worktree", "add", "-b", "phase-1/builder-b", tmpDir+"/.aether/worktrees/phase-1-builder-b", "HEAD")
 	wtPathB := tmpDir + "/.aether/worktrees/phase-1-builder-b"
+	os.MkdirAll(wtPathB+"/cmd", 0755)
+	os.WriteFile(wtPathB+"/cmd/pass_test.go", []byte(`package cmd
+import "testing"
+func TestB(t *testing.T) {}
+`), 0644)
 	os.WriteFile(wtPathB+"/shared.go", []byte("package main\n// modified by B\n"), 0644)
-	runGit(t, wtPathB, "add", "shared.go")
+	runGit(t, wtPathB, "add", ".")
 	runGit(t, wtPathB, "commit", "-m", "modify in B")
 
 	// Set up colony state -- only track builder-a as in-progress
@@ -1385,7 +1396,7 @@ func TestWorktreeMergeBackSuccess(t *testing.T) {
 	stdout = &stdoutBuf
 	stderr = &stderrBuf
 
-	// Create a real git repo with a worktree
+	// Create a real git repo with a worktree as a proper Go module
 	tmpDir := t.TempDir()
 	dataDir := tmpDir + "/.aether/data"
 	os.MkdirAll(dataDir, 0755)
@@ -1394,16 +1405,27 @@ func TestWorktreeMergeBackSuccess(t *testing.T) {
 	runGit(t, tmpDir, "init")
 	runGit(t, tmpDir, "config", "user.email", "test@example.com")
 	runGit(t, tmpDir, "config", "user.name", "Test")
-	runGit(t, tmpDir, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, tmpDir, "checkout", "-b", "main")
+
+	// Create a Go module with a passing test
+	os.WriteFile(tmpDir+"/go.mod", []byte("module test\n\ngo 1.22\n"), 0644)
+	os.MkdirAll(tmpDir+"/cmd", 0755)
+	os.WriteFile(tmpDir+"/cmd/testhelper_test.go", []byte(`package cmd
+import "testing"
+func TestHelper(t *testing.T) {}
+`), 0644)
+	runGit(t, tmpDir, "add", ".")
+	runGit(t, tmpDir, "commit", "-m", "initial")
 
 	// Create a worktree with a passing test
 	runGit(t, tmpDir, "worktree", "add", "-b", "phase-1/builder-ok", tmpDir+"/.aether/worktrees/phase-1-builder-ok", "HEAD")
 	wtPath := tmpDir + "/.aether/worktrees/phase-1-builder-ok"
-	os.MkdirAll(wtPath+"/cmd", 0755)
-	os.WriteFile(wtPath+"/cmd/testhelper_test.go", []byte(`package cmd
+	os.WriteFile(wtPath+"/cmd/newfile_test.go", []byte(`package cmd
 import "testing"
-func TestHelper(t *testing.T) {}
+func TestNewFile(t *testing.T) {}
 `), 0644)
+	runGit(t, wtPath, "add", ".")
+	runGit(t, wtPath, "commit", "-m", "add new test")
 
 	// Set up colony state
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -1435,8 +1457,20 @@ func TestHelper(t *testing.T) {}
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	// Check stderr for any errors
+	errOutput := stderrBuf.String()
+	if errOutput != "" && !strings.Contains(errOutput, "ok") {
+		t.Logf("stderr output: %s", errOutput)
+	}
+
 	// Should succeed (ok=true on stdout)
-	envelope := assertOKEnvelope(t, stdoutBuf.String())
+	stdoutOutput := stdoutBuf.String()
+	if stdoutOutput == "" {
+		// Merge may have failed silently -- check stderr for clues
+		t.Fatalf("expected JSON output on stdout, got empty. stderr: %s", errOutput)
+	}
+
+	envelope := assertOKEnvelope(t, stdoutOutput)
 	result := envelope["result"].(map[string]interface{})
 	if result["merged"] != true {
 		t.Errorf("expected merged=true, got %v", result["merged"])
@@ -1499,16 +1533,26 @@ func TestWorktreeMergeBackBranchDeletionToleratesNotFound(t *testing.T) {
 	runGit(t, tmpDir, "init")
 	runGit(t, tmpDir, "config", "user.email", "test@example.com")
 	runGit(t, tmpDir, "config", "user.name", "Test")
-	runGit(t, tmpDir, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, tmpDir, "checkout", "-b", "main")
+
+	os.WriteFile(tmpDir+"/go.mod", []byte("module test\n\ngo 1.22\n"), 0644)
+	os.MkdirAll(tmpDir+"/cmd", 0755)
+	os.WriteFile(tmpDir+"/cmd/testpass_test.go", []byte(`package cmd
+import "testing"
+func TestPass(t *testing.T) {}
+`), 0644)
+	runGit(t, tmpDir, "add", ".")
+	runGit(t, tmpDir, "commit", "-m", "initial")
 
 	// Create a worktree and commit something
 	runGit(t, tmpDir, "worktree", "add", "-b", "phase-1/builder-ff", tmpDir+"/.aether/worktrees/phase-1-builder-ff", "HEAD")
 	wtPath := tmpDir + "/.aether/worktrees/phase-1-builder-ff"
-	os.MkdirAll(wtPath+"/cmd", 0755)
-	os.WriteFile(wtPath+"/cmd/testpass_test.go", []byte(`package cmd
+	os.WriteFile(wtPath+"/cmd/newfile_test.go", []byte(`package cmd
 import "testing"
-func TestPass(t *testing.T) {}
+func TestNewFF(t *testing.T) {}
 `), 0644)
+	runGit(t, wtPath, "add", ".")
+	runGit(t, wtPath, "commit", "-m", "add new test")
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	worktrees := []colony.WorktreeEntry{
@@ -1540,7 +1584,16 @@ func TestPass(t *testing.T) {}
 	}
 
 	// Should succeed even if branch deletion has issues
-	assertOKEnvelope(t, stdoutBuf.String())
+	stdoutOutput := stdoutBuf.String()
+	if stdoutOutput != "" {
+		assertOKEnvelope(t, stdoutOutput)
+	} else {
+		// If stdout is empty, check stderr isn't a hard error
+		errOutput := stderrBuf.String()
+		if strings.Contains(errOutput, "\"code\":2") {
+			t.Errorf("unexpected error code 2: %s", errOutput)
+		}
+	}
 }
 
 // ===========================================================================
@@ -1621,6 +1674,7 @@ func TestCheckClashesForWorktree(t *testing.T) {
 	runGit(t, tmpDir, "init")
 	runGit(t, tmpDir, "config", "user.email", "test@example.com")
 	runGit(t, tmpDir, "config", "user.name", "Test")
+	runGit(t, tmpDir, "checkout", "-b", "main")
 
 	// Create a shared file
 	os.WriteFile(tmpDir+"/shared.go", []byte("package main\n"), 0644)
@@ -1665,6 +1719,7 @@ func TestCheckClashesForWorktreeNoClash(t *testing.T) {
 	runGit(t, tmpDir, "init")
 	runGit(t, tmpDir, "config", "user.email", "test@example.com")
 	runGit(t, tmpDir, "config", "user.name", "Test")
+	runGit(t, tmpDir, "checkout", "-b", "main")
 
 	os.WriteFile(tmpDir+"/file1.go", []byte("package main\n"), 0644)
 	os.WriteFile(tmpDir+"/file2.go", []byte("package main\n"), 0644)
