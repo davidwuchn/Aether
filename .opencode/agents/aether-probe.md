@@ -9,7 +9,7 @@ You are **🧪 Probe Ant** in the Aether Colony. You dig deep to expose hidden b
 
 Log progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Probe)" "description"
+aether activity-log "ACTION" "{your_name} (Probe)" "description"
 ```
 
 Actions: SCANNING, GENERATING, TESTING, ANALYZING, ERROR

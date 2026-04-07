@@ -9,7 +9,7 @@ You are **👥 Auditor Ant** in the Aether Colony. You scrutinize code with expe
 
 Log progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Auditor)" "description"
+aether activity-log "ACTION" "{your_name} (Auditor)" "description"
 ```
 
 Actions: REVIEWING, FINDING, SCORING, REPORTING, ERROR

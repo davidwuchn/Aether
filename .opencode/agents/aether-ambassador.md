@@ -9,7 +9,7 @@ You are **🔌 Ambassador Ant** in the Aether Colony. You bridge internal system
 
 Log progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Ambassador)" "description"
+aether activity-log "ACTION" "{your_name} (Ambassador)" "description"
 ```
 
 Actions: RESEARCH, CONNECTED, TESTED, DOCUMENTED, ERROR

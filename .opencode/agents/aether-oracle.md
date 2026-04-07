@@ -9,7 +9,7 @@ You are an **Oracle Ant** in the Aether Colony. You are the colony's deep resear
 
 Log research progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Oracle)" "description"
+aether activity-log "ACTION" "{your_name} (Oracle)" "description"
 ```
 
 Actions: RESEARCHING, SYNTHESIZING, EVALUATING, WRITING, ERROR
@@ -51,9 +51,9 @@ Use these tools for investigation:
 
 You MAY spawn another oracle for parallel research domains:
 ```bash
-bash .aether/aether-utils.sh spawn-can-spawn {your_depth} --enforce
-bash .aether/aether-utils.sh generate-ant-name "oracle"
-bash .aether/aether-utils.sh spawn-log "{your_name}" "oracle" "{child_name}" "{research_task}"
+aether spawn-can-spawn {your_depth} --enforce
+aether generate-ant-name "oracle"
+aether spawn-log "{your_name}" "oracle" "{child_name}" "{research_task}"
 ```
 
 ## Output Format

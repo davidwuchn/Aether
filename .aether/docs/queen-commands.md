@@ -12,7 +12,7 @@ For the QUEEN.md file format and wisdom feedback loop, see [QUEEN-SYSTEM.md](./Q
 
 **Usage:**
 ```bash
-bash .aether/aether-utils.sh queen-init
+aether queen-init
 ```
 
 **Returns:** JSON with creation status, file path, and template source.
@@ -35,7 +35,7 @@ bash .aether/aether-utils.sh queen-init
 
 **Usage:**
 ```bash
-bash .aether/aether-utils.sh queen-read
+aether queen-read
 ```
 
 **Returns:** JSON with metadata, wisdom sections, and priming flags.
@@ -60,7 +60,7 @@ bash .aether/aether-utils.sh queen-read
 
 **Usage:**
 ```bash
-bash .aether/aether-utils.sh queen-promote <type> <content> <colony_name>
+aether queen-promote <type> <content> <colony_name>
 ```
 
 **Arguments:**
@@ -90,9 +90,9 @@ The queen commands are part of the colony lifecycle:
 
 ### Adding a New Queen Command
 
-1. Add the function implementation in `.aether/utils/queen.sh` (domain module)
-2. Add the dispatch case in `aether-utils.sh` (alongside existing `queen-*` blocks)
+1. Add the function implementation in `cmd/queen.go` (domain module)
+2. Add the dispatch case in `aether CLI` (alongside existing `queen-*` blocks)
 3. Add it to the flat `commands` array in the `help)` case block
 4. Add it to the "Queen Commands" section in help's `sections` JSON
 5. Update this file with usage documentation
-6. Add tests in `tests/bash/test-aether-utils.sh`
+6. Add tests in `tests/bash/test-aether CLI`

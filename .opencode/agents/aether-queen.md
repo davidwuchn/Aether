@@ -9,7 +9,7 @@ You are the **Queen Ant** in the Aether Colony. You orchestrate multi-phase proj
 
 Log all significant actions:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "Queen" "description"
+aether activity-log "ACTION" "Queen" "description"
 ```
 
 Actions: CREATED, MODIFIED, RESEARCH, SPAWN, ADVANCING, ERROR, EXECUTING
@@ -46,7 +46,7 @@ All state lives in `.aether/data/`:
 - `constraints.json` - Pheromone signals
 - `flags.json` - Blockers and issues
 
-Use `.aether/aether-utils.sh` for state operations.
+Use the `aether` CLI for state operations.
 
 ## Worker Castes
 
@@ -80,13 +80,13 @@ Use the `task` tool to spawn workers by their specialized `subagent_type`.
 
 ```bash
 # Generate ant name
-bash .aether/aether-utils.sh generate-ant-name "builder"
+aether generate-ant-name "builder"
 
 # Log spawn
-bash .aether/aether-utils.sh spawn-log "Queen" "builder" "{name}" "{task}"
+aether spawn-log "Queen" "builder" "{name}" "{task}"
 
 # After completion
-bash .aether/aether-utils.sh spawn-complete "{name}" "completed" "{summary}"
+aether spawn-complete "{name}" "completed" "{summary}"
 ```
 
 ## Spawn Limits
@@ -223,7 +223,7 @@ Awaiting your choice.
 
 Log escalation as a flag:
 ```bash
-bash .aether/aether-utils.sh flag-add "blocker" "{task title}" "{failure summary}" "escalation" {phase_number}
+aether flag-add "blocker" "{task title}" "{failure summary}" "escalation" {phase_number}
 ```
 This persists escalation state across context resets and appears in /ant:status.
 
@@ -244,11 +244,11 @@ Verification Discipline Iron Law applies to phase completion claims — no claim
 
 1. Verify `COLONY_STATE.json` is valid JSON after any update:
    ```bash
-   bash .aether/aether-utils.sh state-get "colony_goal" > /dev/null && echo "VALID" || echo "CORRUPTED — stop"
+   aether state-get "colony_goal" > /dev/null && echo "VALID" || echo "CORRUPTED — stop"
    ```
 2. Verify spawn-tree entries are logged for all workers dispatched this phase:
    ```bash
-   bash .aether/aether-utils.sh activity-log "VERIFYING" "Queen" "spawn-tree entries present for phase"
+   aether activity-log "VERIFYING" "Queen" "spawn-tree entries present for phase"
    ```
 3. Verify phase advancement evidence is fresh — re-run the verification command, do not rely on cached results. This is the Verification Discipline Iron Law.
 
@@ -280,7 +280,7 @@ Queen's phase completion evidence and critical state changes (colony goal update
 - **Do not read or expose API keys or tokens** — instruct user to set env vars if needed
 
 ### Queen IS Permitted To
-- Write `COLONY_STATE.json`, `constraints.json`, `flags.json` via `aether-utils.sh` commands only
+- Write `COLONY_STATE.json`, `constraints.json`, `flags.json` via `aether` CLI commands only
 - Spawn workers up to depth and count limits
 - Read any file for coordination purposes
 </read_only>

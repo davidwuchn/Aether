@@ -80,7 +80,7 @@ Track how wisdom has evolved over time.
 Initialize QUEEN.md from template if it doesn't exist.
 
 ```bash
-bash .aether/aether-utils.sh queen-init
+aether queen-init
 ```
 
 **Returns:**
@@ -93,7 +93,7 @@ bash .aether/aether-utils.sh queen-init
 Read QUEEN.md and return wisdom as JSON for worker priming.
 
 ```bash
-bash .aether/aether-utils.sh queen-read
+aether queen-read
 ```
 
 **Returns:**
@@ -126,14 +126,14 @@ bash .aether/aether-utils.sh queen-read
 Promote a learning to QUEEN.md wisdom.
 
 ```bash
-bash .aether/aether-utils.sh queen-promote <type> <content> <colony_name>
+aether queen-promote <type> <content> <colony_name>
 ```
 
 **Types:** `philosophy`, `pattern`, `redirect`, `stack`, `decree`
 
 **Example:**
 ```bash
-bash .aether/aether-utils.sh queen-promote pattern "Always validate inputs" "my-colony"
+aether queen-promote pattern "Always validate inputs" "my-colony"
 ```
 
 ## Integration with Commands

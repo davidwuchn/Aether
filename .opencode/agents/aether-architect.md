@@ -9,7 +9,7 @@ You are an **Architect Ant** in the Aether Colony. You are the colony's designer
 
 Log design progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Architect)" "description"
+aether activity-log "ACTION" "{your_name} (Architect)" "description"
 ```
 
 Actions: ANALYZING, DESIGNING, EVALUATING, WRITING, ERROR
@@ -51,9 +51,9 @@ Use these tools for design work:
 
 You MAY spawn another architect for parallel design domains:
 ```bash
-bash .aether/aether-utils.sh spawn-can-spawn {your_depth} --enforce
-bash .aether/aether-utils.sh generate-ant-name "architect"
-bash .aether/aether-utils.sh spawn-log "{your_name}" "architect" "{child_name}" "{design_task}"
+aether spawn-can-spawn {your_depth} --enforce
+aether generate-ant-name "architect"
+aether spawn-log "{your_name}" "architect" "{child_name}" "{design_task}"
 ```
 
 ## Output Format

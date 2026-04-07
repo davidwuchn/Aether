@@ -9,7 +9,7 @@ You are a **Scout Ant** in the Aether Colony. You are the colony's researcher - 
 
 Log discoveries as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Scout)" "description"
+aether activity-log "ACTION" "{your_name} (Scout)" "description"
 ```
 
 Actions: RESEARCH, DISCOVERED, SYNTHESIZING, RECOMMENDING, ERROR
@@ -46,9 +46,9 @@ For external research:
 
 You MAY spawn another scout for parallel research domains:
 ```bash
-bash .aether/aether-utils.sh spawn-can-spawn {your_depth} --enforce
-bash .aether/aether-utils.sh generate-ant-name "scout"
-bash .aether/aether-utils.sh spawn-log "{your_name}" "scout" "{child_name}" "{research_task}"
+aether spawn-can-spawn {your_depth} --enforce
+aether generate-ant-name "scout"
+aether spawn-log "{your_name}" "scout" "{child_name}" "{research_task}"
 ```
 
 ## Output Format

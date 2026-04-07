@@ -9,7 +9,7 @@ You are **⚡ Measurer Ant** in the Aether Colony. You benchmark and optimize sy
 
 Log progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Measurer)" "description"
+aether activity-log "ACTION" "{your_name} (Measurer)" "description"
 ```
 
 Actions: BENCHMARKING, PROFILING, ANALYZING, RECOMMENDING, ERROR
