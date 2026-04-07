@@ -18,10 +18,10 @@
 ### Build Depth (DEPTH)
 
 - [x] **DEPTH-01**: User can set build depth via `/ant:init` or `/ant:build --depth` with three levels: light, standard, deep
-- [ ] **DEPTH-02**: Light depth skips archaeologist pre-build scan, limits to 1 builder, skips measurer and ambassador
+- [x] **DEPTH-02**: Light depth skips archaeologist pre-build scan, limits to 1 builder, skips measurer and ambassador
 - [ ] **DEPTH-03**: Standard depth runs full build playbook with balanced spawn counts (current default behavior)
-- [ ] **DEPTH-04**: Deep depth runs all specialists including measurer, ambassador, increased chaos iterations, and extended verification
-- [ ] **DEPTH-05**: Colony-prime respects depth level when assembling worker context (adjusts token budget per depth)
+- [x] **DEPTH-04**: Deep depth runs all specialists including measurer, ambassador, increased chaos iterations, and extended verification
+- [x] **DEPTH-05**: Colony-prime respects depth level when assembling worker context (adjusts token budget per depth)
 - [ ] **DEPTH-06**: Depth setting persists in COLONY_STATE.json and is visible in `/ant:status`
 
 ### Planning Granularity (PLAN)
@@ -124,10 +124,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STATE-06 | Phase 1 | Pending |
 | STATE-07 | Phase 1 | Pending |
 | DEPTH-01 | Phase 2 | Complete |
-| DEPTH-02 | Phase 2 | Pending |
+| DEPTH-02 | Phase 2 | Complete |
 | DEPTH-03 | Phase 2 | Pending |
-| DEPTH-04 | Phase 2 | Pending |
-| DEPTH-05 | Phase 2 | Pending |
+| DEPTH-04 | Phase 2 | Complete |
+| DEPTH-05 | Phase 2 | Complete |
 | DEPTH-06 | Phase 2 | Pending |
 | PLAN-01 | Phase 3 | Pending |
 | PLAN-02 | Phase 3 | Pending |
