@@ -281,8 +281,21 @@ func TestImportPheromonesFromRealShellXML(t *testing.T) {
 		t.Fatal("expected at least 1 signal from real shell XML")
 	}
 
-	// Verify the first signal has required fields populated
-	s := signals[0]
+	// Find the first signal with non-empty required fields
+	// (real shell XML may contain empty placeholder entries at the start)
+	var s colony.PheromoneSignal
+	found := false
+	for _, sig := range signals {
+		if sig.Type != "" && sig.Priority != "" {
+			s = sig
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("no signal with populated Type and Priority found in real shell XML")
+	}
+
 	if s.ID == "" {
 		t.Error("signal.ID is empty")
 	}
