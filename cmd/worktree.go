@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -469,6 +471,285 @@ var worktreeOrphanScanCmd = &cobra.Command{
 }
 
 // ---------------------------------------------------------------------------
+// createBlocker: reusable helper for creating blocker flags
+// ---------------------------------------------------------------------------
+
+// createBlocker creates a blocker flag entry in pending-decisions.json.
+// This is used by merge-back to record gate failures.
+func createBlocker(store *storage.Store, description string, source string) error {
+	var ff colony.FlagsFile
+	if err := store.LoadJSON("pending-decisions.json", &ff); err != nil {
+		if err2 := store.LoadJSON("flags.json", &ff); err2 != nil {
+			ff = colony.FlagsFile{Decisions: []colony.FlagEntry{}}
+		}
+	}
+	if ff.Decisions == nil {
+		ff.Decisions = []colony.FlagEntry{}
+	}
+	ff.Decisions = append(ff.Decisions, colony.FlagEntry{
+		ID:          generateFlagID(),
+		Type:        "blocker",
+		Description: description,
+		Source:      source,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+		Resolved:    false,
+	})
+	return store.SaveJSON("pending-decisions.json", ff)
+}
+
+// ---------------------------------------------------------------------------
+// checkClashesForWorktree: detects file conflicts across worktrees
+// ---------------------------------------------------------------------------
+
+// checkClashesForWorktree returns a list of file paths that are modified in the
+// given worktree AND in at least one other worktree. It reuses parseWorktreePaths
+// from cmd/clash.go (same package).
+// entryPath must be an absolute path to the worktree directory.
+func checkClashesForWorktree(entryPath string, branch string) ([]string, error) {
+	// Derive repo root from the worktree path using git rev-parse
+	ctx, cancel := context.WithTimeout(context.Background(), GitTimeout)
+	defer cancel()
+
+	repoRootOut, err := exec.CommandContext(ctx, "git", "-C", entryPath, "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git rev-parse --show-toplevel: %w", err)
+	}
+	repoRoot := strings.TrimSpace(string(repoRootOut))
+
+	// Get all worktree paths from the repo root
+	out, err := exec.CommandContext(ctx, "git", "-C", repoRoot, "worktree", "list", "--porcelain").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git worktree list: %w", err)
+	}
+	allPaths := parseWorktreePaths(string(out))
+
+	// Determine the base branch (main or master)
+	baseBranch := "main"
+	if err := exec.CommandContext(ctx, "git", "-C", repoRoot, "rev-parse", "--verify", baseBranch).Run(); err != nil {
+		baseBranch = "master"
+	}
+
+	// Get files modified in the target branch vs base branch
+	diffCtx, diffCancel := context.WithTimeout(context.Background(), GitTimeout)
+	defer diffCancel()
+	diffOut, err := exec.CommandContext(diffCtx, "git", "-C", repoRoot, "diff", "--name-only", baseBranch+".."+branch).Output()
+	if err != nil {
+		// No diff or no commits -- nothing to clash with
+		return nil, nil
+	}
+	modifiedFiles := strings.Split(strings.TrimSpace(string(diffOut)), "\n")
+	if len(modifiedFiles) == 0 || (len(modifiedFiles) == 1 && modifiedFiles[0] == "") {
+		return nil, nil
+	}
+
+	// For each modified file, check if any OTHER worktree also modifies it
+	var clashes []string
+	// Resolve entryPath to its real path for reliable comparison (macOS /var -> /private/var)
+	entryReal, err := filepath.EvalSymlinks(entryPath)
+	if err != nil {
+		entryReal = entryPath
+	}
+
+	for _, file := range modifiedFiles {
+		if file == "" {
+			continue
+		}
+		for _, wtPath := range allPaths {
+			// Resolve and compare paths to handle macOS /var -> /private/var symlinks
+			wtReal, err := filepath.EvalSymlinks(wtPath)
+			if err != nil {
+				wtReal = wtPath
+			}
+			if wtReal == entryReal {
+				continue
+			}
+
+			checkCtx, checkCancel := context.WithTimeout(context.Background(), GitTimeout)
+			defer checkCancel()
+			// Check if the file differs from base in the other worktree
+			checkOut, checkErr := exec.CommandContext(checkCtx, "git", "-C", wtPath, "diff", "--name-only", baseBranch, "--", file).Output()
+			if checkErr != nil {
+				continue // If we can't check, skip it
+			}
+			if strings.TrimSpace(string(checkOut)) != "" {
+				clashes = append(clashes, file)
+				break // One clash per file is enough
+			}
+		}
+	}
+
+	return clashes, nil
+}
+
+// ---------------------------------------------------------------------------
+// worktree-merge-back command
+// ---------------------------------------------------------------------------
+
+var worktreeMergeBackCmd = &cobra.Command{
+	Use:   "worktree-merge-back",
+	Short: "Merge a worktree branch back to main with safety gates",
+	Long: "Merges a tracked worktree branch back to the main branch. " +
+		"Two gates must pass before merge: (1) go test ./... in the worktree, " +
+		"(2) clash detection to prevent file conflicts. On failure, a blocker " +
+		"flag is created. On success, the worktree is cleaned up automatically.",
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		branch := mustGetString(cmd, "branch")
+		if branch == "" {
+			return nil
+		}
+
+		// Step 1: Load state and find the worktree entry
+		var state colony.ColonyState
+		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+			outputError(1, fmt.Sprintf("failed to load colony state: %v", err), nil)
+			return nil
+		}
+
+		var entry *colony.WorktreeEntry
+		var entryIndex int
+		for i := range state.Worktrees {
+			if state.Worktrees[i].Branch == branch {
+				entry = &state.Worktrees[i]
+				entryIndex = i
+				break
+			}
+		}
+
+		if entry == nil {
+			outputError(1, fmt.Sprintf("worktree %q not found in state tracking", branch), nil)
+			return nil
+		}
+
+		if entry.Status == colony.WorktreeMerged {
+			outputError(1, fmt.Sprintf("worktree %q already merged", branch), nil)
+			return nil
+		}
+
+		// Orphaned worktrees are allowed to re-merge (orphaned -> merged transition)
+
+		// Resolve the worktree path relative to the Aether root
+		aetherRoot := os.Getenv("AETHER_ROOT")
+		if aetherRoot == "" {
+			aetherRoot, _ = os.Getwd()
+		}
+		wtAbsPath := entry.Path
+		if !filepath.IsAbs(wtAbsPath) {
+			wtAbsPath = filepath.Join(aetherRoot, wtAbsPath)
+		}
+
+		// Step 2: Gate 1 -- Run tests in worktree directory
+		testCtx, testCancel := context.WithTimeout(context.Background(), BuildTimeout)
+		defer testCancel()
+		testCmd := exec.CommandContext(testCtx, "go", "test", "./...")
+		testCmd.Dir = wtAbsPath // CRITICAL: run in worktree directory (absolute path)
+		testOutput, testErr := testCmd.CombinedOutput()
+		if testErr != nil {
+			// Tests failed -- create blocker and block merge
+			blockerDesc := fmt.Sprintf("Merge blocked: tests failed for %s", branch)
+			if createErr := createBlocker(store, blockerDesc, "worktree-merge-back"); createErr != nil {
+				outputError(2, fmt.Sprintf("tests failed AND failed to create blocker: %v", createErr), nil)
+				return nil
+			}
+			outputError(2, fmt.Sprintf("merge blocked: tests failed for %s: %s", branch, string(testOutput)), nil)
+			return nil
+		}
+
+		// Step 3: Gate 2 -- Clash detection
+		clashes, clashErr := checkClashesForWorktree(wtAbsPath, branch)
+		if clashErr != nil {
+			outputError(2, fmt.Sprintf("clash detection failed: %v", clashErr), nil)
+			return nil
+		}
+		if len(clashes) > 0 {
+			blockerDesc := fmt.Sprintf("Merge blocked: file clash detected for %s: %s", branch, strings.Join(clashes, ", "))
+			if createErr := createBlocker(store, blockerDesc, "worktree-merge-back"); createErr != nil {
+				outputError(2, fmt.Sprintf("clash detected AND failed to create blocker: %v", createErr), nil)
+				return nil
+			}
+			outputError(2, fmt.Sprintf("merge blocked: clash detected for %s: %s", branch, strings.Join(clashes, ", ")), nil)
+			return nil
+		}
+
+		// Step 4: Both gates passed -- execute merge
+		gitCtx, gitCancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer gitCancel()
+
+		// Checkout main in the main worktree (run from aether root)
+		coOut, coErr := exec.CommandContext(gitCtx, "git", "-C", aetherRoot, "checkout", "main").CombinedOutput()
+		if coErr != nil {
+			// "main" may not exist; try "master" as fallback
+			coOut2, coErr2 := exec.CommandContext(gitCtx, "git", "-C", aetherRoot, "checkout", "master").CombinedOutput()
+			if coErr2 != nil {
+				outputError(2, fmt.Sprintf("failed to checkout main branch: %v: %s (also tried master: %v: %s)",
+					coErr, string(coOut), coErr2, string(coOut2)), nil)
+				return nil
+			}
+		}
+
+		// Merge the branch (run from aether root)
+		mergeOut, mergeErr := exec.CommandContext(gitCtx, "git", "-C", aetherRoot, "merge", entry.Branch).CombinedOutput()
+		if mergeErr != nil {
+			blockerDesc := fmt.Sprintf("Merge failed for %s: %s", branch, string(mergeOut))
+			if createErr := createBlocker(store, blockerDesc, "worktree-merge-back"); createErr != nil {
+				outputError(2, fmt.Sprintf("merge failed AND failed to create blocker: %v", createErr), nil)
+				return nil
+			}
+			outputError(2, fmt.Sprintf("merge failed for %s: %s", branch, string(mergeOut)), nil)
+			return nil
+		}
+
+		// Step 5: Auto-cleanup
+		pruneCtx, pruneCancel := context.WithTimeout(context.Background(), GitTimeout)
+		defer pruneCancel()
+
+		// 5a: Remove worktree directory (use absolute path)
+		exec.CommandContext(pruneCtx, "git", "-C", aetherRoot, "worktree", "remove", wtAbsPath, "--force").CombinedOutput()
+
+		// 5b: Prune stale references
+		exec.CommandContext(pruneCtx, "git", "-C", aetherRoot, "worktree", "prune").Run()
+
+		// 5c: Delete branch (tolerate "not found" -- fast-forward merges may auto-delete)
+		branchDelErr := exec.CommandContext(gitCtx, "git", "-C", aetherRoot, "branch", "-d", entry.Branch).Run()
+		if branchDelErr != nil {
+			// Log warning but don't fail -- branch cleanup is best-effort
+			// A "not found" error after fast-forward is expected
+		}
+
+		// Step 6: Update state
+		now := time.Now().UTC().Format(time.RFC3339)
+		state.Worktrees[entryIndex].Status = colony.WorktreeMerged
+		state.Worktrees[entryIndex].UpdatedAt = now
+		if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
+			outputError(2, fmt.Sprintf("failed to save colony state: %v", err), nil)
+			return nil
+		}
+
+		// Step 7: Audit log
+		store.AppendJSONL("state-changelog.jsonl", map[string]interface{}{
+			"action":    "worktree-merge",
+			"branch":    entry.Branch,
+			"path":      entry.Path,
+			"timestamp": now,
+		})
+
+		// Step 8: Output success
+		outputOK(map[string]interface{}{
+			"merged":   true,
+			"branch":   entry.Branch,
+			"worktree": entry.Path,
+			"status":   "merged",
+		})
+		return nil
+	},
+}
+
+// ---------------------------------------------------------------------------
 // init: register commands
 // ---------------------------------------------------------------------------
 
@@ -481,8 +762,10 @@ func init() {
 
 	worktreeOrphanScanCmd.Flags().Int("threshold", 48, "Staleness threshold in hours (default: 48)")
 
+	worktreeMergeBackCmd.Flags().String("branch", "", "Branch name to merge back (required)")
+
 	for _, c := range []*cobra.Command{
-		worktreeAllocateCmd, worktreeListCmd, worktreeOrphanScanCmd,
+		worktreeAllocateCmd, worktreeListCmd, worktreeOrphanScanCmd, worktreeMergeBackCmd,
 	} {
 		rootCmd.AddCommand(c)
 	}
