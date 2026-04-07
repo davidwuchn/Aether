@@ -160,6 +160,14 @@ Plans:
 
 **Requirements:** HYGN-01, HYGN-02, HYGN-03, HYGN-04, HYGN-05
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 07-01-PLAN.md -- Remove dead shell scripts and root clutter
+- [ ] 07-02-PLAN.md -- Fix agent mirror parity and remove legacy agent directory
+- [ ] 07-03-PLAN.md -- Documentation cleanup: remove shell references and stale command directories
+- [ ] 07-04-PLAN.md -- Remove deprecated Go commands and fix test compilation
+
 **Success Criteria:**
 1. Running `ls` on the repo root shows a clean directory structure with no legacy clutter or ambiguous old/new system files
 2. Searching the entire repository for shell script references (`.sh`, `bash`, `aether-utils.sh`) returns zero results in active code paths
@@ -169,7 +177,7 @@ Plans:
 
 **Dependencies:** Phase 2 (error handling is consistent), Phase 6 (worktree system is in place, deprecated worktree-merge.go can be removed)
 
-**Risk Notes:** 41 dead shell scripts in `.aether/utils/` have DEPRECATED headers but remain on disk -- they must be removed or clearly quarantined. The parity model between Claude Code and OpenCode means cleanup must be done in both `.claude/` and `.opencode/` directories simultaneously. Documentation drift is a risk -- files may reference shell commands that were removed in the v5.0 migration but never updated in the text.
+**Risk Notes:** 58 dead shell scripts in `.aether/utils/`, `.aether/exchange/`, `.aether/scripts/` have DEPRECATED headers but remain on disk -- they must be removed. The parity model between Claude Code and OpenCode means cleanup must be done in both `.claude/` and `.opencode/` directories simultaneously. Documentation drift is a risk -- files may reference shell commands that were removed in the v5.0 migration but never updated in the text. Agent mirror drift (7 of 25 files differ from canonical) must be fixed before npm publish.
 
 ---
 
