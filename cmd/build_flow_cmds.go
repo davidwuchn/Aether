@@ -163,42 +163,41 @@ var updateProgressCmd = &cobra.Command{
 			return nil
 		}
 
-		var state colony.ColonyState
-		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-			outputError(1, fmt.Sprintf("COLONY_STATE.json not found: %v", err), nil)
-			return nil
-		}
+		initAuditLogger()
 
-		// Phase is 1-indexed from the user; convert to 0-indexed
-		idx := phaseNum - 1
-		if idx < 0 || idx >= len(state.Plan.Phases) {
-			outputError(1, fmt.Sprintf("phase %d not found (plan has %d phases)", phaseNum, len(state.Plan.Phases)), nil)
-			return nil
-		}
-
-		// Check for --task flag
+		// Capture task flag before closure
 		taskID, _ := cmd.Flags().GetString("task")
-		if taskID != "" {
-			// Find and update specific task
-			found := false
-			for i, t := range state.Plan.Phases[idx].Tasks {
-				if t.ID != nil && *t.ID == taskID {
-					state.Plan.Phases[idx].Tasks[i].Status = status
-					found = true
-					break
-				}
-			}
-			if !found {
-				outputError(1, fmt.Sprintf("task %q not found in phase %d", taskID, phaseNum), nil)
-				return nil
-			}
-		} else {
-			// Update phase status
-			state.Plan.Phases[idx].Status = status
-		}
 
-		if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
-			outputError(2, fmt.Sprintf("failed to save state: %v", err), nil)
+		err := auditLogger.WriteBoundary("update-progress", false, func(state *colony.ColonyState) (string, error) {
+			// Phase is 1-indexed from the user; convert to 0-indexed
+			idx := phaseNum - 1
+			if idx < 0 || idx >= len(state.Plan.Phases) {
+				return "", fmt.Errorf("phase %d not found (plan has %d phases)", phaseNum, len(state.Plan.Phases))
+			}
+
+			if taskID != "" {
+				// Find and update specific task
+				found := false
+				for i, t := range state.Plan.Phases[idx].Tasks {
+					if t.ID != nil && *t.ID == taskID {
+						state.Plan.Phases[idx].Tasks[i].Status = status
+						found = true
+						break
+					}
+				}
+				if !found {
+					return "", fmt.Errorf("task %q not found in phase %d", taskID, phaseNum)
+				}
+			} else {
+				// Update phase status
+				state.Plan.Phases[idx].Status = status
+			}
+
+			return fmt.Sprintf("phase %d -> %s", phaseNum, status), nil
+		})
+
+		if err != nil {
+			outputError(1, fmt.Sprintf("update failed: %v", err), nil)
 			return nil
 		}
 
