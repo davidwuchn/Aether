@@ -104,6 +104,7 @@ type ColonyState struct {
 	Events             []string    `json:"events"`
 	ColonyDepth        ColonyDepth     `json:"colony_depth,omitempty"`
 	PlanGranularity    PlanGranularity `json:"plan_granularity,omitempty"`
+	OrchestratorState *OrchestratorState `json:"orchestrator_state,omitempty"`
 	Milestone          string      `json:"milestone"`
 	MilestoneUpdatedAt *string     `json:"milestone_updated_at,omitempty"`
 }
@@ -256,6 +257,36 @@ type Graveyard struct {
 	Function       *string `json:"function"`
 	Line           *int    `json:"line"`
 	Timestamp      string  `json:"timestamp"`
+}
+
+// ---------------------------------------------------------------------------
+// Orchestrator state
+// ---------------------------------------------------------------------------
+
+// TaskAssignment tracks a single task's orchestration state.
+type TaskAssignment struct {
+	TaskID    string `json:"task_id"`
+	Goal      string `json:"goal"`
+	Caste     string `json:"caste"`
+	AgentName string `json:"agent_name,omitempty"`
+	Status    string `json:"status"` // pending, in_progress, completed, failed
+	StartedAt string `json:"started_at,omitempty"`
+	EndedAt   string `json:"ended_at,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
+// OrchestratorState tracks the orchestrator's execution state.
+type OrchestratorState struct {
+	Phase          int              `json:"phase"`
+	Status         string           `json:"status"` // idle, decomposing, dispatching, collecting, validating, completed, failed
+	TaskCount      int              `json:"task_count"`
+	Completed      int              `json:"completed"`
+	Failed         int              `json:"failed"`
+	StartedAt      string           `json:"started_at,omitempty"`
+	UpdatedAt      string           `json:"updated_at,omitempty"`
+	Assignments    []TaskAssignment `json:"assignments,omitempty"`
+	Headless       bool             `json:"headless,omitempty"`
+	ReplanInterval int              `json:"replan_interval,omitempty"`
 }
 
 // ---------------------------------------------------------------------------
