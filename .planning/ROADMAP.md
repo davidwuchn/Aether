@@ -138,8 +138,8 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- WorktreeEntry type, branch naming validation, worktree-allocate/list/orphan-scan commands
-- [ ] 06-02-PLAN.md -- worktree-merge-back with merge gates, blocker creation, auto-cleanup, lifecycle tests
+- [x] 06-01-PLAN.md -- WorktreeEntry type, branch naming validation, worktree-allocate/list/orphan-scan commands
+- [x] 06-02-PLAN.md -- worktree-merge-back with merge gates, blocker creation, auto-cleanup, lifecycle tests
 
 **Success Criteria:**
 1. Running `aether worktree-allocate --agent builder-1 --phase 2` creates a branch with the enforced naming convention (e.g., `phase-2/builder-1`) and rejects arbitrary names
