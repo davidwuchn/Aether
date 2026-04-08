@@ -330,6 +330,11 @@ var prContextCmd = &cobra.Command{
 		var fallbacks []string
 		cacheStatus := map[string]string{}
 
+		// Pre-load COLONY_STATE.json once for all sections that need it.
+		// Each section preserves its own error-handling semantics via colStateErr.
+		var colState colony.ColonyState
+		colStateErr := store.LoadJSON("COLONY_STATE.json", &colState)
+
 		// 1. queen_global: Read ~/.aether/QUEEN.md
 		hubDir := resolveHubPath()
 		queenGlobal := readQUEENMd(filepath.Join(hubDir, "QUEEN.md"))
@@ -380,9 +385,8 @@ var prContextCmd = &cobra.Command{
 			fallbacks = append(fallbacks, "pheromones: no active signals")
 		}
 
-		// Also load instincts from colony state
-		var colState colony.ColonyState
-		if err := store.LoadJSON("COLONY_STATE.json", &colState); err == nil {
+		// Also load instincts from pre-loaded colony state (non-fatal if missing)
+		if colStateErr == nil {
 			instincts = colState.Memory.Instincts
 		}
 
@@ -403,9 +407,9 @@ var prContextCmd = &cobra.Command{
 		}
 		cacheStatus["hive_wisdom"] = "read"
 
-		// 6. colony_state: Load COLONY_STATE.json
+		// 6. colony_state: Use pre-loaded COLONY_STATE.json
 		colonyStateMap := map[string]interface{}{"exists": false}
-		if err := store.LoadJSON("COLONY_STATE.json", &colState); err != nil {
+		if colStateErr != nil {
 			fallbacks = append(fallbacks, "colony_state: COLONY_STATE.json missing")
 			cacheStatus["colony_state"] = "missing"
 		} else {
@@ -439,9 +443,9 @@ var prContextCmd = &cobra.Command{
 			"items": blockerList,
 		}
 
-		// 8. decisions: From COLONY_STATE.json
+		// 8. decisions: From pre-loaded COLONY_STATE.json (silently skip if missing)
 		var decisionClaims []string
-		if err := store.LoadJSON("COLONY_STATE.json", &colState); err == nil {
+		if colStateErr == nil {
 			decisionTexts := extractDecisionTexts(colState.Memory.Decisions, 10)
 			decisionClaims = decisionTexts
 		}
@@ -478,9 +482,9 @@ var prContextCmd = &cobra.Command{
 			cacheStatus["midden"] = "read"
 		}
 
-		// 10. context_capsule: Build inline
+		// 10. context_capsule: Build inline (silently skip if colony state missing)
 		var capsulePromptSection string
-		if err := store.LoadJSON("COLONY_STATE.json", &colState); err == nil {
+		if colStateErr == nil {
 			goal := "No goal set"
 			if colState.Goal != nil {
 				goal = *colState.Goal
@@ -505,9 +509,9 @@ var prContextCmd = &cobra.Command{
 		}
 		cacheStatus["context_capsule"] = "read"
 
-		// 11. phase_learnings
+		// 11. phase_learnings: From pre-loaded COLONY_STATE.json (silently skip if missing)
 		var learningSummaries []string
-		if err := store.LoadJSON("COLONY_STATE.json", &colState); err == nil {
+		if colStateErr == nil {
 			for _, pl := range colState.Memory.PhaseLearnings {
 				for _, l := range pl.Learnings {
 					learningSummaries = append(learningSummaries, truncateString(l.Claim, 160))
