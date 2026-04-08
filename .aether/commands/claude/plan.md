@@ -569,6 +569,37 @@ Note: {gaps.length} knowledge gap(s) deferred — these can be resolved during b
 
 Proceed directly to Step 5. No user confirmation needed — the plan auto-finalizes.
 
+### Step 4.5: Granularity Range Validation
+
+After the route-setter produces the accepted plan, validate phase count against selected granularity:
+
+1. Count phases in the accepted plan: `actual_phases = count of plan.phases`
+2. Compare against granularity bounds:
+   - If `actual_phases >= granularity_min AND actual_phases <= granularity_max`: proceed to finalization (no action needed)
+   - If outside range: display warning and present options:
+
+```
+WARNING: Plan has {actual_phases} phases, but {granularity_label} granularity expects {granularity_min}-{granularity_max} phases.
+
+Options:
+1) Accept as-is -- the plan may be better than the range suggests
+2) Adjust granularity -- change granularity to fit the plan
+3) Replan -- regenerate with current {granularity_label} granularity
+
+Choose (1/2/3):
+```
+
+3. Handle user choice:
+   - **Option 1 (Accept):** Continue to finalization. No changes to plan or granularity.
+   - **Option 2 (Adjust):** Determine best-fitting granularity:
+     - If actual_phases <= 3: set to sprint
+     - If actual_phases <= 7: set to milestone
+     - If actual_phases <= 12: set to quarter
+     - Otherwise: set to major
+     - Run: `aether plan-granularity set --granularity {best_fit}`
+     - Continue to finalization.
+   - **Option 3 (Replan):** Return to Step 4 (route-setter loop) with current granularity. Display: `Replanning with {granularity_label} granularity ({granularity_min}-{granularity_max} phases)...`
+
 ### Step 5: Finalize Plan
 
 Once loop exits (confidence >= {target_confidence}, max iterations reached, or stall detected):
