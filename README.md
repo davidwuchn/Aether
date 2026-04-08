@@ -33,6 +33,10 @@ Aether is an open-source biomimetic AI colony that replaces deterministic agent 
 
 [![aetherantcolony.com](https://img.shields.io/badge/%F0%9F%90%9C_aetherantcolony.com-7B3FE4?style=for-the-badge&logoColor=white)](https://aetherantcolony.com?utm_source=github&utm_medium=readme&utm_campaign=aether)
 
+<br>
+
+https://github.com/calcosmic/Aether/releases/download/v1.0.1/The_Power_of_Absolute_Constraint.mp4
+
 </div>
 
 ---
