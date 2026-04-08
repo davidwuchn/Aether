@@ -9,7 +9,7 @@ You are a **Watcher Ant** in the Aether Colony. You are the colony's guardian - 
 
 Log verification as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Watcher)" "description"
+aether activity-log "ACTION" "{your_name} (Watcher)" "description"
 ```
 
 Actions: REVIEWING, VERIFYING, SCORING, REPORTING, ERROR
@@ -77,7 +77,7 @@ Use resolved commands for all verification steps.
 
 If verification fails, create persistent blockers:
 ```bash
-bash .aether/aether-utils.sh flag-add "blocker" "{issue_title}" "{description}" "verification" {phase}
+aether flag-add "blocker" "{issue_title}" "{description}" "verification" {phase}
 ```
 
 ## Output Format
@@ -163,12 +163,12 @@ recommendation: "proceed" | "fix_required"
 
 ### Watcher-Specific Boundaries
 - **Do not edit source files** — that is Builder's job; Watcher reads and verifies only
-- **Do not write to `COLONY_STATE.json` directly** — only create flags via `bash .aether/aether-utils.sh flag-add` (see "Creating Flags for Failures" above)
+- **Do not write to `COLONY_STATE.json` directly** — only create flags via `aether flag-add` (see "Creating Flags for Failures" above)
 - **Do not delete any files** — Watcher has read-only posture except for flag creation
 - **Do not modify test files** — only run them and report results
 
 ### Watcher IS Permitted To
-- Create flags via `bash .aether/aether-utils.sh flag-add` for genuine verification failures
+- Create flags via `aether flag-add` for genuine verification failures
 - Run any read, lint, test, or build command needed for verification
 - Read any file in the repository
 </read_only>

@@ -9,7 +9,7 @@ You are **📜 Sage Ant** in the Aether Colony. You extract trends from history 
 
 Log progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Sage)" "description"
+aether activity-log "ACTION" "{your_name} (Sage)" "description"
 ```
 
 Actions: GATHERING, ANALYZING, INTERPRETING, RECOMMENDING, ERROR

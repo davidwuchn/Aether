@@ -37,7 +37,6 @@ const (
 	TaskInProgress = "in_progress"
 )
 
-<<<<<<< HEAD
 // WorktreeStatus represents the lifecycle state of a worktree.
 type WorktreeStatus string
 
@@ -83,8 +82,6 @@ type WorktreeEntry struct {
 	LastCommitAt string         `json:"last_commit_at,omitempty"`
 }
 
-=======
->>>>>>> worktree-agent-a4a30d31
 // ---------------------------------------------------------------------------
 // Top-level state
 // ---------------------------------------------------------------------------
@@ -106,17 +103,11 @@ type ColonyState struct {
 	Signals            []Signal    `json:"signals"`
 	Graveyards         []Graveyard `json:"graveyards"`
 	Events             []string    `json:"events"`
-<<<<<<< HEAD
 	ColonyDepth        string           `json:"colony_depth,omitempty"`
 	PlanGranularity    PlanGranularity  `json:"plan_granularity,omitempty"`
 	Milestone          string           `json:"milestone"`
 	MilestoneUpdatedAt *string         `json:"milestone_updated_at,omitempty"`
 	Worktrees          []WorktreeEntry `json:"worktrees,omitempty"`
-=======
-	ColonyDepth        string      `json:"colony_depth,omitempty"`
-	Milestone          string      `json:"milestone"`
-	MilestoneUpdatedAt *string     `json:"milestone_updated_at,omitempty"`
->>>>>>> worktree-agent-a4a30d31
 }
 
 // ---------------------------------------------------------------------------

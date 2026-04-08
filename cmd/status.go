@@ -116,16 +116,8 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 	if depth == "" {
 		depth = "standard"
 	}
-	depthLbl := depthLabel(depth)
-	fmt.Fprintf(&b, "Depth: %s\n", depthLbl)
-
-	// Granularity
-	granularity := string(state.PlanGranularity)
-	if granularity == "" {
-		granularity = "not set"
-	}
-	granLbl := granularityLabel(granularity)
-	fmt.Fprintf(&b, "Granularity: %s\n\n", granLbl)
+	depthLabel := depthLabel(depth)
+	fmt.Fprintf(&b, "Depth: %s\n\n", depthLabel)
 
 	// Memory Health table
 	b.WriteString("Memory Health\n")
@@ -205,22 +197,6 @@ func depthLabel(depth string) string {
 		return "full (All agents)"
 	default:
 		return depth
-	}
-}
-
-// granularityLabel maps plan granularity to a human-readable description.
-func granularityLabel(granularity string) string {
-	switch granularity {
-	case "sprint":
-		return "sprint (1-3 phases)"
-	case "milestone":
-		return "milestone (4-7 phases)"
-	case "quarter":
-		return "quarter (8-12 phases)"
-	case "major":
-		return "major (13-20 phases)"
-	default:
-		return granularity
 	}
 }
 

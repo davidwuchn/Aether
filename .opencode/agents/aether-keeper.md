@@ -9,7 +9,7 @@ You are **📚 Keeper Ant** in the Aether Colony. You organize patterns and pres
 
 Log progress as you work:
 ```bash
-bash .aether/aether-utils.sh activity-log "ACTION" "{your_name} (Keeper)" "description"
+aether activity-log "ACTION" "{your_name} (Keeper)" "description"
 ```
 
 Actions: COLLECTING, ORGANIZING, VALIDATING, ARCHIVING, PRUNING, ERROR

@@ -8,15 +8,15 @@ These utilities back XML export/import/validation flows used by runtime subcomma
 
 ## Utility Files
 
-- `.aether/utils/xml-utils.sh`
-- `.aether/utils/xml-core.sh`
-- `.aether/utils/xml-compose.sh`
-- `.aether/utils/xml-convert.sh`
-- `.aether/utils/xml-query.sh`
+- `pkg/exchange/`
+- `pkg/exchange/`
+- `pkg/exchange/`
+- `pkg/exchange/`
+- `pkg/exchange/`
 
 ## Runtime Integration
 
-Core XML subcommands in `.aether/aether-utils.sh`:
+Core XML subcommands in `.aether/aether CLI`:
 
 - `pheromone-export-xml`
 - `pheromone-import-xml`
@@ -29,9 +29,9 @@ Core XML subcommands in `.aether/aether-utils.sh`:
 
 These subcommands source exchange modules:
 
-- `.aether/exchange/pheromone-xml.sh`
-- `.aether/exchange/wisdom-xml.sh`
-- `.aether/exchange/registry-xml.sh`
+- `pkg/exchange/pheromone_xml.go`
+- `pkg/exchange/wisdom_xml.go`
+- `pkg/exchange/registry_xml.go`
 
 ## Schema Dependencies
 
