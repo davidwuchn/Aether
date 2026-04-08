@@ -150,6 +150,148 @@ existing_goals=$(grep '\[charter\] \*\*Goal\*\*:' .aether/QUEEN.md 2>/dev/null |
 
 Strip `(Colony: ...)` suffixes using sed. If grep finds nothing, variables remain empty.
 
+### Step 4.5: Deep Analysis
+
+Spawn research and design agents to produce a comprehensive analysis for the colony charter. This analysis enriches the approval prompt and is persisted for later use by /ant:plan.
+
+**Complexity gate:** If `file_count` from Step 3 is 0 (empty repo) and `is_git` is false, skip this step entirely. Set `deep_analysis = null` and proceed to Step 5.
+
+**If file_count > 0:**
+
+Display: `Analyzing codebase for colony foundation...`
+
+**1. Spawn Research Scout** via Task tool with `subagent_type="aether-scout"`:
+
+FALLBACK: If "Agent type not found", use general-purpose and inject role: "You are a Scout Ant performing Init Analysis Research."
+
+```
+You are a Scout Ant performing Init Analysis Research.
+
+--- MISSION ---
+Research the codebase to understand its architecture and how it relates to the colony goal.
+
+Goal: "{user_goal}"
+Tech Stack: {tech_langs} | {tech_fwks} | {tech_pkg}
+Project Size: {complexity} ({file_count} files)
+Structure: {top_dirs}
+
+--- RESEARCH AREAS ---
+1. Core architecture: entry points, main modules, how components connect
+2. Data flow: how data moves through the system, key data structures
+3. Existing patterns: coding conventions, testing patterns, build patterns
+4. Dependencies: critical external libraries, internal module dependencies
+5. Relevance to goal: which parts of the codebase the goal would affect
+
+--- SCOPE CONSTRAINTS ---
+- Maximum 8 findings (prioritize by relevance to the goal)
+- Maximum 2 sentences per finding
+- Focus on structural/architectural findings, not line-level details
+- If the goal mentions specific features, prioritize those areas
+
+--- TOOLS ---
+Use: Glob, Grep, Read, WebSearch, WebFetch
+Do NOT use: Task, Write, Edit
+
+--- OUTPUT FORMAT ---
+Return JSON:
+{
+  "findings": [
+    {"area": "...", "discovery": "...", "relevance": "why this matters for the goal", "source": "file or search"}
+  ],
+  "architecture_summary": "2-3 sentence overview of the system architecture",
+  "key_components": ["component1", "component2"],
+  "data_flow": "brief description of primary data flow",
+  "goal_impact_areas": ["areas of the codebase the goal would touch"],
+  "overall_assessment": "brief assessment of project complexity relative to the goal"
+}
+```
+
+Wait for scout to complete (blocking). Parse the JSON output.
+
+If scout fails or returns invalid JSON, set `scout_findings = null` and proceed (graceful degradation -- deep analysis is optional, not blocking).
+
+**2. Spawn Architect Agent** via Task tool with `subagent_type="aether-architect"`:
+
+FALLBACK: If "Agent type not found", use general-purpose and inject role: "You are an Architect Ant performing Init Architecture Design."
+
+```
+You are an Architect Ant performing Init Architecture Design.
+
+--- MISSION ---
+Produce a concise but comprehensive architecture analysis and implementation approach for the colony goal.
+
+Goal: "{user_goal}"
+Tech Stack: {tech_langs} | {tech_fwks} | {tech_pkg}
+Project Size: {complexity} ({file_count} files)
+Structure: {top_dirs}
+
+--- SCOUT FINDINGS ---
+{if scout_findings is not null:}
+{format scout findings as compact bullet list}
+Architecture: {architecture_summary from scout}
+Key Components: {key_components from scout}
+Data Flow: {data_flow from scout}
+Goal Impact Areas: {goal_impact_areas from scout}
+{else:}
+No scout findings available. Analyze the codebase independently.
+{end if}
+
+--- DELIVERABLES ---
+1. **Architecture Overview** -- Current system architecture (or proposed for greenfield). Name modules, describe connections, identify boundaries.
+
+2. **Mermaid Diagrams** -- Produce 2-3 Mermaid diagrams:
+   - System architecture diagram (component relationships)
+   - Data flow diagram (how data moves through the system)
+   - Optionally: component dependency diagram (if dependencies are complex)
+   Keep diagrams under 20 nodes each for readability.
+
+3. **Technical Approach** -- Recommended implementation strategy. High-level, not task-level. Name specific patterns, frameworks, or approaches.
+
+4. **Risk Assessment** -- What could go wrong. Include technical risks, integration risks, and mitigation strategies.
+
+5. **Key Decisions** -- 3-5 technical choices the colony should make. Present as questions with recommended answers.
+
+6. **Phase Skeleton** -- 2-4 high-level phases (rough outline). Name only, with 1-sentence description each. NOT a full plan -- /ant:plan produces the detailed plan later.
+
+--- OUTPUT CONSTRAINTS ---
+- Total output: under 2000 words
+- Be proportional: a simple goal gets a brief analysis; a complex goal gets a thorough one
+- Mermaid diagrams should use simple syntax (flowchart, graph) for maximum compatibility
+- If the codebase is empty or minimal, focus on greenfield recommendations
+
+--- TOOLS ---
+Use: Glob, Grep, Read, Bash
+Do NOT use: Task (you cannot spawn subagents)
+
+--- OUTPUT FORMAT ---
+Return JSON:
+{
+  "architecture_overview": "...",
+  "mermaid_diagrams": [
+    {"title": "System Architecture", "code": "mermaid code here"},
+    {"title": "Data Flow", "code": "mermaid code here"}
+  ],
+  "technical_approach": "...",
+  "risk_assessment": [
+    {"risk": "...", "severity": "high|medium|low", "mitigation": "..."}
+  ],
+  "key_decisions": [
+    {"decision": "...", "recommendation": "...", "rationale": "..."}
+  ],
+  "phase_skeleton": [
+    {"name": "...", "description": "..."}
+  ]
+}
+```
+
+Wait for architect to complete (blocking). Parse the JSON output.
+
+If architect fails or returns invalid JSON, set `deep_analysis = null` and proceed.
+
+Display: `Analysis complete.`
+
+Store the architect's JSON output as `deep_analysis` for use in Step 5 (approval prompt) and Step 7 (persistence).
+
 ### Step 5: Assemble and Display Approval Prompt
 
 Display a brief header:
@@ -165,7 +307,7 @@ Re-init mode detected (existing goal: "{existing_goal}")
 Charter will be updated. All colony state, wisdom, instincts, and progress will be preserved.
 ```
 
-Then display the approval prompt as formatted Markdown. Section ordering: Prior Context (if any) -> Charter -> Context -> Pheromones.
+Then display the approval prompt as formatted Markdown. Section ordering: Prior Context (if any) -> Charter -> Context -> Architecture Analysis -> Technical Approach -> Risk Assessment -> Key Decisions -> Phase Skeleton -> Pheromones. Sections 4-8 are omitted when deep_analysis is null.
 
 **Section 1: Prior Context (conditional -- only when prior colonies exist)**
 
@@ -214,7 +356,74 @@ For re-init, pre-populate Intent, Vision, and Goals from existing QUEEN.md chart
 {if survey_suggestion: **Note:** {survey_suggestion}}
 ```
 
-**Section 4: Pheromones**
+**Section 4: Architecture Analysis** (conditional -- only when `deep_analysis` is not null)
+
+If `deep_analysis` is not null, display:
+```markdown
+## Architecture Analysis
+
+{deep_analysis.architecture_overview}
+
+{for each mermaid_diagram:}
+### {title}
+```mermaid
+{code}
+```
+
+### Key Components
+{for each component from scout_findings.key_components or deep_analysis:}
+- {component}
+```
+If `deep_analysis` is null, omit this section entirely.
+
+**Section 5: Technical Approach** (conditional -- only when `deep_analysis` is not null)
+
+If `deep_analysis` is not null, display:
+```markdown
+## Technical Approach
+
+{deep_analysis.technical_approach}
+```
+If `deep_analysis` is null, omit this section entirely.
+
+**Section 6: Risk Assessment** (conditional -- only when `deep_analysis` is not null)
+
+If `deep_analysis` is not null, display:
+```markdown
+## Risk Assessment
+
+| Risk | Severity | Mitigation |
+|------|----------|------------|
+{for each risk in deep_analysis.risk_assessment:}
+| {risk} | {severity} | {mitigation} |
+```
+If `deep_analysis` is null, omit this section entirely.
+
+**Section 7: Key Decisions** (conditional -- only when `deep_analysis` is not null)
+
+If `deep_analysis` is not null, display:
+```markdown
+## Key Decisions
+
+{for each decision in deep_analysis.key_decisions:}
+- **{decision}** -- Recommended: {recommendation} ({rationale})
+```
+If `deep_analysis` is null, omit this section entirely.
+
+**Section 8: Phase Skeleton** (conditional -- only when `deep_analysis` is not null)
+
+If `deep_analysis` is not null, display:
+```markdown
+## Phase Skeleton (Rough Outline)
+
+{for each phase in deep_analysis.phase_skeleton:}
+{N}. **{name}** -- {description}
+
+Note: This is a high-level outline. Run /ant:plan for the detailed execution plan.
+```
+If `deep_analysis` is null, omit this section entirely.
+
+**Section 9: Pheromones**
 
 If `pheromone_suggestions` has entries (length > 0), display:
 ```markdown
@@ -278,6 +487,8 @@ aether charter-write --intent "{approved_intent}" --vision "{approved_vision}" -
 
 2. Auto-apply approved pheromone suggestions (see pheromone auto-apply below).
 
+2a. **Write init analysis** (if deep_analysis is not null): Write the formatted analysis to `.aether/data/init-analysis.md` using the Write tool. Format the architect JSON output as markdown with sections for Architecture Overview, Mermaid Diagrams, Technical Approach, Risk Assessment, Key Decisions, and Phase Skeleton. Include a header with timestamp and goal. This write is non-blocking -- if it fails, log a warning and continue.
+
 3. Update the goal field in COLONY_STATE.json in-place using the state API:
 ```bash
 aether state-write "$(jq --arg new_goal "{approved_intent}" '.goal = $new_goal' .aether/data/COLONY_STATE.json)"
@@ -307,6 +518,7 @@ fi
 1. Initialize QUEEN.md (already done in Step 2)
 2. Write charter content via charter-write (same command as above)
 3. Auto-apply approved pheromone suggestions (see pheromone auto-apply below).
+3a. **Write init analysis** (if deep_analysis is not null): Write the formatted analysis to `.aether/data/init-analysis.md` using the Write tool. Format the architect JSON output as markdown with sections for Architecture Overview, Mermaid Diagrams, Technical Approach, Risk Assessment, Key Decisions, and Phase Skeleton. Include a header with timestamp and goal. This write is non-blocking -- if it fails, log a warning and continue.
 4. Write COLONY_STATE.json from template:
    - Generate a session ID in the format `session_{unix_timestamp}_{random}` and an ISO-8601 UTC timestamp
    - Resolve template: check `~/.aether/system/templates/colony-state.template.json` first, then `.aether/templates/colony-state.template.json`
@@ -503,13 +715,14 @@ Display the success header and result block:
 
 {If re-init: "   🔄 Mode: Re-init (charter updated, state preserved)"}
 {If fresh and seeded_count > 0: "   🧠 Hive wisdom: {seeded_count} cross-colony pattern(s) seeded into QUEEN.md"}
+{If deep_analysis is not null: "   🔍 Deep analysis: .aether/data/init-analysis.md"}
 
 💾 State persisted -- safe to /clear, then run /ant:plan
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🐜 Next Up
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   /ant:plan                 📊 Generate execution plan
+   /ant:plan                 📊 Generate execution plan (with init analysis as foundation)
    /ant:status               📋 Check colony state
    /ant:focus                🎯 Set initial focus
 ```

@@ -181,6 +181,27 @@ ls .aether/data/survey/*.md 2>/dev/null
 
 **If no survey:** Continue without survey context (scouts will do fresh exploration)
 
+### Step 3.5b: Load Init Analysis
+
+Check if an init analysis from `/ant:init` exists:
+
+```bash
+ls .aether/data/init-analysis.md 2>/dev/null
+```
+
+**If init-analysis.md exists:**
+1. Read the file content
+2. Set `init_analysis_context` with the full content
+3. Inject into Scout prompt (Step 4, iteration 1 broad exploration): append "--- INIT ANALYSIS (from /ant:init) ---\nPrevious init analysis exists. Review it for context, update any stale findings.\n{init_analysis_context}"
+4. Inject into Route-Setter prompt (Step 4, planning phase): append "--- INIT ANALYSIS (from /ant:init) ---\nInit analysis available. Use as foundation, refine with deeper research.\n{init_analysis_context}"
+
+**Display:**
+```
+📋 Init analysis loaded — using as planning foundation
+```
+
+**If no init analysis:** Set `init_analysis_context = ""` and continue normally
+
 ### Step 3.6: Phase Domain Research
 
 Investigate domain knowledge for each phase before the planning loop begins. This runs every time `/ant:plan` generates a new plan -- no skip flag.
