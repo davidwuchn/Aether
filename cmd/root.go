@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/calcosmic/Aether/pkg/storage"
 	"github.com/spf13/cobra"
@@ -13,6 +16,53 @@ import (
 
 // Version is set via -ldflags at build time.
 var Version = "0.0.0-dev"
+
+// resolveVersion returns the best available version in priority order:
+// 1. ldflags Version (set by goreleaser for release builds)
+// 2. Nearest git tag from the given directory (for dev builds)
+// 3. Fallback "0.0.0-dev"
+func resolveVersion(dir ...string) string {
+	// If ldflags set a real version (not the dev default), use it.
+	if Version != "0.0.0-dev" {
+		return Version
+	}
+
+	// Determine where to look for git tags.
+	gitDir := ""
+	if len(dir) > 0 && dir[0] != "" {
+		gitDir = dir[0]
+	} else {
+		// Walk up from the binary to find the Aether go.mod.
+		exe, err := os.Executable()
+		if err == nil {
+			d := filepath.Dir(exe)
+			for {
+				goMod := filepath.Join(d, "go.mod")
+				data, err := os.ReadFile(goMod)
+				if err == nil && strings.Contains(string(data), "github.com/calcosmic/Aether") {
+					gitDir = d
+					break
+				}
+				parent := filepath.Dir(d)
+				if parent == d {
+					break
+				}
+				d = parent
+			}
+		}
+	}
+
+	if gitDir != "" {
+		args := []string{"-C", gitDir, "describe", "--tags", "--abbrev=0"}
+		out, err := exec.Command("git", args...).Output()
+		if err == nil {
+			v := strings.TrimSpace(string(out))
+			return strings.TrimPrefix(v, "v")
+		}
+	}
+
+	return Version
+}
 
 func init() {
 	// Override Cobra's default version template to print "aether v<version>"

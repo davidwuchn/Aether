@@ -568,7 +568,7 @@ Spawn sub-workers ONLY if 3x complexity:
 Count your total tool calls (Read + Grep + Edit + Bash + Write) and report as tool_count.
 
 Return ONLY this JSON (no other text):
-{"ant_name": "{Ant-Name}", "task_id": "{id}", "status": "completed|failed|blocked", "summary": "What you did", "tool_count": 0, "files_created": [], "files_modified": [], "tests_written": [], "blockers": []}
+{"ant_name": "{Ant-Name}", "task_id": "{id}", "status": "code_written|failed|blocked", "summary": "What you did", "tool_count": 0, "files_created": [], "files_modified": [], "tests_written": [], "blockers": []}
 ```
 
 ### Step 5.2: Process Wave 1 Results
@@ -747,3 +747,157 @@ Warning: Midden threshold: "{category}" recurring ({count}x) -- REDIRECT emitted
 Then display the spawn announcement (same format as Step 5.1).
 
 Repeat Step 5.1-5.2 for each subsequent wave, waiting for previous wave to complete.
+
+### Step 5.3.5: Builder-Probe Lock (MANDATORY — All Waves)
+
+**This step runs after ALL waves have completed. No task may be marked `completed` without independent Probe verification.**
+
+**The Builder-Probe Lock enforces that builders cannot self-certify completion.** Builders return `code_written`; only Probe can verify the work, and only the Queen can mark tasks complete.
+
+#### 5.3.5.1: Collect Code-Written Tasks
+
+After all waves finish, identify all workers that returned `status: "code_written"`:
+
+```
+━━━ 🔬 B U I L D E R - P R O B E   L O C K ━━━
+```
+
+For each builder that returned `code_written`:
+- Add to the probe verification queue
+- Display: `  ⏳ {Ant-Name}: Task {id} — awaiting Probe verification`
+
+If no builders returned `code_written` (all failed or blocked), skip to Step 5.9 synthesis.
+
+If any builder returned `status: "completed"` instead of `code_written`:
+- Display a warning: `  ⚠ {Ant-Name}: Returned "completed" instead of "code_written" — this violates the Builder-Probe Lock. Requiring Probe verification before acceptance.`
+- Treat as `code_written` and add to the probe verification queue (do not reject — the lock is enforced by the Queen, not by the builder).
+
+#### 5.3.5.2: Spawn Probe for Independent Verification
+
+For each task in the probe verification queue, spawn a Probe agent:
+
+1. **Generate Probe name:**
+   Run using the Bash tool with description "Naming probe ant...": `aether generate-ant-name "probe"` (store as `{probe_name}`)
+
+2. **Log spawn:**
+   Run using the Bash tool with description "Dispatching probe...": `aether spawn-log "Queen" "probe" "{probe_name}" "Verify task {task_id}"`
+
+3. **Display announcement:**
+   ```
+   ──── 🔬 Spawning {probe_name} — Verify {Ant-Name}'s work on Task {task_id} ────
+   ```
+
+4. **Spawn Probe using Task tool with `subagent_type="aether-probe"`**, include `description: "Probe {probe_name}: Verify task {task_id}"` (DO NOT use run_in_background):
+
+   **Probe Worker Prompt:**
+   ```
+   You are {probe_name}, a 🔬 Probe Ant.
+
+   Mission: Independently verify the work of Builder {Ant-Name} on Task {task_id}
+
+   Task: {task_description}
+   Builder's summary: {builder_summary}
+   Files claimed: {files_created + files_modified from builder output}
+   Tests claimed: {tests_written from builder output}
+
+   Work:
+   1. Run the project test command and verify all tests pass
+   2. Check that claimed files exist and contain valid implementations
+   3. Verify test coverage meets 80% threshold for new code
+   4. Confirm the deliverable matches the task specification
+   5. Check for obvious issues: hardcoded values, missing error handling, dead code
+
+   Return ONLY this JSON (no other text):
+   {
+     "ant_name": "{probe_name}",
+     "caste": "probe",
+     "task_id": "{task_id}",
+     "verified_builder": "{Ant-Name}",
+     "status": "passed" | "failed",
+     "verdict": "Brief explanation of verification result",
+     "test_results": {"command": "...", "passed": N, "failed": N, "total": N},
+     "coverage": {"percent": N, "meets_threshold": true|false},
+     "issues_found": ["issue1", "issue2"],
+     "files_checked": ["path1", "path2"],
+     "blockers": []
+   }
+   ```
+
+5. **Parse Probe JSON output:**
+
+   For each probe result:
+
+   **If Probe status is `"passed"`:**
+   - Run using the Bash tool with description "Marking task complete with guard...":
+     ```bash
+     aether state-mutate --guard "task-complete:{task_id}" 2>/dev/null
+     ```
+   - If the guard succeeds (exit code 0):
+     - Display: `  ✅ {probe_name}: Task {task_id} PASSED — marked complete via guard`
+     - The task is now `completed`
+   - If the guard fails (non-zero exit):
+     - Display: `  ⚠ {probe_name}: Task {task_id} PASSED verification but guard failed — task remains in code_written state`
+     - The task stays `code_written`; log for investigation
+
+   **If Probe status is `"failed"`:**
+   - Display: `  ✗ {probe_name}: Task {task_id} FAILED verification — {verdict}`
+   - List issues found from `issues_found` array
+   - The task stays in `code_written` state with a probe failure recorded
+
+   Log all probe results:
+   Run using the Bash tool with description "Recording probe completion...":
+   ```bash
+   aether spawn-complete "{probe_name}" "{probe_status}" "{verdict}" && aether context-update worker-complete "{probe_name}" "probe"
+   ```
+
+#### 5.3.5.3: Handle Probe Failures
+
+After all probes have completed, check for tasks that failed verification:
+
+**If ALL tasks passed Probe verification:**
+- Display: `All {N} tasks verified by Probe — Builder-Probe Lock satisfied`
+- Proceed to Step 5.9 synthesis
+
+**If SOME tasks failed Probe verification:**
+
+Display:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ⚠ PROBE VERIFICATION FAILURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{N} of {M} tasks failed independent verification:
+
+  ✗ Task {id} ({Ant-Name}): {verdict}
+    Issues: {issues_found, comma-separated}
+
+Options:
+  A) Re-run failed tasks — send Builders back to fix issues (RECOMMENDED)
+  B) Accept partial — mark passed tasks complete, failed tasks as blocked
+  C) Halt build — all tasks must pass before proceeding
+```
+
+Use AskUserQuestion to get the user's choice.
+
+- **If A (re-run):** Re-spawn builders for failed tasks only (same as Wave retry logic in Step 5.2 partial failure handling). After re-run, re-run Probe on the fixed tasks.
+- **If B (accept partial):** Mark passed tasks as `completed` via guard. Mark failed tasks as `blocked` with `"probe_verification_failed"` as the blocker reason. Proceed to Step 5.9.
+- **If C (halt):** Skip to Step 5.9 with `status: "blocked"` and `"probe_verification_failed"` in the summary.
+
+#### 5.3.5.4: Update Task Status Map
+
+After probe resolution, build the final task status map for synthesis:
+
+For each task:
+- `code_written` + Probe passed + Guard succeeded → `completed`
+- `code_written` + Probe passed + Guard failed → `code_written` (flagged)
+- `code_written` + Probe failed + User chose partial → `blocked`
+- `failed` (builder) → `failed`
+- `blocked` (builder) → `blocked`
+
+Store this map for use in Step 5.9 synthesis.
+
+**Log probe lock outcome:**
+Run using the Bash tool with description "Logging probe lock outcome...":
+```bash
+aether activity-log "PROBE_LOCK" "Queen" "Builder-Probe Lock: {passed_count} passed, {failed_count} failed, {total_count} total"
+```

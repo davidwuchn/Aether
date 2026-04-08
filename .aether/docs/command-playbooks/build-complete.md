@@ -31,6 +31,44 @@ To verify, read the cross-stage state (typically `.aether/data/build-stage-state
 
 **If all 4 stages passed:** proceed to Step 5.9.
 
+### Builder-Probe Lock Enforcement (Pre-Synthesis Guard)
+
+**Before synthesis, enforce that no task reaches `completed` status without Probe verification.**
+
+This is the final enforcement point. Even if build-wave.md ran the Builder-Probe Lock, this guard ensures integrity if the state was modified between steps.
+
+1. **Check task statuses:**
+   For each task in the current phase, read its status from COLONY_STATE.json.
+
+2. **For each task with status `"completed"`:**
+   Run using the Bash tool with description "Verifying probe guard for task {id}...":
+   ```bash
+   aether state-mutate --guard "task-complete:{task_id}" --verify-only 2>/dev/null
+   ```
+   - If exit code 0: Task was verified by Probe — status is legitimate.
+   - If exit code non-zero: Task was marked complete WITHOUT Probe verification — this is a lock violation.
+
+3. **Handle lock violations:**
+   If any task has `completed` status without Probe verification:
+   - Display:
+     ```
+     ⚠ Builder-Probe Lock violation detected: Task {task_id} is marked completed without Probe verification.
+     Reverting to code_written status and requiring Probe verification.
+     ```
+   - Run using the Bash tool with description "Reverting unverified task...":
+     ```bash
+     aether state-mutate --revert "task-complete:{task_id}" 2>/dev/null
+     ```
+   - The task reverts to `code_written` status.
+   - Log the violation: `aether activity-log "LOCK_VIOLATION" "Queen" "Task {task_id} reverted: completed without Probe verification"`
+
+4. **For each task with status `"code_written"` that was NOT verified by Probe:**
+   - These tasks remain in `code_written` state.
+   - They will appear in the synthesis as incomplete.
+   - The synthesis summary should note: `{N} task(s) pending Probe verification`
+
+5. **Proceed to Step 5.9** with the corrected task statuses.
+
 ### Step 5.9: Synthesize Results
 
 **This step runs after all worker tasks have completed (Builders, Watcher, Chaos).**

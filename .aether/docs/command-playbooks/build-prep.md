@@ -282,6 +282,21 @@ Output header:
 💾 Git checkpoint saved
 ```
 
+### Step 3.1: Store Baseline SHA
+
+Store the current git HEAD as a baseline reference for potential rollback during continue gates (e.g., Watcher veto).
+
+Run using the Bash tool with description "Storing baseline SHA for rollback...":
+```bash
+baseline_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
+if [[ -n "$baseline_sha" ]]; then
+  aether state-mutate --arg sha "$baseline_sha" '.build_baseline_sha = $sha'
+  echo "Baseline SHA: $baseline_sha"
+else
+  echo "Not a git repo — no baseline SHA stored"
+fi
+```
+
 Run using the Bash tool with description "Showing phase progress...":
 ```bash
 progress_bar=$(aether generate-progress-bar "$current_phase" "$total_phases" 20 2>/dev/null || echo "")

@@ -28,6 +28,16 @@ var stateMutateCmd = &cobra.Command{
 			outputErrorMessage("no store initialized")
 			return nil
 		}
+
+		// Guard check: if --guard is specified, validate preconditions before mutation
+		guard, _ := cmd.Flags().GetString("guard")
+		if guard != "" {
+			if err := enforceGuard(guard); err != nil {
+				// Guard failed — error already reported via outputError
+				return nil
+			}
+		}
+
 		field, _ := cmd.Flags().GetString("field")
 		if field != "" {
 			return executeFieldMode(cmd, field)
@@ -83,6 +93,78 @@ func parseMutateVars(cmd *cobra.Command, positionalArgs []string) mutateVars {
 func resetMutateFlags() {
 	mutateArgJSON = nil
 	mutateArg = nil
+}
+
+// enforceGuard validates a guard precondition before allowing a state mutation.
+// Guard format: "task-complete:<id>" or "phase-advance:<id>"
+// Runs gate-check internally and blocks the mutation if preconditions fail.
+func enforceGuard(guard string) error {
+	parts := strings.SplitN(guard, ":", 2)
+	if len(parts) != 2 {
+		outputError(1, fmt.Sprintf("invalid guard format %q: expected task-complete:<id> or phase-advance:<id>", guard), nil)
+		return fmt.Errorf("invalid guard")
+	}
+
+	guardType := parts[0]
+	guardTarget := parts[1]
+
+	var result gateResult
+
+	switch guardType {
+	case "task-complete":
+		result = runGateCheck("task-complete", guardTarget, 0)
+	case "phase-advance":
+		phaseNum, err := strconv.Atoi(guardTarget)
+		if err != nil {
+			outputError(1, fmt.Sprintf("invalid phase number in guard %q: %v", guard, err), nil)
+			return err
+		}
+		result = runGateCheck("phase-advance", "", phaseNum)
+	default:
+		outputError(1, fmt.Sprintf("unknown guard type %q: must be task-complete or phase-advance", guardType), nil)
+		return fmt.Errorf("unknown guard type")
+	}
+
+	if !result.Allowed {
+		outputError(1, fmt.Sprintf("guard %q blocked: %s", guard, result.Reason), result.Checks)
+		return fmt.Errorf("guard blocked")
+	}
+
+	return nil
+}
+
+// runGateCheck executes the gate-check logic and returns the result directly
+// (without writing to stdout, so it can be used internally by other commands).
+func runGateCheck(action, taskID string, phaseNum int) gateResult {
+	var checks []gateCheck
+
+	switch action {
+	case "task-complete":
+		checks = append(checks, checkTestsPass())
+		checks = append(checks, checkNoCriticalFlags())
+	case "phase-advance":
+		checks = append(checks, checkAllTasksCompleted(phaseNum))
+		checks = append(checks, checkTestsPass())
+		checks = append(checks, checkNoCriticalFlags())
+	}
+
+	allPassed := true
+	var reasons []string
+	for _, c := range checks {
+		if !c.Passed {
+			allPassed = false
+			reasons = append(reasons, c.Detail)
+		}
+	}
+
+	result := gateResult{
+		Allowed: allPassed,
+		Checks:  checks,
+	}
+	if !allPassed {
+		result.Reason = strings.Join(reasons, "; ")
+	}
+	return result
 }
 
 func executeFieldMode(cmd *cobra.Command, field string) error {
@@ -749,6 +831,7 @@ func init() {
 	stateMutateCmd.Flags().String("value", "", "New value (legacy mode)")
 	stateMutateCmd.Flags().StringArrayVar(&mutateArgJSON, "argjson", nil, "JSON variable (jq-style: --argjson name json)")
 	stateMutateCmd.Flags().StringArrayVar(&mutateArg, "arg", nil, "String variable (jq-style: --arg name value)")
+	stateMutateCmd.Flags().String("guard", "", "Guard precondition: task-complete:<id> or phase-advance:<id>")
 	stateReadFieldCmd.Flags().String("field", "", "Field to read (required)")
 	rootCmd.AddCommand(stateMutateCmd)
 	rootCmd.AddCommand(loadStateCmd)

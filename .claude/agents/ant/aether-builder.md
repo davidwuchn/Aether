@@ -119,7 +119,7 @@ Return structured JSON at task completion:
   "ant_name": "{your name}",
   "caste": "builder",
   "task_id": "{task_id}",
-  "status": "completed" | "failed" | "blocked",
+  "status": "code_written" | "failed" | "blocked",
   "summary": "What you accomplished",
   "files_created": [],
   "files_modified": [],
@@ -135,9 +135,11 @@ Return structured JSON at task completion:
 ```
 
 **Status values:**
-- `completed` — Task done, all verification passed
+- `code_written` — Code is implemented and self-tested; awaiting independent Probe verification before completion
 - `failed` — Unrecoverable error; blockers field explains what
 - `blocked` — Scope exceeded or architectural decision required; escalation_reason explains what
+
+**IMPORTANT:** Builders do NOT return `"completed"`. Completion is granted by the Queen only after independent Probe verification passes. Returning `"completed"` will be rejected by the build orchestrator.
 </return_format>
 
 <success_criteria>

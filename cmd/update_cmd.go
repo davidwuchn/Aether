@@ -78,7 +78,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		outputOK(map[string]interface{}{
 			"message":       fmt.Sprintf("Dry run — would sync companion files from hub [%s]", mode),
 			"hub_version":   hubVersion,
-			"local_version": Version,
+			"local_version": resolveVersion(),
 			"force":         force,
 			"actions": []string{
 				"Sync .aether/ system files (commands, agents, skills, templates, docs)",
@@ -93,7 +93,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		outputOK(map[string]interface{}{
 			"message":       fmt.Sprintf("Updated: %d files copied, %d unchanged", syncResult.copied, syncResult.skipped),
 			"hub_version":   hubVersion,
-			"local_version": Version,
+			"local_version": resolveVersion(),
 			"force":         force,
 			"details":       syncResult.details,
 		})

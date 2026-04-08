@@ -682,5 +682,80 @@ Continue to Step 2.
 ✅🐜 FLAGS GATE PASSED — No blockers.
 ```
 
-Continue to Step 2.
+Continue to Step 1.13.
+
+### Step 1.13: Watcher Veto Gate (MANDATORY)
+
+**The Iron Law:** Watcher has final say. If Watcher scores below 7 or reports any CRITICAL findings, all changes are rolled back and phase advancement is blocked.
+
+This gate enforces the Watcher's quality authority by stashing uncommitted work and creating a blocker flag when the Watcher's assessment is negative.
+
+1. **Retrieve Watcher results** from the most recent build:
+   Run using the Bash tool with description "Retrieving Watcher results...":
+   ```bash
+   watcher_result=$(aether state-read '.build_synthesis.watcher' 2>/dev/null || echo "{}")
+   quality_score=$(echo "$watcher_result" | jq -r '.quality_score // 0')
+   critical_count=$(echo "$watcher_result" | jq '[.issues_found[]? | select(.severity == "CRITICAL")] | length')
+   echo "{\"quality_score\": $quality_score, \"critical_count\": $critical_count}"
+   ```
+
+   If Watcher results are not available in state (e.g., no Watcher was spawned), skip this gate with:
+   ```
+   ⏭️👁️🐜 Watcher Veto: No Watcher results found — skipping veto check
+   ```
+   Continue to Step 2.
+
+2. **Evaluate veto conditions:**
+
+   **If `quality_score < 7` OR `critical_count > 0`:**
+
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   👁️🐜 W A T C H E R   V E T O
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Watcher has VETOED phase advancement.
+
+   Quality Score: {quality_score}/10 (minimum: 7)
+   Critical Issues: {critical_count}
+   ```
+
+   a. **Stash all uncommitted changes:**
+   Run using the Bash tool with description "Stashing changes due to Watcher veto...":
+   ```bash
+   git stash push -m "watcher-veto-phase-$current_phase" 2>&1
+   ```
+
+   b. **Create ROLLBACK_VETO blocker flag:**
+   Run using the Bash tool with description "Creating ROLLBACK_VETO blocker flag...":
+   ```bash
+   aether flag-create "WATCHER VETO: Quality score $quality_score (minimum 7), $critical_count critical issue(s). Changes stashed." --type blocker --phase "$current_phase"
+   ```
+
+   c. **Log the veto to midden:**
+   Run using the Bash tool with description "Logging Watcher veto to midden...": `aether midden-write "watcher-veto" "Watcher vetoed phase $current_phase: score $quality_score, $critical_count critical issues" "watcher"`
+
+   d. **Display required actions:**
+   ```
+   Changes from this phase have been stashed (git stash).
+   A ROLLBACK_VETO blocker flag has been created.
+
+   Required Actions:
+     1. Review and fix all CRITICAL and HIGH issues identified by Watcher
+     2. Restore changes: git stash pop
+     3. Re-run /ant:build {current_phase} after fixes
+     4. Watcher must re-verify with quality_score >= 7 and no CRITICAL issues
+
+   Phase advancement is BLOCKED until Watcher approves.
+   ```
+
+   **CRITICAL:** Do NOT proceed to Step 2. Do NOT advance the phase. Stop here.
+
+   **If `quality_score >= 7` AND `critical_count == 0`:**
+
+   ```
+   ✅👁️🐜 WATCHER VETO GATE PASSED — Score {quality_score}/10, no critical issues
+   ```
+
+   Continue to Step 2.
 

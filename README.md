@@ -8,6 +8,8 @@
 
 **Stop herding cats. Start a colony.**
 
+### [aetherantcolony.com](https://aetherantcolony.com?utm_source=github&utm_medium=readme&utm_campaign=aether)
+
 Aether is an open-source biomimetic AI colony that replaces deterministic agent frameworks with a self-organizing swarm. Instead of brittle DAGs where one failure crashes everything, 24 specialized worker castes communicate through stigmergy — leaving plain-English Pheromone Signals (FOCUS, REDIRECT, FEEDBACK) that let the colony dynamically pivot without catastrophic failure. A built-in OODA loop treats errors as observations, not crashes, and a "Synthetic SLA" verification loop mathematically drives reliability from ~80% model accuracy to 99.2%. The Hive Brain ensures knowledge compounds across sessions and projects — instincts extracted from real work are scored for trust, promoted to permanent memory, and shared colony-wide. The result: complex intelligence emerges from simple, localized rules, just like a real ant colony.
 
 <br>
@@ -28,10 +30,6 @@ Aether is an open-source biomimetic AI colony that replaces deterministic agent 
 <br>
 
 *The whole is greater than the sum of its ants.*
-
-<br>
-
-[![aetherantcolony.com](https://img.shields.io/badge/%F0%9F%90%9C_aetherantcolony.com-7B3FE4?style=for-the-badge&logoColor=white)](https://aetherantcolony.com?utm_source=github&utm_medium=readme&utm_campaign=aether)
 
 <br>
 

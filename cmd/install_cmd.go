@@ -328,13 +328,14 @@ func setupInstallHub(hubDir, packageDir string) map[string]interface{} {
 		result["registry"] = "preserved"
 	}
 
-	// Write version.json
+	// Write version.json using git tags or ldflags (not the hardcoded default)
 	versionPath := filepath.Join(hubDir, "version.json")
-	versionContent := fmt.Sprintf(`{"version":"%s","updated_at":"now"}`, Version)
+	resolved := resolveVersion(packageDir)
+	versionContent := fmt.Sprintf(`{"version":"%s","updated_at":"now"}`, resolved)
 	if err := os.WriteFile(versionPath, []byte(versionContent), 0644); err != nil {
 		result["version_error"] = fmt.Sprintf("failed to write version: %v", err)
 	} else {
-		result["version"] = Version
+		result["version"] = resolved
 	}
 
 	result["copied"] = 0
