@@ -327,6 +327,9 @@ var prContextCmd = &cobra.Command{
 			branch = detectGitBranch()
 		}
 
+		// Cache git process results for this invocation.
+		aetherRoot := resolveAetherRootPath()
+
 		var fallbacks []string
 		cacheStatus := map[string]string{}
 
@@ -345,7 +348,7 @@ var prContextCmd = &cobra.Command{
 		cacheStatus["queen_global"] = "read"
 
 		// 2. queen_local: Read AETHER_ROOT/.aether/QUEEN.md
-		queenLocal := readQUEENMd(filepath.Join(resolveAetherRootPath(), ".aether", "QUEEN.md"))
+		queenLocal := readQUEENMd(filepath.Join(aetherRoot, ".aether", "QUEEN.md"))
 		if queenLocal == nil {
 			queenLocal = map[string]string{}
 			fallbacks = append(fallbacks, "queen_local: no file found")
@@ -355,7 +358,7 @@ var prContextCmd = &cobra.Command{
 		// 3. user_preferences: Extract from queen files
 		var userPrefs []string
 		userPrefs = append(userPrefs, readUserPreferences(filepath.Join(hubDir, "QUEEN.md"))...)
-		userPrefs = append(userPrefs, readUserPreferences(filepath.Join(resolveAetherRootPath(), ".aether", "QUEEN.md"))...)
+		userPrefs = append(userPrefs, readUserPreferences(filepath.Join(aetherRoot, ".aether", "QUEEN.md"))...)
 
 		// 4. signals: Load pheromones and classify (shared loader)
 		var redirects, focusSignals, feedbackSignals []string
