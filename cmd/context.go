@@ -208,8 +208,8 @@ var contextCapsuleCmd = &cobra.Command{
 		// Extract risks from flags
 		riskTexts := extractRiskTexts(maxRisks)
 
-		// Extract signals
-		signalTexts := extractSignalTexts(maxSignals)
+		// Extract signals (shared pheromone load)
+		signalTexts := extractSignalTextsFrom(loadPheromones(), maxSignals)
 
 		// Extract rolling summary
 		summaryTexts := extractRollingSummary(3)
@@ -357,12 +357,12 @@ var prContextCmd = &cobra.Command{
 		userPrefs = append(userPrefs, readUserPreferences(filepath.Join(hubDir, "QUEEN.md"))...)
 		userPrefs = append(userPrefs, readUserPreferences(filepath.Join(resolveAetherRootPath(), ".aether", "QUEEN.md"))...)
 
-		// 4. signals: Load pheromones and classify
+		// 4. signals: Load pheromones and classify (shared loader)
 		var redirects, focusSignals, feedbackSignals []string
 		var instincts []colony.Instinct
 		signalCount := 0
-		var pf colony.PheromoneFile
-		if err := store.LoadJSON("pheromones.json", &pf); err == nil {
+		pf := loadPheromones()
+		if pf != nil {
 			for _, sig := range pf.Signals {
 				if !sig.Active {
 					continue

@@ -20,8 +20,8 @@ var pheromonePrimeCmd = &cobra.Command{
 			return nil
 		}
 
-		var pf colony.PheromoneFile
-		if err := store.LoadJSON("pheromones.json", &pf); err != nil {
+		pf := loadPheromones()
+		if pf == nil {
 			outputOK(map[string]interface{}{
 				"section":      "",
 				"signal_count": 0,
@@ -155,9 +155,9 @@ var colonyPrimeCmd = &cobra.Command{
 			}{"state", stateSection.String(), 5})
 		}
 
-		// 2. Load pheromones
-		var pf colony.PheromoneFile
-		if err := store.LoadJSON("pheromones.json", &pf); err == nil {
+		// 2. Load pheromones (shared loader)
+		pf := loadPheromones()
+		if pf != nil {
 			var active []colony.PheromoneSignal
 			for _, sig := range pf.Signals {
 				if sig.Active {
@@ -297,8 +297,8 @@ var pheromoneDisplayCmd = &cobra.Command{
 			return nil
 		}
 
-		var pf colony.PheromoneFile
-		if err := store.LoadJSON("pheromones.json", &pf); err != nil {
+		pf := loadPheromones()
+		if pf == nil {
 			outputOK(map[string]interface{}{
 				"signals": []interface{}{},
 				"count":   0,
