@@ -13,7 +13,7 @@ Aether is an open-source AI agent orchestration tool modeled on ant colonies. 24
 <br>
 
 [![GitHub release](https://img.shields.io/github/v/release/calcosmic/Aether.svg?style=flat-square)](https://github.com/calcosmic/Aether/releases)
-[![License: MIT](https://img.shields.io/github/license/calcosmic/Aether.svg?style=flat-square)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/github/license/calcosmic/Aether.svg?style=flat-square)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/calcosmic/Aether.svg?style=flat-square)](https://github.com/calcosmic/Aether/stargazers)
 [![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-%23ea4aaa.svg?style=flat-square&logo=github)](https://github.com/sponsors/calcosmic?utm_source=github&utm_medium=readme&utm_campaign=aether)
 
@@ -153,7 +153,7 @@ Five commands from zero to shipped.
 | Dimension | Aether | CrewAI | AutoGen | LangGraph |
 |-----------|--------|--------|---------|-----------|
 | **Language** | Go | Python | Python | Python |
-| **License** | MIT | MIT | MIT | Open + paid tiers |
+| **License** | Apache 2.0 | MIT | MIT | Open + paid tiers |
 | **Architecture** | Biological colony — 24 specialized workers self-organize via pheromone signals | Role-based agents with sequential/task delegation | Multi-agent conversation framework (Microsoft) | Graph-based state machines with conditional edges |
 | **Memory / Learning** | Colony Wisdom — learnings persist as instincts, promote to QUEEN.md, share cross-colony via Hive Brain | Short-term memory + optional long-term via integration | No built-in persistent memory | Checkpoint-based state persistence |
 | **Agent Coordination** | Pheromone signals (FOCUS, REDIRECT, FEEDBACK) guide attention without rewriting prompts | Hierarchical task delegation between role-assigned agents | Turn-based conversation between agents | Explicit graph edges define control flow |
@@ -1078,13 +1078,13 @@ If Aether has been useful to you:
 
 ## 📄 License
 
-MIT
+Apache 2.0
 
 ---
 
 <div align="center">
 
-[![MIT License](https://img.shields.io/badge/License-MIT-7B3FE4?style=flat-square)](LICENSE)
+[![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-7B3FE4?style=flat-square)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8B?style=flat-square&logo=go)](https://go.dev/)
 [![Latest Release](https://img.shields.io/github/v/release/calcosmic/Aether?style=flat-square&color=7B3FE4)](https://github.com/calcosmic/Aether/releases)
 

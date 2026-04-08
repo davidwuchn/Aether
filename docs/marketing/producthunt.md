@@ -31,7 +31,7 @@ You describe what you want to build. Aether breaks it into phases, assigns worke
 - **Autopilot mode.** Set a goal, go to sleep, wake up to working software. The colony plans, builds, tests, and self-corrects.
 - **28 built-in skills.** From code archaeology (git history analysis) to chaos testing to philosophical dreaming. Each worker has a real job, not a vague title.
 
-**Built in Go. MIT licensed. Fully open source.**
+**Built in Go. Apache 2.0 licensed. Fully open source.**
 
 Install with one command: `go install github.com/calcosmic/Aether@latest`
 

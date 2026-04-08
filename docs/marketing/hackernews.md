@@ -4,7 +4,7 @@
 
 ---
 
-Aether is an open-source multi-agent framework where 24 specialized workers self-organize around development goals. Written in Go, MIT licensed.
+Aether is an open-source multi-agent framework where 24 specialized workers self-organize around development goals. Written in Go, Apache 2.0 licensed.
 
 The architecture is modeled on ant colony behavior:
 

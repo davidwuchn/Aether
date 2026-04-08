@@ -20,7 +20,7 @@ What this looks like in practice:
 - It plans, assigns work, executes in parallel, and self-verifies
 - You review and steer -- not dictate every step
 
-28 built-in skills. Autopilot mode for hands-off execution. MIT licensed. Written in Go.
+28 built-in skills. Autopilot mode for hands-off execution. Apache 2.0 licensed. Written in Go.
 
 If you're building software with AI and hitting the limits of single-agent workflows, I'd love your feedback.
 

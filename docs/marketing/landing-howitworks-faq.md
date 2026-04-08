@@ -98,7 +98,7 @@ Aether itself is a Go binary that runs on Linux, macOS (including Apple Silicon)
 
 ### Is it free and open source?
 
-Yes. Aether is MIT licensed, which means you can use it, modify it, and distribute it however you want, including in commercial projects. The source code is on GitHub, the binary is free to download, and there are no paid tiers, feature gates, or usage limits. If you find it valuable, you can support the project through GitHub Sponsors, but that is entirely optional.
+Yes. Aether is Apache 2.0 licensed, which means you can use it, modify it, and distribute it however you want, including in commercial projects. The source code is on GitHub, the binary is free to download, and there are no paid tiers, feature gates, or usage limits. If you find it valuable, you can support the project through GitHub Sponsors, but that is entirely optional.
 
 ### What if something goes wrong during a build?
 

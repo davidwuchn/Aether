@@ -4,7 +4,7 @@
 
 ---
 
-**TL;DR:** Aether adds 24 specialized agent workers to Claude Code that self-organize around your project goals. Builders write code, Watchers verify, Scouts research, Trackers hunt bugs -- all in parallel. Uses pheromone signals to steer behavior instead of rewriting prompts. Memory compounds across sessions. MIT licensed, just hit v1.0.0.
+**TL;DR:** Aether adds 24 specialized agent workers to Claude Code that self-organize around your project goals. Builders write code, Watchers verify, Scouts research, Trackers hunt bugs -- all in parallel. Uses pheromone signals to steer behavior instead of rewriting prompts. Memory compounds across sessions. Apache 2.0 licensed, just hit v1.0.0.
 
 GitHub: https://github.com/calcosmic/Aether
 

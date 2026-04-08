@@ -14,7 +14,7 @@
 - Center-aligned text. Generous whitespace above and below.
 - Animated colony illustration or subtle particle background (optional -- do not block text).
 - Single primary CTA button below the subheadline. Secondary link below it.
-- Badge above headline: "Open Source -- MIT License -- v1.0.0"
+- Badge above headline: "Open Source -- Apache 2.0 License -- v1.0.0"
 
 ### Headline
 

@@ -8,7 +8,7 @@ I got tired of babysitting AI agents. You know the drill -- write a prompt, wait
 
 So I built **Aether** -- an open-source multi-agent framework modeled on ant colonies. The idea is dead simple: instead of one agent trying to do everything, you get 24 specialized workers (builders, watchers, scouts, etc.) that self-organize around your goal. You communicate with them using pheromone signals instead of prompts, and they actually learn over time -- instincts compound into wisdom, which feeds a "Hive Brain" that makes the whole colony smarter the more you use it.
 
-It's got autopilot mode too. You set a goal, go do something else, and come back to working software. 28 built-in skills, MIT licensed, written in Go.
+It's got autopilot mode too. You set a goal, go do something else, and come back to working software. 28 built-in skills, Apache 2.0 licensed, written in Go.
 
 Install: `go install github.com/calcosmic/Aether@latest`
 

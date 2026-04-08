@@ -70,7 +70,7 @@ Example: I told Aether "build auth system with tests." It colonized the codebase
 
 ### Tweet 7/7
 
-Open source. MIT licensed. Written in Go.
+Open source. Apache 2.0 licensed. Written in Go.
 
 GitHub: https://github.com/calcosmic/Aether
 Docs: https://aetherantcolony.com

@@ -4,7 +4,7 @@
 
 ---
 
-**TL;DR:** Aether is a MIT-licensed, Go-based multi-agent framework where 24 specialized workers self-organize around your goal using pheromone signals instead of prompt engineering. Runs locally, memory compounds across projects, autopilot mode included. v1.0.0 just dropped.
+**TL;DR:** Aether is an Apache 2.0-licensed, Go-based multi-agent framework where 24 specialized workers self-organize around your goal using pheromone signals instead of prompt engineering. Runs locally, memory compounds across projects, autopilot mode included. v1.0.0 just dropped.
 
 GitHub: https://github.com/calcosmic/Aether
 
@@ -30,7 +30,7 @@ In practice, that looks like:
 ## Why you might care (for this sub specifically)
 
 - **Fully local** -- Go binary, no cloud dependency. All colony state stays on your machine.
-- **MIT licensed** -- do whatever you want with it
+- **Apache 2.0 licensed** -- do whatever you want with it
 - **Works with Claude Code and OpenCode** -- 45 slash commands that plug into your existing workflow
 - **Single binary install** -- `go install github.com/calcosmic/Aether@latest` or grab a pre-built release
 - **Cross-platform** -- Linux, macOS (including Apple Silicon), Windows

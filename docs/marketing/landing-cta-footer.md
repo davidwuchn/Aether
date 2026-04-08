@@ -94,7 +94,7 @@ Purpose: Capture interested visitors for launch updates.
 > **Aether**
 > The whole is greater than the sum of its ants.
 >
-> Open-source multi-agent orchestration modeled on ant colonies. Built with Go. MIT licensed.
+> Open-source multi-agent orchestration modeled on ant colonies. Built with Go. Apache 2.0 licensed.
 
 **Column 2: Project**
 
@@ -113,7 +113,7 @@ Purpose: Capture interested visitors for launch updates.
 
 **Column 4: Legal**
 
-- [MIT License](https://github.com/calcosmic/Aether/blob/main/LICENSE)
+- [Apache 2.0 License](https://github.com/calcosmic/Aether/blob/main/LICENSE)
 - [Code of Conduct] `[PLACEHOLDER -- insert CoC link when added]`
 - [Security Policy] `[PLACEHOLDER -- insert SECURITY.md link when added]`
 
@@ -124,14 +124,14 @@ Layout note: Horizontal row of badges, centered, above the copyright line.
 Use shields.io badges for visual consistency.
 ```
 
-- ![MIT License](https://img.shields.io/github/license/calcosmic/Aether.svg?style=flat-square)
+- ![Apache 2.0 License](https://img.shields.io/github/license/calcosmic/Aether.svg?style=flat-square)
 - ![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?style=flat-square&logo=go)
 - ![Latest Release](https://img.shields.io/github/v/release/calcosmic/Aether.svg?style=flat-square)
 - ![Built with Go](https://img.shields.io/badge/Built%20with-Go-00ADD8?style=flat-square&logo=go)
 
 ### Copyright Line
 
-> Copyright 2026 Cal Cosmic. Released under the [MIT License](https://github.com/calcosmic/Aether/blob/main/LICENSE).
+> Copyright 2026 Cal Cosmic. Released under the [Apache 2.0 License](https://github.com/calcosmic/Aether/blob/main/LICENSE).
 
 ---
 
@@ -217,18 +217,18 @@ Position: Above testimonials, below the "Trusted by" section.
 Length: 153 characters (under 160 limit)
 ```
 
-> Aether is an open-source multi-agent orchestration tool where 24 specialized AI workers self-organize around your goals. Built in Go, MIT licensed.
+> Aether is an open-source multi-agent orchestration tool where 24 specialized AI workers self-organize around your goals. Built in Go, Apache 2.0 licensed.
 
 **HTML meta tag:**
 
 ```html
-<meta name="description" content="Aether is an open-source multi-agent orchestration tool where 24 specialized AI workers self-organize around your goals. Built in Go, MIT licensed.">
+<meta name="description" content="Aether is an open-source multi-agent orchestration tool where 24 specialized AI workers self-organize around your goals. Built in Go, Apache 2.0 licensed.">
 ```
 
 **Open Graph description (optional, same text):**
 
 ```html
-<meta property="og:description" content="Aether is an open-source multi-agent orchestration tool where 24 specialized AI workers self-organize around your goals. Built in Go, MIT licensed.">
+<meta property="og:description" content="Aether is an open-source multi-agent orchestration tool where 24 specialized AI workers self-organize around your goals. Built in Go, Apache 2.0 licensed.">
 ```
 
 **Title tag suggestion:**
