@@ -1,244 +1,336 @@
 {
   "version": "3.0",
-  "goal": "Update all 248 companion files that still reference aether-utils.sh and shell scripts to reference the Go binary instead. Update the source-of-truth map, architecture docs, and command definitions to accurately describe the v5.0 Go-based system. Aether migrated from shell to Go but the distributed documentation still describes the dead shell architecture — this is the root cause of recurring infrastructure gaps.",
-  "colony_name": null,
+  "goal": "Tackle the three speed fixes for pheromone injection: eliminate redundant process spawns, centralize validation, and add session-level caching",
+  "colony_name": "pheromone-speed-fix",
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 6,
-  "session_id": "session_1775528131_fbfbba9267fd172c",
-  "initialized_at": "2026-04-07T02:15:31Z",
+  "current_phase": 2,
+  "session_id": "session_1775643664_ba87cd71",
+  "initialized_at": "2026-04-08T10:21:04Z",
   "build_started_at": null,
   "plan": {
-    "generated_at": "2026-04-07T03:11:01Z",
-    "confidence": 97,
+    "generated_at": "2026-04-08T10:50:54Z",
+    "confidence": 82,
     "phases": [
       {
-        "description": "Update 3 YAML source files and command template. lay-eggs.yaml (8 refs -> aether setup), init.yaml (1 ref), resume.yaml (1 ref), template.yaml (1 ref).",
+        "description": "Create benchmark functions for pr-context and colony-prime context assembly so all subsequent phases have measurable before/after data.",
         "id": 1,
-        "name": "YAML source definitions",
+        "name": "Performance Baseline Benchmarks",
         "status": "completed",
-        "success_criteria": null,
+        "success_criteria": [
+          "Two benchmarks exist in cmd/context_bench_test.go",
+          "Both report ns/op without errors",
+          "No existing tests broken"
+        ],
         "tasks": [
           {
-            "constraints": [
-              "aether setup replaces hub sync, mkdir, chmod, .gitignore generation"
-            ],
-            "goal": "Replace 8 aether-utils.sh references in lay-eggs.yaml",
+            "depends_on": [],
+            "goal": "Add BenchmarkPRContext benchmark that invokes prContextCmd with fixture data, recording ns/op and allocs.",
             "id": "1.1",
-            "status": "completed",
-            "success_criteria": [
-              "grep -c aether-utils.sh lay-eggs.yaml returns 0"
-            ]
+            "status": "completed"
           },
           {
-            "goal": "Replace aether-utils.sh references in init.yaml",
+            "depends_on": [],
+            "goal": "Add BenchmarkColonyPrime benchmark that invokes colonyPrimeCmd with fixture store, recording ns/op and allocs.",
             "id": "1.2",
-            "status": "completed",
-            "success_criteria": [
-              "grep -c aether-utils.sh init.yaml returns 0"
-            ]
-          },
-          {
-            "goal": "Replace aether-utils.sh references in resume.yaml",
-            "id": "1.3",
-            "status": "completed",
-            "success_criteria": [
-              "grep -c aether-utils.sh resume.yaml returns 0"
-            ]
-          },
-          {
-            "goal": "Replace aether-utils.sh example in template.yaml",
-            "id": "1.4",
-            "status": "completed",
-            "success_criteria": [
-              "grep -c aether-utils.sh template.yaml returns 0"
-            ]
+            "status": "completed"
           }
         ]
       },
       {
-        "description": "Batch-update 42 .aether/commands/claude/ files and 45 .aether/commands/opencode/ files. Apply sed: bash .aether/aether-utils.sh -> aether.",
+        "description": "Extract duplicated content validation into a single pkg-level function implementing all 5 documented sanitization rules, then wire it into pheromone-write and import paths.",
         "id": 2,
-        "name": "Claude + OpenCode command files (92 files)",
-        "status": "completed",
-        "success_criteria": null,
+        "name": "Centralize Content Sanitization",
+        "status": "pending",
+        "success_criteria": [
+          "SanitizeSignalContent is the single validation entry point",
+          "pheromone_write.go and exchange.go both call it",
+          "All existing tests pass"
+        ],
         "tasks": [
           {
-            "constraints": [
-              "build-flow-start maps to context-update build-start"
-            ],
-            "goal": "Batch-update 42 .aether/commands/claude/ files",
+            "depends_on": [],
+            "goal": "Create SanitizeSignalContent function in pkg/colony/sanitize.go enforcing max 500 chars, XML tag rejection, angle bracket escaping, prompt-injection rejection, shell injection blocking.",
             "id": "2.1",
-            "status": "completed",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .aether/commands/claude/ returns empty"
-            ]
+            "status": "pending"
           },
           {
-            "constraints": [
-              "Same mappings as 2.1"
+            "depends_on": [
+              "2.1"
             ],
-            "goal": "Batch-update 45 .aether/commands/opencode/ files",
+            "goal": "Wire SanitizeSignalContent into pheromone_write.go before content hashing, rejecting invalid content with clear error.",
             "id": "2.2",
-            "status": "completed",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .aether/commands/opencode/ returns empty"
-            ]
+            "status": "pending"
+          },
+          {
+            "depends_on": [
+              "2.1"
+            ],
+            "goal": "Wire SanitizeSignalContent into XML import path in cmd/exchange.go, skipping invalid signals rather than failing the entire import.",
+            "id": "2.3",
+            "status": "pending"
           }
         ]
       },
       {
-        "description": "Update .claude/commands/ant/ (3 files: init.md, lay-eggs.md, resume.md) and .opencode/commands/ant/ (45 files). Runtime slash commands loaded by editors.",
+        "description": "Create pkg/cache package with session-scoped file caching for parsed JSON data, using .aether/data/ directory with .cache_ prefix and mtime-based invalidation.",
         "id": 3,
-        "name": "Claude Code + OpenCode runtime commands (48 files)",
-        "status": "completed",
-        "success_criteria": null,
+        "name": "File-Based Session Cache Package",
+        "status": "pending",
+        "success_criteria": [
+          "pkg/cache package compiles and tests pass",
+          "Cache keyed by (filename, mtime) with gob storage",
+          "Clear removes only .cache_* files"
+        ],
         "tasks": [
           {
-            "goal": "Update 3 .claude/commands/ant/ files: init.md, lay-eggs.md, resume.md",
+            "depends_on": [],
+            "goal": "Create pkg/cache/session_cache.go with SessionCache struct that stores parsed JSON blobs keyed by (filename, mtime).",
             "id": "3.1",
-            "status": "pending",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .claude/commands/ant/ returns empty"
-            ]
+            "status": "pending"
           },
           {
-            "goal": "Batch-update 45 .opencode/commands/ant/ files",
+            "depends_on": [
+              "3.1"
+            ],
+            "goal": "Add cache invalidation by mtime: if source file mtime differs from cached mtime, entry is stale and re-read from disk.",
             "id": "3.2",
-            "status": "pending",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .opencode/commands/ant/ returns empty"
-            ]
+            "status": "pending"
+          },
+          {
+            "depends_on": [
+              "3.1"
+            ],
+            "goal": "Add Clear method to remove all .cache_* files in .aether/data/, called at session end or on cache-clean command.",
+            "id": "3.3",
+            "status": "pending"
           }
         ]
       },
       {
-        "description": "Update .aether/agents/ (20), .claude/agents/ant/ (6), .opencode/agents/ (20). Replace do not modify aether-utils.sh directives with Go source references.",
+        "description": "Load COLONY_STATE.json once at the top of prContextCmd and reuse the parsed struct for all 5 subsequent reads. Also deduplicate pheromones.json loads.",
         "id": 4,
-        "name": "Agent definitions (46 files)",
-        "status": "completed",
-        "success_criteria": null,
+        "name": "Deduplicate COLONY_STATE.json Loads in pr-context",
+        "status": "pending",
+        "success_criteria": [
+          "COLONY_STATE.json loaded exactly once in prContextCmd",
+          "pheromones.json loaded exactly once in prContextCmd",
+          "All existing cmd tests pass"
+        ],
         "tasks": [
           {
-            "goal": "Batch-update 20 .aether/agents/ files",
+            "depends_on": [],
+            "goal": "Refactor prContextCmd to load COLONY_STATE.json once and pass to all sections (colony_state, decisions, context_capsule, phase_learnings).",
             "id": "4.1",
-            "status": "completed",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .aether/agents/ returns empty"
-            ]
+            "status": "pending"
           },
           {
-            "goal": "Update 6 .claude/agents/ant/ files",
+            "depends_on": [],
+            "goal": "Deduplicate pheromones.json loads: section 4 (signals) and extractSignalTexts both load it — refactor to load once and pass PheromoneFile.",
             "id": "4.2",
-            "status": "completed",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .claude/agents/ant/ returns empty"
-            ]
-          },
-          {
-            "goal": "Batch-update 20 .opencode/agents/ files",
-            "id": "4.3",
-            "status": "completed",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .opencode/agents/ returns empty"
-            ]
+            "status": "pending"
           }
         ]
       },
       {
-        "description": "Update .aether/docs/ (14), exchange XML (2), workers.md, QUEEN.md, CLAUDE.md, CHANGELOG.md, repo-structure.md, RUNTIME UPDATE ARCHITECTURE.md, TO-DOS.md, PROMPT-GO-CONVERSION.md, OPENCODE.md, docs/plans (7), Go source comments (2).",
+        "description": "Ensure pheromones.json is not redundantly loaded across colony-prime, pheromone-prime, and pheromone-display within a single session.",
         "id": 5,
-        "name": "Documentation and source files (29 files)",
-        "status": "completed",
-        "success_criteria": null,
+        "name": "Deduplicate Pheromone Loads Across Commands",
+        "status": "pending",
+        "success_criteria": [
+          "Shared pheromone loader exists",
+          "colony-prime, pheromone-prime, pheromone-display use it",
+          "All existing tests pass"
+        ],
         "tasks": [
           {
-            "constraints": [
-              "ci-context-assembly-design.md and state-contract-design.md need attribution table updates"
+            "depends_on": [
+              "3.1"
             ],
-            "goal": "Batch-update 14 .aether/docs/ files",
+            "goal": "Refactor colonyPrimeCmd to accept pre-loaded pheromones from shared load rather than loading independently.",
             "id": "5.1",
-            "status": "completed",
-            "success_criteria": [
-              "grep -rl aether-utils.sh .aether/docs/ returns empty"
-            ]
+            "status": "pending"
           },
           {
-            "goal": "Update workers.md, QUEEN.md, CLAUDE.md, architecture docs, exchange XML",
-            "id": "5.2",
-            "status": "completed",
-            "success_criteria": [
-              "grep -c aether-utils.sh returns 0 for each file"
-            ]
-          },
-          {
-            "constraints": [
-              "Do not change functional code"
+            "depends_on": [
+              "3.1"
             ],
-            "goal": "Update Go source comments in cmd/generate_cmds.go and pkg/storage/storage.go",
-            "id": "5.3",
-            "status": "completed",
-            "success_criteria": [
-              "grep -c aether-utils.sh returns 0 for both files"
-            ]
-          },
-          {
-            "goal": "Update 7 docs/plans/ and docs/specs/ files",
-            "id": "5.4",
-            "status": "completed",
-            "success_criteria": [
-              "grep -rl aether-utils.sh docs/ returns empty"
-            ]
+            "goal": "Extract shared loadPheromonesOnce function in cmd/ that uses session cache if available, falling back to direct file read.",
+            "id": "5.2",
+            "status": "pending"
           }
         ]
       },
       {
-        "description": "Update weekly-audit.sh, add deprecation headers to 38 dead .aether/utils/ scripts, run final grep verification and Go test suite.",
+        "description": "Deduplicate the 4 git process spawns in context.go: resolveAetherRootPath() spawns git rev-parse 3x, detectGitBranch() spawns once. Cache results for command lifetime.",
         "id": 6,
-        "name": "Shell deprecation and final verification",
-        "status": "completed",
-        "success_criteria": null,
+        "name": "Eliminate Redundant Git Process Spawns",
+        "status": "pending",
+        "success_criteria": [
+          "resolveAetherRootPath spawns git at most once per prContextCmd",
+          "detectGitBranch spawns git at most once per prContextCmd",
+          "Benchmark shows improvement over phase 1 baseline"
+        ],
         "tasks": [
           {
-            "constraints": [
-              "spawn-efficiency and entropy-score subcommands confirmed in Go binary"
-            ],
-            "goal": "Update weekly-audit.sh",
+            "depends_on": [],
+            "goal": "Refactor resolveAetherRootPath to accept optional cached value; in prContextCmd call it once and store result.",
             "id": "6.1",
-            "status": "pending",
-            "success_criteria": [
-              "grep -c aether-utils.sh weekly-audit.sh returns 0"
-            ]
+            "status": "pending"
           },
           {
-            "constraints": [
-              "Do not modify file contents, only prepend header"
+            "depends_on": [
+              "6.1"
             ],
-            "goal": "Add DEPRECATED header to all 38 .aether/utils/ shell scripts",
+            "goal": "Cache detectGitBranch result for command lifetime, verifying no other code path re-calls it within same invocation.",
             "id": "6.2",
-            "status": "pending",
-            "success_criteria": [
-              "All 38 files have deprecation comment block"
-            ]
+            "status": "pending"
           },
           {
-            "constraints": [
-              "Exclude archives, testdata, .aether/aether-utils.sh itself"
+            "depends_on": [
+              "1.1",
+              "6.1",
+              "6.2"
             ],
-            "goal": "Final grep verification across entire repo",
+            "goal": "Re-run benchmarks from phase 1 and verify git spawn count dropped from 4 to at most 2 with measurable ns/op improvement.",
             "id": "6.3",
-            "status": "pending",
-            "success_criteria": [
-              "Zero aether-utils.sh references in active scope"
-            ]
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "description": "Audit skills.go for redundant file reads within single command invocations and deduplicate them.",
+        "id": 7,
+        "name": "Eliminate Redundant Spawns in Skill Pipeline",
+        "status": "pending",
+        "success_criteria": [
+          "Skills pipeline has no redundant process spawns or duplicate file reads",
+          "All skill-related tests pass"
+        ],
+        "tasks": [
+          {
+            "depends_on": [],
+            "goal": "Audit skills.go for all exec.Command calls and redundant file reads; document findings.",
+            "id": "7.1",
+            "status": "pending"
           },
           {
-            "goal": "Run go test ./... -race",
-            "id": "6.4",
-            "status": "pending",
-            "success_criteria": [
-              "All tests pass"
-            ]
+            "depends_on": [
+              "7.1"
+            ],
+            "goal": "If redundant reads found in skill-index or skill-match, deduplicate by loading once and passing parsed result.",
+            "id": "7.2",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "description": "Integrate the session cache package into pr-context, context-capsule, and colony-prime so repeated loads within a session hit cache instead of disk.",
+        "id": 8,
+        "name": "Wire File Cache into Context Assembly Commands",
+        "status": "pending",
+        "success_criteria": [
+          "All three context assembly commands use SessionCache",
+          "Cache hit logged or measurable via benchmark",
+          "All existing tests pass"
+        ],
+        "tasks": [
+          {
+            "depends_on": [
+              "3.1",
+              "4.1"
+            ],
+            "goal": "Initialize SessionCache at start of prContextCmd, use it for COLONY_STATE.json and pheromones.json loads.",
+            "id": "8.1",
+            "status": "pending"
+          },
+          {
+            "depends_on": [
+              "3.1",
+              "5.1"
+            ],
+            "goal": "Wire SessionCache into colonyPrimeCmd for COLONY_STATE.json, pheromones.json, and instincts.json loads.",
+            "id": "8.2",
+            "status": "pending"
+          },
+          {
+            "depends_on": [
+              "3.1"
+            ],
+            "goal": "Wire SessionCache into contextCapsuleCmd for its COLONY_STATE.json and pheromones.json loads.",
+            "id": "8.3",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "description": "Add cache cleanup to prevent stale .cache_* files from accumulating across sessions.",
+        "id": 9,
+        "name": "Cache Cleanup and Session Hygiene",
+        "status": "pending",
+        "success_criteria": [
+          "cache-clean subcommand exists and works",
+          "Auto-cleanup runs at context assembly start",
+          "No .cache_* files accumulate beyond 24 hours"
+        ],
+        "tasks": [
+          {
+            "depends_on": [
+              "3.3"
+            ],
+            "goal": "Add cache-clean subcommand to aether CLI that calls SessionCache.Clear() and reports files removed.",
+            "id": "9.1",
+            "status": "pending"
+          },
+          {
+            "depends_on": [
+              "3.3"
+            ],
+            "goal": "Add auto-cleanup at start of each context assembly command: delete .cache_* files older than 24 hours.",
+            "id": "9.2",
+            "status": "pending"
+          }
+        ]
+      },
+      {
+        "description": "End-to-end verification that all three speed fixes work together and existing functionality is preserved.",
+        "id": 10,
+        "name": "Integration Verification",
+        "status": "pending",
+        "success_criteria": [
+          "Full test suite passes with race detection",
+          "Benchmarks show improvement over baseline",
+          "Sanitization blocks malicious content end-to-end"
+        ],
+        "tasks": [
+          {
+            "depends_on": [
+              "8.3",
+              "9.2",
+              "6.3"
+            ],
+            "goal": "Run full test suite: go test ./... -race and verify zero failures.",
+            "id": "10.1",
+            "status": "pending"
+          },
+          {
+            "depends_on": [
+              "1.1",
+              "1.2",
+              "10.1"
+            ],
+            "goal": "Run benchmarks from phase 1 and compare against baseline. Verify measurable improvement in ns/op.",
+            "id": "10.2",
+            "status": "pending"
+          },
+          {
+            "depends_on": [
+              "2.2",
+              "8.1"
+            ],
+            "goal": "Verify sanitization rejects malicious content end-to-end: write signal with XML tags (rejected), write valid signal (stored and appears in output).",
+            "id": "10.3",
+            "status": "pending"
           }
         ]
       }
@@ -247,38 +339,30 @@
   "memory": {
     "phase_learnings": [
       {
-        "id": "learning_1775534875",
-        "phase": 2,
-        "phase_name": "Claude + OpenCode command files (92 files)",
+        "id": "learning_1775648596",
         "learnings": [
           {
-            "claim": "Batch sed replacement across 87+ markdown files is faster and more reliable than per-file agent spawns for pure find-replace work",
-            "status": "validated",
-            "tested": true,
-            "evidence": "478 references replaced across 87 files in parallel by 2 builders, verified by independent watcher with 0 issues",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-04-07T04:34:35Z"
-      },
-      {
-        "id": "learning_1775540069",
-        "phase": 4,
-        "phase_name": "Agent definitions (46 files)",
-        "learnings": [
+            "claim": "PRContext baseline: ~20.8ms/1989 allocs per call; ColonyPrime baseline: ~266us/921 allocs per call",
+            "disproven_by": null,
+            "evidence": "Benchmarks run successfully with go test -bench",
+            "status": "hypothesis",
+            "tested": true
+          },
           {
-            "claim": "Agent definition files across .aether/agents/, .claude/agents/ant/, and .opencode/agents/ contain both bash invocations and prose references to aether-utils.sh — both patterns need contextual replacement, not just sed",
-            "status": "validated",
-            "tested": true,
-            "evidence": "47+47+8=102 references across 46 files; bash invocations replaced with aether CLI, prose references updated to reference Go source in cmd/ or pkg/",
-            "disproven_by": null
+            "claim": "Realistic fixture data with 5 data sources produces meaningful benchmark measurements",
+            "disproven_by": null,
+            "evidence": "setupBenchmarkStore creates colony state, pheromones, flags, midden, rolling summary, instincts, queen/hive wisdom",
+            "status": "hypothesis",
+            "tested": true
           }
         ],
-        "timestamp": "2026-04-07T04:28:00Z"
+        "phase": 1,
+        "phase_name": "Performance Baseline Benchmarks",
+        "timestamp": "2026-04-08T11:43:16Z"
       }
     ],
     "decisions": null,
-    "instincts": null
+    "instincts": []
   },
   "errors": {
     "records": [],
@@ -287,11 +371,16 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-04-07T02:15:31Z|phase_started|build|Colony initialized",
-    "2026-04-07T05:52:10Z|phase_started|build|Phase 5: Documentation and source files (29 files) started",
-    "2026-04-07T06:22:00Z|phase_advanced|continue|Completed Phase 5, advancing to Phase 6",
-    "2026-04-07T06:41:53Z|phase_started|build|Phase 6: Shell deprecation and final verification started",
-    "2026-04-07T07:10:44Z|phase_advanced|continue|Completed Phase 6, all phases complete"
+    "2026-04-08T10:21:04Z|colony_initialized|init|Colony initialized with goal: Tackle the three speed fixes for pheromone injection: eliminate redundant process spawns, centralize validation, and add session-level caching",
+    "2026-04-08T10:50:54Z|plan_generated|plan|Generated 10 phases with 82% confidence",
+    "2026-04-08T10:57:13Z|phase_started|build|Phase 1: Performance Baseline Benchmarks started",
+    ""
   ],
-  "milestone": "Crowned Anthill"
+  "plan_granularity": "quarter",
+  "milestone": "",
+  "build_baseline_sha": "5eca94d35673a9b549684b054f1555877c0c522d"
 }
+
+
+
+
