@@ -108,16 +108,9 @@ node_modules/
 .worktrees/
 .claude/worktrees/
 
-# GSD (Get Shit Done) — local dev tool, not part of Aether
-.claude/commands/gsd/
-.claude/agents/gsd-*
-.claude/gsd-*
+# Planning artifacts
 .planning/
 
 # Go build output
 /aether
 *.test
-
-# GSD research artifacts
-2026-*/
-20??-??-??-??????/
