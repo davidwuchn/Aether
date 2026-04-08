@@ -4,7 +4,7 @@
   "colony_name": "pheromone-speed-fix",
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 3,
+  "current_phase": 8,
   "session_id": "session_1775643664_ba87cd71",
   "initialized_at": "2026-04-08T10:21:04Z",
   "build_started_at": null,
@@ -76,7 +76,7 @@
         "description": "Create pkg/cache package with session-scoped file caching for parsed JSON data, using .aether/data/ directory with .cache_ prefix and mtime-based invalidation.",
         "id": 3,
         "name": "File-Based Session Cache Package",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "pkg/cache package compiles and tests pass",
           "Cache keyed by (filename, mtime) with gob storage",
@@ -111,7 +111,7 @@
         "description": "Load COLONY_STATE.json once at the top of prContextCmd and reuse the parsed struct for all 5 subsequent reads. Also deduplicate pheromones.json loads.",
         "id": 4,
         "name": "Deduplicate COLONY_STATE.json Loads in pr-context",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "COLONY_STATE.json loaded exactly once in prContextCmd",
           "pheromones.json loaded exactly once in prContextCmd",
@@ -136,7 +136,7 @@
         "description": "Ensure pheromones.json is not redundantly loaded across colony-prime, pheromone-prime, and pheromone-display within a single session.",
         "id": 5,
         "name": "Deduplicate Pheromone Loads Across Commands",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Shared pheromone loader exists",
           "colony-prime, pheromone-prime, pheromone-display use it",
@@ -165,7 +165,7 @@
         "description": "Deduplicate the 4 git process spawns in context.go: resolveAetherRootPath() spawns git rev-parse 3x, detectGitBranch() spawns once. Cache results for command lifetime.",
         "id": 6,
         "name": "Eliminate Redundant Git Process Spawns",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "resolveAetherRootPath spawns git at most once per prContextCmd",
           "detectGitBranch spawns git at most once per prContextCmd",
@@ -202,7 +202,7 @@
         "description": "Audit skills.go for redundant file reads within single command invocations and deduplicate them.",
         "id": 7,
         "name": "Eliminate Redundant Spawns in Skill Pipeline",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Skills pipeline has no redundant process spawns or duplicate file reads",
           "All skill-related tests pass"
@@ -381,6 +381,65 @@
         "phase": 2,
         "phase_name": "Centralize Content Sanitization",
         "timestamp": "2026-04-08T12:49:59Z"
+      },
+      {
+        "id": "learning_1775669705",
+        "learnings": [
+          {
+            "claim": "JSON encoding preferred over gob for generic interface{} cache values — gob requires concrete type registration which defeats generic caching",
+            "disproven_by": null,
+            "evidence": "Hammer-12 switched from gob to JSON, all tests pass with arbitrary types",
+            "status": "hypothesis",
+            "tested": true
+          },
+          {
+            "claim": "In-memory fast path with disk persistence provides simple session-scoped caching without external dependencies",
+            "disproven_by": null,
+            "evidence": "SessionCache uses sync.RWMutex for concurrency, .cache_ files for persistence, mtime for invalidation",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 3,
+        "phase_name": "File-Based Session Cache Package",
+        "timestamp": "2026-04-08T17:35:05Z"
+      },
+      {
+        "id": "learning_1775671801",
+        "learnings": [
+          {
+            "claim": "When deduplicating file loads, verify each call site has different error handling before merging — some silently skip while others add fallbacks",
+            "disproven_by": null,
+            "evidence": "COLONY_STATE.json had 5 loads with 3 distinct error behaviors preserved in single-load refactor",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 4,
+        "phase_name": "Deduplicate COLONY_STATE.json Loads",
+        "timestamp": "2026-04-08T18:10:01Z"
+      },
+      {
+        "id": "learning_1775681895",
+        "learnings": [
+          {
+            "claim": "Extracting shared buildFullIndex() from triple-duplicated scanning logic follows the established loadPheromonesOnce pattern",
+            "disproven_by": null,
+            "evidence": "All 42 tests pass after extracting shared function from skill-index, skill-list, skill-cache-rebuild",
+            "status": "hypothesis",
+            "tested": true
+          },
+          {
+            "claim": "When deduplicating CLI command logic, preserve the CLI composability contract — each command remains standalone even with shared internals",
+            "disproven_by": null,
+            "evidence": "skill-match still returns only names, skill-inject stat-then-fallback preserved, CLI interface unchanged",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 7,
+        "phase_name": "Eliminate Redundant Spawns in Skill Pipeline",
+        "timestamp": "2026-04-08T20:58:30Z"
       }
     ],
     "decisions": null,
@@ -393,21 +452,14 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-04-08T10:21:04Z|colony_initialized|init|Colony initialized with goal: Tackle the three speed fixes for pheromone injection: eliminate redundant process spawns, centralize validation, and add session-level caching",
+    "2026-04-08T10:21:04Z|colony_initialized|init|Colony initialized",
     "2026-04-08T10:50:54Z|plan_generated|plan|Generated 10 phases with 82% confidence",
-    "2026-04-08T10:57:13Z|phase_started|build|Phase 1: Performance Baseline Benchmarks started",
-    "",
+    "2026-04-08T20:48:34Z|phase_completed|continue|Phase 7: Eliminate Redundant Spawns in Skill Pipeline completed",
     ""
   ],
   "plan_granularity": "quarter",
   "milestone": "",
-  "build_baseline_sha": "5eca94d35673a9b549684b054f1555877c0c522d"
+  "build_baseline_sha": "f409480b7f4116245f9dee171eb12451c7de00c1"
 }
-
-
-
-
-
-
 
 

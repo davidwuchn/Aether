@@ -82,26 +82,8 @@ var skillIndexCmd = &cobra.Command{
 	Short: "Build skills index from installed skills",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		entries := []skillIndexEntry{}
-
-		// Index shipped skills from local .aether/skills/
-		if localSkills := findSkillDirs(".aether/skills"); len(localSkills) > 0 {
-			for _, d := range localSkills {
-				if e := indexSkillDir(d, false); e != nil {
-					entries = append(entries, *e)
-				}
-			}
-		}
-
-		// Index user skills from hub ~/.aether/skills/
 		hub := resolveHubPath()
-		if hubSkills := findSkillDirs(filepath.Join(hub, "skills")); len(hubSkills) > 0 {
-			for _, d := range hubSkills {
-				if e := indexSkillDir(d, true); e != nil {
-					entries = append(entries, *e)
-				}
-			}
-		}
+		entries := buildFullIndex(hub)
 
 		data := skillIndexData{
 			Entries:   entries,
@@ -306,26 +288,8 @@ var skillListCmd = &cobra.Command{
 	Short: "List all installed skills",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		entries := []skillIndexEntry{}
-
-		// Local shipped skills
-		if localSkills := findSkillDirs(".aether/skills"); len(localSkills) > 0 {
-			for _, d := range localSkills {
-				if e := indexSkillDir(d, false); e != nil {
-					entries = append(entries, *e)
-				}
-			}
-		}
-
-		// Hub user skills
 		hub := resolveHubPath()
-		if hubSkills := findSkillDirs(filepath.Join(hub, "skills")); len(hubSkills) > 0 {
-			for _, d := range hubSkills {
-				if e := indexSkillDir(d, true); e != nil {
-					entries = append(entries, *e)
-				}
-			}
-		}
+		entries := buildFullIndex(hub)
 
 		outputOK(map[string]interface{}{"skills": entries, "total": len(entries)})
 		return nil
@@ -374,23 +338,7 @@ var skillCacheRebuildCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		hub := resolveHubPath()
 		indexPath := filepath.Join(hub, "skills", "index.json")
-
-		entries := []skillIndexEntry{}
-
-		if localSkills := findSkillDirs(".aether/skills"); len(localSkills) > 0 {
-			for _, d := range localSkills {
-				if e := indexSkillDir(d, false); e != nil {
-					entries = append(entries, *e)
-				}
-			}
-		}
-		if hubSkills := findSkillDirs(filepath.Join(hub, "skills")); len(hubSkills) > 0 {
-			for _, d := range hubSkills {
-				if e := indexSkillDir(d, true); e != nil {
-					entries = append(entries, *e)
-				}
-			}
-		}
+		entries := buildFullIndex(hub)
 
 		data := skillIndexData{
 			Entries:   entries,
@@ -484,6 +432,32 @@ var skillIsUserCreatedCmd = &cobra.Command{
 }
 
 // Helper functions.
+
+// buildFullIndex scans both the local shipped skills directory (.aether/skills/)
+// and the hub user skills directory (<hub>/skills/), returning all indexed
+// entries. This is the single source of truth for directory scanning used by
+// skill-index, skill-list, and skill-cache-rebuild.
+func buildFullIndex(hub string) []skillIndexEntry {
+	entries := []skillIndexEntry{}
+
+	if localSkills := findSkillDirs(".aether/skills"); len(localSkills) > 0 {
+		for _, d := range localSkills {
+			if e := indexSkillDir(d, false); e != nil {
+				entries = append(entries, *e)
+			}
+		}
+	}
+
+	if hubSkills := findSkillDirs(filepath.Join(hub, "skills")); len(hubSkills) > 0 {
+		for _, d := range hubSkills {
+			if e := indexSkillDir(d, true); e != nil {
+				entries = append(entries, *e)
+			}
+		}
+	}
+
+	return entries
+}
 
 func parseSkillFrontmatter(content string) *skillFrontmatter {
 	lines := strings.Split(content, "\n")
