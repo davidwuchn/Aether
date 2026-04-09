@@ -170,8 +170,8 @@ func TestPheromoneWriteDedup(t *testing.T) {
 		t.Errorf("signal count = %d, want 1 (duplicate should reinforce, not append)", len(pf.Signals))
 	}
 
-	if pf.Signals[0].ReinforcementCount == nil || *pf.Signals[0].ReinforcementCount < 2 {
-		t.Errorf("reinforcement_count = %v, want >= 2 after two identical writes", pf.Signals[0].ReinforcementCount)
+	if pf.Signals[0].ReinforcementCount == nil || *pf.Signals[0].ReinforcementCount < 1 {
+		t.Errorf("reinforcement_count = %v, want >= 1 after one reinforcement", pf.Signals[0].ReinforcementCount)
 	}
 }
 

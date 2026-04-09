@@ -132,7 +132,7 @@ var pheromoneWriteCmd = &cobra.Command{
 				// Reinforce existing signal instead of appending
 				sig.CreatedAt = now
 				if sig.ReinforcementCount == nil {
-					rc := 1
+					rc := 0
 					sig.ReinforcementCount = &rc
 				}
 				*sig.ReinforcementCount++
