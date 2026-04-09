@@ -174,9 +174,11 @@ func runUpdateSync(hubDir, repoDir string, force bool) updateSyncResult {
 
 		var syncRes syncResult
 		if force {
+			// Force: overwrite changed files AND remove stale ones
 			syncRes = syncDirProtected(srcDir, destDir, protectedDirs, protectedFiles)
 		} else {
-			syncRes = setupSyncDir(srcDir, destDir)
+			// Normal: overwrite changed files but don't remove stale ones
+			syncRes = syncDirUpdate(srcDir, destDir, protectedDirs, protectedFiles)
 		}
 		result.details = append(result.details, map[string]interface{}{
 			"label":   pair.label,
@@ -192,6 +194,69 @@ func runUpdateSync(hubDir, repoDir string, force bool) updateSyncResult {
 
 // syncDirProtected copies files from src to dest like syncDirWithCleanup,
 // but skips protected directories and files.
+// syncDirUpdate copies files from src to dest, overwriting changed files (by SHA-256)
+// and respecting protected directories/files. Unlike syncDirProtected, it does NOT
+// remove stale files. Used by normal (non-force) updates so companion files (rules,
+// commands, agents) always get updated from the hub while user data stays safe.
+func syncDirUpdate(src, dest string, protectedDirs, protectedFiles map[string]bool) syncResult {
+	result := syncResult{}
+
+	srcInfo, err := os.Stat(src)
+	if err != nil || !srcInfo.IsDir() {
+		return result
+	}
+
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return result
+	}
+
+	srcFiles := listFilesRecursive(src)
+	for _, relPath := range srcFiles {
+		// Skip protected paths
+		firstComponent := relPath
+		if idx := strings.Index(relPath, string(filepath.Separator)); idx >= 0 {
+			firstComponent = relPath[:idx]
+		}
+		if protectedDirs[firstComponent] {
+			result.skipped++
+			continue
+		}
+		if protectedFiles[filepath.Base(relPath)] {
+			result.skipped++
+			continue
+		}
+
+		srcPath := filepath.Join(src, relPath)
+		destPath := filepath.Join(dest, relPath)
+
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			continue
+		}
+
+		// Skip if identical (SHA-256 match)
+		if _, err := os.Stat(destPath); err == nil {
+			srcHash, srcErr := fileSHA256(srcPath)
+			destHash, destErr := fileSHA256(destPath)
+			if srcErr == nil && destErr == nil && srcHash == destHash {
+				result.skipped++
+				continue
+			}
+		}
+
+		if err := copyFile(srcPath, destPath); err != nil {
+			continue
+		}
+
+		if strings.HasSuffix(relPath, ".sh") {
+			os.Chmod(destPath, 0755)
+		}
+
+		result.copied++
+	}
+
+	return result
+}
+
 func syncDirProtected(src, dest string, protectedDirs, protectedFiles map[string]bool) syncResult {
 	result := syncResult{}
 
