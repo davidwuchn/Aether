@@ -248,7 +248,7 @@ var colonyPrimeCmd = &cobra.Command{
 				name     string
 				content  string
 				priority int
-			}{"decisions", decSB.String(), 4})
+			}{"decisions", decSB.String(), 3})
 		}
 
 		// 5. Load phase learnings from state
@@ -265,7 +265,40 @@ var colonyPrimeCmd = &cobra.Command{
 				name     string
 				content  string
 				priority int
-			}{"learnings", learnSB.String(), 3})
+			}{"learnings", learnSB.String(), 2})
+		}
+
+		// 6. Load hive wisdom (falls back to eternal memory)
+		hubDir := resolveHubPath()
+		var fallbacks []string
+		hiveEntries := readHiveWisdom(hubDir, 5, &fallbacks)
+		if len(hiveEntries) > 0 {
+			var hiveSB strings.Builder
+			hiveSB.WriteString("## HIVE WISDOM (Cross-Colony Patterns)\n\n")
+			for _, e := range hiveEntries {
+				hiveSB.WriteString(fmt.Sprintf("- %s\n", e))
+			}
+			sections = append(sections, struct {
+				name     string
+				content  string
+				priority int
+			}{"hive_wisdom", hiveSB.String(), 4})
+		}
+
+		// 7. Load user preferences from QUEEN.md
+		queenPath := filepath.Join(hubDir, "QUEEN.md")
+		userPrefs := readUserPreferences(queenPath)
+		if len(userPrefs) > 0 {
+			var prefsSB strings.Builder
+			prefsSB.WriteString("## USER PREFERENCES\n\n")
+			for _, pref := range userPrefs {
+				prefsSB.WriteString(fmt.Sprintf("- %s\n", pref))
+			}
+			sections = append(sections, struct {
+				name     string
+				content  string
+				priority int
+			}{"user_preferences", prefsSB.String(), 7})
 		}
 
 		// Sort by priority (lowest priority = trimmed first)
