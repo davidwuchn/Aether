@@ -256,6 +256,192 @@ func TestSetupOutputJSON(t *testing.T) {
 	}
 }
 
+// TestSetupSyncDirSkipsProtectedDirs verifies that setupSyncDir skips
+// files under protected directories (data/, dreams/).
+func TestSetupSyncDirSkipsProtectedDirs(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	tmpDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, "src")
+	destDir := filepath.Join(tmpDir, "dest")
+
+	// Create source with a protected directory containing files
+	if err := os.MkdirAll(filepath.Join(srcDir, "data"), 0755); err != nil {
+		t.Fatalf("failed to create src data dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(srcDir, "dreams"), 0755); err != nil {
+		t.Fatalf("failed to create src dreams dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "data", "COLONY_STATE.json"), []byte(`{"from":"hub"}`), 0644); err != nil {
+		t.Fatalf("failed to create src state file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "dreams", "dream1.md"), []byte("# dream"), 0644); err != nil {
+		t.Fatalf("failed to create src dream file: %v", err)
+	}
+
+	// Also create a normal file that should be copied
+	if err := os.WriteFile(filepath.Join(srcDir, "workers.md"), []byte("# Workers"), 0644); err != nil {
+		t.Fatalf("failed to create src workers file: %v", err)
+	}
+
+	// Pre-create local data/ with user content that must NOT be overwritten
+	localDataDir := filepath.Join(destDir, "data")
+	if err := os.MkdirAll(localDataDir, 0755); err != nil {
+		t.Fatalf("failed to create local data dir: %v", err)
+	}
+	userState := `{"goal":"user goal","state":"ACTIVE"}`
+	if err := os.WriteFile(filepath.Join(localDataDir, "COLONY_STATE.json"), []byte(userState), 0644); err != nil {
+		t.Fatalf("failed to create local state: %v", err)
+	}
+
+	protectedDirs := map[string]bool{"data": true, "dreams": true}
+	protectedFiles := map[string]bool{}
+
+	result := setupSyncDirProtected(srcDir, destDir, protectedDirs, protectedFiles)
+
+	// workers.md should have been copied
+	if _, err := os.Stat(filepath.Join(destDir, "workers.md")); os.IsNotExist(err) {
+		t.Error("expected workers.md to be copied")
+	}
+
+	// Protected directory files must NOT have been copied
+	content, err := os.ReadFile(filepath.Join(localDataDir, "COLONY_STATE.json"))
+	if err != nil {
+		t.Fatalf("failed to read local state: %v", err)
+	}
+	if string(content) != userState {
+		t.Errorf("protected data/ file was overwritten\ngot:  %s\nwant: %s", string(content), userState)
+	}
+
+	// dreams/ should not exist at all in dest (never created)
+	if _, err := os.Stat(filepath.Join(destDir, "dreams")); err == nil {
+		t.Error("expected dreams/ to NOT be created in dest (protected)")
+	}
+
+	if result.copied != 1 {
+		t.Errorf("expected 1 file copied, got %d", result.copied)
+	}
+	if result.skipped != 2 {
+		t.Errorf("expected 2 files skipped (protected), got %d", result.skipped)
+	}
+}
+
+// TestSetupSyncDirSkipsProtectedFiles verifies that setupSyncDir skips
+// protected files like QUEEN.md even at the root level.
+func TestSetupSyncDirSkipsProtectedFiles(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	tmpDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, "src")
+	destDir := filepath.Join(tmpDir, "dest")
+
+	// Create source with a protected file
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "QUEEN.md"), []byte("# Queen from hub"), 0644); err != nil {
+		t.Fatalf("failed to create src QUEEN.md: %v", err)
+	}
+	// Normal file
+	if err := os.WriteFile(filepath.Join(srcDir, "workers.md"), []byte("# Workers"), 0644); err != nil {
+		t.Fatalf("failed to create src workers.md: %v", err)
+	}
+
+	// Pre-create local QUEEN.md with user content
+	localQueen := "# My QUEEN.md content"
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatalf("failed to create dest dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(destDir, "QUEEN.md"), []byte(localQueen), 0644); err != nil {
+		t.Fatalf("failed to create local QUEEN.md: %v", err)
+	}
+
+	protectedDirs := map[string]bool{}
+	protectedFiles := map[string]bool{"QUEEN.md": true}
+
+	result := setupSyncDirProtected(srcDir, destDir, protectedDirs, protectedFiles)
+
+	// workers.md should be copied
+	if _, err := os.Stat(filepath.Join(destDir, "workers.md")); os.IsNotExist(err) {
+		t.Error("expected workers.md to be copied")
+	}
+
+	// QUEEN.md must be preserved
+	content, err := os.ReadFile(filepath.Join(destDir, "QUEEN.md"))
+	if err != nil {
+		t.Fatalf("failed to read local QUEEN.md: %v", err)
+	}
+	if string(content) != localQueen {
+		t.Errorf("protected QUEEN.md was overwritten\ngot:  %s\nwant: %s", string(content), localQueen)
+	}
+
+	if result.copied != 1 {
+		t.Errorf("expected 1 file copied, got %d", result.copied)
+	}
+	if result.skipped != 1 {
+		t.Errorf("expected 1 file skipped (protected), got %d", result.skipped)
+	}
+}
+
+// TestSetupCommandRespectsProtectedDirs verifies the full setup command
+// does not overwrite files in data/ or dreams/ directories.
+func TestSetupCommandRespectsProtectedDirs(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+
+	// Create hub with a data/ directory containing a file (simulating
+	// a corrupted or malicious hub)
+	hubSystem := filepath.Join(homeDir, ".aether", "system")
+	hubDataDir := filepath.Join(hubSystem, "data")
+	if err := os.MkdirAll(hubDataDir, 0755); err != nil {
+		t.Fatalf("failed to create hub data dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hubDataDir, "COLONY_STATE.json"), []byte(`{"from":"hub","corrupted":true}`), 0644); err != nil {
+		t.Fatalf("failed to create hub state: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hubSystem, "workers.md"), []byte("# Workers"), 0644); err != nil {
+		t.Fatalf("failed to create hub file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(homeDir, ".aether", "version.json"), []byte(`{"version":"1.0.0"}`), 0644); err != nil {
+		t.Fatalf("failed to create hub version: %v", err)
+	}
+
+	// Pre-create local data/ with user content
+	localDataDir := filepath.Join(repoDir, ".aether", "data")
+	if err := os.MkdirAll(localDataDir, 0755); err != nil {
+		t.Fatalf("failed to create local data dir: %v", err)
+	}
+	userState := `{"goal":"user goal","state":"ACTIVE"}`
+	if err := os.WriteFile(filepath.Join(localDataDir, "COLONY_STATE.json"), []byte(userState), 0644); err != nil {
+		t.Fatalf("failed to create local state: %v", err)
+	}
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"setup", "--repo-dir", repoDir, "--home-dir", homeDir})
+	defer rootCmd.SetArgs([]string{})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("setup command failed: %v", err)
+	}
+
+	// User data must be preserved
+	content, err := os.ReadFile(filepath.Join(localDataDir, "COLONY_STATE.json"))
+	if err != nil {
+		t.Fatalf("failed to read local state: %v", err)
+	}
+	if string(content) != userState {
+		t.Errorf("user COLONY_STATE.json was overwritten by hub version\ngot:  %s\nwant: %s", string(content), userState)
+	}
+}
+
 // TestSetupSkipsUnchangedFiles verifies that identical files are skipped.
 func TestSetupSkipsUnchangedFiles(t *testing.T) {
 	saveGlobals(t)

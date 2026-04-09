@@ -1,514 +1,214 @@
 {
   "version": "3.0",
-  "goal": "Tackle the three speed fixes for pheromone injection: eliminate redundant process spawns, centralize validation, and add session-level caching",
-  "colony_name": "pheromone-speed-fix",
-  "colony_version": 2,
+  "goal": "Audit and fix the Aether update/distribution system so companion files always sync correctly, verify the pheromone pipeline works end-to-end, and ensure the system is production-ready",
+  "colony_name": "Aether Systems Audit",
+  "colony_version": 1,
   "state": "READY",
-  "current_phase": 10,
-  "session_id": "session_1775643664_ba87cd71",
-  "initialized_at": "2026-04-08T10:21:04Z",
+  "current_phase": 2,
+  "session_id": "session_1775752815_22021",
+  "initialized_at": "2026-04-09T16:40:15Z",
   "build_started_at": null,
   "plan": {
-    "generated_at": "2026-04-08T10:50:54Z",
-    "confidence": 82,
+    "generated_at": "2026-04-09T17:00:00Z",
+    "confidence": 92,
     "phases": [
       {
-        "description": "Create benchmark functions for pr-context and colony-prime context assembly so all subsequent phases have measurable before/after data.",
+        "description": "Remove stale worktrees, add update/install tests, fix setup protection parity",
         "id": 1,
-        "name": "Performance Baseline Benchmarks",
+        "name": "Cleanup and Distribution Tests",
         "status": "completed",
         "success_criteria": [
-          "Two benchmarks exist in cmd/context_bench_test.go",
-          "Both report ns/op without errors",
-          "No existing tests broken"
+          "All install/setup/update tests pass",
+          "Stale worktrees removed",
+          "setup has same protection as update"
         ],
         "tasks": [
           {
-            "depends_on": [],
-            "goal": "Add BenchmarkPRContext benchmark that invokes prContextCmd with fixture data, recording ns/op and allocs.",
+            "goal": "Remove 5 remaining stale worktrees from cmd/.aether/worktrees/",
             "id": "1.1",
-            "status": "completed"
+            "status": "pending",
+            "success_criteria": [
+              "cmd/.aether/worktrees/ is empty"
+            ]
           },
           {
-            "depends_on": [],
-            "goal": "Add BenchmarkColonyPrime benchmark that invokes colonyPrimeCmd with fixture store, recording ns/op and allocs.",
+            "goal": "Add update command tests covering normal overwrite, dry-run, force, and protected dirs",
             "id": "1.2",
-            "status": "completed"
+            "status": "pending",
+            "success_criteria": [
+              "go test ./cmd/ -run TestUpdate.* passes"
+            ]
+          },
+          {
+            "goal": "Add protected-dirs/files params to setupSyncDir matching update pattern",
+            "id": "1.3",
+            "status": "pending",
+            "success_criteria": [
+              "setup respects data/ and dreams/ boundaries"
+            ]
+          },
+          {
+            "goal": "End-to-end install-\u003esetup-\u003eupdate flow test in temp directory",
+            "id": "1.4",
+            "status": "pending",
+            "success_criteria": [
+              "All three commands succeed; changes propagate"
+            ]
           }
         ]
       },
       {
-        "description": "Extract duplicated content validation into a single pkg-level function implementing all 5 documented sanitization rules, then wire it into pheromone-write and import paths.",
+        "description": "Verify the full pheromone lifecycle with integration tests: write, read, prime, display, expire, dedup",
         "id": 2,
-        "name": "Centralize Content Sanitization",
-        "status": "completed",
+        "name": "Pheromone Pipeline Verification",
+        "status": "pending",
         "success_criteria": [
-          "SanitizeSignalContent is the single validation entry point",
-          "pheromone_write.go and exchange.go both call it",
-          "All existing tests pass"
+          "Full lifecycle test passes",
+          "colony-prime includes signals",
+          "Dedup works correctly"
         ],
         "tasks": [
           {
-            "depends_on": [],
-            "goal": "Create SanitizeSignalContent function in pkg/colony/sanitize.go enforcing max 500 chars, XML tag rejection, angle bracket escaping, prompt-injection rejection, shell injection blocking.",
+            "goal": "Create integration test for full pheromone lifecycle (write-\u003eread-\u003eprime-\u003edisplay-\u003eexpire)",
             "id": "2.1",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "All 6 pipeline steps pass"
+            ]
           },
           {
-            "depends_on": [
-              "2.1"
-            ],
-            "goal": "Wire SanitizeSignalContent into pheromone_write.go before content hashing, rejecting invalid content with clear error.",
+            "goal": "Test colony-prime includes pheromone signals in assembled context",
             "id": "2.2",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "Pheromone section appears in colony-prime output"
+            ]
           },
           {
-            "depends_on": [
-              "2.1"
-            ],
-            "goal": "Wire SanitizeSignalContent into XML import path in cmd/exchange.go, skipping invalid signals rather than failing the entire import.",
+            "goal": "Test pheromone deduplication reinforces instead of duplicating",
             "id": "2.3",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "Second write returns replaced:true, only 1 signal exists"
+            ]
           }
         ]
       },
       {
-        "description": "Create pkg/cache package with session-scoped file caching for parsed JSON data, using .aether/data/ directory with .cache_ prefix and mtime-based invalidation.",
+        "description": "Fix colony-prime to include hive wisdom and user preferences (currently only in pr-context). Test budget enforcement and priority-based trimming.",
         "id": 3,
-        "name": "File-Based Session Cache Package",
-        "status": "completed",
+        "name": "Colony-Prime Context Parity",
+        "status": "pending",
         "success_criteria": [
-          "pkg/cache package compiles and tests pass",
-          "Cache keyed by (filename, mtime) with gob storage",
-          "Clear removes only .cache_* files"
+          "colony-prime has parity with pr-context for wisdom/preferences",
+          "Budget enforcement tested"
         ],
         "tasks": [
           {
-            "depends_on": [],
-            "goal": "Create pkg/cache/session_cache.go with SessionCache struct that stores parsed JSON blobs keyed by (filename, mtime).",
+            "goal": "Add hive wisdom and user preferences loading to colony-prime context assembly",
             "id": "3.1",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "colony-prime output includes HIVE WISDOM and USER PREFERENCES sections"
+            ]
           },
           {
-            "depends_on": [
-              "3.1"
-            ],
-            "goal": "Add cache invalidation by mtime: if source file mtime differs from cached mtime, entry is stale and re-read from disk.",
+            "goal": "Test colony-prime respects 8000-char budget and trims low-priority sections first",
             "id": "3.2",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "Pheromones (priority 9) never trimmed before learnings (priority 3)"
+            ]
           },
           {
-            "depends_on": [
-              "3.1"
-            ],
-            "goal": "Add Clear method to remove all .cache_* files in .aether/data/, called at session end or on cache-clean command.",
+            "goal": "Test compact mode uses 4000-char budget with correct trimming order",
             "id": "3.3",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "Compact mode trims correctly by priority"
+            ]
           }
         ]
       },
       {
-        "description": "Load COLONY_STATE.json once at the top of prContextCmd and reuse the parsed struct for all 5 subsequent reads. Also deduplicate pheromones.json loads.",
+        "description": "Fix colony-state.template.json to remove dead __PLACEHOLDER__ values. Document that init_cmd.go constructs state directly. Verify init produces clean state.",
         "id": 4,
-        "name": "Deduplicate COLONY_STATE.json Loads in pr-context",
-        "status": "completed",
+        "name": "Template and Placeholder Cleanup",
+        "status": "pending",
         "success_criteria": [
-          "COLONY_STATE.json loaded exactly once in prContextCmd",
-          "pheromones.json loaded exactly once in prContextCmd",
-          "All existing cmd tests pass"
+          "No placeholder strings in templates or generated state",
+          "Placeholder commands documented"
         ],
         "tasks": [
           {
-            "depends_on": [],
-            "goal": "Refactor prContextCmd to load COLONY_STATE.json once and pass to all sections (colony_state, decisions, context_capsule, phase_learnings).",
+            "goal": "Update colony-state.template.json replacing __PLACEHOLDER__ with example values and add usage note",
             "id": "4.1",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "Template contains no __PLACEHOLDER__ strings"
+            ]
           },
           {
-            "depends_on": [],
-            "goal": "Deduplicate pheromones.json loads: section 4 (signals) and extractSignalTexts both load it — refactor to load once and pass PheromoneFile.",
+            "goal": "Add test that init creates COLONY_STATE.json with zero placeholder strings",
             "id": "4.2",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "No __PLACEHOLDER__ in generated state"
+            ]
+          },
+          {
+            "goal": "Document or remove pheromone-snapshot-inject and pheromone-merge-back placeholder commands",
+            "id": "4.3",
+            "status": "pending",
+            "success_criteria": [
+              "Commands either implemented or marked deferred in help text"
+            ]
           }
         ]
       },
       {
-        "description": "Ensure pheromones.json is not redundantly loaded across colony-prime, pheromone-prime, and pheromone-display within a single session.",
+        "description": "Run full test suite with race detection, verify build, and smoke test the complete flow",
         "id": 5,
-        "name": "Deduplicate Pheromone Loads Across Commands",
-        "status": "completed",
+        "name": "Production Readiness Verification",
+        "status": "pending",
         "success_criteria": [
-          "Shared pheromone loader exists",
-          "colony-prime, pheromone-prime, pheromone-display use it",
-          "All existing tests pass"
+          "Full test suite passes with -race",
+          "Binary builds cleanly",
+          "End-to-end smoke test succeeds"
         ],
         "tasks": [
           {
-            "depends_on": [
-              "3.1"
-            ],
-            "goal": "Refactor colonyPrimeCmd to accept pre-loaded pheromones from shared load rather than loading independently.",
+            "goal": "Run full test suite with race detection (go test ./... -race)",
             "id": "5.1",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "1075+ tests pass",
+              "Zero race conditions"
+            ]
           },
           {
-            "depends_on": [
-              "3.1"
-            ],
-            "goal": "Extract shared loadPheromonesOnce function in cmd/ that uses session cache if available, falling back to direct file read.",
+            "goal": "Run go vet and build verification",
             "id": "5.2",
-            "status": "pending"
-          }
-        ]
-      },
-      {
-        "description": "Deduplicate the 4 git process spawns in context.go: resolveAetherRootPath() spawns git rev-parse 3x, detectGitBranch() spawns once. Cache results for command lifetime.",
-        "id": 6,
-        "name": "Eliminate Redundant Git Process Spawns",
-        "status": "completed",
-        "success_criteria": [
-          "resolveAetherRootPath spawns git at most once per prContextCmd",
-          "detectGitBranch spawns git at most once per prContextCmd",
-          "Benchmark shows improvement over phase 1 baseline"
-        ],
-        "tasks": [
-          {
-            "depends_on": [],
-            "goal": "Refactor resolveAetherRootPath to accept optional cached value; in prContextCmd call it once and store result.",
-            "id": "6.1",
-            "status": "pending"
+            "status": "pending",
+            "success_criteria": [
+              "Both exit 0 with no warnings"
+            ]
           },
           {
-            "depends_on": [
-              "6.1"
-            ],
-            "goal": "Cache detectGitBranch result for command lifetime, verifying no other code path re-calls it within same invocation.",
-            "id": "6.2",
-            "status": "pending"
-          },
-          {
-            "depends_on": [
-              "1.1",
-              "6.1",
-              "6.2"
-            ],
-            "goal": "Re-run benchmarks from phase 1 and verify git spawn count dropped from 4 to at most 2 with measurable ns/op improvement.",
-            "id": "6.3",
-            "status": "pending"
-          }
-        ]
-      },
-      {
-        "description": "Audit skills.go for redundant file reads within single command invocations and deduplicate them.",
-        "id": 7,
-        "name": "Eliminate Redundant Spawns in Skill Pipeline",
-        "status": "completed",
-        "success_criteria": [
-          "Skills pipeline has no redundant process spawns or duplicate file reads",
-          "All skill-related tests pass"
-        ],
-        "tasks": [
-          {
-            "depends_on": [],
-            "goal": "Audit skills.go for all exec.Command calls and redundant file reads; document findings.",
-            "id": "7.1",
-            "status": "pending"
-          },
-          {
-            "depends_on": [
-              "7.1"
-            ],
-            "goal": "If redundant reads found in skill-index or skill-match, deduplicate by loading once and passing parsed result.",
-            "id": "7.2",
-            "status": "pending"
-          }
-        ]
-      },
-      {
-        "description": "Integrate the session cache package into pr-context, context-capsule, and colony-prime so repeated loads within a session hit cache instead of disk.",
-        "id": 8,
-        "name": "Wire File Cache into Context Assembly Commands",
-        "status": "completed",
-        "success_criteria": [
-          "All three context assembly commands use SessionCache",
-          "Cache hit logged or measurable via benchmark",
-          "All existing tests pass"
-        ],
-        "tasks": [
-          {
-            "depends_on": [
-              "3.1",
-              "4.1"
-            ],
-            "goal": "Initialize SessionCache at start of prContextCmd, use it for COLONY_STATE.json and pheromones.json loads.",
-            "id": "8.1",
-            "status": "pending"
-          },
-          {
-            "depends_on": [
-              "3.1",
-              "5.1"
-            ],
-            "goal": "Wire SessionCache into colonyPrimeCmd for COLONY_STATE.json, pheromones.json, and instincts.json loads.",
-            "id": "8.2",
-            "status": "pending"
-          },
-          {
-            "depends_on": [
-              "3.1"
-            ],
-            "goal": "Wire SessionCache into contextCapsuleCmd for its COLONY_STATE.json and pheromones.json loads.",
-            "id": "8.3",
-            "status": "pending"
-          }
-        ]
-      },
-      {
-        "description": "Add cache cleanup to prevent stale .cache_* files from accumulating across sessions.",
-        "id": 9,
-        "name": "Cache Cleanup and Session Hygiene",
-        "status": "in_progress",
-        "success_criteria": [
-          "cache-clean subcommand exists and works",
-          "Auto-cleanup runs at context assembly start",
-          "No .cache_* files accumulate beyond 24 hours"
-        ],
-        "tasks": [
-          {
-            "depends_on": [
-              "3.3"
-            ],
-            "goal": "Add cache-clean subcommand to aether CLI that calls SessionCache.Clear() and reports files removed.",
-            "id": "9.1",
-            "status": "completed"
-          },
-          {
-            "depends_on": [
-              "3.3"
-            ],
-            "goal": "Add auto-cleanup at start of each context assembly command: delete .cache_* files older than 24 hours.",
-            "id": "9.2",
-            "status": "completed"
-          }
-        ]
-      },
-      {
-        "description": "End-to-end verification that all three speed fixes work together and existing functionality is preserved.",
-        "id": 10,
-        "name": "Integration Verification",
-        "status": "completed",
-        "success_criteria": [
-          "Full test suite passes with race detection",
-          "Benchmarks show improvement over baseline",
-          "Sanitization blocks malicious content end-to-end"
-        ],
-        "tasks": [
-          {
-            "depends_on": [
-              "8.3",
-              "9.2",
-              "6.3"
-            ],
-            "goal": "Run full test suite: go test ./... -race and verify zero failures.",
-            "id": "10.1",
-            "status": "completed"
-          },
-          {
-            "depends_on": [
-              "1.1",
-              "1.2",
-              "10.1"
-            ],
-            "goal": "Run benchmarks from phase 1 and compare against baseline. Verify measurable improvement in ns/op.",
-            "id": "10.2",
-            "status": "completed"
-          },
-          {
-            "depends_on": [
-              "2.2",
-              "8.1"
-            ],
-            "goal": "Verify sanitization rejects malicious content end-to-end: write signal with XML tags (rejected), write valid signal (stored and appears in output).",
-            "id": "10.3",
-            "status": "completed"
+            "goal": "Smoke test: install-\u003esetup-\u003einit-\u003epheromone-write-\u003ecolony-prime flow",
+            "id": "5.3",
+            "status": "pending",
+            "success_criteria": [
+              "All commands produce valid JSON with expected fields"
+            ]
           }
         ]
       }
     ]
   },
   "memory": {
-    "phase_learnings": [
-      {
-        "id": "learning_1775648596",
-        "learnings": [
-          {
-            "claim": "PRContext baseline: ~20.8ms/1989 allocs per call; ColonyPrime baseline: ~266us/921 allocs per call",
-            "disproven_by": null,
-            "evidence": "Benchmarks run successfully with go test -bench",
-            "status": "hypothesis",
-            "tested": true
-          },
-          {
-            "claim": "Realistic fixture data with 5 data sources produces meaningful benchmark measurements",
-            "disproven_by": null,
-            "evidence": "setupBenchmarkStore creates colony state, pheromones, flags, midden, rolling summary, instincts, queen/hive wisdom",
-            "status": "hypothesis",
-            "tested": true
-          }
-        ],
-        "phase": 1,
-        "phase_name": "Performance Baseline Benchmarks",
-        "timestamp": "2026-04-08T11:43:16Z"
-      },
-      {
-        "id": "learning_1775652599",
-        "learnings": [
-          {
-            "claim": "SanitizeSignalContent as single validation entry point eliminates duplication between pheromone-write and exchange import paths",
-            "disproven_by": null,
-            "evidence": "Both paths call SanitizeSignalContent, all 28 tests pass",
-            "status": "hypothesis",
-            "tested": true
-          },
-          {
-            "claim": "Hash-before-sanitize ordering preserves deduplication integrity — content hash must use raw input, sanitization applied after hash",
-            "disproven_by": null,
-            "evidence": "TestPheromoneWrite_HashOnRawContentNotSanitized verifies dedup works on raw content",
-            "status": "hypothesis",
-            "tested": true
-          }
-        ],
-        "phase": 2,
-        "phase_name": "Centralize Content Sanitization",
-        "timestamp": "2026-04-08T12:49:59Z"
-      },
-      {
-        "id": "learning_1775669705",
-        "learnings": [
-          {
-            "claim": "JSON encoding preferred over gob for generic interface{} cache values — gob requires concrete type registration which defeats generic caching",
-            "disproven_by": null,
-            "evidence": "Hammer-12 switched from gob to JSON, all tests pass with arbitrary types",
-            "status": "hypothesis",
-            "tested": true
-          },
-          {
-            "claim": "In-memory fast path with disk persistence provides simple session-scoped caching without external dependencies",
-            "disproven_by": null,
-            "evidence": "SessionCache uses sync.RWMutex for concurrency, .cache_ files for persistence, mtime for invalidation",
-            "status": "hypothesis",
-            "tested": true
-          }
-        ],
-        "phase": 3,
-        "phase_name": "File-Based Session Cache Package",
-        "timestamp": "2026-04-08T17:35:05Z"
-      },
-      {
-        "id": "learning_1775671801",
-        "learnings": [
-          {
-            "claim": "When deduplicating file loads, verify each call site has different error handling before merging — some silently skip while others add fallbacks",
-            "disproven_by": null,
-            "evidence": "COLONY_STATE.json had 5 loads with 3 distinct error behaviors preserved in single-load refactor",
-            "status": "hypothesis",
-            "tested": true
-          }
-        ],
-        "phase": 4,
-        "phase_name": "Deduplicate COLONY_STATE.json Loads",
-        "timestamp": "2026-04-08T18:10:01Z"
-      },
-      {
-        "id": "learning_1775681895",
-        "learnings": [
-          {
-            "claim": "Extracting shared buildFullIndex() from triple-duplicated scanning logic follows the established loadPheromonesOnce pattern",
-            "disproven_by": null,
-            "evidence": "All 42 tests pass after extracting shared function from skill-index, skill-list, skill-cache-rebuild",
-            "status": "hypothesis",
-            "tested": true
-          },
-          {
-            "claim": "When deduplicating CLI command logic, preserve the CLI composability contract — each command remains standalone even with shared internals",
-            "disproven_by": null,
-            "evidence": "skill-match still returns only names, skill-inject stat-then-fallback preserved, CLI interface unchanged",
-            "status": "hypothesis",
-            "tested": true
-          }
-        ],
-        "phase": 7,
-        "phase_name": "Eliminate Redundant Spawns in Skill Pipeline",
-        "timestamp": "2026-04-08T20:58:30Z"
-      },
-      {
-        "id": "learning_1775685583",
-        "learnings": [
-          {
-            "claim": "SessionCache.Load provides a clean read-through pattern: check memory, validate mtime, fall back to disk, store result",
-            "disproven_by": null,
-            "evidence": "All 3 context assembly commands successfully use sc.Load for COLONY_STATE.json and instincts.json",
-            "status": "hypothesis",
-            "tested": true
-          },
-          {
-            "claim": "When wiring cache into existing commands, keep single-load-then-distribute pattern rather than having each section call cache independently",
-            "disproven_by": null,
-            "evidence": "Preserved colStateErr pattern from Phase 4 dedup while adding cache layer on top",
-            "status": "hypothesis",
-            "tested": true
-          }
-        ],
-        "phase": 8,
-        "phase_name": "Wire File Cache into Context Assembly Commands",
-        "timestamp": "2026-04-08T21:59:43Z"
-      },
-      {
-        "id": "learning_1744200000",
-        "learnings": [
-          {
-            "claim": "Auto-cleanup with ClearStale(24h) at command entry points prevents stale cache accumulation without requiring user intervention",
-            "disproven_by": null,
-            "evidence": "cache-clean and cache-clean-stale commands work, auto-cleanup wired in 3 context assembly entry points",
-            "status": "hypothesis",
-            "tested": true
-          },
-          {
-            "claim": "Separating full Clear from selective ClearStale gives both one-shot cleanup and ongoing hygiene without conflict",
-            "disproven_by": null,
-            "evidence": "Both commands tested independently, Clear removes all .cache_* files, ClearStale respects maxAge parameter",
-            "status": "hypothesis",
-            "tested": true
-          }
-        ],
-        "phase": 9,
-        "phase_name": "Cache Cleanup and Session Hygiene",
-        "timestamp": "2026-04-09T12:50:00Z"
-      },
-      {
-        "id": "learning_1775742215",
-        "phase": 10,
-        "phase_name": "Integration Verification",
-        "learnings": [
-          {
-            "claim": "End-to-end verification confirms 40% PRContext speed improvement through deduplication, caching, and centralized sanitization working together",
-            "status": "validated",
-            "tested": true,
-            "evidence": "go test ./... -race all 13 packages pass, benchmarks show 20.8ms to 12.5ms improvement",
-            "disproven_by": null
-          },
-          {
-            "claim": "Sanitization integration requires testing both write and import paths independently — each has different error handling (reject vs skip)",
-            "status": "validated",
-            "tested": true,
-            "evidence": "16 sanitization test cases pass covering pheromone-write (reject) and exchange import (skip) paths",
-            "disproven_by": null
-          }
-        ],
-        "timestamp": "2026-04-09T13:43:35Z"
-      }
-    ],
-    "decisions": [],
+    "phase_learnings": null,
+    "decisions": null,
     "instincts": []
   },
   "errors": {
@@ -518,17 +218,17 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-04-08T10:21:04Z|colony_initialized|init|Colony initialized",
-    "2026-04-08T10:50:54Z|plan_generated|plan|Generated 10 phases",
-    "2026-04-08T20:58:15Z|phase_advanced|continue|Completed Phase 7, advancing to Phase 8",
-    "2026-04-08T21:57:57Z|phase_completed|continue|Phase 8 completed",
-    "",
-    "2026-04-09T13:32:29Z|phase_started|build|Phase 10: Integration Verification started",
-    "2026-04-09T13:43:35Z|phase_completed|continue|Phase 10: Integration Verification completed - all 10 phases done",
-    "2026-04-09T14:18:10Z|milestone_reached|seal|Achieved Crowned Anthill milestone"
+    "2026-04-09T16:40:15Z|colony_initialized|init|Colony initialized",
+    "2026-04-09T17:00:00Z|plan_generated|plan|Generated 5 phases with 92% confidence",
+    "2026-04-09T17:01:58Z|phase_started|build|Phase 1: Cleanup and Distribution Tests started",
+    "2026-04-09T20:17:02Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2"
   ],
-  "plan_granularity": "quarter",
-  "milestone": "Crowned Anthill",
-  "build_baseline_sha": "6fab416a6f427bcb4bceac676555931eba403b06",
-  "milestone_updated_at": "2026-04-09T14:18:10Z"
+  "created_at": "2026-04-09T16:40:15Z",
+  "updated_at": "2026-04-09T17:00:00Z",
+  "phase_learnings": [],
+  "instincts": [],
+  "build_baseline_sha": "3f2fe069d4905ea04ad31db060293376d529e675"
 }
+
+
+

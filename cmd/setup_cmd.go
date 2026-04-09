@@ -97,6 +97,16 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	totalCopied := 0
 	totalSkipped := 0
 
+	// Directories to never overwrite or remove (user data)
+	protectedDirs := map[string]bool{
+		"data":   true,
+		"dreams": true,
+	}
+	protectedFiles := map[string]bool{
+		"QUEEN.md":          true,
+		"CROWNED-ANTHILL.md": true,
+	}
+
 	for _, pair := range syncPairs {
 		srcDir := filepath.Join(hubSystem, filepath.FromSlash(pair.srcRel))
 		destDir := filepath.Join(localAether, filepath.FromSlash(pair.destRel))
@@ -116,7 +126,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		result := setupSyncDir(srcDir, destDir)
+		result := setupSyncDir(srcDir, destDir, protectedDirs, protectedFiles)
 		results = append(results, map[string]interface{}{
 			"label":   pair.label,
 			"copied":  result.copied,
@@ -161,7 +171,8 @@ func runSetup(cmd *cobra.Command, args []string) error {
 // setupSyncDir copies files from src to dest, skipping identical files
 // (by SHA-256 hash). Unlike syncDirWithCleanup (used by install), this
 // does NOT remove stale files -- local files take precedence.
-func setupSyncDir(src, dest string) syncResult {
+// Protected directories and files are skipped entirely.
+func setupSyncDir(src, dest string, protectedDirs, protectedFiles map[string]bool) syncResult {
 	result := syncResult{}
 
 	// Check source exists
@@ -178,6 +189,20 @@ func setupSyncDir(src, dest string) syncResult {
 	// Walk source and copy files
 	srcFiles := listFilesRecursive(src)
 	for _, relPath := range srcFiles {
+		// Skip protected paths
+		firstComponent := relPath
+		if idx := strings.Index(relPath, string(filepath.Separator)); idx >= 0 {
+			firstComponent = relPath[:idx]
+		}
+		if protectedDirs[firstComponent] {
+			result.skipped++
+			continue
+		}
+		if protectedFiles[filepath.Base(relPath)] {
+			result.skipped++
+			continue
+		}
+
 		srcPath := filepath.Join(src, relPath)
 		destPath := filepath.Join(dest, relPath)
 
@@ -215,4 +240,10 @@ func setupSyncDir(src, dest string) syncResult {
 	}
 
 	return result
+}
+
+// setupSyncDirProtected is the exported-internal variant of setupSyncDir
+// used by tests. It delegates to setupSyncDir with protection parameters.
+func setupSyncDirProtected(src, dest string, protectedDirs, protectedFiles map[string]bool) syncResult {
+	return setupSyncDir(src, dest, protectedDirs, protectedFiles)
 }
