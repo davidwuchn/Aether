@@ -107,6 +107,7 @@ node_modules/
 !bin/lib/
 .worktrees/
 .claude/worktrees/
+cmd/.aether/worktrees/
 
 # Planning artifacts
 .planning/
