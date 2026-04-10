@@ -4,7 +4,7 @@
   "colony_name": null,
   "colony_version": 0,
   "state": "READY",
-  "current_phase": 8,
+  "current_phase": 9,
   "session_id": "add_1775830632",
   "initialized_at": "2026-04-10T16:17:12.987162+02:00",
   "build_started_at": null,
@@ -307,7 +307,7 @@
         "description": "Replace dead deprecation block with mode-aware worktree merge-back.",
         "id": 8,
         "name": "Continue-advance worktree awareness",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Clean mode-aware merge-back in continue-advance"
         ],
@@ -318,7 +318,7 @@
             ],
             "goal": "Replace dead worktree-merge deprecation block (lines 331-377) with mode-aware merge using worktree-merge-back",
             "id": "8.1",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Dead deprecation block replaced",
               "calls worktree-merge-back when worktree mode"
@@ -477,21 +477,36 @@
       },
       {
         "id": "learning_1775849306",
-        "phase": 7,
-        "phase_name": "Status and resume display",
         "learnings": [
           {
             "claim": "Display commands (status, resume) should read parallel_mode from colony state with in-repo default fallback, following the same pattern as colony-depth and plan-granularity displays",
-            "status": "hypothesis",
-            "tested": true,
+            "disproven_by": null,
             "evidence": "Parallel mode displayed in status.go, context.go resume-dashboard, and both Claude Code and OpenCode command files. 4 tests pass covering default and explicit modes.",
-            "disproven_by": null
+            "status": "hypothesis",
+            "tested": true
           }
         ],
+        "phase": 7,
+        "phase_name": "Status and resume display",
         "timestamp": "2026-04-10T19:28:26Z"
+      },
+      {
+        "id": "learning_1775850858",
+        "learnings": [
+          {
+            "claim": "Mode-aware branching in playbooks should read parallel_mode from state, branch cleanly between in-repo (skip) and worktree (execute), with safe defaults for unknown modes",
+            "disproven_by": null,
+            "evidence": "Dead worktree-merge deprecation block replaced with mode-aware merge using worktree-merge-back, all tests pass, Watcher verified 9/10 quality",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 8,
+        "phase_name": "Continue-advance worktree awareness",
+        "timestamp": "2026-04-10T19:54:18Z"
       }
     ],
-    "decisions": null,
+    "decisions": "((.memory.decisions // [])[-30:])",
     "instincts": []
   },
   "errors": {
@@ -502,10 +517,17 @@
   "graveyards": [],
   "events": [
     "2026-04-10T19:19:35Z|phase_built|build|Phase 7: Status and resume display built successfully",
-    "2026-04-10T19:28:40Z|phase_advanced|continue|Completed Phase 7, advancing to Phase 8"
+    "2026-04-10T19:28:40Z|phase_advanced|continue|Completed Phase 7, advancing to Phase 8",
+    ""
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
   "milestone": "",
-  "build_baseline_sha": "95de36af9aabe957080cf18ec6595fa88fe33a0d"
+  "build_baseline_sha": "c436bd36a8ea15211ee2d06b2b3b7d7dc92c4528"
 }
+
+
+
+
+
+

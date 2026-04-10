@@ -328,55 +328,69 @@ aether state-mutate \
 Validate the state file:
 Run using the Bash tool with description "Validating colony state...": `aether validate-state colony`
 
-### Step 2.0.4: Worktree Merge-Back (DEPRECATED, NON-BLOCKING)
+### Step 2.0.4: Worktree Merge-Back (NON-BLOCKING)
 
-After state update, check for any completed worktree branches from the build wave and merge them back to the target branch.
+After state update, check for any active worktree branches from the build wave and merge them back to the main branch. This step is a safety net -- build-wave already does per-wave merge-back (Step 5.2.5), but this catches any worktrees that were not merged during the build.
 
-> **DEPRECATED**: The `worktree-merge` command has been deprecated and will be removed
-> in a future version. It returns `ok:true` with `deprecated:true` for backward
-> compatibility. This step now always skips gracefully. Use `git merge` directly instead.
+**NON-BLOCKING: failures create blockers but never halt the continue flow.**
 
-Run using the Bash tool with description "Checking for worktree branches to merge...":
+1. **Read parallel mode from colony state:**
+
+Run using the Bash tool with description "Reading parallel mode for merge-back...":
 ```bash
-# Check if worktree-merge is deprecated (returns ok:true with deprecated:true)
-merge_check=$(aether worktree-merge --branch "check" 2>/dev/null || echo '{"ok":false}')
-merge_deprecated=$(echo "$merge_check" | jq -r '.result.deprecated // false')
+parallel_result=$(aether parallel-mode get 2>/dev/null || echo '{"ok":true,"result":{"mode":"in-repo","source":"default"}}')
+parallel_mode=$(echo "$parallel_result" | jq -r '.result.mode // "in-repo"')
+```
 
-if [[ "$merge_deprecated" == "true" ]]; then
-    # Command is deprecated — skip worktree merge-back entirely.
-    # Set empty variables so downstream steps (2.0.5, 2.0.6) skip gracefully.
-    last_merged_branch=""
-    last_merge_sha=""
-    merged_count=0
-else
-    # Legacy path: for older aether versions that still have real worktree-merge
-    branches=$(git -C "$AETHER_ROOT" worktree list --porcelain 2>/dev/null \
-        | grep "worktree-agent-\|worktree-" \
-        | awk '{print $NF}' || echo "")
+2. **Branch on mode:**
 
-    last_merged_branch=""
-    last_merge_sha=""
-    merged_count=0
+**If `mode` is `"in-repo"` (or empty/missing -- default):**
 
-    for branch in $branches; do
-        [[ -z "$branch" ]] && continue
-        result=$(aether worktree-merge --branch "$branch" 2>/dev/null || echo '{"ok":false}')
-        ok=$(echo "$result" | jq -r '.ok // false')
-        deprecated=$(echo "$result" | jq -r '.result.deprecated // false')
-        if [[ "$ok" == "true" && "$deprecated" != "true" ]]; then
-            last_merged_branch="$branch"
-            last_merge_sha=$(echo "$result" | jq -r '.result.sha // ""')
-            merged_count=$((merged_count + 1))
-        fi
-    done
+Set empty variables and skip silently:
+```bash
+last_merged_branch=""
+last_merge_sha=""
+merged_count=0
+```
 
-    if [[ "$merged_count" -gt 0 ]]; then
-        echo "Merged $merged_count worktree branch(es). Last: $last_merged_branch ($last_merge_sha)"
+**If `mode` is `"worktree"`:**
+
+Run using the Bash tool with description "Checking for active worktrees to merge...":
+```bash
+# List active (non-merged) worktrees from colony state
+active_wts=$(aether worktree-list --status allocated 2>/dev/null | jq -r '.result.worktrees[]?.branch // empty' 2>/dev/null || echo "")
+active_wts="$active_wts $(aether worktree-list --status in-progress 2>/dev/null | jq -r '.result.worktrees[]?.branch // empty' 2>/dev/null || echo "")"
+active_wts="$active_wts $(aether worktree-list --status orphaned 2>/dev/null | jq -r '.result.worktrees[]?.branch // empty' 2>/dev/null || echo "")"
+
+last_merged_branch=""
+last_merge_sha=""
+merged_count=0
+
+for branch in $(echo "$active_wts" | tr ' ' '\n' | sort -u); do
+    [[ -z "$branch" ]] && continue
+    merge_result=$(aether worktree-merge-back --branch "$branch" 2>&1)
+    merge_ok=$(echo "$merge_result" | jq -r '.result.merged // false' 2>/dev/null || echo "false")
+
+    if [[ "$merge_ok" == "true" ]]; then
+        last_merged_branch="$branch"
+        # worktree-merge-back does not return sha; capture it from HEAD after merge
+        last_merge_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
+        merged_count=$((merged_count + 1))
+        echo "  Merged: $branch ($last_merge_sha)"
+    else
+        # Merge failed -- blocker already created by worktree-merge-back
+        # Log and continue (non-blocking)
+        merge_error=$(echo "$merge_result" | jq -r '.error // "unknown error"' 2>/dev/null || echo "merge failed")
+        echo "  Skipped: $branch ($merge_error -- blocker created)" >&2
     fi
+done
+
+if [[ "$merged_count" -gt 0 ]]; then
+    echo "Worktree merge-back: $merged_count branch(es) merged. Last: $last_merged_branch ($last_merge_sha)"
 fi
 ```
 
-This step sets `$last_merged_branch` and `$last_merge_sha` which activates the existing dead code paths in Steps 2.0.5 and 2.0.6.
+This step sets `$last_merged_branch` and `$last_merge_sha` which are consumed by Steps 2.0.5 and 2.0.6.
 
 ### Step 2.0.5: Pheromone Merge-Back (SILENT, NON-BLOCKING)
 
