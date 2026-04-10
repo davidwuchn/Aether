@@ -4,7 +4,7 @@
   "colony_name": null,
   "colony_version": 0,
   "state": "READY",
-  "current_phase": 9,
+  "current_phase": 10,
   "session_id": "add_1775830632",
   "initialized_at": "2026-04-10T16:17:12.987162+02:00",
   "build_started_at": null,
@@ -330,7 +330,7 @@
         "description": "End-to-end verification.",
         "id": 9,
         "name": "Integration tests",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Full test suite passes"
         ],
@@ -504,9 +504,24 @@
         "phase": 8,
         "phase_name": "Continue-advance worktree awareness",
         "timestamp": "2026-04-10T19:54:18Z"
+      },
+      {
+        "id": "learning_1775852416",
+        "learnings": [
+          {
+            "claim": "Integration tests for state round-trip should verify: set mode, persist, read back, survive unrelated mutations, mode switching, defaults, and invalid value rejection",
+            "disproven_by": null,
+            "evidence": "11 integration subtests for parallel-mode round-trip all pass with -race, covering the full lifecycle",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 9,
+        "phase_name": "Integration tests",
+        "timestamp": "2026-04-10T20:20:16Z"
       }
     ],
-    "decisions": "((.memory.decisions // [])[-30:])",
+    "decisions": null,
     "instincts": []
   },
   "errors": {
@@ -516,15 +531,22 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-04-10T19:19:35Z|phase_built|build|Phase 7: Status and resume display built successfully",
-    "2026-04-10T19:28:40Z|phase_advanced|continue|Completed Phase 7, advancing to Phase 8",
+    "2026-04-10T20:06:00Z|phase_started|build|Phase 9: Integration tests started",
     ""
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
   "milestone": "",
-  "build_baseline_sha": "c436bd36a8ea15211ee2d06b2b3b7d7dc92c4528"
+  "build_baseline_sha": "16603cfe931d6cbc39c207ed95c11eef42522605"
 }
+
+
+
+
+
+
+
+
 
 
 
