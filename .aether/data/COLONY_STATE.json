@@ -4,7 +4,7 @@
   "colony_name": "Aether Systems Audit",
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 3,
+  "current_phase": 5,
   "session_id": "session_1775752815_22021",
   "initialized_at": "2026-04-09T16:40:15Z",
   "build_started_at": null,
@@ -98,7 +98,7 @@
         "description": "Fix colony-prime to include hive wisdom and user preferences (currently only in pr-context). Test budget enforcement and priority-based trimming.",
         "id": 3,
         "name": "Colony-Prime Context Parity",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "colony-prime has parity with pr-context for wisdom/preferences",
           "Budget enforcement tested"
@@ -134,7 +134,7 @@
         "description": "Fix colony-state.template.json to remove dead __PLACEHOLDER__ values. Document that init_cmd.go constructs state directly. Verify init produces clean state.",
         "id": 4,
         "name": "Template and Placeholder Cleanup",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "No placeholder strings in templates or generated state",
           "Placeholder commands documented"
@@ -170,7 +170,7 @@
         "description": "Run full test suite with race detection, verify build, and smoke test the complete flow",
         "id": 5,
         "name": "Production Readiness Verification",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Full test suite passes with -race",
           "Binary builds cleanly",
@@ -207,7 +207,103 @@
     ]
   },
   "memory": {
-    "phase_learnings": "(.memory.phase_learnings // []) + [$learning]",
+    "phase_learnings": [
+      {
+        "id": "learning_1775767746",
+        "learnings": [
+          {
+            "claim": "Pheromone deduplication had an off-by-one bug: ReinforcementCount initialized to 1 instead of 0, causing first reinforcement to read as 2",
+            "disproven_by": null,
+            "evidence": "8 dedup tests confirmed the fix works correctly after changing initial value to 0",
+            "status": "validated",
+            "tested": true
+          },
+          {
+            "claim": "pheromone-display outputs text table before JSON envelope, requiring first-brace extraction for test parsing",
+            "disproven_by": null,
+            "evidence": "10 lifecycle tests parse display output by finding first brace character",
+            "status": "validated",
+            "tested": true
+          },
+          {
+            "claim": "colony-prime --compact correctly injects pheromone signals into assembled context with type markers [FOCUS] [REDIRECT] [FEEDBACK]",
+            "disproven_by": null,
+            "evidence": "TestColonyPrime_IncludesPheromoneSignals verifies all three types appear with formatted content",
+            "status": "validated",
+            "tested": true
+          }
+        ],
+        "phase": 2,
+        "phase_name": "Pheromone Pipeline Verification",
+        "timestamp": "2026-04-09T20:55:49Z"
+      },
+      {
+        "id": "learning_1775769601",
+        "learnings": [
+          {
+            "claim": "colony-prime can share readHiveWisdom and readUserPreferences helpers with pr-context for code reuse",
+            "disproven_by": null,
+            "evidence": "Both commands use the same helpers from context.go, maintaining parity",
+            "status": "validated",
+            "tested": true
+          },
+          {
+            "claim": "Priority-based budget trimming works by sorting sections ascending and fitting within budget",
+            "disproven_by": null,
+            "evidence": "17 budget tests verify trim order: learnings(2) \u003c decisions(3) \u003c hive(4) \u003c state(5) \u003c instincts(6) \u003c prefs(7) \u003c pheromones(9)",
+            "status": "validated",
+            "tested": true
+          }
+        ],
+        "phase": 3,
+        "phase_name": "Colony-Prime Context Parity",
+        "timestamp": "2026-04-09T21:20:01Z"
+      },
+      {
+        "id": "learning_1775770456",
+        "learnings": [
+          {
+            "claim": "Stub commands should be marked Deprecated in Cobra to hide from help while remaining accessible",
+            "disproven_by": null,
+            "evidence": "pheromone-snapshot-inject and pheromone-merge-back marked deprecated, 4 tests verify",
+            "status": "validated",
+            "tested": true
+          },
+          {
+            "claim": "Templates should have concrete example values, not fill-in-the-blank placeholders, to serve as reference",
+            "disproven_by": null,
+            "evidence": "TestInitCmd_NoPlaceholderStrings verifies generated state has zero placeholder patterns",
+            "status": "validated",
+            "tested": true
+          }
+        ],
+        "phase": 4,
+        "phase_name": "Template and Placeholder Cleanup",
+        "timestamp": "2026-04-09T21:34:16Z"
+      },
+      {
+        "id": "learning_1775822856",
+        "learnings": [
+          {
+            "claim": "state-mutate can corrupt the events field by writing the jq expression as a literal string instead of evaluating it",
+            "disproven_by": null,
+            "evidence": "COLONY_STATE.json events field was a string containing the jq expression; fixed by passing events array via --argjson",
+            "status": "validated",
+            "tested": true
+          },
+          {
+            "claim": "Test assertions should accept variable data from real files (e.g., wisdom XML with 0+ entries) rather than hardcoded counts",
+            "disproven_by": null,
+            "evidence": "TestImportWisdomFromRealShellXML expected 0 entries but real XML had 41; changed to t.Log for empty case",
+            "status": "validated",
+            "tested": true
+          }
+        ],
+        "phase": 5,
+        "phase_name": "Production Readiness Verification",
+        "timestamp": "2026-04-10T12:07:36Z"
+      }
+    ],
     "decisions": null,
     "instincts": []
   },
@@ -223,15 +319,18 @@
     "2026-04-09T17:01:58Z|phase_started|build|Phase 1: Cleanup and Distribution Tests started",
     "2026-04-09T20:17:02Z|phase_advanced|continue|Completed Phase 1, advancing to Phase 2",
     "2026-04-09T20:27:25Z|phase_started|build|Phase 2: Pheromone Pipeline Verification started",
+    "2026-04-09T20:56:18Z|phase_started|build|Phase 3: Colony-Prime Context Parity started",
+    "2026-04-09T21:20:01Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
+    "2026-04-09T21:22:40Z|phase_started|build|Phase 4: Template and Placeholder Cleanup started",
+    "2026-04-09T21:34:16Z|phase_advanced|continue|Completed Phase 4, advancing to Phase 5",
+    "2026-04-09T21:44:31Z|phase_started|build|Phase 5: Production Readiness Verification started",
     ""
   ],
   "created_at": "2026-04-09T16:40:15Z",
   "updated_at": "2026-04-09T17:00:00Z",
   "phase_learnings": [],
   "instincts": [],
-  "build_baseline_sha": "931d4fd26bb92211b57c93bee48a86da65b45e2c"
+  "build_baseline_sha": "f5bf2733442003108b93dacd75cb23b961283459",
+  "milestone": "Crowned Anthill"
 }
-
-
-
 
