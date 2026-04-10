@@ -161,6 +161,11 @@ var colonyPrimeCmd = &cobra.Command{
 				}
 			}
 		}
+		mode := state.ParallelMode
+		if mode == "" {
+			mode = colony.ModeInRepo
+		}
+		stateSection.WriteString(fmt.Sprintf("Parallel Mode: %s\n", mode))
 		sections = append(sections, struct {
 			name     string
 			content  string

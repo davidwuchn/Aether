@@ -357,6 +357,61 @@ func TestColonyPrime_DefaultBudget(t *testing.T) {
 	}
 }
 
+// --- Test: colony-prime includes parallel mode defaulting to in-repo when unset ---
+
+func TestColonyPrime_ParallelModeDefault(t *testing.T) {
+	saveGlobalsCmd(t)
+	resetRootCmd(t)
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	state, _ := colonyPrimeTestEnv(t, nil)
+	// ParallelMode is empty (zero value) -- should default to "in-repo"
+
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatal(err)
+	}
+
+	envelope := runColonyPrime(t, s, nil)
+	result := envelope["result"].(map[string]interface{})
+	contextStr := result["context"].(string)
+
+	if !strings.Contains(contextStr, "Parallel Mode: in-repo") {
+		t.Error("colony-prime context missing 'Parallel Mode: in-repo' when parallel_mode is unset")
+	}
+}
+
+// --- Test: colony-prime includes parallel mode worktree when set ---
+
+func TestColonyPrime_ParallelModeWorktree(t *testing.T) {
+	saveGlobalsCmd(t)
+	resetRootCmd(t)
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	state, _ := colonyPrimeTestEnv(t, nil)
+	state.ParallelMode = colony.ModeWorktree
+
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatal(err)
+	}
+
+	envelope := runColonyPrime(t, s, nil)
+	result := envelope["result"].(map[string]interface{})
+	contextStr := result["context"].(string)
+
+	if !strings.Contains(contextStr, "Parallel Mode: worktree") {
+		t.Error("colony-prime context missing 'Parallel Mode: worktree' when parallel_mode is set to worktree")
+	}
+	if strings.Contains(contextStr, "Parallel Mode: in-repo") {
+		t.Error("colony-prime context should NOT show 'in-repo' when parallel_mode is set to worktree")
+	}
+}
+
 // --- Test: colony-prime output structure is valid ---
 
 func TestColonyPrime_OutputStructure(t *testing.T) {

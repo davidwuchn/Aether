@@ -125,7 +125,14 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 		granularity = "not set"
 	}
 	granLbl := granularityLabel(granularity)
-	fmt.Fprintf(&b, "Granularity: %s\n\n", granLbl)
+	fmt.Fprintf(&b, "Granularity: %s\n", granLbl)
+
+	// Parallel mode
+	parallelMode := string(state.ParallelMode)
+	if parallelMode == "" {
+		parallelMode = "in-repo"
+	}
+	fmt.Fprintf(&b, "Parallel: %s\n\n", parallelMode)
 
 	// Memory Health table
 	b.WriteString("Memory Health\n")

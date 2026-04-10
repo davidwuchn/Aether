@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 func TestGenerateProgressBar(t *testing.T) {
@@ -159,6 +161,81 @@ func TestStatusPheromoneSummary(t *testing.T) {
 	}
 	if !strings.Contains(output, "FEEDBACK") {
 		t.Errorf("output missing FEEDBACK row")
+	}
+}
+
+func TestStatusOutput_ParallelModeDefault(t *testing.T) {
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	s, tmpDir := setupTestStore(t)
+	defer os.RemoveAll(tmpDir)
+
+	origRoot := os.Getenv("AETHER_ROOT")
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", origRoot)
+
+	store = s
+
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+
+	// When parallel_mode is not set in state, should default to "in-repo"
+	if !strings.Contains(output, "Parallel:") {
+		t.Errorf("status output missing 'Parallel:' line\ngot:\n%s", output)
+	}
+	if !strings.Contains(output, "in-repo") {
+		t.Errorf("status output missing default 'in-repo' parallel mode\ngot:\n%s", output)
+	}
+}
+
+func TestStatusOutput_ParallelModeWorktree(t *testing.T) {
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	s, tmpDir := setupTestStore(t)
+	defer os.RemoveAll(tmpDir)
+
+	// Load the existing colony state and set parallel_mode to worktree
+	var state colony.ColonyState
+	if err := s.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("failed to load colony state: %v", err)
+	}
+	state.ParallelMode = colony.ModeWorktree
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatalf("failed to save colony state: %v", err)
+	}
+
+	origRoot := os.Getenv("AETHER_ROOT")
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", origRoot)
+
+	store = s
+
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+
+	if !strings.Contains(output, "Parallel:") {
+		t.Errorf("status output missing 'Parallel:' line\ngot:\n%s", output)
+	}
+	if !strings.Contains(output, "worktree") {
+		t.Errorf("status output missing 'worktree' parallel mode\ngot:\n%s", output)
 	}
 }
 

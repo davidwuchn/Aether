@@ -180,6 +180,94 @@ func TestResumeDashboardNoState(t *testing.T) {
 	}
 }
 
+func TestResumeDashboardParallelMode(t *testing.T) {
+	saveGlobalsCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+	var errBuf bytes.Buffer
+	stderr = &errBuf
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	goal := "parallel mode test"
+	state := colony.ColonyState{
+		Version:      "1.0",
+		Goal:         &goal,
+		State:        colony.StateEXECUTING,
+		CurrentPhase: 1,
+		ParallelMode: colony.ModeWorktree,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Testing", Status: "in_progress"},
+			},
+		},
+	}
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatal(err)
+	}
+
+	rootCmd.SetArgs([]string{"resume-dashboard"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("resume-dashboard returned error: %v", err)
+	}
+
+	envelope := parseEnvelopeCmd(t, buf.String())
+	result := envelope["result"].(map[string]interface{})
+	current := result["current"].(map[string]interface{})
+
+	if current["parallel_mode"] != "worktree" {
+		t.Errorf("current.parallel_mode = %v, want 'worktree'", current["parallel_mode"])
+	}
+}
+
+func TestResumeDashboardParallelModeDefault(t *testing.T) {
+	saveGlobalsCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+	var errBuf bytes.Buffer
+	stderr = &errBuf
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	goal := "default mode test"
+	state := colony.ColonyState{
+		Version:      "1.0",
+		Goal:         &goal,
+		State:        colony.StateREADY,
+		CurrentPhase: 1,
+		// ParallelMode intentionally left empty
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Phase One", Status: "in_progress"},
+			},
+		},
+	}
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatal(err)
+	}
+
+	rootCmd.SetArgs([]string{"resume-dashboard"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("resume-dashboard returned error: %v", err)
+	}
+
+	envelope := parseEnvelopeCmd(t, buf.String())
+	result := envelope["result"].(map[string]interface{})
+	current := result["current"].(map[string]interface{})
+
+	if current["parallel_mode"] != "in-repo" {
+		t.Errorf("current.parallel_mode = %v, want 'in-repo' (default)", current["parallel_mode"])
+	}
+}
+
 func TestResumeDashboardWithMemory(t *testing.T) {
 	saveGlobalsCmd(t)
 	var buf bytes.Buffer

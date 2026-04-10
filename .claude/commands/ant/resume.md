@@ -67,6 +67,7 @@ COLONY_STATE.json is the authoritative source for goal and state (session.json m
 - `current_phase`
 - `plan.phases` (array with id, name, status for each phase)
 - `plan.generated_at`
+- `parallel_mode` (default to "in-repo" when empty or missing)
 - `memory.decisions` (flat list — do NOT distinguish user vs Claude origin)
 - `events` (last 5 for recent activity context)
 
@@ -268,6 +269,7 @@ Note: Codebase changed since last session ({commit_count} commit(s), {changed_co
 Goal: {goal}
 State: {state}
 Phase: {current_phase}/{total_phases}
+Mode: {parallel_mode}
 
 Phase Progress:
 {for each phase in plan.phases:}

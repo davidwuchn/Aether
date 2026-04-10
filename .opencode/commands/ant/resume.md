@@ -119,6 +119,20 @@ If missing: fall back to COLONY_STATE.json for narrative context. Note: "Context
 
 ---
 
+### Step 4.5: Read Parallel Mode
+
+Run using the Bash tool with description "Reading parallel mode...":
+```bash
+aether parallel-mode get
+```
+
+Parse the JSON result. Extract `.result.mode` and `.result.source`.
+
+- If `ok` is `true`: store `parallel_mode` (default to "in-repo" if empty) for dashboard rendering in Step 8
+- If the command fails or returns an error: default `parallel_mode` to "in-repo"
+
+---
+
 ### Step 5: Drift Detection
 
 Extract `baseline_commit` from the session.json data read in Step 1.
@@ -268,6 +282,7 @@ Note: Codebase changed since last session ({commit_count} commit(s), {changed_co
 Goal: {goal}
 State: {state}
 Phase: {current_phase}/{total_phases}
+Parallel: {parallel_mode}
 
 Phase Progress:
 {for each phase in plan.phases:}

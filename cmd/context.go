@@ -49,7 +49,8 @@ var resumeDashboardCmd = &cobra.Command{
 					"phase":      0,
 					"phase_name": "",
 					"state":      "UNKNOWN",
-					"goal":       "",
+					"goal":          "",
+					"parallel_mode": "in-repo",
 				},
 				"memory_health": map[string]interface{}{
 					"wisdom_count":       0,
@@ -75,6 +76,12 @@ var resumeDashboardCmd = &cobra.Command{
 		goal := "No goal set"
 		if state.Goal != nil {
 			goal = *state.Goal
+		}
+
+		// Extract parallel_mode with default fallback
+		parallelMode := string(state.ParallelMode)
+		if parallelMode == "" {
+			parallelMode = "in-repo"
 		}
 
 		// Compute memory health inline
@@ -118,7 +125,8 @@ var resumeDashboardCmd = &cobra.Command{
 				"phase":      currentPhase,
 				"phase_name": goal,
 				"state":      stateStr,
-				"goal":       goal,
+				"goal":          goal,
+				"parallel_mode": parallelMode,
 			},
 			"memory_health": map[string]interface{}{
 				"wisdom_count":       wisdomCount,

@@ -4,7 +4,7 @@
   "colony_name": null,
   "colony_version": 0,
   "state": "READY",
-  "current_phase": 6,
+  "current_phase": 8,
   "session_id": "add_1775830632",
   "initialized_at": "2026-04-10T16:17:12.987162+02:00",
   "build_started_at": null,
@@ -152,7 +152,7 @@
             ],
             "goal": "Add Step 6.5 parallel strategy selection to Claude Code init.md",
             "id": "4.1",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Step 6.5 exists with mode selection prompt"
             ]
@@ -163,7 +163,7 @@
             ],
             "goal": "Pass selected mode to state creation in Step 7 (both fresh and re-init)",
             "id": "4.2",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Selected mode persisted in both paths"
             ]
@@ -171,7 +171,7 @@
           {
             "goal": "Add mode display to Step 8 result output",
             "id": "4.3",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Success output includes parallel strategy"
             ]
@@ -179,7 +179,7 @@
           {
             "goal": "Add matching changes to OpenCode init.md",
             "id": "4.4",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "OpenCode init prompts for and persists parallel mode"
             ]
@@ -203,7 +203,7 @@
             ],
             "goal": "Add pre-wave worktree allocation step to build-wave.md",
             "id": "5.1",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Worktrees allocated when mode is worktree",
               "skipped when in-repo"
@@ -212,7 +212,7 @@
           {
             "goal": "Inject worktree_path into Builder prompt when allocated",
             "id": "5.2",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Builder prompt includes worktree path"
             ]
@@ -223,7 +223,7 @@
             ],
             "goal": "Add post-wave merge-back using worktree-merge-back (NOT deprecated worktree-merge)",
             "id": "5.3",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Worktree branches merged after each wave"
             ]
@@ -231,7 +231,7 @@
           {
             "goal": "Add parallel_mode read to build-prep.md",
             "id": "5.4",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "build-prep reads and displays parallel_mode"
             ]
@@ -242,7 +242,7 @@
         "description": "Inject parallel_mode into worker context.",
         "id": 6,
         "name": "Colony-prime context injection",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Workers receive parallel mode via colony-prime"
         ],
@@ -253,7 +253,7 @@
             ],
             "goal": "Add parallel_mode to colony-prime prompt_section output",
             "id": "6.1",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "colony-prime includes Parallel Mode line"
             ]
@@ -261,7 +261,7 @@
           {
             "goal": "Write test for colony-prime parallel_mode injection",
             "id": "6.2",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Tests pass for set and unset cases"
             ]
@@ -272,7 +272,7 @@
         "description": "Show parallel mode in status, resume commands.",
         "id": 7,
         "name": "Status and resume display",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Status and resume show parallel mode"
         ],
@@ -280,7 +280,7 @@
           {
             "goal": "Add parallel_mode display to status command output",
             "id": "7.1",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Status shows parallel strategy"
             ]
@@ -288,7 +288,7 @@
           {
             "goal": "Add parallel_mode to resume command context",
             "id": "7.2",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Resume shows parallel strategy"
             ]
@@ -296,7 +296,7 @@
           {
             "goal": "Update OpenCode status and resume for parity",
             "id": "7.3",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "OpenCode parity achieved"
             ]
@@ -459,6 +459,36 @@
         "phase": 5,
         "phase_name": "Build-wave conditional worktree wiring",
         "timestamp": "2026-04-10T18:42:30Z"
+      },
+      {
+        "id": "learning_1775847905.853743",
+        "learnings": [
+          {
+            "claim": "Context injection into colony-prime should read parallel_mode from state with a default fallback to in-repo, matching the parallel-mode get subcommand pattern",
+            "disproven_by": null,
+            "evidence": "Parallel mode injected into colony-prime at pheromone_mgmt.go:164-168, defaults to ModeInRepo when empty, 2 tests pass, Watcher verified 1167 tests pass",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 6,
+        "phase_name": "Colony-prime context injection",
+        "timestamp": "2026-04-10T19:05:05Z"
+      },
+      {
+        "id": "learning_1775849306",
+        "phase": 7,
+        "phase_name": "Status and resume display",
+        "learnings": [
+          {
+            "claim": "Display commands (status, resume) should read parallel_mode from colony state with in-repo default fallback, following the same pattern as colony-depth and plan-granularity displays",
+            "status": "hypothesis",
+            "tested": true,
+            "evidence": "Parallel mode displayed in status.go, context.go resume-dashboard, and both Claude Code and OpenCode command files. 4 tests pass covering default and explicit modes.",
+            "disproven_by": null
+          }
+        ],
+        "timestamp": "2026-04-10T19:28:26Z"
       }
     ],
     "decisions": null,
@@ -471,18 +501,11 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    "2026-04-10T16:20:28Z|phase_started|build|Phase 2: parallel-mode get/set subcommand started",
-    "2026-04-10T16:28:40Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
-    "2026-04-10T16:44:00Z|phase_started|build|Phase 3: Template update started",
-    "2026-04-10T16:57:00Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
-    "2026-04-10T17:30:00Z|phase_started|build|Phase 4: Init slash command user prompt started",
-    ""
+    "2026-04-10T19:19:35Z|phase_built|build|Phase 7: Status and resume display built successfully",
+    "2026-04-10T19:28:40Z|phase_advanced|continue|Completed Phase 7, advancing to Phase 8"
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
   "milestone": "",
-  "build_baseline_sha": "ee73f113a955adc52a5befecef81f4372eb7be05"
+  "build_baseline_sha": "95de36af9aabe957080cf18ec6595fa88fe33a0d"
 }
-
-
-

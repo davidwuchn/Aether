@@ -114,6 +114,22 @@ ls -1 .aether/dreams/*.md 2>/dev/null | sort | tail -1 | sed 's/.*\/\([0-9]\{4\}
 Format the timestamp as: YYYY-MM-DD HH:MM
 
 
+### Step 2.5.5: Parallel Mode
+
+Run using the Bash tool with description "Reading parallel mode...":
+```bash
+parallel_result=$(aether parallel-mode get 2>/dev/null || echo '{"ok":true,"result":{"mode":"in-repo","source":"default"}}')
+parallel_mode=$(echo "$parallel_result" | jq -r '.result.mode // "in-repo"')
+parallel_source=$(echo "$parallel_result" | jq -r '.result.source // "default"')
+echo "parallel_mode=$parallel_mode"
+echo "parallel_source=$parallel_source"
+```
+
+Store `parallel_mode` and `parallel_source` for the dashboard display.
+
+Parallel mode label mapping:
+- in-repo -> "In-repo (shared directory)"
+- worktree -> "Worktree (isolated branches)"
 
 **Phase info:**
 - Current phase number: `current_phase`
@@ -241,6 +257,8 @@ Output format:
 ⚠️  Escalated: {escalated_count} task(s) awaiting your decision
 {end if}
 🏆 Milestone: <milestone> (<version>)
+
+🏗️  Parallel: {parallel_mode} — {label}{if parallel_source == "default": " (default)"}
 
 💭 Dreams: <dream_count> recorded (latest: <latest_dream>)
 🗺️ Survey: <survey_docs> docs (<survey_age_days>d old, <fresh|stale|missing>)
