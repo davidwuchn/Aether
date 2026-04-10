@@ -237,6 +237,87 @@ var planGranularitySetCmd = &cobra.Command{
 	},
 }
 
+var parallelModeCmd = &cobra.Command{
+	Use:   "parallel-mode",
+	Short: "Get or set parallel execution mode",
+	Args:  cobra.NoArgs,
+}
+
+var parallelModeGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "Get current parallel mode",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		var state colony.ColonyState
+		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+			outputOK(map[string]interface{}{
+				"mode":   "in-repo",
+				"source": "default",
+			})
+			return nil
+		}
+
+		m := string(state.ParallelMode)
+		source := "state"
+		if m == "" {
+			m = "in-repo"
+			source = "default"
+		}
+
+		outputOK(map[string]interface{}{
+			"mode":   m,
+			"source": source,
+		})
+		return nil
+	},
+}
+
+var parallelModeSetCmd = &cobra.Command{
+	Use:   "set",
+	Short: "Set parallel mode",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		mode := mustGetString(cmd, "mode")
+		if mode == "" {
+			return nil
+		}
+
+		m := colony.ParallelMode(mode)
+		if !m.Valid() {
+			outputError(1, fmt.Sprintf("invalid parallel mode %q: must be in-repo or worktree", mode), nil)
+			return nil
+		}
+
+		var state colony.ColonyState
+		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+			outputError(1, "COLONY_STATE.json not found", nil)
+			return nil
+		}
+
+		state.ParallelMode = m
+		if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
+			outputError(2, fmt.Sprintf("failed to save state: %v", err), nil)
+			return nil
+		}
+
+		outputOK(map[string]interface{}{
+			"mode":   mode,
+			"source": "cli",
+		})
+		return nil
+	},
+}
+
 var domainDetectCmd = &cobra.Command{
 	Use:   "domain-detect",
 	Short: "Detect project domain from file patterns",
@@ -289,8 +370,14 @@ func init() {
 	planGranularityCmd.AddCommand(planGranularityGetCmd)
 	planGranularityCmd.AddCommand(planGranularitySetCmd)
 
+	parallelModeSetCmd.Flags().String("mode", "", "Parallel mode: in-repo or worktree (required)")
+
+	parallelModeCmd.AddCommand(parallelModeGetCmd)
+	parallelModeCmd.AddCommand(parallelModeSetCmd)
+
 	rootCmd.AddCommand(colonyNameCmd)
 	rootCmd.AddCommand(colonyDepthCmd)
 	rootCmd.AddCommand(planGranularityCmd)
+	rootCmd.AddCommand(parallelModeCmd)
 	rootCmd.AddCommand(domainDetectCmd)
 }
