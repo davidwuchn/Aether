@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -162,7 +164,7 @@ func checkTestsPass() gateCheck {
 	}
 
 	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Dir = store.BasePath()
+	cmd.Dir = storage.ResolveAetherRoot(context.Background())
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -200,7 +202,8 @@ func checkTestsPass() gateCheck {
 // Priority: CLAUDE.md → CODEBASE.md → language detection → empty (skip).
 func resolveTestCommand() string {
 	// Check CLAUDE.md for test command
-	claudeMD := store.BasePath() + "/CLAUDE.md"
+	repoRoot := storage.ResolveAetherRoot(context.Background())
+	claudeMD := repoRoot + "/CLAUDE.md"
 	if data, err := os.ReadFile(claudeMD); err == nil {
 		cmd := extractTestCommand(string(data))
 		if cmd != "" {
@@ -209,7 +212,7 @@ func resolveTestCommand() string {
 	}
 
 	// Check CODEBASE.md
-	codebaseMD := store.BasePath() + "/.aether/data/codebase.md"
+	codebaseMD := repoRoot + "/.aether/data/codebase.md"
 	if data, err := os.ReadFile(codebaseMD); err == nil {
 		cmd := extractTestCommand(string(data))
 		if cmd != "" {
@@ -218,16 +221,16 @@ func resolveTestCommand() string {
 	}
 
 	// Language detection fallback
-	if _, err := os.Stat(store.BasePath() + "/go.mod"); err == nil {
+	if _, err := os.Stat(repoRoot + "/go.mod"); err == nil {
 		return "go test ./..."
 	}
-	if _, err := os.Stat(store.BasePath() + "/package.json"); err == nil {
+	if _, err := os.Stat(repoRoot + "/package.json"); err == nil {
 		return "npm test"
 	}
-	if _, err := os.Stat(store.BasePath() + "/Cargo.toml"); err == nil {
+	if _, err := os.Stat(repoRoot + "/Cargo.toml"); err == nil {
 		return "cargo test"
 	}
-	if _, err := os.Stat(store.BasePath() + "/pom.xml"); err == nil {
+	if _, err := os.Stat(repoRoot + "/pom.xml"); err == nil {
 		return "mvn test"
 	}
 
