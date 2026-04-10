@@ -4,7 +4,7 @@
   "colony_name": null,
   "colony_version": 0,
   "state": "READY",
-  "current_phase": 3,
+  "current_phase": 4,
   "session_id": "add_1775830632",
   "initialized_at": "2026-04-10T16:17:12.987162+02:00",
   "build_started_at": null,
@@ -120,7 +120,7 @@
         "description": "Update colony-state template to document the new field.",
         "id": 3,
         "name": "Template update",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Template documents new field"
         ],
@@ -128,7 +128,7 @@
           {
             "goal": "Add parallel_mode to colony-state.template.json with documentation",
             "id": "3.1",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "Template has _comment_parallel_mode and parallel_mode field"
             ]
@@ -387,33 +387,48 @@
     "phase_learnings": [
       {
         "id": "learning_1775836415",
-        "phase": 1,
-        "phase_name": "Data Model and Constants",
         "learnings": [
           {
             "claim": "String enum types in Go should follow the PlanGranularity pattern: type alias + constants + Valid() method + ErrInvalid* sentinel",
-            "status": "hypothesis",
-            "tested": true,
+            "disproven_by": null,
             "evidence": "ParallelMode type implemented following PlanGranularity pattern, all tests pass",
-            "disproven_by": null
+            "status": "hypothesis",
+            "tested": true
           }
         ],
+        "phase": 1,
+        "phase_name": "Data Model and Constants",
         "timestamp": "2026-04-10T15:53:35Z"
       },
       {
         "id": "learning_1775838506",
-        "phase": 2,
-        "phase_name": "parallel-mode get/set subcommand",
         "learnings": [
           {
             "claim": "CLI get/set subcommands should follow the colony-depth pattern: nil store guard, LoadJSON with default fallback, set validates and persists",
-            "status": "hypothesis",
-            "tested": true,
+            "disproven_by": null,
             "evidence": "parallel-mode get/set implemented following colony-depth pattern, 8 tests pass, Probe and Watcher verified",
-            "disproven_by": null
+            "status": "hypothesis",
+            "tested": true
           }
         ],
+        "phase": 2,
+        "phase_name": "parallel-mode get/set subcommand",
         "timestamp": "2026-04-10T16:28:26Z"
+      },
+      {
+        "id": "learning_1775840113",
+        "learnings": [
+          {
+            "claim": "JSON template files should include _comment_ prefixed fields to document new configuration options, following the existing field documentation pattern",
+            "disproven_by": null,
+            "evidence": "Both colony-state templates updated with _comment_parallel_mode and parallel_mode fields, validated by Probe and Watcher",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 3,
+        "phase_name": "Template update",
+        "timestamp": "2026-04-10T16:55:13Z"
       }
     ],
     "decisions": null,
@@ -427,9 +442,16 @@
   "graveyards": [],
   "events": [
     "2026-04-10T16:20:28Z|phase_started|build|Phase 2: parallel-mode get/set subcommand started",
-    "2026-04-10T16:28:40Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3"
+    "2026-04-10T16:28:40Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
+    ""
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
-  "milestone": ""
+  "milestone": "",
+  "build_baseline_sha": "8818936dc81e2d51da49fb0ddf8341283c0981ab"
 }
+
+
+
+
+
