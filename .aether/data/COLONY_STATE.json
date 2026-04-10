@@ -4,7 +4,7 @@
   "colony_name": null,
   "colony_version": 0,
   "state": "READY",
-  "current_phase": 4,
+  "current_phase": 6,
   "session_id": "add_1775830632",
   "initialized_at": "2026-04-10T16:17:12.987162+02:00",
   "build_started_at": null,
@@ -139,7 +139,7 @@
         "description": "Add mode selection to init.md for both Claude Code and OpenCode.",
         "id": 4,
         "name": "Init slash command user prompt",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "User sees mode selection in both platforms",
           "Choice persisted"
@@ -190,7 +190,7 @@
         "description": "Wire build-wave.md to conditionally allocate worktrees when parallel_mode is worktree.",
         "id": 5,
         "name": "Build-wave conditional worktree wiring",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "Build-wave conditionally uses worktrees",
           "clean skip for in-repo"
@@ -429,6 +429,36 @@
         "phase": 3,
         "phase_name": "Template update",
         "timestamp": "2026-04-10T16:55:13Z"
+      },
+      {
+        "id": "learning_1775843759",
+        "learnings": [
+          {
+            "claim": "Cross-platform init changes should follow the same step structure in both Claude Code and OpenCode init.md files, with state-mutate for persisting user choices after template write",
+            "disproven_by": null,
+            "evidence": "Both init.md files updated with identical Step 6.5, state-mutate calls in both re-init and fresh paths, and Step 8 display. Probe and Watcher verified.",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 4,
+        "phase_name": "Init slash command user prompt",
+        "timestamp": "2026-04-10T17:55:59Z"
+      },
+      {
+        "id": "learning_1775846550",
+        "learnings": [
+          {
+            "claim": "Build-wave conditional steps should read parallel_mode and branch cleanly: skip with empty allocations for in-repo, allocate per-worker for worktree, with graceful fallback on allocation failure",
+            "disproven_by": null,
+            "evidence": "Step 5.0.7 in build-wave.md implements conditional worktree allocation, all tests pass, Watcher verified",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 5,
+        "phase_name": "Build-wave conditional worktree wiring",
+        "timestamp": "2026-04-10T18:42:30Z"
       }
     ],
     "decisions": null,
@@ -443,15 +473,16 @@
   "events": [
     "2026-04-10T16:20:28Z|phase_started|build|Phase 2: parallel-mode get/set subcommand started",
     "2026-04-10T16:28:40Z|phase_advanced|continue|Completed Phase 2, advancing to Phase 3",
+    "2026-04-10T16:44:00Z|phase_started|build|Phase 3: Template update started",
+    "2026-04-10T16:57:00Z|phase_advanced|continue|Completed Phase 3, advancing to Phase 4",
+    "2026-04-10T17:30:00Z|phase_started|build|Phase 4: Init slash command user prompt started",
     ""
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
   "milestone": "",
-  "build_baseline_sha": "8818936dc81e2d51da49fb0ddf8341283c0981ab"
+  "build_baseline_sha": "ee73f113a955adc52a5befecef81f4372eb7be05"
 }
-
-
 
 
 

@@ -246,6 +246,70 @@ Display the selected pattern:
 
 Store `selected_pattern` for inclusion in the BUILD SUMMARY (Step 7).
 
+### Step 5.0.7: Pre-Wave Worktree Allocation
+
+**This step runs BEFORE each wave (Wave 1, Wave 2, etc.). It allocates git worktrees for workers when parallel mode is "worktree".**
+
+1. **Read the current parallel mode:**
+
+Run using the Bash tool with description "Reading parallel mode...":
+```bash
+aether parallel-mode get 2>/dev/null || echo '{"result":{"mode":"in-repo","source":"default"}}'
+```
+
+Parse the JSON result. Extract `mode` (string) and `source` (string).
+
+2. **Branch on mode:**
+
+**If `mode` is `"in-repo"` (or empty/missing -- default):**
+
+Display:
+```
+━━━ 🌿 Worktree allocation skipped (mode: in-repo) ━━━
+```
+
+Set `worktree_allocations` to empty `{}` and proceed to wave spawning.
+
+**If `mode` is `"worktree"`:**
+
+Display:
+```
+━━━ 🌳 W O R K T R E E   A L L O C A T I O N ━━━
+```
+
+3. **Allocate worktrees for each worker in the upcoming wave:**
+
+For each worker in the current wave (builders and scouts -- castes that modify files):
+
+Run using the Bash tool with description "Allocating worktree for {ant_name}...":
+```bash
+aether worktree-allocate --phase {phase_number} --agent {ant_name}
+```
+
+Parse the JSON result. Extract `path` (string), `branch` (string), and `id` (string).
+
+- **If allocation succeeds** (result contains `"ok": true`):
+  - Store the mapping: `worktree_allocations[{ant_name}] = {path, branch, id}`
+  - Display: `  🌳 {ant_name}: {branch} -> {path}`
+
+- **If allocation fails** (result contains error):
+  - Display warning: `  ⚠ {ant_name}: worktree allocation failed -- {error_message}`
+  - The worker will operate in-repo as fallback (do not halt the build)
+  - Store `worktree_allocations[{ant_name}] = null` to signal no worktree available
+
+4. **Display allocation summary:**
+
+```
+Allocated: {count} / {total} workers
+{if any failed: "Fallback: {failed_count} workers will operate in-repo"}
+```
+
+5. **Store for injection:**
+
+Store `worktree_allocations` for use in builder prompts (Task 5.2 handles the actual injection into worker context).
+
+> **Design note:** Worktree allocation happens per-wave so that Wave 2+ workers get fresh worktrees only when needed. Wave 1 allocations are reused if the worker appears in a later wave.
+
 ### Step 5.1: Spawn Wave 1 Workers (Parallel)
 
 **CRITICAL: Spawn ALL Wave 1 workers in a SINGLE message using multiple Task tool calls.**
@@ -450,6 +514,28 @@ For each Wave 1 task, use Task tool with `subagent_type="aether-builder"`, inclu
 - If `grave_context` is non-empty, display a visible line before spawning that worker:
   `⚰️ Graveyard caution for {ant_name}: {file_1} ({level_1}), {file_2} ({level_2})`
 
+**PER WORKER:** Inject worktree context (if allocated):
+- Check `worktree_allocations[{ant_name}]` (from Step 5.0.7)
+- If the allocation exists and is not null (i.e., `path`, `branch`, `id` are present), set `worktree_context` to:
+  ```
+  **Worktree Assignment:**
+  You are working in an isolated git worktree. Your changes will NOT affect the main working tree.
+
+  - Worktree path: {path}
+  - Branch: {branch}
+  - Worktree ID: {id}
+
+  IMPORTANT rules for worktree operation:
+  1. Before starting work, cd into the worktree path: cd {path}
+  2. All file reads, edits, and writes must use absolute paths within this worktree
+  3. Run tests from within the worktree path (cd {path} && {test_command})
+  4. Commit your changes in the worktree (do NOT commit to main repo)
+  5. Do NOT modify files outside your worktree path
+  6. Your working directory for all Bash commands must be {path}
+  ```
+- If the allocation is null, missing, or empty, set `worktree_context` to empty (no injection needed).
+- **Budget cap:** `worktree_context` must not exceed 1000 characters per worker.
+
 **PER WORKER:** Match and inject skills for the worker's role and task:
 Run using the Bash tool with description "Matching skills for {ant_name}...":
 ```bash
@@ -475,6 +561,8 @@ Display per worker:
 **Builder Worker Prompt (CLEAN OUTPUT):**
 ```
 You are {Ant-Name}, a 🔨🐜 Builder Ant.
+
+{ worktree_context if exists }
 
 Task {id}: {description}
 
@@ -738,15 +826,76 @@ Display if any REDIRECT was emitted:
 Warning: Midden threshold: "{category}" recurring ({count}x) -- REDIRECT emitted mid-build
 ```
 
+### Step 5.2.5: Post-Wave Worktree Merge-Back
+
+**This step runs after each wave's results are processed (Step 5.2). It merges worktree branches back to main so that subsequent waves build on the latest state.**
+
+**This step is non-blocking: merge failures create blockers but do not halt the build.**
+
+1. **Check if worktree_allocations is non-empty:**
+
+If `worktree_allocations` is empty `{}` (in-repo mode or no allocations):
+- Skip silently, proceed to Step 5.3.
+
+If `worktree_allocations` has entries for workers in this wave:
+- Display:
+```
+━━━ 🔀 W O R K T R E E   M E R G E - B A C K ━━━
+```
+
+2. **For each worker in the current wave that has a worktree allocation (non-null):**
+
+Run using the Bash tool with description "Merging worktree for {ant_name}...":
+```bash
+aether worktree-merge-back --branch {branch}
+```
+
+Where `{branch}` comes from `worktree_allocations[{ant_name}].branch`.
+
+3. **Process merge results:**
+
+**If merge succeeds** (exit code 0, output contains merge confirmation):
+- Display: `  🔀 {ant_name}: {branch} merged and worktree cleaned`
+- Remove `{ant_name}` from `worktree_allocations` (set to null or delete)
+- Store `last_merged_branch = {branch}` for downstream steps
+
+**If merge fails** (non-zero exit or blocker created):
+- Display: `  ⚠ {ant_name}: {branch} merge failed -- blocker created, worker task flagged`
+- Mark the worker's task as having a `merge-blocker` in the task status map
+- The worktree remains in place for manual investigation
+- Do NOT remove from `worktree_allocations` (the worktree still exists)
+
+4. **Handle partial success:**
+
+If some merges succeed and some fail in the same wave:
+- Display summary:
+```
+Merge-back: {success_count} merged, {fail_count} blocked
+```
+- Proceed to the next wave regardless -- subsequent waves will work on main which has the successfully-merged changes.
+- Failed worktrees remain available for manual merge or retry via `/ant:swarm`.
+
+5. **Log merge-back activity:**
+
+Run using the Bash tool with description "Logging merge-back activity...":
+```bash
+aether activity-log "MERGE_BACK" "Queen" "Wave {wave_number}: {success_count} merged, {fail_count} blocked"
+```
+
+> **Design note:** This step runs after EVERY wave (not just the last), ensuring that Wave 2+ workers always build on top of Wave 1's merged results. This prevents orphaned worktree branches and keeps the main branch up-to-date throughout the build.
+
 ### Step 5.3: Spawn Wave 2+ Workers (Sequential Waves)
 
 **Before each subsequent wave, display a wave separator:**
 ```
 ━━━ 🐜 Wave {X} of {N} ━━━
 ```
+
+**Run Step 5.0.7 (Pre-Wave Worktree Allocation) for each subsequent wave.** Only workers not already in `worktree_allocations` need allocation; skip workers that already have an assigned worktree from a prior wave.
+
 Then display the spawn announcement (same format as Step 5.1).
 
-Repeat Step 5.1-5.2 for each subsequent wave, waiting for previous wave to complete.
+Repeat Step 5.0.7 + Step 5.1-5.2 + Step 5.2.5 for each subsequent wave, waiting for previous wave to complete.
 
 ### Step 5.3.5: Builder-Probe Lock (MANDATORY — All Waves)
 

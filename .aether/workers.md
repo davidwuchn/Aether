@@ -295,6 +295,27 @@ result=$(aether spawn-can-spawn {your_depth} --enforce)
 
 If `can_spawn` is false, complete the work inline.
 
+**Step 1.5: Inject worktree context (if allocated)**
+Check `worktree_allocations[{child_name}]` from the current wave's allocation (Step 5.0.7 in build-wave.md).
+If a worktree is allocated (not null), include the following section in the child prompt after the "You are" line:
+```
+**Worktree Assignment:**
+You are working in an isolated git worktree. Your changes will NOT affect the main working tree.
+
+- Worktree path: {path}
+- Branch: {branch}
+- Worktree ID: {id}
+
+IMPORTANT rules for worktree operation:
+1. Before starting work, cd into the worktree path: cd {path}
+2. All file reads, edits, and writes must use absolute paths within this worktree
+3. Run tests from within the worktree path (cd {path} && {test_command})
+4. Commit your changes in the worktree (do NOT commit to main repo)
+5. Do NOT modify files outside your worktree path
+6. Your working directory for all Bash commands must be {path}
+```
+If no worktree is allocated, skip this injection.
+
 **Step 2: Generate child name**
 ```bash
 # Generate a name for the child worker

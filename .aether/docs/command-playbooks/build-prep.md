@@ -177,6 +177,28 @@ If `colony_depth` is "standard" and `depth_source` is "default" (user never expl
 (Tip: use --depth deep for Oracle research, or --depth light for fast builds)
 ```
 
+**Read parallel mode:**
+
+Run using the Bash tool with description "Reading parallel mode...":
+```bash
+parallel_result=$(aether parallel-mode get 2>/dev/null || echo '{"ok":true,"result":{"mode":"in-repo","source":"default"}}')
+parallel_mode=$(echo "$parallel_result" | jq -r '.result.mode // "in-repo"')
+parallel_source=$(echo "$parallel_result" | jq -r '.result.source // "default"')
+echo "parallel_mode=$parallel_mode"
+echo "parallel_source=$parallel_source"
+```
+
+Store `parallel_mode` as cross-stage state for use by build-wave.md.
+
+Display mode with label:
+```
+Parallel: {parallel_mode} ({label})
+```
+
+Where label maps:
+- in-repo -> "all workers in same repo"
+- worktree -> "isolated git worktrees per worker"
+
 **Auto-upgrade old state:**
 If `version` field is missing, "1.0", or "2.0":
 1. Preserve: `goal`, `state`, `current_phase`, `plan.phases`
