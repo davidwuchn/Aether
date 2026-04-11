@@ -979,8 +979,8 @@ if [[ "$midden_count" -gt 0 ]]; then
     ' .aether/data/pheromones.json 2>/dev/null || echo "0")
 
     if [[ "$existing" == "0" ]]; then
-      aether pheromone-write REDIRECT \
-        "[error-pattern] Category \"$category\" recurring ($count occurrences)" \
+      aether pheromone-write --type REDIRECT \
+        --content "[error-pattern] Category \"$category\" recurring ($count occurrences)" \
         --strength 0.7 \
         --source "auto:error" \
         --reason "Auto-emitted: midden error pattern recurred 3+ times mid-build" \

@@ -1160,7 +1160,7 @@ After learning extraction completes in Step 2, auto-emit a FEEDBACK signal summa
 phase_feedback="Phase $phase_id ($phase_name) completed. Key patterns: {brief summary of 1-3 learnings from Step 2}"
 # Fallback if no learnings: "Phase $phase_id ($phase_name) completed without notable patterns."
 
-aether pheromone-write FEEDBACK "$phase_feedback" \
+aether pheromone-write --type FEEDBACK --content "$phase_feedback" \
   --strength 0.6 \
   --source "worker:continue" \
   --reason "Auto-emitted on phase advance: captures what worked and what was learned" \
@@ -1196,8 +1196,8 @@ if [[ -n "$decisions" ]]; then
       [.signals[] | select(.active == true and (.source == "auto:decision" or .source == "system:decision") and (.content.text | contains($text)))] | length
     ' .aether/data/pheromones.json 2>/dev/null || echo "0")
     if [[ "$existing" == "0" ]]; then
-      aether pheromone-write FEEDBACK \
-        "[decision] $dec" \
+      aether pheromone-write --type FEEDBACK \
+        --content "[decision] $dec" \
         --strength 0.6 \
         --source "auto:decision" \
         --reason "Auto-emitted from phase decision during continue" \
@@ -1242,8 +1242,8 @@ if [[ "$midden_count" -gt 0 ]]; then
     ' .aether/data/pheromones.json 2>/dev/null || echo "0")
 
     if [[ "$existing" == "0" ]]; then
-      aether pheromone-write REDIRECT \
-        "[error-pattern] Category \"$category\" recurring ($count occurrences)" \
+      aether pheromone-write --type REDIRECT \
+        --content "[error-pattern] Category \"$category\" recurring ($count occurrences)" \
         --strength 0.7 \
         --source "auto:error" \
         --reason "Auto-emitted: midden error pattern recurred 3+ times" \
@@ -1298,8 +1298,8 @@ for encoded in $recurring_criteria; do
   ' .aether/data/pheromones.json 2>/dev/null || echo "0")
 
   if [[ "$existing" == "0" ]]; then
-    aether pheromone-write FEEDBACK \
-      "[success-pattern] \"$text\" recurs across phases $phases" \
+    aether pheromone-write --type FEEDBACK \
+      --content "[success-pattern] \"$text\" recurs across phases $phases" \
       --strength 0.6 \
       --source "auto:success" \
       --reason "Auto-emitted: success criteria pattern recurred across $count phases" \

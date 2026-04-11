@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,6 +29,9 @@ var pheromoneWriteCmd = &cobra.Command{
 		content, _ := cmd.Flags().GetString("content")
 		priority, _ := cmd.Flags().GetString("priority")
 		strength, _ := cmd.Flags().GetFloat64("strength")
+		sourceFlag, _ := cmd.Flags().GetString("source")
+		reasonFlag, _ := cmd.Flags().GetString("reason")
+		ttlFlag, _ := cmd.Flags().GetString("ttl")
 		var tags []string
 
 		if sigType == "" || content == "" {
@@ -57,6 +62,17 @@ var pheromoneWriteCmd = &cobra.Command{
 			strength = 1.0
 		}
 
+		// Parse --ttl flag if provided
+		var ttlDuration time.Duration
+		if ttlFlag != "" {
+			d, err := parseTTL(ttlFlag)
+			if err != nil {
+				outputError(1, fmt.Sprintf("invalid --ttl format %q: %s", ttlFlag, err.Error()), nil)
+				return nil
+			}
+			ttlDuration = d
+		}
+
 		// Generate ID: sig_<timestamp>_<random>
 		rnd := make([]byte, 4)
 		rand.Read(rnd)
@@ -84,12 +100,16 @@ var pheromoneWriteCmd = &cobra.Command{
 			Type:        sigType,
 			Content:     json.RawMessage(contentJSON),
 			Priority:    priority,
-			Source:      "cli",
+			Source:      sourceFlag,
 			CreatedAt:   now,
 			Active:      true,
 			Strength:    &strength,
 			ContentHash: &contentHash,
 			Tags:        make([]colony.PheromoneTag, 0, len(tags)),
+		}
+
+		if reasonFlag != "" {
+			signal.Reason = &reasonFlag
 		}
 
 		if len(tags) > 0 {
@@ -101,15 +121,20 @@ var pheromoneWriteCmd = &cobra.Command{
 			}
 		}
 
-		// Compute expiry based on type
-		switch sigType {
-		case "REDIRECT":
-			expires := time.Now().UTC().Add(30 * 24 * time.Hour).Format(time.RFC3339)
+		// Compute expiry: --ttl overrides type-based defaults
+		if ttlFlag != "" {
+			expires := time.Now().UTC().Add(ttlDuration).Format(time.RFC3339)
 			signal.ExpiresAt = &expires
-		case "FEEDBACK":
-			expires := time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339)
-			signal.ExpiresAt = &expires
-			// FOCUS: no ExpiresAt (expires at phase end)
+		} else {
+			switch sigType {
+			case "REDIRECT":
+				expires := time.Now().UTC().Add(30 * 24 * time.Hour).Format(time.RFC3339)
+				signal.ExpiresAt = &expires
+			case "FEEDBACK":
+				expires := time.Now().UTC().Add(7 * 24 * time.Hour).Format(time.RFC3339)
+				signal.ExpiresAt = &expires
+				// FOCUS: no ExpiresAt (expires at phase end)
+			}
 		}
 
 		// Load existing pheromones file
@@ -230,12 +255,40 @@ func init() {
 	pheromoneWriteCmd.Flags().String("priority", "", "Priority: low, normal, high (default based on type)")
 	pheromoneWriteCmd.Flags().Float64("strength", 0, "Signal strength (default 1.0)")
 	pheromoneWriteCmd.Flags().StringArray("tag", nil, "Signal tags (repeatable)")
+	pheromoneWriteCmd.Flags().String("source", "cli", "Signal source (default \"cli\")")
+	pheromoneWriteCmd.Flags().String("reason", "", "Reason for the signal (optional)")
+	pheromoneWriteCmd.Flags().String("ttl", "", "Override expiry duration: Nd (days), Nh (hours), Nw (weeks) (optional)")
 
 	pheromoneExpireCmd.Flags().String("id", "", "Signal ID to expire (required)")
 
 	rootCmd.AddCommand(pheromoneWriteCmd)
 	rootCmd.AddCommand(pheromoneExpireCmd)
 	rootCmd.AddCommand(pheromoneValidateXMLCmd)
+}
+
+// parseTTL parses a duration string like "30d", "7d", "24h", "1w" into a time.Duration.
+func parseTTL(s string) (time.Duration, error) {
+	re := regexp.MustCompile(`^(\d+)([dhwm])$`)
+	m := re.FindStringSubmatch(s)
+	if m == nil {
+		return 0, fmt.Errorf("must match format: <number><unit> where unit is d (days), h (hours), w (weeks), or m (minutes)")
+	}
+	val, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid number %q: %w", m[1], err)
+	}
+	switch m[2] {
+	case "d":
+		return time.Duration(val) * 24 * time.Hour, nil
+	case "h":
+		return time.Duration(val) * time.Hour, nil
+	case "w":
+		return time.Duration(val) * 7 * 24 * time.Hour, nil
+	case "m":
+		return time.Duration(val) * time.Minute, nil
+	default:
+		return 0, fmt.Errorf("unsupported unit %q", m[2])
+	}
 }
 
 // sha256Sum returns the hex-encoded SHA-256 hash of the input string.

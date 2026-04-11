@@ -1,303 +1,17 @@
 {
   "version": "3.0",
-  "goal": "Fix all ~120 broken CLI calls in markdown — add missing flags and subcommands to Go CLI so pheromones, learning, midden, spawn tracking, activity log, flags, and registry actually work",
+  "goal": "Fix all ~120 broken CLI calls in markdown \u2014 add missing flags and subcommands to Go CLI so pheromones, learning, midden, spawn tracking, activity log, flags, and registry actually work",
   "colony_name": "cli-flag-fix",
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 5,
+  "current_phase": 6,
   "session_id": "session_1775934297_cli691",
   "initialized_at": "2026-04-11T19:04:58Z",
   "build_started_at": null,
   "plan": {
     "generated_at": "2026-04-11T19:22:33Z",
     "confidence": 92,
-    "phases": [
-      {
-        "description": "Create comprehensive inventory of all broken CLI calls and establish baseline tests",
-        "id": 1,
-        "name": "Audit and Baseline",
-        "status": "completed",
-        "success_criteria": [
-          "Complete inventory of all broken calls by category",
-          "Baseline test count established"
-        ],
-        "tasks": [
-          {
-            "goal": "Grep-inventory every broken CLI call pattern across all markdown files",
-            "id": "1.1",
-            "status": "completed",
-            "success_criteria": [
-              "Count per category matches route-setter findings",
-              "CSV output with file:line:pattern for each broken call"
-            ]
-          },
-          {
-            "goal": "Verify existing Go tests pass and establish baseline",
-            "id": "1.2",
-            "status": "completed",
-            "success_criteria": [
-              "go test ./... -race passes",
-              "Test count recorded as baseline"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Fix spawn-log and spawn-complete flag mismatches in Go and ~20 markdown files",
-        "id": 2,
-        "name": "Fix Spawn Tracking Calls",
-        "status": "completed",
-        "success_criteria": [
-          "All spawn-log calls use correct flags",
-          "All spawn-complete calls use correct flags"
-        ],
-        "tasks": [
-          {
-            "goal": "Add --summary flag to spawn-complete Go command",
-            "id": "2.1",
-            "status": "completed",
-            "success_criteria": [
-              "go test ./cmd -run TestSpawnComplete passes",
-              "--summary flag accepted"
-            ]
-          },
-          {
-            "goal": "Fix all ~13 markdown files with broken spawn-log calls (--id -\u003e --name, --description -\u003e --task)",
-            "id": "2.2",
-            "status": "completed",
-            "success_criteria": [
-              "grep for spawn-log --id returns zero results"
-            ]
-          },
-          {
-            "goal": "Fix all ~7 markdown files with broken spawn-complete calls (--id -\u003e --name)",
-            "id": "2.3",
-            "status": "completed",
-            "success_criteria": [
-              "grep for spawn-complete --id returns zero results"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Fix activity-log positional arg mismatches across ~48 markdown files",
-        "id": 3,
-        "name": "Fix Activity Log Calls",
-        "status": "completed",
-        "success_criteria": [
-          "No activity-log call uses positional arguments"
-        ],
-        "tasks": [
-          {
-            "goal": "Fix all markdown files using positional-arg activity-log calls to use --command/--phase/--details flags",
-            "id": "3.1",
-            "status": "completed",
-            "success_criteria": [
-              "grep for activity-log with positional args returns zero"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Fix midden-write positional arg mismatches across ~7 markdown files",
-        "id": 4,
-        "name": "Fix Midden Write Calls",
-        "status": "completed",
-        "success_criteria": [
-          "No midden-write call uses positional arguments"
-        ],
-        "tasks": [
-          {
-            "goal": "Fix all markdown files using positional-arg midden-write calls to use --category/--message/--source flags",
-            "id": "4.1",
-            "status": "completed",
-            "success_criteria": [
-              "grep for midden-write with positional args returns zero"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Add --source/--reason/--ttl flags to Go pheromone-write and fix positional args in markdown",
-        "id": 5,
-        "name": "Fix Pheromone Write Calls",
-        "status": "pending",
-        "success_criteria": [
-          "Go accepts --source/--reason/--ttl",
-          "No positional pheromone-write calls"
-        ],
-        "tasks": [
-          {
-            "goal": "Add --source, --reason, --ttl flags to pheromone-write Go command",
-            "id": "5.1",
-            "status": "pending",
-            "success_criteria": [
-              "go test passes with new flags",
-              "TTL parsed into ExpiresAt"
-            ]
-          },
-          {
-            "goal": "Fix all markdown pheromone-write calls: positional type -\u003e --type, positional content -\u003e --content",
-            "id": "5.2",
-            "status": "pending",
-            "success_criteria": [
-              "grep for positional pheromone-write returns zero"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Fix memory-capture positional arg mismatches across ~5 markdown files",
-        "id": 6,
-        "name": "Fix Memory Capture Calls",
-        "status": "pending",
-        "success_criteria": [
-          "No memory-capture call uses positional arguments"
-        ],
-        "tasks": [
-          {
-            "goal": "Fix all markdown files using positional-arg memory-capture calls to use --type/--content flags",
-            "id": "6.1",
-            "status": "pending",
-            "success_criteria": [
-              "grep for positional memory-capture returns zero"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Add --description flag to Go flag-add and remove --phase from markdown calls",
-        "id": 7,
-        "name": "Fix Flag Add Calls",
-        "status": "pending",
-        "success_criteria": [
-          "Go accepts --description",
-          "No flag-add call uses --phase"
-        ],
-        "tasks": [
-          {
-            "goal": "Add --description flag to flag-add Go command",
-            "id": "7.1",
-            "status": "pending",
-            "success_criteria": [
-              "go test passes with --description flag"
-            ]
-          },
-          {
-            "goal": "Remove --phase from all flag-add markdown calls",
-            "id": "7.2",
-            "status": "pending",
-            "success_criteria": [
-              "grep for flag-add --phase returns zero"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Fix broken CLI calls in all 19 OpenCode agent .md files and Claude agent mirrors",
-        "id": 8,
-        "name": "Fix OpenCode Agent Templates",
-        "status": "pending",
-        "success_criteria": [
-          "All agent template CLI calls are correct"
-        ],
-        "tasks": [
-          {
-            "goal": "Fix all broken spawn-log and activity-log calls in OpenCode agent templates",
-            "id": "8.1",
-            "status": "pending",
-            "success_criteria": [
-              "grep for broken patterns in .opencode/agents/ returns zero"
-            ]
-          },
-          {
-            "goal": "Fix broken calls in Claude agent mirrors (.claude/agents/ant/ and .aether/agents-claude/)",
-            "id": "8.2",
-            "status": "pending",
-            "success_criteria": [
-              "grep for broken patterns in agent mirrors returns zero"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Fix all broken CLI calls in command playbooks (build-full, continue-full, and split playbooks)",
-        "id": 9,
-        "name": "Fix Playbooks",
-        "status": "pending",
-        "success_criteria": [
-          "All playbook CLI calls are correct"
-        ],
-        "tasks": [
-          {
-            "goal": "Fix build-full.md, continue-full.md, and all 6 split playbooks",
-            "id": "9.1",
-            "status": "pending",
-            "success_criteria": [
-              "Audit confirms zero discrepancies in all playbook files"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Fix workers.md, docs/, and any remaining edge-case files",
-        "id": 10,
-        "name": "Fix Documentation and Edge Cases",
-        "status": "pending",
-        "success_criteria": [
-          "All documentation CLI calls are correct"
-        ],
-        "tasks": [
-          {
-            "goal": "Fix workers.md and docs/ files with broken CLI patterns",
-            "id": "10.1",
-            "status": "pending",
-            "success_criteria": [
-              "No broken calls in workers.md or docs/"
-            ]
-          }
-        ]
-      },
-      {
-        "description": "Run complete test suite and final audit to confirm zero broken calls remain",
-        "id": 11,
-        "name": "Full Regression Test",
-        "status": "pending",
-        "success_criteria": [
-          "All tests pass",
-          "Zero broken calls in any .md file",
-          "Binary builds cleanly"
-        ],
-        "tasks": [
-          {
-            "goal": "Run go test ./... -race and confirm zero regressions",
-            "id": "11.1",
-            "status": "pending",
-            "success_criteria": [
-              "All tests pass",
-              "Race detection clean"
-            ]
-          },
-          {
-            "goal": "Run final grep audit across all categories confirming zero broken calls",
-            "id": "11.2",
-            "status": "pending",
-            "success_criteria": [
-              "Every broken-call grep returns zero results"
-            ]
-          },
-          {
-            "goal": "Verify Go binary builds and all new flags appear in --help",
-            "id": "11.3",
-            "status": "pending",
-            "success_criteria": [
-              "Binary builds",
-              "All new flags discoverable"
-            ]
-          }
-        ]
-      }
-    ]
+    "phases": []
   },
   "memory": {
     "phase_learnings": [
@@ -320,7 +34,7 @@
         "id": "learning_1775939057",
         "learnings": [
           {
-            "claim": "spawn-log and spawn-complete both use cobra.NoArgs — positional args silently fail. Adding --summary to spawn-complete required updating both the CLI flag and the spawn tree persistence layer with backward-compatible parsing.",
+            "claim": "spawn-log and spawn-complete both use cobra.NoArgs \u2014 positional args silently fail. Adding --summary to spawn-complete required updating both the CLI flag and the spawn tree persistence layer with backward-compatible parsing.",
             "disproven_by": null,
             "evidence": "62 broken calls fixed across 29 files, 6 new Go tests pass, Watcher verified zero remaining broken patterns",
             "status": "hypothesis",
@@ -335,7 +49,7 @@
         "id": "learning_1775942247",
         "learnings": [
           {
-            "claim": "activity-log positional args silently ignored — all 48 markdown files converted to --command/--details flags with source+details merged into --details field",
+            "claim": "activity-log positional args silently ignored \u2014 all 48 markdown files converted to --command/--details flags with source+details merged into --details field",
             "disproven_by": null,
             "evidence": "0 positional calls remain, 78 flag-based calls verified, all Go tests pass",
             "status": "hypothesis",
@@ -350,7 +64,7 @@
         "id": "learning_1775942968",
         "learnings": [
           {
-            "claim": "Midden-write calls were already fixed during prior phases — the broad markdown sweep for activity-log and spawn-log also covered midden-write files. grep confirms zero positional midden-write calls remain.",
+            "claim": "Midden-write calls were already fixed during prior phases \u2014 the broad markdown sweep for activity-log and spawn-log also covered midden-write files. grep confirms zero positional midden-write calls remain.",
             "disproven_by": null,
             "evidence": "0 positional midden-write calls found via grep across all .md files; all use --category/--message/--source flags",
             "status": "hypothesis",
@@ -360,6 +74,21 @@
         "phase": 4,
         "phase_name": "Fix Midden Write Calls",
         "timestamp": "2026-04-11T21:29:28Z"
+      },
+      {
+        "id": "learning_1775946113",
+        "learnings": [
+          {
+            "claim": "pheromone-write used cobra.NoArgs so positional type/content args silently failed. Added --source/--reason/--ttl flags to Go with TTL parsing (Nd/Nh/Nw format). All 12 positional calls across 6 markdown files converted to --type/--content flags. Init.md files were missed by builder but caught by Watcher.",
+            "disproven_by": null,
+            "evidence": "54 pheromone tests pass, zero positional calls remain, all 3 new flags work",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 5,
+        "phase_name": "Fix Pheromone Write Calls",
+        "timestamp": "2026-04-11T22:21:53Z"
       }
     ],
     "decisions": null,
@@ -379,17 +108,13 @@
     "2026-04-11T19:59:12Z|phase_started|build|Phase 2: Fix Spawn Tracking Calls started",
     "2026-04-11T20:24:17Z|phase_completed|continue|Phase 2: Fix Spawn Tracking Calls completed - 62 calls fixed",
     "2026-04-11T20:26:45Z|phase_started|build|Phase 3: Fix Activity Log Calls started",
+    "2026-04-11T21:17:27Z|phase_completed|continue|Phase 3: Fix Activity Log Calls completed",
     "2026-04-11T21:20:13Z|phase_started|build|Phase 4: Fix Midden Write Calls started",
-    ""
+    "2026-04-11T21:29:28Z|phase_completed|continue|Phase 4: Fix Midden Write Calls completed",
+    "2026-04-11T21:59:28Z|phase_started|build|Phase 5: Fix Pheromone Write Calls started"
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
   "milestone": "",
-  "build_baseline_sha": "eb670e8a119a0271d798e8af2fdfeb5ffacfd21c"
+  "build_baseline_sha": "0fe7b5977c312ffe5f270dfb9f300a69d17316bd"
 }
-
-
-
-
-
-

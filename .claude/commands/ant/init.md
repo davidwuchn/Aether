@@ -624,7 +624,7 @@ If approved pheromone suggestions exist (the user kept them in the prompt and di
 
 For each approved pheromone suggestion, call:
 ```bash
-aether pheromone-write "{type}" '{content}' --source "system:init" --reason '{reason}' --ttl "30d" 2>/dev/null || true
+aether pheromone-write --type "{type}" --content '{content}' --source "system:init" --reason '{reason}' --ttl "30d" 2>/dev/null || true
 ```
 
 Implementation notes:

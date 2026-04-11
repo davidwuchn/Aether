@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calcosmic/Aether/pkg/storage"
 )
@@ -269,5 +270,364 @@ func TestPheromoneWrite_HashOnRawContentNotSanitized(t *testing.T) {
 	}
 	if result["total"] != float64(1) {
 		t.Errorf("expected total=1 after dedup, got: %v", result["total"])
+	}
+}
+
+// --- new flags tests ---
+
+func TestPheromoneWrite_SourceFlag(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "FOCUS", "--content", "focus on tests", "--source", "auto:error"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	if signal["source"] != "auto:error" {
+		t.Errorf("source = %v, want %q", signal["source"], "auto:error")
+	}
+}
+
+func TestPheromoneWrite_SourceFlagDefault(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "FEEDBACK", "--content", "try harder"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	if signal["source"] != "cli" {
+		t.Errorf("source = %v, want %q (default)", signal["source"], "cli")
+	}
+}
+
+func TestPheromoneWrite_ReasonFlag(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "REDIRECT", "--content", "avoid global vars", "--reason", "detected in code review"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	if signal["reason"] != "detected in code review" {
+		t.Errorf("reason = %v, want %q", signal["reason"], "detected in code review")
+	}
+}
+
+func TestPheromoneWrite_ReasonFlagOmitted(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "FOCUS", "--content", "focus area"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	if _, exists := signal["reason"]; exists {
+		t.Errorf("reason should be omitted when not provided, got: %v", signal["reason"])
+	}
+}
+
+func TestPheromoneWrite_TTLFlag(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "FOCUS", "--content", "temporary focus", "--ttl", "48h"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	expiresAt, ok := signal["expires_at"].(string)
+	if !ok || expiresAt == "" {
+		t.Fatalf("expires_at should be set when --ttl is provided, got: %v", signal["expires_at"])
+	}
+	// Verify it's a valid RFC3339 timestamp
+	if _, err := time.Parse(time.RFC3339, expiresAt); err != nil {
+		t.Errorf("expires_at is not valid RFC3339: %v", err)
+	}
+}
+
+func TestPheromoneWrite_TTLFlagDays(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "FOCUS", "--content", "two week focus", "--ttl", "14d"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	expiresAt, ok := signal["expires_at"].(string)
+	if !ok || expiresAt == "" {
+		t.Fatalf("expires_at should be set when --ttl is provided, got: %v", signal["expires_at"])
+	}
+}
+
+func TestPheromoneWrite_TTLFlagWeeks(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "REDIRECT", "--content", "avoid pattern", "--ttl", "1w"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	expiresAt, ok := signal["expires_at"].(string)
+	if !ok || expiresAt == "" {
+		t.Fatalf("expires_at should be set when --ttl is provided, got: %v", signal["expires_at"])
+	}
+}
+
+func TestPheromoneWrite_TTLOverridesTypeDefault(t *testing.T) {
+	// REDIRECT normally gets 30-day expiry. With --ttl "1h", it should get 1 hour instead.
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	before := time.Now().UTC()
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "REDIRECT", "--content", "short-lived redirect", "--ttl", "1h"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	expiresAt, _ := signal["expires_at"].(string)
+	parsed, err := time.Parse(time.RFC3339, expiresAt)
+	if err != nil {
+		t.Fatalf("failed to parse expires_at: %v", err)
+	}
+
+	// Should be ~1 hour from now, not 30 days
+	diff := parsed.Sub(before)
+	if diff > 2*time.Hour {
+		t.Errorf("expires_at is too far in the future: %v (diff=%v), expected ~1h", expiresAt, diff)
+	}
+}
+
+func TestPheromoneWrite_TTLInvalidFormat(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stderr = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{"pheromone-write", "--type", "FOCUS", "--content", "focus area", "--ttl", "abc"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	if !strings.Contains(output, `"ok":false`) {
+		t.Errorf("expected ok:false for invalid TTL format, got: %s", output)
+	}
+}
+
+func TestPheromoneWrite_AllNewFlagsTogether(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+	s, _ := storage.NewStore(dataDir)
+	store = s
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	rootCmd.SetArgs([]string{
+		"pheromone-write",
+		"--type", "REDIRECT",
+		"--content", "avoid global state",
+		"--source", "worker:continue",
+		"--reason", "caused test flakiness",
+		"--ttl", "3d",
+	})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("pheromone-write returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	json.Unmarshal([]byte(output), &envelope)
+
+	result := envelope["result"].(map[string]interface{})
+	signal := result["signal"].(map[string]interface{})
+	if signal["source"] != "worker:continue" {
+		t.Errorf("source = %v, want %q", signal["source"], "worker:continue")
+	}
+	if signal["reason"] != "caused test flakiness" {
+		t.Errorf("reason = %v, want %q", signal["reason"], "caused test flakiness")
+	}
+	expiresAt, ok := signal["expires_at"].(string)
+	if !ok || expiresAt == "" {
+		t.Errorf("expires_at should be set with --ttl, got: %v", signal["expires_at"])
 	}
 }
