@@ -1,10 +1,10 @@
 {
   "version": "3.0",
-  "goal": "Fix all ~120 broken CLI calls in markdown \u2014 add missing flags and subcommands to Go CLI so pheromones, learning, midden, spawn tracking, activity log, flags, and registry actually work",
+  "goal": "Fix all ~120 broken CLI calls in markdown — add missing flags and subcommands to Go CLI so pheromones, learning, midden, spawn tracking, activity log, flags, and registry actually work",
   "colony_name": "cli-flag-fix",
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 4,
+  "current_phase": 5,
   "session_id": "session_1775934297_cli691",
   "initialized_at": "2026-04-11T19:04:58Z",
   "build_started_at": null,
@@ -102,7 +102,7 @@
         "description": "Fix midden-write positional arg mismatches across ~7 markdown files",
         "id": 4,
         "name": "Fix Midden Write Calls",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [
           "No midden-write call uses positional arguments"
         ],
@@ -110,7 +110,7 @@
           {
             "goal": "Fix all markdown files using positional-arg midden-write calls to use --category/--message/--source flags",
             "id": "4.1",
-            "status": "pending",
+            "status": "completed",
             "success_criteria": [
               "grep for midden-write with positional args returns zero"
             ]
@@ -332,7 +332,7 @@
         "timestamp": "2026-04-11T20:24:17Z"
       },
       {
-        "id": "learning_'$timestamp'",
+        "id": "learning_1775942247",
         "learnings": [
           {
             "claim": "activity-log positional args silently ignored — all 48 markdown files converted to --command/--details flags with source+details merged into --details field",
@@ -344,7 +344,22 @@
         ],
         "phase": 3,
         "phase_name": "Fix Activity Log Calls",
-        "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+        "timestamp": "2026-04-11T21:17:27Z"
+      },
+      {
+        "id": "learning_1775942968",
+        "learnings": [
+          {
+            "claim": "Midden-write calls were already fixed during prior phases — the broad markdown sweep for activity-log and spawn-log also covered midden-write files. grep confirms zero positional midden-write calls remain.",
+            "disproven_by": null,
+            "evidence": "0 positional midden-write calls found via grep across all .md files; all use --category/--message/--source flags",
+            "status": "hypothesis",
+            "tested": true
+          }
+        ],
+        "phase": 4,
+        "phase_name": "Fix Midden Write Calls",
+        "timestamp": "2026-04-11T21:29:28Z"
       }
     ],
     "decisions": null,
@@ -364,12 +379,16 @@
     "2026-04-11T19:59:12Z|phase_started|build|Phase 2: Fix Spawn Tracking Calls started",
     "2026-04-11T20:24:17Z|phase_completed|continue|Phase 2: Fix Spawn Tracking Calls completed - 62 calls fixed",
     "2026-04-11T20:26:45Z|phase_started|build|Phase 3: Fix Activity Log Calls started",
+    "2026-04-11T21:20:13Z|phase_started|build|Phase 4: Fix Midden Write Calls started",
     ""
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
-  "milestone": ""
+  "milestone": "",
+  "build_baseline_sha": "eb670e8a119a0271d798e8af2fdfeb5ffacfd21c"
 }
+
+
 
 
 

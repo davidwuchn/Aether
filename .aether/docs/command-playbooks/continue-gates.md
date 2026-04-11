@@ -272,7 +272,7 @@ If no CRITICAL issues, continue to Step 1.7.1.
    Run using the Bash tool with description "Logging Weaver completion...": `aether spawn-complete --name "$weaver_name" --status "$weaver_status" --summary "Refactoring $weaver_status"`
 
    h. **Log to midden:**
-   Run using the Bash tool with description "Logging refactoring activity to midden...": `aether midden-write "refactoring" "Weaver refactored files, complexity before/after: ${complexity_before}/${complexity_after}" "weaver"`
+   Run using the Bash tool with description "Logging refactoring activity to midden...": `aether midden-write --category "refactoring" --message "Weaver refactored files, complexity before/after: ${complexity_before}/${complexity_after}" --source "weaver"`
 
 5. **Display completion:**
    ```
@@ -380,7 +380,7 @@ The phase will NOT advance with critical CVEs.
 Security warnings logged to midden for later review.
 Proceeding with caution...
 ```
-Run using the Bash tool with description "Logging high-severity warnings...": `aether midden-write "security" "High CVEs found: $high_count" "gatekeeper"`
+Run using the Bash tool with description "Logging high-severity warnings...": `aether midden-write --category "security" --message "High CVEs found: $high_count" --source "gatekeeper"`
 Continue to Step 1.9.
 
 - **If clean (no critical or high):**
@@ -513,7 +513,7 @@ Run using the Bash tool with description "Logging quality score block...": `aeth
 Quality warnings logged to midden for later review.
 Proceeding with caution...
 ```
-Run using the Bash tool with description "Logging high-quality warnings...": `aether midden-write "quality" "High severity issues: $high_count (score: $overall_score)" "auditor"`
+Run using the Bash tool with description "Logging high-quality warnings...": `aether midden-write --category "quality" --message "High severity issues: $high_count (score: $overall_score)" --source "auditor"`
 Continue to Step 1.10.
 
 - **If clean (score >= 60, no critical):**
@@ -733,7 +733,7 @@ This gate enforces the Watcher's quality authority by stashing uncommitted work 
    ```
 
    c. **Log the veto to midden:**
-   Run using the Bash tool with description "Logging Watcher veto to midden...": `aether midden-write "watcher-veto" "Watcher vetoed phase $current_phase: score $quality_score, $critical_count critical issues" "watcher"`
+   Run using the Bash tool with description "Logging Watcher veto to midden...": `aether midden-write --category "watcher-veto" --message "Watcher vetoed phase $current_phase: score $quality_score, $critical_count critical issues" --source "watcher"`
 
    d. **Display required actions:**
    ```

@@ -705,12 +705,12 @@ If `is_integration_phase` is `"true"`:
 4. **Log integration plan to midden:**
    Run using the Bash tool with description "Logging integration plan...":
    ```bash
-   aether midden-write "integration" "Plan for {integration_plan.service_name}: {integration_plan.integration_pattern} pattern, auth via {integration_plan.authentication_method}" "ambassador"
+   aether midden-write --category "integration" --message "Plan for {integration_plan.service_name}: {integration_plan.integration_pattern} pattern, auth via {integration_plan.authentication_method}" --source "ambassador"
    ```
 
    For each env var required:
    ```bash
-   aether midden-write "integration" "Required env var: {env_var}" "ambassador"
+   aether midden-write --category "integration" --message "Required env var: {env_var}" --source "ambassador"
    ```
 
 5. **Display integration summary:**
@@ -811,7 +811,7 @@ cat >> .aether/midden/approach-changes.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-02)
-aether midden-write "abandoned-approach" "Tried: initial approach that failed. Switched to: new approach. Reason: reason it didn't work" "builder" 2>/dev/null || true
+aether midden-write --category "abandoned-approach" --message "Tried: initial approach that failed. Switched to: new approach. Reason: reason it didn't work" --source "builder" 2>/dev/null || true
 
 # Enter memory pipeline for learning observation tracking (MID-02)
 aether memory-capture \
@@ -877,7 +877,7 @@ cat >> .aether/midden/build-failures.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-01)
-aether midden-write "worker_failure" "Builder ${ant_name} failed on task ${task_id}: ${blockers[0]:-$failure_reason}" "builder" 2>/dev/null || true
+aether midden-write --category "worker_failure" --message "Builder ${ant_name} failed on task ${task_id}: ${blockers[0]:-$failure_reason}" --source "builder" 2>/dev/null || true
 
 # Capture failure in memory pipeline (observe + pheromone + auto-promotion)
 aether memory-capture \
@@ -1207,17 +1207,17 @@ For failed verification:
 
    For each baseline established, run using the Bash tool with description "Logging baseline...":
    ```bash
-   aether midden-write "performance" "Baseline: {baseline.operation} ({baseline.complexity}) at {baseline.file}:{baseline.line}" "measurer"
+   aether midden-write --category "performance" --message "Baseline: {baseline.operation} ({baseline.complexity}) at {baseline.file}:{baseline.line}" --source "measurer"
    ```
 
    For each bottleneck identified, run using the Bash tool with description "Logging bottleneck...":
    ```bash
-   aether midden-write "performance" "Bottleneck: {bottleneck.description} ({bottleneck.severity}) at {bottleneck.location}" "measurer"
+   aether midden-write --category "performance" --message "Bottleneck: {bottleneck.description} ({bottleneck.severity}) at {bottleneck.location}" --source "measurer"
    ```
 
    For each recommendation, run using the Bash tool with description "Logging recommendation...":
    ```bash
-   aether midden-write "performance" "Recommendation (P{rec.priority}): {rec.change} - {rec.estimated_improvement}" "measurer"
+   aether midden-write --category "performance" --message "Recommendation (P{rec.priority}): {rec.change} - {rec.estimated_improvement}" --source "measurer"
    ```
 
 8. **Display summary and store for synthesis:**
@@ -1321,7 +1321,7 @@ cat >> .aether/midden/build-failures.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-01)
-aether midden-write "resilience" "Chaos finding: ${finding.title} (${finding.severity})" "chaos" 2>/dev/null || true
+aether midden-write --category "resilience" --message "Chaos finding: ${finding.title} (${finding.severity})" --source "chaos" 2>/dev/null || true
 
 # Capture resilience failure in memory pipeline (observe + pheromone + auto-promotion)
 aether memory-capture \
@@ -1363,7 +1363,7 @@ cat >> .aether/midden/test-failures.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-01)
-aether midden-write "verification" "Watcher verification failed: ${issue_title}" "watcher" 2>/dev/null || true
+aether midden-write --category "verification" --message "Watcher verification failed: ${issue_title}" --source "watcher" 2>/dev/null || true
 
 # Capture verification failure in memory pipeline (observe + pheromone + auto-promotion)
 aether memory-capture \

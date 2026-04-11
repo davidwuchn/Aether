@@ -243,10 +243,10 @@ Continue to Phase 5: Secrets Scan.
    Run using the Bash tool with description "Logging Probe completion...": `aether spawn-complete --name "$probe_name" --status "completed" --summary "{\"tests_added\":${#tests_added[@]},\"coverage\":{\"lines\":${coverage_lines},\"branches\":${coverage_branches},\"functions\":${coverage_functions}}}"`
 
    g. Log findings to midden:
-   Run using the Bash tool with description "Logging Probe findings to midden...": `aether midden-write "coverage" "Probe generated tests, coverage: ${coverage_lines}%/${coverage_branches}%/${coverage_functions}%" "probe"`
+   Run using the Bash tool with description "Logging Probe findings to midden...": `aether midden-write --category "coverage" --message "Probe generated tests, coverage: ${coverage_lines}%/${coverage_branches}%/${coverage_functions}%" --source "probe"`
 
    If edge cases found:
-   Run using the Bash tool with description "Logging edge cases to midden...": `aether midden-write "edge_cases" "Found ${#edge_cases_discovered[@]} edge cases" "probe"`
+   Run using the Bash tool with description "Logging edge cases to midden...": `aether midden-write --category "edge_cases" --message "Found ${#edge_cases_discovered[@]} edge cases" --source "probe"`
 
 4. **NON-BLOCKING continuation:**
    Display Probe findings summary:

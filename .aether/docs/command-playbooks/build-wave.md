@@ -456,12 +456,12 @@ If `is_integration_phase` is `"true"`:
 4. **Log integration plan to midden:**
    Run using the Bash tool with description "Logging integration plan...":
    ```bash
-   aether midden-write "integration" "Plan for {integration_plan.service_name}: {integration_plan.integration_pattern} pattern, auth via {integration_plan.authentication_method}" "ambassador"
+   aether midden-write --category "integration" --message "Plan for {integration_plan.service_name}: {integration_plan.integration_pattern} pattern, auth via {integration_plan.authentication_method}" --source "ambassador"
    ```
 
    For each env var required:
    ```bash
-   aether midden-write "integration" "Required env var: {env_var}" "ambassador"
+   aether midden-write --category "integration" --message "Required env var: {env_var}" --source "ambassador"
    ```
 
 5. **Display integration summary:**
@@ -637,7 +637,7 @@ cat >> .aether/midden/approach-changes.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-02)
-aether midden-write "abandoned-approach" "Tried: initial approach that failed. Switched to: new approach. Reason: reason it didn't work" "builder" 2>/dev/null || true
+aether midden-write --category "abandoned-approach" --message "Tried: initial approach that failed. Switched to: new approach. Reason: reason it didn't work" --source "builder" 2>/dev/null || true
 
 # Enter memory pipeline for learning observation tracking (MID-02)
 aether memory-capture \
@@ -703,7 +703,7 @@ cat >> .aether/midden/build-failures.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-01)
-aether midden-write "worker_failure" "Builder ${ant_name} failed on task ${task_id}: ${blockers[0]:-$failure_reason}" "builder" 2>/dev/null || true
+aether midden-write --category "worker_failure" --message "Builder ${ant_name} failed on task ${task_id}: ${blockers[0]:-$failure_reason}" --source "builder" 2>/dev/null || true
 
 # Capture failure in memory pipeline (observe + pheromone + auto-promotion)
 aether memory-capture \

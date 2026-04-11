@@ -227,17 +227,17 @@ For failed verification:
 
    For each baseline established, run using the Bash tool with description "Logging baseline...":
    ```bash
-   aether midden-write "performance" "Baseline: {baseline.operation} ({baseline.complexity}) at {baseline.file}:{baseline.line}" "measurer"
+   aether midden-write --category "performance" --message "Baseline: {baseline.operation} ({baseline.complexity}) at {baseline.file}:{baseline.line}" --source "measurer"
    ```
 
    For each bottleneck identified, run using the Bash tool with description "Logging bottleneck...":
    ```bash
-   aether midden-write "performance" "Bottleneck: {bottleneck.description} ({bottleneck.severity}) at {bottleneck.location}" "measurer"
+   aether midden-write --category "performance" --message "Bottleneck: {bottleneck.description} ({bottleneck.severity}) at {bottleneck.location}" --source "measurer"
    ```
 
    For each recommendation, run using the Bash tool with description "Logging recommendation...":
    ```bash
-   aether midden-write "performance" "Recommendation (P{rec.priority}): {rec.change} - {rec.estimated_improvement}" "measurer"
+   aether midden-write --category "performance" --message "Recommendation (P{rec.priority}): {rec.change} - {rec.estimated_improvement}" --source "measurer"
    ```
 
 8. **Display summary and store for synthesis:**
@@ -348,7 +348,7 @@ cat >> .aether/midden/build-failures.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-01)
-aether midden-write "resilience" "Chaos finding: ${finding.title} (${finding.severity})" "chaos" 2>/dev/null || true
+aether midden-write --category "resilience" --message "Chaos finding: ${finding.title} (${finding.severity})" --source "chaos" 2>/dev/null || true
 
 # Capture resilience failure in memory pipeline (observe + pheromone + auto-promotion)
 aether memory-capture \
@@ -405,7 +405,7 @@ cat >> .aether/midden/test-failures.md << EOF
 EOF
 
 # Write to structured midden for threshold detection (MID-01)
-aether midden-write "verification" "Watcher verification failed: ${issue_title}" "watcher" 2>/dev/null || true
+aether midden-write --category "verification" --message "Watcher verification failed: ${issue_title}" --source "watcher" 2>/dev/null || true
 
 # Capture verification failure in memory pipeline (observe + pheromone + auto-promotion)
 aether memory-capture \

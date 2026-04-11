@@ -211,10 +211,10 @@ Continue to Phase 5: Secrets Scan.
    Run using the Bash tool with description "Logging Probe completion...": `aether spawn-complete --name "$probe_name" --status "completed" --summary "{\"tests_added\":${#tests_added[@]},\"coverage\":{\"lines\":${coverage_lines},\"branches\":${coverage_branches},\"functions\":${coverage_functions}}}"`
 
    g. Log findings to midden:
-   Run using the Bash tool with description "Logging Probe findings to midden...": `aether midden-write "coverage" "Probe generated tests, coverage: ${coverage_lines}%/${coverage_branches}%/${coverage_functions}%" "probe"`
+   Run using the Bash tool with description "Logging Probe findings to midden...": `aether midden-write --category "coverage" --message "Probe generated tests, coverage: ${coverage_lines}%/${coverage_branches}%/${coverage_functions}%" --source "probe"`
 
    If edge cases found:
-   Run using the Bash tool with description "Logging edge cases to midden...": `aether midden-write "edge_cases" "Found ${#edge_cases_discovered[@]} edge cases" "probe"`
+   Run using the Bash tool with description "Logging edge cases to midden...": `aether midden-write --category "edge_cases" --message "Found ${#edge_cases_discovered[@]} edge cases" --source "probe"`
 
 4. **NON-BLOCKING continuation:**
    Display Probe findings summary:
@@ -589,7 +589,7 @@ If no CRITICAL issues, continue to Step 1.7.1.
 
 
    i. **Log to midden:**
-   Run using the Bash tool with description "Logging refactoring activity to midden...": `aether midden-write "refactoring" "Weaver refactored files, complexity before/after: ${complexity_before}/${complexity_after}" "weaver"`
+   Run using the Bash tool with description "Logging refactoring activity to midden...": `aether midden-write --category "refactoring" --message "Weaver refactored files, complexity before/after: ${complexity_before}/${complexity_after}" --source "weaver"`
 
 5. **Display completion:**
    ```
@@ -693,7 +693,7 @@ The phase will NOT advance with critical CVEs.
 Security warnings logged to midden for later review.
 Proceeding with caution...
 ```
-Run using the Bash tool with description "Logging high-severity warnings...": `aether midden-write "security" "High CVEs found: $high_count" "gatekeeper"`
+Run using the Bash tool with description "Logging high-severity warnings...": `aether midden-write --category "security" --message "High CVEs found: $high_count" --source "gatekeeper"`
 Continue to Step 1.9.
 
 - **If clean (no critical or high):**
@@ -822,7 +822,7 @@ Run using the Bash tool with description "Logging quality score block...": `aeth
 Quality warnings logged to midden for later review.
 Proceeding with caution...
 ```
-Run using the Bash tool with description "Logging high-quality warnings...": `aether midden-write "quality" "High severity issues: $high_count (score: $overall_score)" "auditor"`
+Run using the Bash tool with description "Logging high-quality warnings...": `aether midden-write --category "quality" --message "High severity issues: $high_count (score: $overall_score)" --source "auditor"`
 Continue to Step 1.10.
 
 - **If clean (score >= 60, no critical):**
