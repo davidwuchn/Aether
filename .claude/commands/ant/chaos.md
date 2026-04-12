@@ -295,7 +295,7 @@ After outputting the JSON report, iterate through the chaos report scenarios. Fo
 
 ```bash
 # For each scenario where status == "finding" AND severity is "CRITICAL" or "HIGH":
-aether flag-add --severity "blocker" --title "{scenario.title}" --description "{scenario.description}" --source "chaos-standalone" --phase {current_phase_number}
+aether flag-add --severity "critical" --type "blocker" --title "{scenario.title}" --description "{scenario.description}" --source "chaos-standalone" --phase {current_phase_number}
 ```
 
 Log each flag creation by running using the Bash tool with description "Logging chaos flag...":

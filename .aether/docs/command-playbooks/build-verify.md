@@ -324,7 +324,7 @@ Return ONLY this JSON:
 **Flag critical/high findings:**
 
 If any findings have severity `"critical"` or `"high"`:
-Run using the Bash tool with description "Flagging {finding.title}...": `aether flag-add "blocker" "{finding.title}" "{finding.description}" "chaos-testing" {phase_number} && aether activity-log --command "FLAG" --details "Chaos: Created blocker: {finding.title}"`
+Run using the Bash tool with description "Flagging {finding.title}...": `aether flag-add --severity "critical" --type "blocker" --title "{finding.title}" --description "{finding.description}" --source "chaos-testing" --phase {phase_number} && aether activity-log --command "FLAG" --details "Chaos: Created blocker: {finding.title}"`
 
 **Log resilience finding to midden (MEM-02):**
 
@@ -377,7 +377,7 @@ This records the resilience success in learning-observations.json via the existi
 If the Watcher reported `verification_passed: false` or `recommendation: "fix_required"`:
 
 For each issue in `issues_found`:
-Run using the Bash tool with description "Flagging {issue_title}...": `aether flag-add "blocker" "{issue_title}" "{issue_description}" "verification" {phase_number} && aether activity-log --command "FLAG" --details "Watcher: Created blocker: {issue_title}"`
+Run using the Bash tool with description "Flagging {issue_title}...": `aether flag-add --severity "critical" --type "blocker" --title "{issue_title}" --description "{issue_description}" --source "verification" --phase {phase_number} && aether activity-log --command "FLAG" --details "Watcher: Created blocker: {issue_title}"`
 
 **Log verification failure to midden (MEM-02):**
 

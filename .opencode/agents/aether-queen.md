@@ -223,7 +223,7 @@ Awaiting your choice.
 
 Log escalation as a flag:
 ```bash
-aether flag-add "blocker" "{task title}" "{failure summary}" "escalation" {phase_number}
+aether flag-add --severity "critical" --type "blocker" --title "{task title}" --description "{failure summary}" --source "escalation" --phase {phase_number}
 ```
 This persists escalation state across context resets and appears in /ant:status.
 

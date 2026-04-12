@@ -938,7 +938,7 @@ Awaiting your choice.
 ```
 
 Log escalation as flag:
-Run using the Bash tool with description "Logging escalation...": `aether flag-add "blocker" "{task title}" "{failure summary}" "escalation" {phase_number}`
+Run using the Bash tool with description "Logging escalation...": `aether flag-add --severity "critical" --type "blocker" --title "{task title}" --description "{failure summary}" --source "escalation" --phase {phase_number}`
 
 If at least one worker succeeded, continue normally to the next wave.
 
@@ -1293,7 +1293,7 @@ Return ONLY this JSON:
 **Flag critical/high findings:**
 
 If any findings have severity `"critical"` or `"high"`:
-Run using the Bash tool with description "Flagging {finding.title}...": `aether flag-add "blocker" "{finding.title}" "{finding.description}" "chaos-testing" {phase_number} && aether activity-log --command "FLAG" --details "Chaos: Created blocker: {finding.title}"`
+Run using the Bash tool with description "Flagging {finding.title}...": `aether flag-add --severity "critical" --type "blocker" --title "{finding.title}" --description "{finding.description}" --source "chaos-testing" --phase {phase_number} && aether activity-log --command "FLAG" --details "Chaos: Created blocker: {finding.title}"`
 
 **Log resilience finding to midden (MEM-02):**
 
@@ -1333,7 +1333,7 @@ Run using the Bash tool with description "Recording chaos completion...": `aethe
 If the Watcher reported `verification_passed: false` or `recommendation: "fix_required"`:
 
 For each issue in `issues_found`:
-Run using the Bash tool with description "Flagging {issue_title}...": `aether flag-add "blocker" "{issue_title}" "{issue_description}" "verification" {phase_number} && aether activity-log --command "FLAG" --details "Watcher: Created blocker: {issue_title}"`
+Run using the Bash tool with description "Flagging {issue_title}...": `aether flag-add --severity "critical" --type "blocker" --title "{issue_title}" --description "{issue_description}" --source "verification" --phase {phase_number} && aether activity-log --command "FLAG" --details "Watcher: Created blocker: {issue_title}"`
 
 **Log verification failure to midden (MEM-02):**
 

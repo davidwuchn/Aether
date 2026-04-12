@@ -28,9 +28,14 @@ var flagAddCmd = &cobra.Command{
 		}
 		source, _ := cmd.Flags().GetString("source")
 		flagType, _ := cmd.Flags().GetString("type")
+		description, _ := cmd.Flags().GetString("description")
+		phaseNum, _ := cmd.Flags().GetInt("phase")
 
 		if flagType == "" {
 			flagType = "issue"
+		}
+		if description == "" {
+			description = title
 		}
 
 		// Validate severity
@@ -41,11 +46,17 @@ var flagAddCmd = &cobra.Command{
 			return nil
 		}
 
+		var phasePtr *int
+		if phaseNum > 0 {
+			phasePtr = &phaseNum
+		}
+
 		flag := colony.FlagEntry{
 			ID:          generateFlagID(),
 			Type:        flagType,
-			Description: title,
+			Description: description,
 			Source:      source,
+			Phase:       phasePtr,
 			CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 			Resolved:    false,
 		}
@@ -95,6 +106,7 @@ var flagResolveCmd = &cobra.Command{
 		if id == "" {
 			return nil
 		}
+		message, _ := cmd.Flags().GetString("message")
 
 		var ff colony.FlagsFile
 		if err := store.LoadJSON("pending-decisions.json", &ff); err != nil {
@@ -108,6 +120,8 @@ var flagResolveCmd = &cobra.Command{
 		for i := range ff.Decisions {
 			if ff.Decisions[i].ID == id {
 				ff.Decisions[i].Resolved = true
+				ff.Decisions[i].ResolvedAt = time.Now().UTC().Format(time.RFC3339)
+				ff.Decisions[i].Resolution = message
 				found = true
 				break
 			}
@@ -124,8 +138,10 @@ var flagResolveCmd = &cobra.Command{
 		}
 
 		outputOK(map[string]interface{}{
-			"resolved": true,
-			"id":       id,
+			"resolved":  true,
+			"id":        id,
+			"message":   message,
+			"timestamp": ff.Decisions[0].ResolvedAt,
 		})
 		return nil
 	},
@@ -198,6 +214,33 @@ var flagAcknowledgeCmd = &cobra.Command{
 			return nil
 		}
 
+		var ff colony.FlagsFile
+		if err := store.LoadJSON("pending-decisions.json", &ff); err != nil {
+			if err2 := store.LoadJSON("flags.json", &ff); err2 != nil {
+				outputError(1, "flags file not found", nil)
+				return nil
+			}
+		}
+
+		found := false
+		for i := range ff.Decisions {
+			if ff.Decisions[i].ID == id {
+				ff.Decisions[i].Acknowledged = true
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			outputError(1, fmt.Sprintf("flag %q not found", id), nil)
+			return nil
+		}
+
+		if err := store.SaveJSON("pending-decisions.json", ff); err != nil {
+			outputError(2, fmt.Sprintf("failed to save: %v", err), nil)
+			return nil
+		}
+
 		outputOK(map[string]interface{}{
 			"acknowledged": true,
 			"id":           id,
@@ -267,8 +310,11 @@ func init() {
 	flagAddCmd.Flags().String("severity", "", "Severity: critical, high, low (required)")
 	flagAddCmd.Flags().String("source", "", "Source of the flag")
 	flagAddCmd.Flags().String("type", "", "Flag type: blocker, issue, note (default: issue)")
+	flagAddCmd.Flags().String("description", "", "Detailed description (defaults to title)")
+	flagAddCmd.Flags().Int("phase", 0, "Phase number (0 means no phase)")
 
 	flagResolveCmd.Flags().String("id", "", "Flag ID to resolve (required)")
+	flagResolveCmd.Flags().String("message", "", "Resolution message")
 	flagAcknowledgeCmd.Flags().String("id", "", "Flag ID to acknowledge (required)")
 
 	flagAutoResolveCmd.Flags().Int("max-days", 7, "Maximum age in days for auto-resolution")

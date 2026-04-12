@@ -764,7 +764,7 @@ Awaiting your choice.
 ```
 
 Log escalation as flag:
-Run using the Bash tool with description "Logging escalation...": `aether flag-add "blocker" "{task title}" "{failure summary}" "escalation" {phase_number}`
+Run using the Bash tool with description "Logging escalation...": `aether flag-add --severity "critical" --type "blocker" --title "{task title}" --description "{failure summary}" --source "escalation" --phase {phase_number}`
 
 If at least one worker succeeded, continue normally to the next wave.
 

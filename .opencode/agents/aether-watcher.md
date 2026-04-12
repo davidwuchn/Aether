@@ -77,7 +77,7 @@ Use resolved commands for all verification steps.
 
 If verification fails, create persistent blockers:
 ```bash
-aether flag-add "blocker" "{issue_title}" "{description}" "verification" {phase}
+aether flag-add --severity "critical" --type "blocker" --title "{issue_title}" --description "{description}" --source "verification" --phase {phase}
 ```
 
 ## Output Format

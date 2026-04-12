@@ -17,6 +17,11 @@ Parse `$ARGUMENTS` for:
 - `--phase` or `-p`: phase number (optional)
 - Remaining text: the flag title/description
 
+Derive severity from type:
+- blocker → `critical`
+- issue → `high`
+- note → `low`
+
 Examples:
 - `/ant:flag "Build fails on auth module"` → issue type
 - `/ant:flag --type blocker "API rate limit hit"` → blocker type
@@ -51,7 +56,7 @@ Stop here.
 
 Run using the Bash tool with description "Raising colony flag...":
 ```bash
-aether flag-add --severity "{type}" --title "{title}" --description "{description}" --source "manual" --phase {phase_or_null}
+aether flag-add --severity "{severity}" --type "{type}" --title "{title}" --description "{description}" --source "manual" --phase {phase_or_null}
 ```
 
 Parse the result for the flag ID.

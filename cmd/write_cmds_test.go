@@ -346,6 +346,68 @@ func TestFlagAddBlocker(t *testing.T) {
 	}
 }
 
+func TestFlagAddWithDescriptionAndPhase(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	rootCmd.SetArgs([]string{"flag-add", "--title", "build fails", "--severity", "critical", "--description", "detailed error info", "--source", "chaos-testing", "--phase", "3"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	if env["ok"] != true {
+		t.Fatalf("expected ok:true, got: %v", env["ok"])
+	}
+
+	result := env["result"].(map[string]interface{})
+	flag := result["flag"].(map[string]interface{})
+
+	if flag["description"] != "detailed error info" {
+		t.Errorf("description = %v, want 'detailed error info'", flag["description"])
+	}
+
+	phaseVal := flag["phase"]
+	phaseFloat, ok := phaseVal.(float64)
+	if !ok || int(phaseFloat) != 3 {
+		t.Errorf("phase = %v (%T), want 3", phaseVal, phaseVal)
+	}
+}
+
+func TestFlagAddPhaseZeroOmitsPhase(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	rootCmd.SetArgs([]string{"flag-add", "--title", "note flag", "--severity", "low", "--phase", "0"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	flag := result["flag"].(map[string]interface{})
+
+	if flag["phase"] != nil {
+		t.Errorf("phase = %v, want nil when phase is 0", flag["phase"])
+	}
+}
+
 func TestFlagAddInvalidSeverity(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -471,6 +533,86 @@ func TestFlagAutoResolve(t *testing.T) {
 	result := env["result"].(map[string]interface{})
 	if result["resolved"] != float64(2) {
 		t.Errorf("resolved = %v, want 2", result["resolved"])
+	}
+}
+
+func TestFlagResolveWithMessage(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	ff := colony.FlagsFile{
+		Decisions: []colony.FlagEntry{
+			{ID: "flag_msg_001", Type: "blocker", Description: "test blocker", Resolved: false},
+		},
+	}
+	s.SaveJSON("pending-decisions.json", ff)
+
+	rootCmd.SetArgs([]string{"flag-resolve", "--id", "flag_msg_001", "--message", "Fixed in commit abc123"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["resolved"] != true {
+		t.Errorf("resolved = %v, want true", result["resolved"])
+	}
+
+	var updated colony.FlagsFile
+	s.LoadJSON("pending-decisions.json", &updated)
+	if !updated.Decisions[0].Resolved {
+		t.Error("flag should be resolved after flag-resolve")
+	}
+	if updated.Decisions[0].Resolution != "Fixed in commit abc123" {
+		t.Errorf("resolution = %q, want %q", updated.Decisions[0].Resolution, "Fixed in commit abc123")
+	}
+	if updated.Decisions[0].ResolvedAt == "" {
+		t.Error("resolved_at should be set after flag-resolve")
+	}
+}
+
+func TestFlagAcknowledgePersists(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	ff := colony.FlagsFile{
+		Decisions: []colony.FlagEntry{
+			{ID: "flag_ack_001", Type: "issue", Description: "test issue", Acknowledged: false},
+		},
+	}
+	s.SaveJSON("pending-decisions.json", ff)
+
+	rootCmd.SetArgs([]string{"flag-acknowledge", "--id", "flag_ack_001"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["acknowledged"] != true {
+		t.Errorf("acknowledged = %v, want true", result["acknowledged"])
+	}
+
+	var updated colony.FlagsFile
+	s.LoadJSON("pending-decisions.json", &updated)
+	if !updated.Decisions[0].Acknowledged {
+		t.Error("flag should be acknowledged in persisted file")
 	}
 }
 

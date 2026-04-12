@@ -1,10 +1,10 @@
 {
   "version": "3.0",
-  "goal": "Fix all ~120 broken CLI calls in markdown — add missing flags and subcommands to Go CLI so pheromones, learning, midden, spawn tracking, activity log, flags, and registry actually work",
+  "goal": "Fix all ~120 broken CLI calls in markdown \u2014 add missing flags and subcommands to Go CLI so pheromones, learning, midden, spawn tracking, activity log, flags, and registry actually work",
   "colony_name": "cli-flag-fix",
   "colony_version": 1,
   "state": "READY",
-  "current_phase": 7,
+  "current_phase": 8,
   "session_id": "session_1775934297_cli691",
   "initialized_at": "2026-04-11T19:04:58Z",
   "build_started_at": null,
@@ -108,18 +108,18 @@
       {
         "id": 7,
         "name": "Fix Flag System Calls",
-        "status": "pending",
+        "status": "completed",
         "success_criteria": [],
         "tasks": [
           {
             "goal": "Fix flag-add positional args to --severity/--title/--source flags",
             "id": "765",
-            "status": "pending"
+            "status": "completed"
           },
           {
             "goal": "Fix flag-resolve and flag-acknowledge calls",
             "id": "743",
-            "status": "pending"
+            "status": "completed"
           }
         ]
       },
@@ -228,7 +228,7 @@
         "id": "learning_1775939057",
         "learnings": [
           {
-            "claim": "spawn-log and spawn-complete both use cobra.NoArgs — positional args silently fail. Adding --summary to spawn-complete required updating both the CLI flag and the spawn tree persistence layer with backward-compatible parsing.",
+            "claim": "spawn-log and spawn-complete both use cobra.NoArgs \u2014 positional args silently fail. Adding --summary to spawn-complete required updating both the CLI flag and the spawn tree persistence layer with backward-compatible parsing.",
             "disproven_by": null,
             "evidence": "62 broken calls fixed across 29 files, 6 new Go tests pass, Watcher verified zero remaining broken patterns",
             "status": "hypothesis",
@@ -243,7 +243,7 @@
         "id": "learning_1775942247",
         "learnings": [
           {
-            "claim": "activity-log positional args silently ignored — all 48 markdown files converted to --command/--details flags with source+details merged into --details field",
+            "claim": "activity-log positional args silently ignored \u2014 all 48 markdown files converted to --command/--details flags with source+details merged into --details field",
             "disproven_by": null,
             "evidence": "0 positional calls remain, 78 flag-based calls verified, all Go tests pass",
             "status": "hypothesis",
@@ -258,7 +258,7 @@
         "id": "learning_1775942968",
         "learnings": [
           {
-            "claim": "Midden-write calls were already fixed during prior phases — the broad markdown sweep for activity-log and spawn-log also covered midden-write files. grep confirms zero positional midden-write calls remain.",
+            "claim": "Midden-write calls were already fixed during prior phases \u2014 the broad markdown sweep for activity-log and spawn-log also covered midden-write files. grep confirms zero positional midden-write calls remain.",
             "disproven_by": null,
             "evidence": "0 positional midden-write calls found via grep across all .md files; all use --category/--message/--source flags",
             "status": "hypothesis",
@@ -310,12 +310,12 @@
   "signals": [],
   "graveyards": [],
   "events": [
+    "",
     ""
   ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
   "milestone": "",
-  "build_baseline_sha": "bc9b0009da1a954f7288e63f4b6c925078e92e6c"
+  "build_baseline_sha": "f9278094e18e5ec854c16111099fe27df9480963"
 }
-
 

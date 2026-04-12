@@ -696,7 +696,7 @@ Awaiting your choice.
 
 Log escalation as flag:
 ```bash
-aether flag-add --severity "blocker" --title "{task title}" --description "{failure summary}" --source "escalation" --phase {phase_number}
+aether flag-add --severity "critical" --type "blocker" --title "{task title}" --description "{failure summary}" --source "escalation" --phase {phase_number}
 ```
 
 If at least one worker succeeded, continue normally to the next wave.
@@ -843,7 +843,7 @@ Return ONLY this JSON:
 If any findings have severity `"critical"` or `"high"`:
 ```bash
 # Create a blocker flag for each critical/high chaos finding
-aether flag-add --severity "blocker" --title "{finding.title}" --description "{finding.description}" --source "chaos-testing" --phase {phase_number}
+aether flag-add --severity "critical" --type "blocker" --title "{finding.title}" --description "{finding.description}" --source "chaos-testing" --phase {phase_number}
 ```
 
 Log the flag:
@@ -863,7 +863,7 @@ If the Watcher reported `verification_passed: false` or `recommendation: "fix_re
 For each issue in `issues_found`:
 ```bash
 # Create a blocker flag for each verification failure
-aether flag-add --severity "blocker" --title "{issue_title}" --description "{issue_description}" --source "verification" --phase {phase_number}
+aether flag-add --severity "critical" --type "blocker" --title "{issue_title}" --description "{issue_description}" --source "verification" --phase {phase_number}
 ```
 
 Log the flag creation:
