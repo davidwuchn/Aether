@@ -87,6 +87,7 @@ This only applies to genuinely new conversations, not after /clear.
 | `/ant:tunnels` | View colony communication tunnels |
 | `/ant:data-clean` | Clean test artifacts from data files |
 | `/ant:verify-castes` | Verify worker caste assignments |
+| `/ant:bump-version` | Bump version, rebuild, push, and tag |
 
 ## Typical Workflow
 

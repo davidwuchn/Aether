@@ -170,7 +170,7 @@ If no `CHANGELOG.md` exists, `changelog-append` creates one automatically.
 **Step 2.3.1: Collect plan data**
 
 ```bash
-aether changelog-collect-plan-data "{phase_identifier}" "{plan_number}"
+aether changelog-collect-plan-data --plan-file "{phase_identifier}/{plan_number}"
 ```
 
 Parse the returned JSON to extract `files`, `decisions`, `worked`, and `requirements` arrays.
@@ -187,13 +187,10 @@ If the command fails (e.g., no plan file found), fall back to collecting data ma
 
 ```bash
 aether changelog-append \
-  "$(date +%Y-%m-%d)" \
-  "{phase_identifier}" \
-  "{plan_number}" \
-  "{files_csv}" \
-  "{decisions_semicolon_separated}" \
-  "{worked_semicolon_separated}" \
-  "{requirements_csv}"
+  --date "$(date +%Y-%m-%d)" \
+  --phase "{phase_identifier}" \
+  --plan "{plan_number}" \
+  --entry "{files_csv}: {decisions_semicolon_separated}"
 ```
 
 This atomically writes the entry. If the project already has a Keep a Changelog format, it adds a "Colony Work Log" separator section to keep both formats clean.

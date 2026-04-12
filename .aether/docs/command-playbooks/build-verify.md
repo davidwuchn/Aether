@@ -85,7 +85,7 @@ Return ONLY this JSON:
 **Task call returns results directly (no TaskOutput needed).**
 
 Validate watcher payload first:
-Run using the Bash tool with description "Validating watcher response...": `aether validate-worker-response watcher '{watcher_json}'`
+Run using the Bash tool with description "Validating watcher response...": `aether validate-worker-response --response '{watcher_json}' --expect-json`
 
 **Parse the Watcher's validated JSON response:** verification_passed, issues_found, quality_score, recommendation
 

@@ -78,9 +78,9 @@ replan suggestion (every {replan_interval} phases)
         Display: `NOTE: Plan has {total_phases} phases but {granularity_label} granularity expects {gran_min}-{gran_max}. Plan was accepted during /ant:plan -- continuing.`
 2. Determine remaining incomplete phases; apply `--max-phases` cap
 3. Set `phases_completed = 0`, `autopilot_start = $(date +%s)`
-4. Record pre-build blocker count: `aether flag-check-blockers {phase}`
+4. Record pre-build blocker count: `aether flag-check-blockers`
 5. If `--headless` flag is present:
-   - Run: `aether autopilot-set-headless true`
+   - Run: `aether autopilot-set-headless --value true`
    - Display: `Headless mode: ON — interactive prompts will be queued as pending decisions`
 6. Display: `AUTOPILOT ENGAGED | Goal: {goal} | Phase {N} | Max: {max or "all"} | Granularity: {granularity_label or "none"}`
 
@@ -177,7 +177,7 @@ replan suggestion (see Step 5.5). For all others: PAUSE with reason, log event, 
 ### Step 5: Auto-Advance and Loop
 
 1. Increment `phases_completed`
-2. Update autopilot state: `aether autopilot-update --action advance --phase {next} --result success`
+2. Update autopilot state: `aether autopilot-update --phase {next} --status success`
 3. Log: `"<timestamp>|autopilot_advance|run|Phase {prev} -> {next} ({phases_completed}/{max})"`
 4. Display: `--- Autopilot: Phase {prev} done -> Phase {next} ({N}/{max}) ---`
 5. **Replan check** (see Step 5.5)

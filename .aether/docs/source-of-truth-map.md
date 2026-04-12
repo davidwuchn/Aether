@@ -84,13 +84,13 @@ Define which files are authoritative for system behavior, which files are derive
 | Core utility entrypoint | `.aether/aether CLI` | 1 | Active |
 | Sourced shell utilities | `cmd/` (Go binary) | ~29 | Active (9 domain modules + infrastructure + XML) |
 | XML utility scripts | `pkg/exchange/` | 5 | Active (see drift note) |
-| Slash commands (Claude) | `.claude/commands/ant/*.md` | 45 | Active |
-| Slash commands (OpenCode) | `.opencode/commands/ant/*.md` | 45 | Active (content differs from Claude variants) |
+| Slash commands (Claude) | `.claude/commands/ant/*.md` | 46 | Active |
+| Slash commands (OpenCode) | `.opencode/commands/ant/*.md` | 46 | Active (content differs from Claude variants) |
 | Agent definitions (Claude) | `.claude/agents/ant/*.md` | 24 | Active |
 | Agent mirror (packaging) | `.aether/agents-claude/*.md` | 24 | Active mirror (must match Claude agent files exactly) |
 | Agent definitions (OpenCode) | `.opencode/agents/*.md` | 24 | Active (content differs from Claude variants) |
-| Command playbooks | `.aether/docs/command-playbooks/*.md` | 9 | Active (5 build + 4 continue; excludes full/README) |
-| Templates (all types) | `.aether/templates/*` | 12 | Active |
+| Command playbooks | `.aether/docs/command-playbooks/*.md` | 12 | Active (5 build + 5 continue + 2 full/verify) |
+| Templates (all types) | `.aether/templates/*` | 13 | Active |
 | Disciplines | `.aether/docs/disciplines/*.md` | 7 | Active |
 | Tests (all files) | `tests/**` | ~140 | Active |
 

@@ -204,7 +204,7 @@ Update COLONY_STATE.json:
 
        # queen-promote-instinct handles dedup internally (skips if already in QUEEN.md)
        result=$(aether queen-promote-instinct \
-           "$trigger" "$action" "$confidence" "$domain" 2>/dev/null || echo '{"ok":false}')
+           --id "$encoded" 2>/dev/null || echo '{"ok":false}')
 
        was_promoted=$(echo "$result" | jq -r '.result.promoted // false' 2>/dev/null || echo "false")
        if [[ "$was_promoted" == "true" ]]; then
@@ -326,7 +326,7 @@ aether state-mutate \
 ```
 
 Validate the state file:
-Run using the Bash tool with description "Validating colony state...": `aether validate-state colony`
+Run using the Bash tool with description "Validating colony state...": `aether validate-state`
 
 ### Step 2.0.4: Worktree Merge-Back (NON-BLOCKING)
 

@@ -529,7 +529,7 @@ if [[ "$verify_goal" == "null" || -z "$verify_goal" ]]; then
 fi
 ```
 
-5. Run `aether session-init "$(jq -r '.session_id' .aether/data/COLONY_STATE.json)" "{approved_intent}"`
+5. Run `aether session-init --session-id "$(jq -r '.session_id' .aether/data/COLONY_STATE.json)" --goal "{approved_intent}"`
 
 6. Set parallel mode:
 ```bash
@@ -599,7 +599,7 @@ done
 ```
 
 8. Run `aether context-update init "{approved_intent}"`
-9. Run `aether validate-state colony`
+9. Run `aether validate-state`
 10. Register repo (silent on failure):
 ```bash
 domain_tags=$(aether domain-detect 2>/dev/null | jq -r '.result.tags // ""' || echo "")
@@ -616,7 +616,7 @@ seed_args="queen-seed-from-hive --limit 5"
 seed_result=$(aether $seed_args 2>/dev/null || echo '{}')
 seeded_count=$(echo "$seed_result" | jq -r '.result.seeded // 0' 2>/dev/null || echo "0")
 ```
-12. Run `aether session-init "{session_id}" "{approved_intent}"`
+12. Run `aether session-init --session-id "{session_id}" --goal "{approved_intent}"`
 
 **Pheromone auto-apply (referenced by both re-init and fresh init paths above):**
 

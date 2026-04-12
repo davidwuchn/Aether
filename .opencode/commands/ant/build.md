@@ -63,7 +63,7 @@ Stop here.
 
 **Set colony depth (if --depth flag provided):**
 If `cli_depth_override` is set:
-1. Run using Bash tool: `aether colony-depth set "$cli_depth_override"`
+1. Run using Bash tool: `aether colony-depth set --depth "$cli_depth_override"`
 2. Parse JSON result - if `.ok` is false:
    - Display: `Error: Invalid depth "$cli_depth_override". Use: light, standard, deep, full`
    - Stop here
@@ -92,7 +92,7 @@ Extract:
 Check for unresolved blocker flags on the requested phase:
 
 ```bash
-aether flag-check-blockers {phase_number}
+aether flag-check-blockers --phase {phase_number}
 ```
 
 Parse the JSON result (`.result.blockers`):
@@ -532,7 +532,7 @@ Work:
 3. Log activity: aether activity-log --command "ACTION" --details "{Ant-Name}: description"
 
 Spawn sub-workers ONLY if 3x complexity:
-- Check: aether spawn-can-spawn {depth} --enforce
+- Check: aether spawn-can-spawn --depth {depth}
 - Generate name: aether generate-ant-name --caste "builder"
 - Announce: "🐜 Spawning {child_name} for {reason}"
 - Log: aether spawn-log --name "{Ant-Name}" --caste "builder" --id "{child_name}" --description "{task}"
@@ -618,7 +618,7 @@ Return ONLY this JSON (no other text):
 
 Before using any worker payload, validate schema:
 ```bash
-aether validate-worker-response builder '{worker_json}'
+aether validate-worker-response --response '{worker_json}' --expect-json
 ```
 If validation fails, treat the worker as failed with blocker `invalid_worker_response`.
 
@@ -761,7 +761,7 @@ Return ONLY this JSON:
 
 Validate watcher payload first:
 ```bash
-aether validate-worker-response watcher '{watcher_json}'
+aether validate-worker-response --response '{watcher_json}' --expect-json
 ```
 
 **Parse the Watcher's validated JSON response:** verification_passed, issues_found, quality_score, recommendation
@@ -947,7 +947,7 @@ Collect all worker outputs and create phase summary:
 For each worker that returned `status: "failed"`:
   For each file in that worker's `files_modified` or `files_created`:
 ```bash
-aether grave-add "{file}" "{ant_name}" "{task_id}" {phase} "{first blocker or summary}"
+aether grave-add --agent "{ant_name}" --reason "{first blocker or summary}" --phase {phase}
 ```
   Log the grave marker:
 ```bash

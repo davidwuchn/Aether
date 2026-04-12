@@ -142,7 +142,7 @@ Stop here.
 
 **Set colony depth (if --depth flag provided):**
 If `cli_depth_override` is set:
-1. Run using the Bash tool with description "Setting colony depth...": `aether colony-depth set "$cli_depth_override"`
+1. Run using the Bash tool with description "Setting colony depth...": `aether colony-depth set --depth "$cli_depth_override"`
 2. Parse JSON result - if `.ok` is false:
    - Display: `Error: Invalid depth "$cli_depth_override". Use: light, standard, deep, full`
    - Stop here
@@ -240,7 +240,7 @@ Write COLONY_STATE.json.
 Validate the state file:
 Run using the Bash tool with description "Validating colony state...":
 ```bash
-aether validate-state colony
+aether validate-state
 ```
 
 ### Step 3: Git Checkpoint
@@ -738,7 +738,7 @@ For each Wave 1 task, use Task tool with `subagent_type="aether-builder"`, inclu
 **PER WORKER:** Build graveyard caution context automatically:
 - Identify explicit repo file paths from the task metadata (`files`, `hints`, `constraints`, and description when a concrete path is present).
 - For each identified file path, run using the Bash tool with description "Checking graveyard cautions for {file}...":
-  `aether grave-check "{file}"`
+  `aether grave-check --agent "{file}"`
 - Parse each JSON result and keep only entries where `caution_level` is `high` or `low`.
 - Merge these into a single `grave_context` block for that worker.
 - If no file paths are identified, or all checks return `none`, set `grave_context` to empty.
@@ -820,7 +820,7 @@ aether memory-capture \
 ```
 
 Spawn sub-workers ONLY if 3x complexity:
-- Check spawn budget using Bash tool with description: `aether spawn-can-spawn {depth} --enforce`
+- Check spawn budget using Bash tool with description: `aether spawn-can-spawn --depth {depth}`
 - Generate name using Bash tool with description
 - Announce: "🐜 Spawning {child_name} for {reason}"
 - Log spawn using Bash tool with description
@@ -836,7 +836,7 @@ Return ONLY this JSON (no other text):
 **Task calls return results directly (no TaskOutput needed).**
 
 Before using any worker payload, validate schema:
-Run using the Bash tool with description "Validating worker response...": `aether validate-worker-response builder '{worker_json}'`
+Run using the Bash tool with description "Validating worker response...": `aether validate-worker-response --response '{worker_json}' --expect-json`
 If validation fails, treat the worker as failed with blocker `invalid_worker_response`.
 
 **As each worker result arrives, IMMEDIATELY display a single completion line — do not wait for other workers:**
@@ -1062,7 +1062,7 @@ Return ONLY this JSON:
 **Task call returns results directly (no TaskOutput needed).**
 
 Validate watcher payload first:
-Run using the Bash tool with description "Validating watcher response...": `aether validate-worker-response watcher '{watcher_json}'`
+Run using the Bash tool with description "Validating watcher response...": `aether validate-worker-response --response '{watcher_json}' --expect-json`
 
 **Parse the Watcher's validated JSON response:** verification_passed, issues_found, quality_score, recommendation
 
@@ -1410,7 +1410,7 @@ Collect all worker outputs and create phase summary:
 **Graveyard Recording:**
 For each worker that returned `status: "failed"`:
   For each file in that worker's `files_modified` or `files_created`:
-Run using the Bash tool with description "Recording failure grave...": `aether grave-add "{file}" "{ant_name}" "{task_id}" {phase} "{first blocker or summary}" && aether activity-log --command "GRAVE" --details "Queen: Grave marker placed at {file} — {ant_name} failed: {summary}"`
+Run using the Bash tool with description "Recording failure grave...": `aether grave-add --agent "{ant_name}" --reason "{first blocker or summary}" --phase {phase} && aether activity-log --command "GRAVE" --details "Queen: Grave marker placed at {file} — {ant_name} failed: {summary}"`
   Then display a user-visible confirmation line:
   `⚰️ Grave recorded: {file} — {ant_name} failed ({summary})`
 

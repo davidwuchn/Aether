@@ -506,7 +506,7 @@ For each Wave 1 task, use Task tool with `subagent_type="aether-builder"`, inclu
 **PER WORKER:** Build graveyard caution context automatically:
 - Identify explicit repo file paths from the task metadata (`files`, `hints`, `constraints`, and description when a concrete path is present).
 - For each identified file path, run using the Bash tool with description "Checking graveyard cautions for {file}...":
-  `aether grave-check "{file}"`
+  `aether grave-check --agent "{file}"`
 - Parse each JSON result and keep only entries where `caution_level` is `high` or `low`.
 - Merge these into a single `grave_context` block for that worker.
 - **Budget cap:** `grave_context` must not exceed 2000 characters per worker. If it exceeds the cap, truncate and append `[graveyard truncated]`.
@@ -646,7 +646,7 @@ aether memory-capture \
 ```
 
 Spawn sub-workers ONLY if 3x complexity:
-- Check spawn budget using Bash tool with description: `aether spawn-can-spawn {depth} --enforce`
+- Check spawn budget using Bash tool with description: `aether spawn-can-spawn --depth {depth}`
 - Generate name using Bash tool with description
 - Announce: "🐜 Spawning {child_name} for {reason}"
 - Log spawn using Bash tool with description
@@ -662,7 +662,7 @@ Return ONLY this JSON (no other text):
 **Task calls return results directly (no TaskOutput needed).**
 
 Before using any worker payload, validate schema:
-Run using the Bash tool with description "Validating worker response...": `aether validate-worker-response builder '{worker_json}'`
+Run using the Bash tool with description "Validating worker response...": `aether validate-worker-response --response '{worker_json}' --expect-json`
 If validation fails, treat the worker as failed with blocker `invalid_worker_response`.
 
 **As each worker result arrives, IMMEDIATELY display a single completion line — do not wait for other workers:**

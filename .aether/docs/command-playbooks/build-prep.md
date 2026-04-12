@@ -142,7 +142,7 @@ Stop here.
 
 **Set colony depth (if --depth flag provided):**
 If `cli_depth_override` is set:
-1. Run using the Bash tool with description "Setting colony depth...": `aether colony-depth set "$cli_depth_override"`
+1. Run using the Bash tool with description "Setting colony depth...": `aether colony-depth set --depth "$cli_depth_override"`
 2. Parse JSON result - if `.ok` is false:
    - Display: `Error: Invalid depth "$cli_depth_override". Use: light, standard, deep, full`
    - Stop here
@@ -269,7 +269,7 @@ aether state-mutate \
 Validate the state file:
 Run using the Bash tool with description "Validating colony state...":
 ```bash
-aether validate-state colony
+aether validate-state
 ```
 
 ### Step 3: Git Checkpoint

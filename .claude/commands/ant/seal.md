@@ -385,7 +385,7 @@ Update COLONY_STATE.json:
 2. Set `milestone_updated_at` to current ISO-8601 timestamp
 3. Append event: `"<timestamp>|milestone_reached|seal|Achieved Crowned Anthill milestone"`
 
-Run `aether validate-state colony` after write.
+Run `aether validate-state` after write.
 
 ### Step 5.1: Update Changelog
 

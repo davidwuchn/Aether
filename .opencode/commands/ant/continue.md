@@ -364,7 +364,7 @@ The phase will NOT advance until spawning occurs.
 Log the violation:
 ```bash
 aether activity-log --command "BLOCKED" --details "colony: Spawn gate failed: {task_count} tasks, 0 spawns"
-aether error-flag-pattern "no-spawn-violation" "Prime Worker completed phase without spawning specialists" "critical"
+aether error-flag-pattern --name "no-spawn-violation" --description "Prime Worker completed phase without spawning specialists" --severity "critical"
 ```
 
 **HARD REJECTION - If watcher_count == 0 (no testing separation):**
@@ -703,7 +703,7 @@ Critical Findings:
 
 The phase will NOT advance with critical quality issues.
 ```
-Run using the Bash tool with description "Logging critical quality block...": `aether error-flag-pattern "auditor-critical-findings" "$critical_count critical quality issues found" "critical"`
+Run using the Bash tool with description "Logging critical quality block...": `aether error-flag-pattern --name "auditor-critical-findings" --description "$critical_count critical quality issues found" --severity "critical"`
 **CRITICAL:** Do NOT proceed to Step 1.10. Stop here.
 
 - **Else if `overall_score < 60`:**
@@ -721,7 +721,7 @@ Required Actions:
 
 The phase will NOT advance with quality score below 60.
 ```
-Run using the Bash tool with description "Logging quality score block...": `aether error-flag-pattern "auditor-quality-score" "Score $overall_score below threshold 60" "critical"`
+Run using the Bash tool with description "Logging quality score block...": `aether error-flag-pattern --name "auditor-quality-score" --description "Score $overall_score below threshold 60" --severity "critical"`
 **CRITICAL:** Do NOT proceed to Step 1.10. Stop here.
 
 - **Else if `findings.high > 0`:**
@@ -780,7 +780,7 @@ The phase will NOT advance with fabricated metrics.
 
 **CRITICAL:** Do NOT proceed. Log the violation:
 ```bash
-aether error-flag-pattern "fabricated-tdd" "Prime Worker reported TDD metrics without creating test files" "critical"
+aether error-flag-pattern --name "fabricated-tdd" --description "Prime Worker reported TDD metrics without creating test files" --severity "critical"
 ```
 
 **If tests_added == 0 or test files exist matching claims:**
@@ -826,7 +826,7 @@ Please describe the issues so they can be addressed:
 
 Use AskUserQuestion to get issue details. Log to errors.records:
 ```bash
-aether error-add "runtime" "critical" "{user_description}" {phase}
+aether error-add --category "runtime" --severity "critical" --description "{user_description}" --phase {phase}
 ```
 
 Do NOT proceed to Step 2.
@@ -867,7 +867,7 @@ aether flag-auto-resolve "build_pass"
 
 Then check for remaining blocking flags:
 ```bash
-aether flag-check-blockers {current_phase}
+aether flag-check-blockers --phase {current_phase}
 ```
 
 Parse result for `blockers`, `issues`, and `notes` counts.
@@ -1055,7 +1055,7 @@ Update COLONY_STATE.json:
 Write COLONY_STATE.json.
 
 Validate the state file:
-Run using the Bash tool with description "Validating colony state...": `aether validate-state colony`
+Run using the Bash tool with description "Validating colony state...": `aether validate-state`
 
 ### Step 2.1: Auto-Emit Phase Pheromones (SILENT)
 
@@ -1203,7 +1203,7 @@ If no `CHANGELOG.md` exists, `changelog-append` creates one automatically.
 **Step 2.3.1: Collect plan data**
 
 ```bash
-aether changelog-collect-plan-data "{phase_identifier}" "{plan_number}"
+aether changelog-collect-plan-data --plan-file "{phase_identifier}/{plan_number}"
 ```
 
 Parse the returned JSON to extract `files`, `decisions`, `worked`, and `requirements` arrays.
@@ -1220,13 +1220,10 @@ If the command fails (e.g., no plan file found), fall back to collecting data ma
 
 ```bash
 aether changelog-append \
-  "$(date +%Y-%m-%d)" \
-  "{phase_identifier}" \
-  "{plan_number}" \
-  "{files_csv}" \
-  "{decisions_semicolon_separated}" \
-  "{worked_semicolon_separated}" \
-  "{requirements_csv}"
+  --date "$(date +%Y-%m-%d)" \
+  --phase "{phase_identifier}" \
+  --plan "{plan_number}" \
+  --entry "{files_csv}: {decisions_semicolon_separated}"
 ```
 
 This atomically writes the entry. If the project already has a Keep a Changelog format, it adds a "Colony Work Log" separator section to keep both formats clean.

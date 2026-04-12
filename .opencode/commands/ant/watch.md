@@ -202,11 +202,11 @@ Commands update `.aether/data/watch-status.txt` with current state:
 - Last Activity: most recent log entry
 
 ### Progress File
-Update via: `aether update-progress <percent> "<message>" <phase> <total>`
+Update via: `aether update-progress --phase {phase} --status {status}`
 
 Example:
 ```bash
-aether update-progress 45 "Building auth module..." 2 5
+aether update-progress --phase 45 --status "Building auth module..."
 ```
 
 ---

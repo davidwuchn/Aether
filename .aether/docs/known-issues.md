@@ -4,76 +4,87 @@ Documented issues from Oracle research findings. These are known limitations and
 
 ---
 
-## Medium Priority Issues
+## Resolved Issues
 
 ### BUG-004: Missing error code in flag-acknowledge
-**Location:** `flag-acknowledge` subcommand in `pkg/colony/flags.go`
+**Location:** `flag-acknowledge` subcommand in `cmd/flag_cmds.go`
 **Severity:** MEDIUM
-**Status:** [FIXED in v2.1 -- Phase 10 error triage + Phase 13 modularization]
-`flag-acknowledge` now uses `$E_VALIDATION_FAILED`, `$E_FILE_NOT_FOUND`, `$E_LOCK_FAILED`, and `$E_JSON_INVALID` appropriately.
+**Status:** RESOLVED -- Go CLI returns proper errors via `flag-acknowledge` command.
+Previously the bash CLI had missing error codes; now fully ported to Go with proper error handling.
 
 ### BUG-006: No lock release on JSON validation failure
-**Location:** `atomic_write` in `pkg/storage/storage.go`
+**Location:** `AtomicWrite` in `pkg/storage/storage.go`
 **Severity:** MEDIUM
-**Symptom:** If JSON validation fails in `atomic_write`, temp file is cleaned but any lock held by the caller is not released
-**Impact:** Lock remains held if caller had acquired it before calling `atomic_write`
-**Fix:** Document lock ownership contract clearly -- callers must use trap-based cleanup
-**Status:** Open -- `atomic_write` itself does not manage locks; callers are responsible for lock release via EXIT traps
+**Status:** RESOLVED -- Go implementation uses `defer s.locker.Unlock(path)` (line 52),
+ensuring the lock is always released even on JSON validation failure. The old bash
+lock-ownership contract issue no longer applies.
 
 ### BUG-007: 17+ instances of missing error codes
-**Location:** Various subcommands across `.aether/aether CLI` and domain modules
+**Location:** Various subcommands across the CLI and domain modules
 **Severity:** MEDIUM
-**Status:** [Mostly FIXED in v2.1 -- Phase 10 error triage]
-Phase 10 replaced ~110 lazy error suppressions with proper fallbacks and added `$E_*` constants to ~48 dangerous paths. A small number of uncommented `2>/dev/null` idioms remain (SUPPRESS:OK annotated).
+**Status:** RESOLVED -- Go CLI uses typed errors throughout. All commands return proper
+error values; no silent `2>/dev/null` suppression patterns exist in Go code.
 
 ### BUG-008: Missing error code in flag-add jq failure
-**Location:** `flag-add` subcommand in `pkg/colony/flags.go`
+**Location:** `flag-add` subcommand in `cmd/flag_cmds.go`
 **Severity:** HIGH
-**Status:** [FIXED in v2.1 -- Phase 10 error triage + Phase 13 modularization]
-`flag-add` now uses `$E_VALIDATION_FAILED`, `$E_JSON_INVALID`, and proper error handling throughout.
+**Status:** RESOLVED -- Go CLI validates flags and returns structured errors. No jq dependency.
 
 ### BUG-009: Missing error codes in file checks
-**Location:** `flag-acknowledge` and related subcommands in `pkg/colony/flags.go`
+**Location:** `flag-acknowledge` and related subcommands in `cmd/flag_cmds.go`
 **Severity:** MEDIUM
-**Status:** [FIXED in v2.1 -- Phase 10 error triage + Phase 13 modularization]
-File-not-found errors now use `json_err "$E_FILE_NOT_FOUND" "..."` consistently.
+**Status:** RESOLVED -- Go CLI uses proper file-not-found and validation error handling.
 
 ### BUG-010: Missing error codes in context-update
-**Location:** `context-update` subcommand in `.aether/aether CLI`
+**Location:** `context-update` subcommand (now in Go CLI)
 **Severity:** MEDIUM
-**Status:** [FIXED in v2.1 -- Phase 10 error triage]
-All error paths now use `$E_FILE_NOT_FOUND`, `$E_LOCK_FAILED`, and `$E_VALIDATION_FAILED` consistently.
+**Status:** RESOLVED -- Fully ported to Go with proper error paths.
 
 ### BUG-012: Missing error code in unknown command
-**Location:** Default case (`*`) in `.aether/aether CLI` dispatch
+**Location:** Default case in CLI dispatch
 **Severity:** LOW
-**Status:** [FIXED in v2.1 -- Phase 10 error triage]
-Unknown command handler now uses `json_err "$E_VALIDATION_FAILED" "Unknown command: $cmd"`.
-
----
-
-## Architecture Issues
+**Status:** RESOLVED -- Go CLI returns clear error for unknown subcommands.
 
 ### ISSUE-001: Inconsistent error code usage
 **Location:** Multiple locations
 **Severity:** MEDIUM
-**Description:** Some `json_err` calls use hardcoded strings instead of constants
-**Status:** [Mostly FIXED in v2.1 -- Phase 10 error triage]
-The majority of error paths now use `$E_*` constants. Remaining intentional suppressions are annotated with SUPPRESS:OK comments.
+**Status:** RESOLVED -- Go CLI uses typed errors consistently across all commands.
+
+### Historical: ~120 broken positional CLI calls in markdown
+**Description:** Markdown playbooks and commands used positional arguments for CLI calls
+(e.g., `aether pheromone-write FOCUS "content"`) but the Go CLI expected named flags
+(e.g., `aether pheromone-write --type FOCUS --content "content"`). This caused all
+pheromone, learning, midden, spawn tracking, activity log, flag, and registry calls
+to silently fail.
+**Status:** RESOLVED (2026-04-12) -- All ~120 broken CLI calls across markdown files
+converted to use correct flag-based syntax. Commands affected:
+- `spawn-log` / `spawn-complete` now use `--parent/--caste/--name/--task/--summary` flags
+- `activity-log` now uses `--command/--details` flags
+- `midden-write` now uses `--category/--message/--source` flags
+- `pheromone-write` now uses `--type/--content/--source/--reason/--ttl` flags
+- `memory-capture` now uses `--type/--content` flags
+- `flag-add` now uses `--severity/--title/--source` flags (plus `--description/--phase`)
+- `flag-resolve` / `flag-acknowledge` now use `--id` flag
+- `registry-add` now uses correct flag aliases
+- `context-update` now uses correct sub-actions
+- `session-update` now uses correct flags
+- `instinct-create` verified correct
+
+---
+
+## Open Issues
 
 ### ISSUE-005: Potential infinite loop in spawn-tree
-**Location:** `spawn-tree-depth` in `pkg/agent/pool.go`
+**Location:** `RecordSpawn` in `pkg/agent/spawn_tree.go`
 **Severity:** LOW
 **Description:** Edge case with circular parent chain could cause issues
 **Mitigation:** Safety limit of 5 exists
-**Status:** Open -- low risk due to safety limit; code extracted to `pkg/agent/pool.go` during Phase 13 modularization
+**Status:** Open -- low risk due to safety limit
 
 ### ISSUE-006: Fallback json_err incompatible
-**Location:** `.aether/aether CLI` (lines ~65-72, fallback error handler)
+**Location:** Previously in bash CLI fallback error handler
 **Severity:** LOW
-**Description:** Fallback json_err doesn't accept error code parameter
-**Impact:** If pkg/events/event.go fails to load, error codes are lost
-**Status:** Open -- low risk since pkg/events/event.go is a stable infrastructure module
+**Status:** RESOLVED -- No longer applicable; Go CLI does not have a fallback json_err pattern.
 
 ---
 
@@ -82,13 +93,13 @@ The majority of error paths now use `$E_*` constants. Remaining intentional supp
 ### GAP-007: No error code standards documentation
 **Description:** Error codes exist but aren't documented for external consumers
 **Impact:** Developers don't know which codes to use
-**Status:** Partially addressed -- `_aether_log_error` infrastructure added in Phase 10, but no standalone error code reference doc exists yet
+**Status:** Partially addressed -- Go CLI uses typed errors, but no standalone error code reference doc exists yet
 
 ### GAP-008: Missing error path test coverage
 **Description:** Error handling paths not fully tested
 **Impact:** Bugs in error handling go undetected
-**Status:** Partially addressed -- Phase 12 added state-api tests; 580+ tests now pass, but error-specific path coverage remains incomplete
+**Status:** Partially addressed -- 2900+ tests pass across 13 packages, but error-specific path coverage remains incomplete
 
 ---
 
-*Generated from Oracle Research findings -- Updated 2026-03-24 during v2.1 documentation accuracy phase*
+*Updated 2026-04-12 during v1.0.0 CLI flag migration colony*

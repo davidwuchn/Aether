@@ -131,7 +131,7 @@ Stop here.
 
 If two arguments provided (chamber names separated by space):
 - Treat as: `/ant:tunnels <chamber_a> <chamber_b>`
-- Run comparison: `aether chamber-compare compare <chamber_a> <chamber_b>`
+- Run comparison: `aether chamber-list` and manually compare output for the two chambers
 
 If either chamber not found:
 ```

@@ -1,7 +1,7 @@
 # CLAUDE.md — Aether Development Guide
 
 > **Current Version:** v1.0.0
-> **Last Updated:** 2026-04-09
+> **Last Updated:** 2026-04-12
 
 ---
 
@@ -10,11 +10,11 @@
 | What | Count/Status |
 |------|--------------|
 | Version | v1.0.0 |
-| Slash commands | ~45 (Claude) + ~45 (OpenCode) |
+| Slash commands | 46 (Claude) + 46 (OpenCode) |
 | Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
 | Go binary | `aether` CLI (Go binary in cmd/) |
-| Tests | 1075+ passing |
+| Tests | 2900+ passing |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
 ---

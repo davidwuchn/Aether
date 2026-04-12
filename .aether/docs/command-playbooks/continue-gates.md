@@ -33,7 +33,7 @@ The phase will NOT advance until spawning occurs.
 Log the violation:
 ```bash
 aether activity-log --command "BLOCKED" --details "colony: Spawn gate failed: {task_count} tasks, 0 spawns"
-aether error-flag-pattern "no-spawn-violation" "Prime Worker completed phase without spawning specialists" "critical"
+aether error-flag-pattern --name "no-spawn-violation" --description "Prime Worker completed phase without spawning specialists" --severity "critical"
 ```
 
 **HARD REJECTION - If watcher_count == 0 (no testing separation):**
@@ -479,7 +479,7 @@ Critical Findings:
 
 The phase will NOT advance with critical quality issues.
 ```
-Run using the Bash tool with description "Logging critical quality block...": `aether error-flag-pattern "auditor-critical-findings" "$critical_count critical quality issues found" "critical"`
+Run using the Bash tool with description "Logging critical quality block...": `aether error-flag-pattern --name "auditor-critical-findings" --description "$critical_count critical quality issues found" --severity "critical"`
 **CRITICAL:** Do NOT proceed to Step 1.10. Stop here.
 
 - **Else if `overall_score < 60`:**
@@ -500,7 +500,7 @@ Code quality score below threshold: {overall_score}/100 (threshold: 60)
 
 The phase will NOT advance with quality score below 60.
 ```
-Run using the Bash tool with description "Logging quality score block...": `aether error-flag-pattern "auditor-quality-score" "Score $overall_score below threshold 60" "critical"`
+Run using the Bash tool with description "Logging quality score block...": `aether error-flag-pattern --name "auditor-quality-score" --description "Score $overall_score below threshold 60" --severity "critical"`
 **CRITICAL:** Do NOT proceed to Step 1.10. Stop here.
 
 - **Else if `findings.high > 0`:**
@@ -556,7 +556,7 @@ The phase will NOT advance with fabricated metrics.
 
 **CRITICAL:** Do NOT proceed. Log the violation:
 ```bash
-aether error-flag-pattern "fabricated-tdd" "Prime Worker reported TDD metrics without creating test files" "critical"
+aether error-flag-pattern --name "fabricated-tdd" --description "Prime Worker reported TDD metrics without creating test files" --severity "critical"
 ```
 
 **If tests_added == 0 or test files exist matching claims:**
@@ -602,7 +602,7 @@ Please describe the issues so they can be addressed:
 
 Use AskUserQuestion to get issue details. Log to errors.records:
 ```bash
-aether error-add "runtime" "critical" "{user_description}" {phase}
+aether error-add --category "runtime" --severity "critical" --description "{user_description}" --phase {phase}
 ```
 
 Do NOT proceed to Step 2.
@@ -637,10 +637,10 @@ Continue to Step 1.12.
 **The Iron Law:** No phase advancement with unresolved blockers.
 
 First, auto-resolve any flags eligible for resolution now that verification has passed:
-Run using the Bash tool with description "Auto-resolving flags...": `aether flag-auto-resolve "build_pass"`
+Run using the Bash tool with description "Auto-resolving flags...": `aether flag-auto-resolve`
 
 Then check for remaining blocking flags:
-Run using the Bash tool with description "Checking for blockers...": `aether flag-check-blockers {current_phase}`
+Run using the Bash tool with description "Checking for blockers...": `aether flag-check-blockers`
 
 Parse result for `blockers`, `issues`, and `notes` counts.
 
