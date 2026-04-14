@@ -430,6 +430,77 @@ func TestInstallWithSubdirs(t *testing.T) {
 	}
 }
 
+// TestInstallCopiesCodexAgents verifies that install copies .codex/agents/
+// files to the target directory.
+func TestInstallCopiesCodexAgents(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	tmpDir := t.TempDir()
+	homeDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, ".codex", "agents")
+	destDir := filepath.Join(homeDir, ".codex", "agents")
+
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(srcDir, "test-agent.toml"), []byte("[agent]\nname = \"test\""), 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"install", "--package-dir", tmpDir, "--home-dir", homeDir})
+	defer rootCmd.SetArgs([]string{})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("install command failed: %v", err)
+	}
+
+	destFile := filepath.Join(destDir, "test-agent.toml")
+	if _, err := os.Stat(destFile); os.IsNotExist(err) {
+		t.Errorf("expected file %s to exist after install", destFile)
+	}
+}
+
+// TestInstallCopiesCodexAgentsToHub verifies that .codex/ files are synced
+// to the hub at ~/.aether/system/codex/.
+func TestInstallCopiesCodexAgentsToHub(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	tmpDir := t.TempDir()
+	homeDir := t.TempDir()
+	srcDir := filepath.Join(tmpDir, ".codex", "agents")
+
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(srcDir, "test-agent.toml"), []byte("[agent]\nname = \"test\""), 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"install", "--package-dir", tmpDir, "--home-dir", homeDir})
+	defer rootCmd.SetArgs([]string{})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("install command failed: %v", err)
+	}
+
+	hubCodexFile := filepath.Join(homeDir, ".aether", "system", "codex", "agents", "test-agent.toml")
+	if _, err := os.Stat(hubCodexFile); os.IsNotExist(err) {
+		t.Errorf("expected file %s to exist after install", hubCodexFile)
+	}
+}
+
 // TestInstallShellScriptsGetExecutable verifies that .sh files get chmod 0755.
 func TestInstallShellScriptsGetExecutable(t *testing.T) {
 	saveGlobals(t)

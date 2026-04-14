@@ -26,6 +26,7 @@ Copies:
   .claude/agents/ant/    -> ~/.claude/agents/ant/
   .opencode/commands/ant/ -> ~/.opencode/command/
   .opencode/agents/      -> ~/.opencode/agent/
+  .codex/agents/         -> ~/.codex/agents/
 
 Also creates the hub directory at ~/.aether/ for cross-repo coordination.`,
 	Args: cobra.NoArgs,
@@ -94,6 +95,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		{".claude/agents/ant", ".claude/agents/ant", "Agents (claude)"},
 		{".opencode/commands/ant", ".opencode/command", "Commands (opencode)"},
 		{".opencode/agents", ".opencode/agent", "Agents (opencode)"},
+		{".codex/agents", ".codex/agents", "Agents (codex)"},
 	}
 
 	results := []map[string]interface{}{}
@@ -342,6 +344,14 @@ func setupInstallHub(hubDir, packageDir string) map[string]interface{} {
 	result["skipped"] = hubSyncResult.skipped
 	result["removed"] = len(hubSyncResult.removed)
 
+	// Sync Codex agents to hub system directory
+	// Use an empty exclusion set since .codex/ has a different structure than .aether/
+	codexSrc := filepath.Join(packageDir, ".codex")
+	codexDest := filepath.Join(systemDir, "codex")
+	codexSyncResult := syncDirToHubWithExclusion(codexSrc, codexDest, nil)
+	result["codex_copied"] = codexSyncResult.copied
+	result["codex_skipped"] = codexSyncResult.skipped
+
 	// Create registry.json if it doesn't exist
 	registryPath := filepath.Join(hubDir, "registry.json")
 	if _, err := os.Stat(registryPath); os.IsNotExist(err) {
@@ -370,6 +380,16 @@ func setupInstallHub(hubDir, packageDir string) map[string]interface{} {
 // skipping excluded directories and unchanged files (by SHA-256 hash).
 // Also removes stale files in dest that no longer exist in src.
 func syncDirToHub(src, dest string) syncResult {
+	return syncDirToHubWithExclusion(src, dest, hubExcludeDirs)
+}
+
+// syncDirToHubWithExclusion is like syncDirToHub but accepts a custom exclusion map.
+// Pass nil to exclude nothing.
+func syncDirToHubWithExclusion(src, dest string, exclude map[string]bool) syncResult {
+	// Default to no exclusions if nil
+	if exclude == nil {
+		exclude = map[string]bool{}
+	}
 	result := syncResult{}
 
 	srcInfo, err := os.Stat(src)
@@ -382,7 +402,7 @@ func syncDirToHub(src, dest string) syncResult {
 	}
 
 	// Walk source and copy files, skipping excluded directories
-	srcFiles := listFilesRecursiveWithExclusion(src, hubExcludeDirs)
+	srcFiles := listFilesRecursiveWithExclusion(src, exclude)
 	for _, relPath := range srcFiles {
 		srcPath := filepath.Join(src, relPath)
 		destPath := filepath.Join(dest, relPath)
@@ -416,7 +436,7 @@ func syncDirToHub(src, dest string) syncResult {
 	for _, relPath := range destFiles {
 		// Don't remove files in excluded dirs (they may have been added manually)
 		parts := strings.SplitN(relPath, string(filepath.Separator), 2)
-		if len(parts) > 0 && hubExcludeDirs[parts[0]] {
+		if len(parts) > 0 && exclude[parts[0]] {
 			continue
 		}
 		if _, exists := srcSet[relPath]; !exists {
