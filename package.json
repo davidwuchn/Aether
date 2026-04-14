@@ -8,6 +8,7 @@
     ".opencode/commands/ant/",
     ".opencode/agents/",
     ".opencode/opencode.json",
+    ".codex/",
     ".aether/",
     "README.md",
     "LICENSE",
