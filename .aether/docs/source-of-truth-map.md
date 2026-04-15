@@ -1,6 +1,6 @@
 # Aether Source-of-Truth Map
 
-Updated: 2026-03-24 (v2.1 accuracy sweep -- post-modularization counts, domain modules, playbook corrections)
+Updated: 2026-04-15 (v2.2 -- removed stale Node.js reference, added Codex CLI platform entries)
 
 ## Purpose
 
@@ -10,7 +10,7 @@ Define which files are authoritative for system behavior, which files are derive
 
 1. **Executable runtime**
 - `.aether/aether CLI` and sourced scripts in `.aether/utils/`
-- Node CLI runtime in `bin/cli.js` and `bin/lib/*`
+- Go binary in `cmd/` (primary) and `pkg/` (shared packages)
 - Why: these files are what actually execute.
 
 2. **Command execution specifications**
@@ -19,6 +19,7 @@ Define which files are authoritative for system behavior, which files are derive
 
 2.5. **Agent behavior specifications**
 - `.claude/agents/ant/*.md` and `.opencode/agents/*.md`
+- `.codex/agents/*.toml` (Codex CLI agent definitions)
 - Why: these define worker behavior when commands spawn subagents.
 
 3. **State/data artifacts (runtime outputs, not policy)**
@@ -40,6 +41,10 @@ Define which files are authoritative for system behavior, which files are derive
 | Packaged Claude agent mirror | `.aether/agents-claude/*.md` | Distribution mirror; must stay byte-identical with `.claude/agents/ant/*.md` |
 | OpenCode command surface | `.opencode/commands/ant/*.md` | 45 OpenCode command files; structure parity with Claude commands |
 | OpenCode worker behavior specs | `.opencode/agents/*.md` | 24 OpenCode agent definitions |
+| Codex CLI instructions | `.codex/CODEX.md` | Codex configuration and prompt instructions |
+| Codex worker behavior specs | `.codex/agents/*.toml` | 24 Codex agent definitions (TOML format) |
+| Packaged Codex agent mirror | `.aether/agents-codex/*.toml` | Distribution mirror; must stay byte-identical with `.codex/agents/*.toml` |
+| Codex skill definitions | `.aether/skills-codex/*/SKILL.md` | 28 Codex skills (10 colony + 18 domain) |
 | Domain modules | `cmd/` (Go binary) | Extracted from aether CLI in Phase 13; sourced on demand |
 | Build/continue split stages | `.aether/docs/command-playbooks/*.md` | Loaded by orchestrators; executable instruction docs |
 | Output templates | `.aether/templates/*` | Templates for generated state/handoff/wisdom/session artifacts |
@@ -66,15 +71,18 @@ Define which files are authoritative for system behavior, which files are derive
 - `build.md` and `continue.md` are now orchestrators that load split playbooks under `.aether/docs/command-playbooks/`.
 - Orchestrators run playbooks as staged instruction sets (Read-tool execution model), not as bash subcommand wrappers.
 - Cross-platform surfaces are present:
-  - 45 Claude commands and 45 OpenCode commands
+  - 46 Claude commands and 46 OpenCode commands
   - 24 Claude agents and 24 OpenCode agents
+  - 24 Codex agents (TOML format, no separate command files -- uses CODEX.md)
+  - 28 Codex skills (10 colony + 18 domain)
 - Autopilot subcommands (`autopilot-init`, `autopilot-update`, `autopilot-status`, `autopilot-stop`, `autopilot-check-replan`) manage autonomous build/continue cycles via `/ant:run`.
 - `registry-list` lists all registered repos with metadata including domain tags.
 - `.aether/agents-claude/*.md` mirrors `.claude/agents/ant/*.md` for packaging/distribution.
 - `npm run lint:sync` enforces:
   - command parity checks,
   - Claude/OpenCode agent structural parity (count + filenames),
-  - Claude/`.aether` agent mirror exact parity (count + filenames + content hash).
+  - Claude/`.aether` agent mirror exact parity (count + filenames + content hash),
+  - Codex/`.aether` agent mirror exact parity (count + filenames + content hash).
 - File contents between Claude and OpenCode command/agent files currently differ; parity is structural, not byte-identical.
 
 ## Verified Inventory Snapshot
@@ -89,8 +97,12 @@ Define which files are authoritative for system behavior, which files are derive
 | Agent definitions (Claude) | `.claude/agents/ant/*.md` | 24 | Active |
 | Agent mirror (packaging) | `.aether/agents-claude/*.md` | 24 | Active mirror (must match Claude agent files exactly) |
 | Agent definitions (OpenCode) | `.opencode/agents/*.md` | 24 | Active (content differs from Claude variants) |
+| Agent definitions (Codex) | `.codex/agents/*.toml` | 24 | Active (TOML format) |
+| Agent mirror (Codex packaging) | `.aether/agents-codex/*.toml` | 24 | Active mirror (must match Codex agent files exactly) |
+| Codex CLI instructions | `.codex/CODEX.md` | 1 | Active (Codex config/prompt) |
+| Codex skill definitions | `.aether/skills-codex/*/SKILL.md` | 28 | Active (10 colony + 18 domain) |
 | Command playbooks | `.aether/docs/command-playbooks/*.md` | 12 | Active (5 build + 5 continue + 2 full/verify) |
-| Templates (all types) | `.aether/templates/*` | 13 | Active |
+| Templates (all types) | `.aether/templates/*` | 14 | Active |
 | Disciplines | `.aether/docs/disciplines/*.md` | 7 | Active |
 | Tests (all files) | `tests/**` | ~140 | Active |
 
@@ -108,7 +120,8 @@ When determining "how Aether works now", read in this order:
 4. `.claude/agents/ant/*.md`
 5. Remaining `.claude/commands/ant/*.md`
 6. `.opencode/commands/ant/*.md` and `.opencode/agents/*.md` (for cross-surface checks)
-7. `README.md` and `.aether/docs/*.md`
+7. `.codex/CODEX.md` and `.codex/agents/*.toml` (for Codex surface checks)
+8. `README.md` and `.aether/docs/*.md`
 
 ## Maintenance Rules
 
@@ -117,6 +130,7 @@ When determining "how Aether works now", read in this order:
 3. Docs must never introduce paths/types not accepted by runtime.
 4. Treat this file as the index of authority boundaries.
 5. Keep `.aether/agents-claude/*.md` synchronized with `.claude/agents/ant/*.md` (enforced by `npm run lint:sync`).
+6. Keep `.aether/agents-codex/*.toml` synchronized with `.codex/agents/*.toml`.
 
 ## Immediate Follow-up Checklist
 
@@ -130,3 +144,5 @@ When determining "how Aether works now", read in this order:
 8. [x] Clarify OpenCode structural parity and non-identical content status.
 9. [x] Add template ownership and verified inventory snapshot.
 10. [x] Clarify XML utility status in dedicated docs (`.aether/docs/xml-utilities.md`).
+11. [x] Remove stale Node.js `bin/cli.js` reference from authority precedence.
+12. [x] Add Codex CLI platform entries (agents, skills, CODEX.md) to ownership map and inventory.

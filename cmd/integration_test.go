@@ -115,7 +115,7 @@ func TestIntegrationVersion(t *testing.T) {
 	if !strings.Contains(output, `"ok":true`) {
 		t.Errorf("version output should contain ok:true, got: %s", output)
 	}
-	if !strings.Contains(output, "0.0.0-dev") {
+	if !strings.Contains(output, resolveVersion()) {
 		t.Errorf("version output should contain version string, got: %s", output)
 	}
 }

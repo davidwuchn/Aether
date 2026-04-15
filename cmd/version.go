@@ -12,7 +12,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print aether version",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		outputOK(Version)
+		outputOK(resolveVersion())
 		return nil
 	},
 }

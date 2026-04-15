@@ -26,6 +26,51 @@ func TestInstallCommandExists(t *testing.T) {
 	}
 }
 
+func TestInstallCommandFlags(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	cmd, _, err := rootCmd.Find([]string{"install"})
+	if err != nil {
+		t.Fatalf("install command not found: %v", err)
+	}
+
+	expectedFlags := []string{"package-dir", "home-dir", "download-binary", "binary-dest", "binary-version", "skip-build-binary"}
+	for _, name := range expectedFlags {
+		if f := cmd.Flags().Lookup(name); f == nil {
+			t.Errorf("install command missing flag --%s", name)
+		}
+	}
+}
+
+func TestIsAetherSourceCheckout(t *testing.T) {
+	tmpDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module github.com/calcosmic/Aether\n"), 0644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+	mainDir := filepath.Join(tmpDir, "cmd", "aether")
+	if err := os.MkdirAll(mainDir, 0755); err != nil {
+		t.Fatalf("failed to create cmd/aether: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(mainDir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatalf("failed to write main.go: %v", err)
+	}
+
+	if !isAetherSourceCheckout(filepath.Join(tmpDir, "cmd")) {
+		t.Fatal("expected Aether source checkout to be detected from nested path")
+	}
+}
+
+func TestIsAetherSourceCheckoutFalseForCompanionOnlyPackage(t *testing.T) {
+	tmpDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".aether"), 0755); err != nil {
+		t.Fatalf("failed to create .aether: %v", err)
+	}
+	if isAetherSourceCheckout(tmpDir) {
+		t.Fatal("companion-only package should not be treated as an Aether source checkout")
+	}
+}
+
 // TestInstallCopiesClaudeCommands verifies that install copies .claude/commands/ant/
 // files to the target directory.
 func TestInstallCopiesClaudeCommands(t *testing.T) {

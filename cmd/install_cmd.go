@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -35,11 +36,12 @@ Also creates the hub directory at ~/.aether/ for cross-repo coordination.`,
 
 // installFlags holds the parsed flags for the install command.
 var (
-	installPackageDir     string
-	installHomeDir        string
-	installDownloadBinary bool
-	installBinaryDest     string
-	installBinaryVersion  string
+	installPackageDir      string
+	installHomeDir         string
+	installDownloadBinary  bool
+	installBinaryDest      string
+	installBinaryVersion   string
+	installSkipBuildBinary bool
 )
 
 func init() {
@@ -48,6 +50,7 @@ func init() {
 	installCmd.Flags().Bool("download-binary", false, "Also download the Go binary from GitHub Releases")
 	installCmd.Flags().String("binary-dest", "", "Destination directory for binary (default: ~/.aether/bin)")
 	installCmd.Flags().String("binary-version", "", "Binary version to download (default: current version)")
+	installCmd.Flags().Bool("skip-build-binary", false, "Skip auto-building the Go binary when installing from an Aether source checkout")
 
 	rootCmd.AddCommand(installCmd)
 }
@@ -136,8 +139,19 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		"details": results,
 	})
 
-	// Download Go binary if requested
+	// In a source checkout, install should keep the local binary in sync with
+	// the companion files it just published to the hub. Otherwise fast-moving
+	// command files can call subcommands that the installed binary does not have.
 	downloadBinary, _ := cmd.Flags().GetBool("download-binary")
+	skipBuildBinary, _ := cmd.Flags().GetBool("skip-build-binary")
+	if !downloadBinary && !skipBuildBinary && isAetherSourceCheckout(packageDir) {
+		if err := runLocalBinaryBuildFromInstall(cmd, homeDir, packageDir); err != nil {
+			return fmt.Errorf("install succeeded but local binary build failed: %w", err)
+		}
+	}
+
+	// Download Go binary if requested. This remains opt-in because release
+	// downloads require network access and should not replace local source builds.
 	if downloadBinary {
 		if err := runBinaryDownloadFromInstall(cmd, homeDir); err != nil {
 			return fmt.Errorf("install succeeded but binary download failed: %w", err)
@@ -301,7 +315,7 @@ func cleanEmptyDirs(baseDir string) {
 		// Try to remove; will fail if not empty
 		if err := os.Remove(path); err != nil {
 			log.Printf("install: cleanEmptyDirs failed to remove %s: %v", path, err)
-			}
+		}
 		return nil
 	})
 }
@@ -482,9 +496,10 @@ func listFilesRecursiveWithExclusion(baseDir string, exclude map[string]bool) []
 
 // runBinaryDownloadFromInstall handles the --download-binary flag on the install command.
 func runBinaryDownloadFromInstall(cmd *cobra.Command, homeDir string) error {
-	version, _ := cmd.Flags().GetString("binary-version")
-	if version == "" {
-		version = Version
+	versionFlag, _ := cmd.Flags().GetString("binary-version")
+	version, err := resolveReleaseVersion(versionFlag)
+	if err != nil {
+		return err
 	}
 
 	destDir, _ := cmd.Flags().GetString("binary-dest")
@@ -513,4 +528,93 @@ func runBinaryDownloadFromInstall(cmd *cobra.Command, homeDir string) error {
 	})
 
 	return nil
+}
+
+func isAetherSourceCheckout(packageDir string) bool {
+	root := findAetherModuleRoot(packageDir)
+	if root == "" {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(root, "cmd", "aether", "main.go")); err != nil {
+		return false
+	}
+	return true
+}
+
+func runLocalBinaryBuildFromInstall(cmd *cobra.Command, homeDir, packageDir string) error {
+	sourceRoot := findAetherModuleRoot(packageDir)
+	if sourceRoot == "" {
+		return fmt.Errorf("cannot locate Aether go.mod from %s", packageDir)
+	}
+
+	destDir, _ := cmd.Flags().GetString("binary-dest")
+	if destDir == "" {
+		destDir = defaultLocalBinaryDest(homeDir)
+	}
+
+	version := resolveVersion(sourceRoot)
+	if version == "" || version == "0.0.0-dev" {
+		version = "0.0.0-dev"
+	}
+
+	result, err := buildLocalBinary(sourceRoot, destDir, version)
+	if err != nil {
+		return err
+	}
+
+	outputOK(map[string]interface{}{
+		"message": fmt.Sprintf("Built local aether binary to %s", result.Path),
+		"path":    result.Path,
+		"version": result.Version,
+	})
+	return nil
+}
+
+func defaultLocalBinaryDest(homeDir string) string {
+	if exe, err := os.Executable(); err == nil {
+		base := filepath.Base(exe)
+		if base == "aether" || base == "aether.exe" {
+			return filepath.Dir(exe)
+		}
+	}
+	localBin := filepath.Join(homeDir, ".local", "bin")
+	if info, err := os.Stat(localBin); err == nil && info.IsDir() {
+		return localBin
+	}
+	return filepath.Join(homeDir, downloader.DefaultDestSubdir())
+}
+
+func buildLocalBinary(sourceRoot, destDir, version string) (*downloader.DownloadResult, error) {
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return nil, fmt.Errorf("create binary destination %q: %w", destDir, err)
+	}
+
+	binaryName := "aether"
+	if strings.EqualFold(filepath.Ext(os.Args[0]), ".exe") {
+		binaryName = "aether.exe"
+	}
+	destPath := filepath.Join(destDir, binaryName)
+	tmpPath := filepath.Join(destDir, fmt.Sprintf(".aether-build-%d", os.Getpid()))
+	defer os.Remove(tmpPath)
+
+	ldflags := fmt.Sprintf("-X github.com/calcosmic/Aether/cmd.Version=%s", version)
+	buildCmd := exec.Command("go", "build", "-ldflags", ldflags, "-o", tmpPath, "./cmd/aether")
+	buildCmd.Dir = sourceRoot
+	out, err := buildCmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("go build failed: %w\n%s", err, strings.TrimSpace(string(out)))
+	}
+
+	if err := os.Chmod(tmpPath, 0755); err != nil {
+		return nil, fmt.Errorf("chmod built binary: %w", err)
+	}
+	if err := os.Rename(tmpPath, destPath); err != nil {
+		return nil, fmt.Errorf("install built binary %q: %w", destPath, err)
+	}
+
+	return &downloader.DownloadResult{
+		Success: true,
+		Path:    destPath,
+		Version: version,
+	}, nil
 }

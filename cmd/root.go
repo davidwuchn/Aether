@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -24,30 +25,22 @@ var Version = "0.0.0-dev"
 func resolveVersion(dir ...string) string {
 	// If ldflags set a real version (not the dev default), use it.
 	if Version != "0.0.0-dev" {
-		return Version
+		return normalizeVersion(Version)
 	}
 
 	// Determine where to look for git tags.
 	gitDir := ""
 	if len(dir) > 0 && dir[0] != "" {
-		gitDir = dir[0]
+		gitDir = findAetherModuleRoot(dir[0])
 	} else {
 		// Walk up from the binary to find the Aether go.mod.
 		exe, err := os.Executable()
 		if err == nil {
-			d := filepath.Dir(exe)
-			for {
-				goMod := filepath.Join(d, "go.mod")
-				data, err := os.ReadFile(goMod)
-				if err == nil && strings.Contains(string(data), "github.com/calcosmic/Aether") {
-					gitDir = d
-					break
-				}
-				parent := filepath.Dir(d)
-				if parent == d {
-					break
-				}
-				d = parent
+			gitDir = findAetherModuleRoot(filepath.Dir(exe))
+		}
+		if gitDir == "" {
+			if cwd, err := os.Getwd(); err == nil {
+				gitDir = findAetherModuleRoot(cwd)
 			}
 		}
 	}
@@ -57,17 +50,77 @@ func resolveVersion(dir ...string) string {
 		out, err := exec.Command("git", args...).Output()
 		if err == nil {
 			v := strings.TrimSpace(string(out))
-			return strings.TrimPrefix(v, "v")
+			return normalizeVersion(v)
 		}
 	}
 
+	if hubVersion := readInstalledHubVersion(); hubVersion != "" {
+		return hubVersion
+	}
+
 	return Version
+}
+
+func normalizeVersion(version string) string {
+	return strings.TrimPrefix(strings.TrimSpace(version), "v")
+}
+
+func findAetherModuleRoot(start string) string {
+	if start == "" {
+		return ""
+	}
+	d, err := filepath.Abs(start)
+	if err != nil {
+		d = start
+	}
+	for {
+		goMod := filepath.Join(d, "go.mod")
+		data, err := os.ReadFile(goMod)
+		if err == nil && strings.Contains(string(data), "github.com/calcosmic/Aether") {
+			return d
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return ""
+		}
+		d = parent
+	}
+}
+
+func readInstalledHubVersion() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".aether", "version.json"))
+	if err != nil {
+		return ""
+	}
+	var v struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return ""
+	}
+	return normalizeVersion(v.Version)
+}
+
+func resolveReleaseVersion(explicit string) (string, error) {
+	version := normalizeVersion(explicit)
+	if version == "" {
+		version = normalizeVersion(resolveVersion())
+	}
+	if version == "" || version == "0.0.0-dev" {
+		return "", fmt.Errorf("cannot infer a release version from this dev binary; pass --version/--binary-version explicitly or run from an installed Aether checkout")
+	}
+	return version, nil
 }
 
 func init() {
 	// Override Cobra's default version template to print "aether v<version>"
 	// instead of "aether version v<version>"
 	rootCmd.SetVersionTemplate("aether {{ .Version }}\n")
+	rootCmd.Version = "v" + resolveVersion()
 }
 
 // store is the shared storage instance initialized by PersistentPreRunE.

@@ -89,6 +89,20 @@ This only applies to genuinely new conversations, not after /clear.
 | `/ant:verify-castes` | Verify worker caste assignments |
 | `/ant:bump-version` | Bump version, rebuild, push, and tag |
 
+## Cross-Platform Support
+
+Aether works across three AI coding platforms:
+
+| Platform | Commands | Agents | Format |
+|----------|----------|--------|--------|
+| Claude Code | 46 slash commands (`/ant:*`) | 24 agents (`.md`) | `.claude/commands/ant/`, `.claude/agents/ant/` |
+| OpenCode | 46 slash commands (`/ant:*`) | 24 agents (`.md`) | `.opencode/commands/ant/`, `.opencode/agents/` |
+| Codex CLI | `aether` CLI commands | 24 agents (`.toml`) | `.codex/CODEX.md`, `.codex/agents/` |
+
+All platforms share the same 9 worker castes and 24 agent roles. Commands in Codex use
+the `aether` CLI directly (e.g., `aether pheromone-write`, `aether state-mutate`) rather
+than slash commands.
+
 ## Typical Workflow
 
 ```
@@ -130,6 +144,8 @@ Workers are assigned to castes based on task type:
 | colonizer | Codebase exploration |
 | route_setter | Phase planning |
 | archaeologist | Git history analysis |
+
+The same 24 agent definitions are available across all platforms (Claude Code, OpenCode, Codex).
 
 ## Protected Paths
 
@@ -178,3 +194,5 @@ Signals guide colony behavior without hard-coding instructions:
 - **FEEDBACK** — calibrates behavior based on observation (low priority)
 
 Use FOCUS + REDIRECT before builds to steer. Use FEEDBACK after builds to adjust.
+
+In Codex CLI, use `aether pheromone-write --type FOCUS --content "..."` instead of `/ant:focus`.

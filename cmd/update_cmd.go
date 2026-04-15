@@ -22,7 +22,7 @@ var updateCmd = &cobra.Command{
 This updates slash commands, agent definitions, skills, templates, and docs.
 Local user data (COLONY_STATE.json, pheromones, etc.) is never overwritten.
 
-Use --download-binary to also fetch the latest Go binary from GitHub Releases.`,
+Use --download-binary to also fetch a Go binary from GitHub Releases.`,
 	Args: cobra.NoArgs,
 	RunE: runUpdate,
 }
@@ -35,8 +35,8 @@ var (
 )
 
 func init() {
-	updateCmd.Flags().Bool("download-binary", false, "Also download the latest binary from GitHub Releases")
-	updateCmd.Flags().String("binary-version", "", "Binary version to download (default: latest)")
+	updateCmd.Flags().Bool("download-binary", false, "Also download a binary from GitHub Releases")
+	updateCmd.Flags().String("binary-version", "", "Binary version to download (default: resolved installed version)")
 	updateCmd.Flags().Bool("dry-run", false, "Show what would be updated without making changes")
 	updateCmd.Flags().Bool("force", false, "Overwrite modified companion files and remove stale ones")
 
@@ -103,9 +103,13 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	// Download binary if requested
 	downloadBinary, _ := cmd.Flags().GetBool("download-binary")
 	if downloadBinary && !dryRun {
-		version, _ := cmd.Flags().GetString("binary-version")
-		if version == "" {
-			version = "latest"
+		versionFlag, _ := cmd.Flags().GetString("binary-version")
+		if normalizeVersion(versionFlag) == "latest" {
+			versionFlag = ""
+		}
+		version, err := resolveReleaseVersion(versionFlag)
+		if err != nil {
+			return err
 		}
 
 		destDir := filepath.Join(homeDir, downloader.DefaultDestSubdir())
@@ -148,11 +152,11 @@ func runUpdateSync(hubDir, repoDir string, force bool) updateSyncResult {
 
 	// Directories to never overwrite or remove (user data)
 	protectedDirs := map[string]bool{
-		"data":    true,
-		"dreams":  true,
+		"data":   true,
+		"dreams": true,
 	}
 	protectedFiles := map[string]bool{
-		"QUEEN.md":         true,
+		"QUEEN.md":           true,
 		"CROWNED-ANTHILL.md": true,
 	}
 

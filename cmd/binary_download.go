@@ -33,9 +33,10 @@ func init() {
 }
 
 func runBinaryDownload(cmd *cobra.Command, args []string) error {
-	version, _ := cmd.Flags().GetString("version")
-	if version == "" {
-		version = Version
+	versionFlag, _ := cmd.Flags().GetString("version")
+	version, err := resolveReleaseVersion(versionFlag)
+	if err != nil {
+		return err
 	}
 
 	destDir, _ := cmd.Flags().GetString("dest")

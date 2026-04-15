@@ -33,8 +33,9 @@ func TestVersionFlag(t *testing.T) {
 	if !strings.Contains(output, "aether") {
 		t.Errorf("--version output %q does not contain \"aether\"", output)
 	}
-	if !strings.Contains(output, Version) {
-		t.Errorf("--version output %q does not contain version %q", output, Version)
+	resolved := resolveVersion()
+	if !strings.Contains(output, resolved) {
+		t.Errorf("--version output %q does not contain version %q", output, resolved)
 	}
 }
 

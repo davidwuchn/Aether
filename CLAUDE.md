@@ -10,7 +10,7 @@
 | What | Count/Status |
 |------|--------------|
 | Version | v1.0.1 |
-| Slash commands | 46 (Claude) + 46 (OpenCode) |
+| Slash commands | 46 (Claude) + 46 (OpenCode) + 24 agents (Codex) |
 | Agent definitions | 24 |
 | Skills | 28 (10 colony + 18 domain) |
 | Go binary | `aether` CLI (Go binary in cmd/) |
@@ -40,8 +40,10 @@
 │                                                                  │
 │   .aether/             ← Companion files (distributed via npm)  │
 │   ├── commands/*.yaml   Slash command source definitions        │
-│   ├── agents-claude/    Agent definition mirror (packaging)     │
+│   ├── agents-claude/    Agent definition mirror (Claude, packaging)│
+│   ├── agents-codex/     Agent definition mirror (Codex, packaging)│
 │   ├── skills/           colony/ (10) + domain/ (18)            │
+│   ├── skills-codex/     Codex skill mirror (packaging)          │
 │   ├── docs/             Distributed documentation              │
 │   └── templates/        Colony state, pheromones, etc.          │
 │                                                                  │
@@ -52,6 +54,8 @@
 │   .claude/agents/ant/   ← Agent definitions (Claude Code)      │
 │   .opencode/commands/ant/ ← Slash commands (OpenCode)          │
 │   .opencode/agents/     ← Agent definitions (OpenCode)         │
+│   .codex/agents/        ← Agent definitions (Codex, TOML)      │
+│   .codex/CODEX.md       ← Codex commands + rules               │
 │                                                                  │
 │   ~/.aether/           ← HUB (cross-colony, user-level)        │
 │   ├── system/          Companion file source (populated by install)│
@@ -84,7 +88,9 @@ parallel mode, and context capsule — all within a token budget (see Token Budg
 | OpenCode commands | `.opencode/commands/ant/` | OpenCode commands |
 | Agent definitions | `.claude/agents/ant/` | Claude Code agents |
 | Agent mirror (packaging) | `.aether/agents-claude/` | Must stay in sync with `.claude/agents/ant/` |
+| Agent mirror (Codex packaging) | `.aether/agents-codex/` | Must stay in sync with `.codex/agents/` |
 | OpenCode agents | `.opencode/agents/` | OpenCode worker definitions |
+| Codex agents | `.codex/agents/` | Codex worker definitions (TOML format) |
 | Your notes | `.aether/dreams/` | Never distributed |
 | Dev docs | `.aether/docs/known-issues.md` | Distributed |
 
@@ -136,6 +142,8 @@ aether update      # or /ant:update
 ├── docs/                # Distributed documentation
 ├── exchange/            # XML exchange modules (pheromone-xml, wisdom-xml)
 ├── agents-claude/       # Claude agent mirror used for packaging
+├── agents-codex/        # Codex agent mirror used for packaging
+├── skills-codex/        # Codex skill mirror (colony/ + domain/)
 ├── commands/            # YAML source definitions for slash commands
 ├── data/                # LOCAL ONLY (never distributed)
 │   ├── COLONY_STATE.json  # Colony state with phase tracking + parallel_mode
@@ -151,7 +159,7 @@ aether update      # or /ant:update
 
 ```
 .claude/
-├── commands/ant/        # 45 slash commands
+├── commands/ant/        # 46 slash commands
 │   ├── init.md          # Colony initialization
 │   ├── plan.md          # Phase planning
 │   ├── build.md         # Build orchestrator (loads split playbooks)
@@ -166,6 +174,18 @@ aether update      # or /ant:update
     ├── coding-standards.md
     ├── testing.md
     └── ...
+```
+
+### .codex/ (Codex CLI)
+
+```
+.codex/
+├── agents/              # 24 agent definitions (TOML format)
+│   ├── aether-builder.toml
+│   ├── aether-watcher.toml
+│   ├── aether-scout.toml
+│   └── ...
+└── CODEX.md             # Codex commands + rules
 ```
 
 ### Split Playbooks (Reliability)
@@ -186,7 +206,7 @@ Authority note:
 - In Claude Code, `.claude/commands/ant/build.md` and `.claude/commands/ant/continue.md` are orchestrators only.
 - Build/continue execution behavior is defined in `.aether/docs/command-playbooks/*.md`.
 - OpenCode maintains separate command specs in `.opencode/commands/ant/*.md`.
-- Agent parity model: `.claude/agents/ant/*.md` is canonical, `.aether/agents-claude/*.md` is a byte-identical packaging mirror, `.opencode/agents/*.md` maintains structural parity (same filenames/count).
+- Agent parity model: `.claude/agents/ant/*.md` is canonical, `.aether/agents-claude/*.md` is a byte-identical packaging mirror, `.opencode/agents/*.md` maintains structural parity (same filenames/count), `.codex/agents/*.toml` is user-facing (TOML format), `.aether/agents-codex/*.toml` is a packaging mirror.
 
 ---
 
@@ -716,9 +736,11 @@ data files clean, and test coverage comprehensive as features evolve.
 
 ---
 
-## For OpenCode
+## For OpenCode / Codex
 
 For OpenCode-specific rules and agents, see `.opencode/OPENCODE.md`
+
+For Codex-specific rules and agents, see `.codex/CODEX.md`
 
 ---
 
