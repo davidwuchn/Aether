@@ -359,8 +359,10 @@ func setupInstallHub(hubDir, packageDir string) map[string]interface{} {
 	result["removed"] = len(hubSyncResult.removed)
 
 	// Sync Codex agents to hub system directory
-	// Use an empty exclusion set since .codex/ has a different structure than .aether/
-	codexSrc := filepath.Join(packageDir, ".codex")
+	// Sync only .codex/agents/ to avoid nesting: syncing .codex/ preserves agents/ subdir
+	// in hub as system/codex/agents/*.toml, then setup maps system/codex/ -> .codex/agents/,
+	// landing at .codex/agents/agents/*.toml. Syncing just agents/ fixes this.
+	codexSrc := filepath.Join(packageDir, ".codex", "agents")
 	codexDest := filepath.Join(systemDir, "codex")
 	codexSyncResult := syncDirToHubWithExclusion(codexSrc, codexDest, nil)
 	result["codex_copied"] = codexSyncResult.copied

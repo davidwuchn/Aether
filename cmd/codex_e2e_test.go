@@ -72,7 +72,7 @@ func TestCodexInstallCopiesAgentsToHub(t *testing.T) {
 		t.Fatalf("install command failed: %v", err)
 	}
 
-	hubCodexFile := filepath.Join(homeDir, ".aether", "system", "codex", "agents", "aether-builder.toml")
+	hubCodexFile := filepath.Join(homeDir, ".aether", "system", "codex", "aether-builder.toml")
 	if _, err := os.Stat(hubCodexFile); os.IsNotExist(err) {
 		t.Errorf("expected file %s to exist after install", hubCodexFile)
 	}
@@ -155,7 +155,7 @@ func TestCodexInstallAgentContent(t *testing.T) {
 	}
 
 	// Verify content in hub ~/.aether/system/codex/
-	hubFile := filepath.Join(homeDir, ".aether", "system", "codex", "agents", "aether-builder.toml")
+	hubFile := filepath.Join(homeDir, ".aether", "system", "codex", "aether-builder.toml")
 	hubActual, err := os.ReadFile(hubFile)
 	if err != nil {
 		t.Fatalf("failed to read hub file: %v", err)
@@ -167,10 +167,8 @@ func TestCodexInstallAgentContent(t *testing.T) {
 
 // TestCodexSetupCopiesAgents verifies that setup copies Codex agent files
 // from the hub to a target repository.
-// NOTE: The setup sync pair maps hub system/codex/ -> repo .codex/agents/.
-// Since hub stores files at system/codex/agents/*.toml, the relative path
-// "agents/*.toml" is preserved, landing files at .codex/agents/agents/*.toml.
-// This tests the actual behavior of the current implementation.
+// Install syncs .codex/agents/ -> system/codex/, so hub stores at system/codex/*.toml.
+// Setup sync pair maps system/codex/ -> .codex/agents/, landing at .codex/agents/*.toml.
 func TestCodexSetupCopiesAgents(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -219,9 +217,9 @@ func TestCodexSetupCopiesAgents(t *testing.T) {
 	}
 
 	// Verify Codex agents were synced to repo.
-	// Hub stores at system/codex/agents/*.toml; setup syncs system/codex/ -> .codex/agents/
-	// so files land at .codex/agents/agents/*.toml (preserving relative path from source).
-	repoCodexFile := filepath.Join(repoDir, ".codex", "agents", "agents", "aether-builder.toml")
+	// Hub stores at system/codex/*.toml; setup syncs system/codex/ -> .codex/agents/
+	// so files land at .codex/agents/*.toml (flat, no nesting).
+	repoCodexFile := filepath.Join(repoDir, ".codex", "agents", "aether-builder.toml")
 	if _, err := os.Stat(repoCodexFile); os.IsNotExist(err) {
 		t.Errorf("expected file %s to exist after setup", repoCodexFile)
 	}
@@ -238,9 +236,8 @@ func TestCodexSetupCopiesAgents(t *testing.T) {
 
 // TestCodexUpdateCopiesAgents verifies that update copies Codex agent files
 // from the hub to a target repository.
-// NOTE: Files placed directly in hub system/codex/ (not in agents/ subdirectory)
-// sync to repo .codex/agents/ at the top level. Files in hub system/codex/agents/
-// sync to repo .codex/agents/agents/ due to relative path preservation.
+// Install syncs .codex/agents/ -> system/codex/, so hub stores at system/codex/*.toml.
+// Setup/update sync pair maps system/codex/ -> .codex/agents/, landing at .codex/agents/*.toml.
 func TestCodexUpdateCopiesAgents(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -288,7 +285,7 @@ func TestCodexUpdateCopiesAgents(t *testing.T) {
 	}
 
 	// Step 3: Update hub with a new Codex agent placed directly in system/codex/
-	// (not in agents/ subdirectory) so it syncs cleanly to .codex/agents/
+	// placed directly in system/codex/ so it syncs cleanly to .codex/agents/
 	hubSystem := filepath.Join(homeDir, ".aether", "system")
 	hubCodexDir := filepath.Join(hubSystem, "codex")
 	if err := os.MkdirAll(hubCodexDir, 0755); err != nil {
@@ -399,7 +396,7 @@ func TestCodexE2EFullLifecycle(t *testing.T) {
 		}
 
 		// Verify Codex agents in hub
-		hubCodex := filepath.Join(homeDir, ".aether", "system", "codex", "agents")
+		hubCodex := filepath.Join(homeDir, ".aether", "system", "codex")
 		for _, name := range []string{"aether-builder.toml", "aether-watcher.toml"} {
 			f := filepath.Join(hubCodex, name)
 			if _, err := os.Stat(f); os.IsNotExist(err) {
@@ -423,9 +420,9 @@ func TestCodexE2EFullLifecycle(t *testing.T) {
 		}
 
 		// Verify Codex agents synced to repo.
-		// Hub stores at system/codex/agents/*.toml; setup syncs system/codex/ -> .codex/agents/
-		// so files land at .codex/agents/agents/*.toml (preserving relative path from source).
-		repoCodex := filepath.Join(repoDir, ".codex", "agents", "agents")
+		// Hub stores at system/codex/*.toml; setup syncs system/codex/ -> .codex/agents/
+		// so files land at .codex/agents/*.toml (flat, no nesting).
+		repoCodex := filepath.Join(repoDir, ".codex", "agents")
 		for _, name := range []string{"aether-builder.toml", "aether-watcher.toml"} {
 			f := filepath.Join(repoCodex, name)
 			if _, err := os.Stat(f); os.IsNotExist(err) {
@@ -495,8 +492,8 @@ func TestCodexE2EFullLifecycle(t *testing.T) {
 			t.Errorf("sage.toml content mismatch after update\ngot:  %s\nwant: %s", string(actual), string(sageContent))
 		}
 
-		// Original agents should still exist (in the nested agents/agents/ path)
-		repoBuilder := filepath.Join(repoDir, ".codex", "agents", "agents", "aether-builder.toml")
+		// Original agents should still exist after update
+		repoBuilder := filepath.Join(repoDir, ".codex", "agents", "aether-builder.toml")
 		if _, err := os.Stat(repoBuilder); os.IsNotExist(err) {
 			t.Error("expected aether-builder.toml to still exist after update")
 		}
@@ -550,7 +547,7 @@ func TestCodexInstallMultipleAgents(t *testing.T) {
 	}
 
 	// Verify all agents were copied to hub
-	hubDir := filepath.Join(homeDir, ".aether", "system", "codex", "agents")
+	hubDir := filepath.Join(homeDir, ".aether", "system", "codex")
 	for name := range agents {
 		f := filepath.Join(hubDir, name)
 		if _, err := os.Stat(f); os.IsNotExist(err) {

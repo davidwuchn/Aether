@@ -1,7 +1,7 @@
 # CLAUDE.md — Aether Development Guide
 
 > **Current Version:** v1.0.1
-> **Last Updated:** 2026-04-12
+> **Last Updated:** 2026-04-15
 
 ---
 
@@ -744,4 +744,4 @@ For Codex-specific rules and agents, see `.codex/CODEX.md`
 
 ---
 
-*Updated for Aether v1.0.1 — 2026-04-12*
+*Updated for Aether v1.0.1 — 2026-04-15*

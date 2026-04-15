@@ -540,7 +540,7 @@ func TestInstallCopiesCodexAgentsToHub(t *testing.T) {
 		t.Fatalf("install command failed: %v", err)
 	}
 
-	hubCodexFile := filepath.Join(homeDir, ".aether", "system", "codex", "agents", "test-agent.toml")
+	hubCodexFile := filepath.Join(homeDir, ".aether", "system", "codex", "test-agent.toml")
 	if _, err := os.Stat(hubCodexFile); os.IsNotExist(err) {
 		t.Errorf("expected file %s to exist after install", hubCodexFile)
 	}
