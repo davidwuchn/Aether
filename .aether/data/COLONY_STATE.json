@@ -1,8 +1,8 @@
 {
   "version": "3.0",
-  "goal": "Make Aether work for Codex CLI \u2014 research Codex's extension format, create command and agent files, update setup flow, and test end-to-end",
+  "goal": "Make Aether work for Codex CLI — research Codex's extension format, create command and agent files, update setup flow, and test end-to-end",
   "colony_name": "codex-integration",
-  "colony_version": 1,
+  "colony_version": 2,
   "state": "READY",
   "current_phase": 10,
   "session_id": "session_1776180339_codex171",
@@ -245,12 +245,12 @@
   },
   "signals": [],
   "graveyards": [],
-  "events": [],
+  "events": [
+    ""
+  ],
   "plan_granularity": "quarter",
   "parallel_mode": "in-repo",
-  "milestone": "",
-  "build_baseline_sha": ""
+  "milestone": "Crowned Anthill",
+  "build_baseline_sha": "",
+  "milestone_updated_at": "2026-04-16T15:35:28Z"
 }
-
-
-
