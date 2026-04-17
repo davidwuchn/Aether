@@ -87,7 +87,7 @@ var entropyScoreCmd = &cobra.Command{
 		factors["error_count"] = errorCount
 
 		// Factor: instincts (more = healthier, up to a point)
-		instinctCount := len(state.Memory.Instincts)
+		instinctCount := activeInstinctCount(store, &state)
 		instinctBonus := float64(instinctCount) * 1.0
 		if instinctBonus > 10 {
 			instinctBonus = 10
@@ -368,19 +368,30 @@ var instinctReadCmd = &cobra.Command{
 
 		instinctID := args[0]
 
-		var state colony.ColonyState
-		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-			outputError(1, "COLONY_STATE.json not found", nil)
-			return nil
-		}
-
-		for _, inst := range state.Memory.Instincts {
+		file := loadInstinctFileOrEmpty(store)
+		for _, inst := range file.Instincts {
+			if inst.Archived {
+				continue
+			}
 			if inst.ID == instinctID {
 				outputOK(map[string]interface{}{
 					"instinct": inst,
 					"found":    true,
 				})
 				return nil
+			}
+		}
+
+		var state colony.ColonyState
+		if err := store.LoadJSON("COLONY_STATE.json", &state); err == nil {
+			for _, inst := range state.Memory.Instincts {
+				if inst.ID == instinctID {
+					outputOK(map[string]interface{}{
+						"instinct": inst,
+						"found":    true,
+					})
+					return nil
+				}
 			}
 		}
 
@@ -404,34 +415,58 @@ var instinctApplyCmd = &cobra.Command{
 		instinctID := args[0]
 		success, _ := cmd.Flags().GetBool("success")
 
-		var state colony.ColonyState
-		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-			outputError(1, "COLONY_STATE.json not found", nil)
-			return nil
-		}
-
+		file := loadInstinctFileOrEmpty(store)
 		found := false
-		for i := range state.Memory.Instincts {
-			if state.Memory.Instincts[i].ID == instinctID {
+		for i := range file.Instincts {
+			if file.Instincts[i].Archived {
+				continue
+			}
+			if file.Instincts[i].ID == instinctID {
 				found = true
-				state.Memory.Instincts[i].Applications++
-				if success {
-					state.Memory.Instincts[i].Successes++
-				} else {
-					state.Memory.Instincts[i].Failures++
-				}
 				now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
-				state.Memory.Instincts[i].LastApplied = &now
+				file.Instincts[i].Provenance.LastApplied = &now
+				file.Instincts[i].Provenance.ApplicationCount++
+				file.Instincts[i].ApplicationHistory = append(file.Instincts[i].ApplicationHistory, map[string]interface{}{
+					"timestamp": now,
+					"success":   success,
+				})
 				break
 			}
 		}
 
 		if !found {
+			var state colony.ColonyState
+			if err := store.LoadJSON("COLONY_STATE.json", &state); err == nil {
+				for i := range state.Memory.Instincts {
+					if state.Memory.Instincts[i].ID != instinctID {
+						continue
+					}
+					found = true
+					state.Memory.Instincts[i].Applications++
+					if success {
+						state.Memory.Instincts[i].Successes++
+					} else {
+						state.Memory.Instincts[i].Failures++
+					}
+					now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
+					state.Memory.Instincts[i].LastApplied = &now
+					if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
+						outputError(2, fmt.Sprintf("failed to save: %v", err), nil)
+						return nil
+					}
+					outputOK(map[string]interface{}{
+						"applied": true,
+						"id":      instinctID,
+						"success": success,
+					})
+					return nil
+				}
+			}
 			outputError(1, fmt.Sprintf("instinct %q not found", instinctID), nil)
 			return nil
 		}
 
-		if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
+		if err := store.SaveJSON("instincts.json", file); err != nil {
 			outputError(2, fmt.Sprintf("failed to save: %v", err), nil)
 			return nil
 		}

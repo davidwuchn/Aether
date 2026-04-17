@@ -33,10 +33,10 @@ func TestSignalHousekeepingExpiresSignalsAndShrinksPrompt(t *testing.T) {
 	goal := "guidance foundation"
 	initializedAt := now
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:      "3.0",
-		Goal:         &goal,
-		State:        colony.StateREADY,
-		CurrentPhase: 4,
+		Version:       "3.0",
+		Goal:          &goal,
+		State:         colony.StateREADY,
+		CurrentPhase:  4,
 		InitializedAt: &initializedAt,
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
@@ -167,11 +167,17 @@ func TestSignalHousekeepingExpiresSignalsAndShrinksPrompt(t *testing.T) {
 	afterSection := after["section"].(string)
 	afterCount := after["signal_count"].(float64)
 
-	if beforeCount != 4 {
-		t.Fatalf("before signal_count = %v, want 4", beforeCount)
+	if beforeCount != 2 {
+		t.Fatalf("before signal_count = %v, want 2 prompt-visible signals", beforeCount)
 	}
 	if afterCount != 1 {
 		t.Fatalf("after signal_count = %v, want 1", afterCount)
+	}
+	if strings.Contains(beforeSection, "expired signal") {
+		t.Fatalf("expired signal should already be excluded from prompt reads:\n%s", beforeSection)
+	}
+	if strings.Contains(beforeSection, "weak signal") {
+		t.Fatalf("decayed signal should already be excluded from prompt reads:\n%s", beforeSection)
 	}
 	if len(afterSection) >= len(beforeSection) {
 		t.Fatalf("expected pheromone prompt section to shrink after housekeeping, before=%d after=%d", len(beforeSection), len(afterSection))
@@ -183,20 +189,29 @@ func TestContinueRunsSignalHousekeeping(t *testing.T) {
 	resetRootCmd(t)
 
 	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
 	goal := "guidance foundation"
 	initializedAt := time.Date(2026, 4, 15, 17, 34, 14, 0, time.UTC)
+	now := time.Now().UTC()
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:      "3.0",
-		Goal:         &goal,
-		State:        colony.StateEXECUTING,
-		CurrentPhase: 1,
-		InitializedAt: &initializedAt,
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		InitializedAt:  &initializedAt,
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
 				{ID: 1, Name: "phase 1", Status: colony.PhaseInProgress, Tasks: []colony.Task{{ID: ptrString("1.1"), Goal: "do work", Status: colony.TaskPending}}},
 				{ID: 2, Name: "phase 2", Status: colony.PhasePending},
 			},
 		},
+	})
+	seedContinueBuildPacket(t, dataDir, 1, "phase 1", goal, []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-1", Task: "do work", Status: "completed", TaskID: "1.1"},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-1", Task: "verify", Status: "completed"},
 	})
 
 	s0_6 := 0.6

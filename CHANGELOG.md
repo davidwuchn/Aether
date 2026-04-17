@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-04-17
+
+Codex CLI release hardening and parity update. This release closes the remaining
+runtime gaps between the Codex workflow and the established colony lifecycle.
+
+### Added
+- Native Codex compatibility commands: `aether run`, `aether watch`, and `aether oracle`
+- Regression coverage for Codex compatibility flows, compact colony-prime worker context, mirror synchronization, and prompt budgeting
+
+### Changed
+- Codex workers now receive compact colony-prime context with hive wisdom, user preferences, blockers, decisions, and phase learnings
+- README, AGENTS.md, and `.codex/CODEX.md` now describe Codex as a supported release workflow, including autopilot, live watch, and oracle workspace entrypoints
+- Public command counts were corrected to 46 slash commands for Claude Code and OpenCode
+
+### Fixed
+- Expired and decayed pheromone signals no longer leak into normal worker prompt reads
+- Final Codex worker prompts now enforce a global end-to-end budget instead of only budgeting individual sections
+- Packaged agent mirrors for Claude and Codex were resynchronized with canonical agent definitions
+- Codex worker schema serialization now returns errors instead of panicking on marshal failure
+- Full validation stayed clean for release: `go test ./...`, `go vet ./...`, and `go test ./... -race`
+
 ## [5.3.0] - 2026-03-31
 
 Aether v2.7 — PR Workflow + Stability. Six phases (39-44) adding multi-branch safety, clash detection, and release hardening.

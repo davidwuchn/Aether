@@ -179,16 +179,16 @@ var learningPromoteAutoCmd = &cobra.Command{
 }
 
 var memoryCaptureCmd = &cobra.Command{
-	Use:   "memory-capture",
+	Use:   "memory-capture [content]",
 	Short: "Capture a memory observation (simplified learning-observe)",
-	Args:  cobra.NoArgs,
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if store == nil {
 			outputErrorMessage("no store initialized")
 			return nil
 		}
 
-		content := mustGetString(cmd, "content")
+		content := mustGetStringCompat(cmd, args, "content", 0)
 		if content == "" {
 			return nil
 		}

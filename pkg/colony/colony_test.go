@@ -21,6 +21,7 @@ func TestValidTransitions(t *testing.T) {
 		{StateREADY, StateEXECUTING},
 		{StateEXECUTING, StateBUILT},
 		{StateBUILT, StateREADY},
+		{StateBUILT, StateCOMPLETED},
 		{StateEXECUTING, StateCOMPLETED},
 		{StateREADY, StateCOMPLETED},
 	}
@@ -46,7 +47,6 @@ func TestInvalidTransitions(t *testing.T) {
 		{StateCOMPLETED, StateEXECUTING},
 		{StateCOMPLETED, StateBUILT},
 		{StateBUILT, StateEXECUTING},
-		{StateBUILT, StateCOMPLETED},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.from)+"->"+string(tt.to), func(t *testing.T) {

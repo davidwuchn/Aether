@@ -87,7 +87,7 @@ Aether Repo (this repo)
                                                      |     (no codex/ -- no slash commands)
                                                            |
   aether update (in ANY repo)  <---------------------------+
-  aether setup   (initializes colony)
+  aether lay-eggs (initializes colony)
 
 v
 any-repo/.codex/ (WORKING COPY)
@@ -105,6 +105,8 @@ any-repo/.codex/ (WORKING COPY)
 | `.codex/agents/` | Codex agent definitions (TOML) | -> `~/.aether/system/codex/` |
 | `AGENTS.md` | Codex system instructions | Template-generated at setup |
 | `.aether/` (system files) | Source of truth for workers, utils, docs | -> `~/.aether/system/` |
+| `.aether/agents-codex/` | Codex packaging mirror | Embedded alongside hub assets |
+| `.aether/skills-codex/` | Codex-installed skill mirror | -> `~/.aether/system/skills-codex/` |
 | `.aether/data/` | Colony state | **NEVER touched** |
 | `.aether/dreams/` | Session notes | **NEVER touched** |
 
@@ -167,7 +169,13 @@ the `aether skill-*` commands against worker role, workspace files, and package 
 Skills are not a separate Codex plugin bundle. Codex agent definitions remain in
 `.codex/agents/*.toml`, and the Go CLI handles skill indexing, matching, and injection.
 
+Skills are automatically matched and injected into worker prompts during `build`,
+`colonize`, and `plan` dispatches.
+
 ### Pheromone Signals
+
+Active pheromone signals are automatically injected into worker prompts during
+`build`, `colonize`, and `plan` dispatches.
 
 Pheromone signals work identically across all platforms via the `aether` CLI:
 
@@ -201,11 +209,19 @@ aether colonize
 # Generate phase plan
 aether plan
 
+# Preview or run the autopilot loop
+aether run --dry-run
+aether run --max-phases 2
+
 # Build a phase (workers execute)
 aether build 1
 
 # Verify, learn, advance
 aether continue
+
+# Live worker view and research workspace
+aether watch
+aether oracle "release concern"
 
 # Finish the colony
 aether seal
@@ -217,6 +233,8 @@ aether seal
 aether status           # Colony dashboard
 aether phase            # Current phase details
 aether phase 3          # Specific phase
+aether watch            # Live worker activity alias
+aether swarm --watch    # Live worker activity
 aether flags            # Active flags
 aether flag --title "Investigate auth bug"
 aether history          # Colony events
@@ -252,6 +270,9 @@ aether resume            # Restore saved session context
 ```bash
 aether preferences "prefer verbose output"
 aether phase-insert --after 1 --name "Fix auth" --description "Stabilize auth flow"
+aether run --headless --max-phases 3
+aether swarm "build flakes in auth"
+aether oracle "auth flake investigation"
 aether skill-match --role builder --task "react form validation"
 aether skill-inject --role builder --task "react form validation"
 aether data-clean        # Clean test artifacts
@@ -372,8 +393,8 @@ aether update
 | Slash commands | Yes (46 commands) | Yes (46 commands) | **No** -- use `aether` CLI |
 | Command location | `.claude/commands/ant/` | `.opencode/commands/ant/` | N/A |
 | Agent metadata | In markdown header | In markdown header | TOML keys |
-| Hub sync path | `~/.aether/agents/` | `~/.aether/agents/` | `~/.aether/system/skills-codex/` |
-| Sub-agent spawn | `Task` tool | `Task` tool | `spawn_agent` tool |
+| Hub sync path | `~/.aether/agents/` | `~/.aether/agents/` | `~/.aether/system/codex/` + `~/.aether/system/skills-codex/` |
+| Worker runtime | `Task` tool | `Task` tool | `codex exec` driven by `aether` |
 | Rules file | `.claude/rules/` | Inline | `AGENTS.md` sections |
 
 ### What is the same
@@ -401,4 +422,4 @@ aether update
 
 ---
 
-*Updated for Aether v1.0.1 -- 2026-04-14*
+*Updated for Aether v1.0.2 -- 2026-04-17*

@@ -27,7 +27,7 @@ aether pheromone-export-xml --output "<output_path>"
 ```
 
 Parse the returned JSON:
-- If `.ok` is `true`: extract `.result.path` and `.result.validated` (if present).
+- If `.ok` is `true`: extract `.result.file`.
 - If `.ok` is `false`: check `.error` for details. If error mentions `xmllint` or `E_FEATURE_UNAVAILABLE`, display: "XML export requires xmllint. Install with: xcode-select --install (macOS) or apt-get install libxml2-utils (Linux)." Otherwise display the error message and stop.
 
 ### Step 3: Confirm
@@ -37,7 +37,6 @@ Output (3-5 lines, no banners):
 ```
 Pheromone signals exported to XML
   Path: <output_path>
-  Validated: <yes/no based on .result.validated>
 
 Share this file with another colony using /ant:import-signals.
 ```
@@ -54,4 +53,3 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 aether print-next-up
 ```
-

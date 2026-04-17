@@ -1,7 +1,7 @@
 # AGENTS.md -- Aether Development Guide (Codex CLI)
 
-> **Current Version:** v1.0.1
-> **Last Updated:** 2026-04-14
+> **Current Version:** v1.0.2
+> **Last Updated:** 2026-04-17
 > **Platform:** Codex CLI (OpenAI)
 
 This file provides project-level instructions for Codex CLI, equivalent to
@@ -14,11 +14,11 @@ OpenCode, and Codex CLI.
 
 | What | Count/Status |
 |------|--------------|
-| Version | v1.0.1 |
+| Version | v1.0.2 |
 | Agent definitions | 24 (TOML in `.codex/agents/`) |
 | Skills | 28 (10 colony + 18 domain) |
 | Go binary | `aether` CLI (Go binary in cmd/) |
-| Tests | 2900+ passing |
+| Verification | `go test ./...` and `go test ./... -race` clean |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
 
 ---
@@ -61,12 +61,13 @@ them as part of its agent discovery system.
 |   +-- memory/         Learning pipeline, instincts, promotion    |
 |   +-- storage/        JSON store, file locking                   |
 |                                                                   |
-|   .aether/             <- Companion files (distributed via npm)   |
-|   +-- commands/*.yaml   Slash command source definitions         |
-|   +-- agents-claude/    Agent definition mirror (packaging)      |
-|   +-- skills/           colony/ (10) + domain/ (18)              |
-|   +-- docs/             Distributed documentation               |
-|   +-- templates/        Colony state, pheromones, etc.           |
+|   .aether/             <- Companion files (embedded in release binaries) |
+|   +-- agents-claude/   Claude packaging mirror                  |
+|   +-- agents-codex/    Codex packaging mirror                   |
+|   +-- skills/          Shared skill source                       |
+|   +-- skills-codex/    Codex-installed skill mirror              |
+|   +-- docs/            Distributed documentation                 |
+|   +-- templates/       Colony state, pheromones, etc.           |
 |                                                                   |
 |   .aether/data/        <- LOCAL ONLY (gitignored)                |
 |   .aether/dreams/      <- LOCAL ONLY (gitignored)                |
@@ -105,6 +106,8 @@ parallel mode, and context capsule -- all within a token budget (see Token Budge
 | Go commands | `cmd/` | Go source code |
 | User docs | `.aether/docs/` | Distributed directly |
 | Codex agent definitions | `.codex/agents/*.toml` | Codex CLI agent format |
+| Codex packaging mirror | `.aether/agents-codex/*.toml` | Must stay in sync with `.codex/agents/*.toml` |
+| Codex skill mirror | `.aether/skills-codex/` | Codex-installed skill bundle |
 | Claude Code commands | `.claude/commands/ant/` | Claude Code commands |
 | OpenCode commands | `.opencode/commands/ant/` | OpenCode commands |
 | Claude Code agents | `.claude/agents/ant/` | Claude Code agents |
@@ -122,13 +125,17 @@ aether lay-eggs
 aether init "Build feature X"
 aether colonize
 aether plan
+aether run --dry-run
+aether swarm --watch
 aether build 1
 aether continue
 aether seal
+aether oracle "release concern"
 ```
 
-Additional automation and specialized flows still use lower-level `aether`
-subcommands rather than a single top-level autopilot command.
+Codex also exposes compatibility entrypoints for the flows users reach for most:
+`aether run` for autopilot-style build/continue looping, `aether watch` for live
+worker visibility, and `aether oracle` for research workspace management.
 
 ### Publishing Changes
 
@@ -161,8 +168,11 @@ Since Codex CLI has no slash commands, all colony operations use the `aether` CL
 | `aether init "Build feature X"` | Start a colony with a goal |
 | `aether colonize` | Analyze existing codebase |
 | `aether plan` | Generate project phases |
-| `aether build <phase>` | Execute a phase with parallel workers |
+| `aether build <phase>` | Execute a phase with Codex worker dispatch |
 | `aether continue` | Verify work, extract learnings, advance |
+| `aether run` | Autopilot the remaining build/continue loop |
+| `aether swarm [problem]` | Route to the right explicit workflow step or watch active workers |
+| `aether oracle [topic]` | Bootstrap or inspect the oracle research workspace |
 
 ### Pheromone Signals
 
@@ -173,13 +183,14 @@ Since Codex CLI has no slash commands, all colony operations use the `aether` CL
 | `aether feedback "<note>"` | low | Gentle adjustment |
 | `aether pheromones` | -- | View all active signals |
 | `aether export-signals` | -- | Export signals to XML |
-| `aether import-signals` | -- | Import signals from XML |
+| `aether import-signals --file <path>` | -- | Import signals from XML |
 
 ### Status and Monitoring
 
 | Command | Purpose |
 |---------|---------|
 | `aether status` | Colony dashboard |
+| `aether watch` | Live worker activity compatibility view |
 | `aether phase [N]` | View phase details |
 | `aether flags` | List active flags |
 | `aether flag "<title>"` | Create a flag |
@@ -191,7 +202,7 @@ Since Codex CLI has no slash commands, all colony operations use the `aether` CL
 
 | Command | Purpose |
 |---------|---------|
-| `aether resume` | Quick session restore |
+| `aether resume` | Restore colony context from handoff (`resume-colony` alias) |
 
 ### Lifecycle
 
@@ -223,14 +234,21 @@ aether lay-eggs
 aether init "Build feature X"
 aether colonize                          # if existing codebase
 aether plan
+aether watch                             # optional live worker view
 aether focus "security"                  # optional guidance
 aether build 1
 aether continue
 aether build 2                           # repeat until complete
 
+# Or let Codex run the loop
+aether run --max-phases 2
+
 # After a session break
 aether resume
 aether status
+
+# Research a release concern
+aether oracle "release parity"
 
 # After completing a colony
 aether seal
@@ -268,7 +286,8 @@ and developer_instructions. Codex reads these for agent discovery.
 +-- docs/                # Distributed documentation
 +-- exchange/            # XML exchange modules (pheromone-xml, wisdom-xml)
 +-- agents-claude/       # Claude agent mirror used for packaging
-+-- commands/            # YAML source definitions for slash commands
++-- agents-codex/        # Codex agent mirror used for packaging
++-- skills-codex/        # Codex-installed skill mirror
 +-- data/                # LOCAL ONLY (never distributed)
 |   +-- COLONY_STATE.json  # Colony state with phase tracking + parallel_mode
 |   +-- pheromones.json
@@ -356,6 +375,7 @@ User-colony communication via signals:
 - Colony-prime injects active signals into worker prompts via `prompt_section`
 - Builder, Watcher, and Scout agents have `pheromone_protocol` sections that instruct them how to act on injected signals
 - Signals are grouped by type (FOCUS, REDIRECT, FEEDBACK) in the injected prompt section
+- In Codex CLI, active pheromone signals are automatically injected into worker prompts during `build`, `colonize`, and `plan` dispatches
 
 **Content Deduplication (v2.0):**
 - Each signal gets a SHA-256 `content_hash` on creation
@@ -368,7 +388,7 @@ User-colony communication via signals:
 
 **Exchange:**
 - `aether export-signals` -- Export pheromone signals to XML for cross-colony sharing
-- `aether import-signals` -- Import pheromone signals from XML
+- `aether import-signals --file <path>` -- Import pheromone signals from XML
 
 **Files:**
 - `.aether/data/pheromones.json` -- Active signals
@@ -409,6 +429,7 @@ on demand. Two categories:
 - Own 8K character budget (independent of the colony-prime token budget)
 - Injected into builder and watcher prompts
 - `skill-inject` assembles matched skills into a prompt section
+- In Codex CLI, skills are automatically matched and injected into worker prompts during `build`, `colonize`, and `plan` dispatches
 
 ### Subcommands
 
@@ -601,11 +622,11 @@ wisdom.
 
 | Stage | Subcommand | Output |
 |-------|-----------|--------|
-| 1. Observe | `memory-capture "learning"` | Records observation |
+| 1. Observe | `memory-capture --type "learning" --content "..."` | Records observation |
 | 1a. Trust score | `trust-score-compute` | Weighted trust score (40/35/25, 7 tiers) |
 | 1b. Event bus | `event-bus-publish` | JSONL event bus with TTL |
 | 2. Auto-promote | (internal) | Triggers after 2 observations |
-| 3. Instinct | `instinct-create` | Stores in COLONY_STATE.json |
+| 3. Instinct | `instinct-create` | Stores in `instincts.json` |
 | 4. QUEEN.md | `queen-promote` | Writes to QUEEN.md |
 | 5. Inject | colony-prime | Injected into worker context |
 | 6. Hive store | `hive-promote` | Abstracts to hive (confidence >= 0.8) |
@@ -689,4 +710,4 @@ data files clean, and test coverage comprehensive as features evolve.
 
 ---
 
-*Updated for Aether v1.0.1 -- 2026-04-14*
+*Updated for Aether v1.0.2 -- 2026-04-17*

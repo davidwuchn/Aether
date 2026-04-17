@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/storage"
 )
 
@@ -130,5 +131,66 @@ func TestColonyVitalSigns(t *testing.T) {
 	validLabels := map[string]bool{"Thriving": true, "Healthy": true, "Stable": true, "Struggling": true, "Critical": true}
 	if !validLabels[label] {
 		t.Errorf("health_label = %q, want one of Thriving/Healthy/Stable/Struggling/Critical", label)
+	}
+}
+
+func TestColonyVitalSignsUsesStandaloneInstincts(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+
+	stdout = &buf
+
+	s, tmpDir := setupTestStore(t)
+	defer os.RemoveAll(tmpDir)
+
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", os.Getenv("AETHER_ROOT"))
+
+	var state colony.ColonyState
+	if err := s.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("load colony state: %v", err)
+	}
+	state.Memory.Instincts = []colony.Instinct{}
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatalf("save colony state: %v", err)
+	}
+
+	instincts := colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "inst_1",
+				Trigger:    "one",
+				Action:     "two",
+				Confidence: 0.8,
+				TrustScore: 0.8,
+				TrustTier:  "trusted",
+				Provenance: colony.InstinctProvenance{CreatedAt: "2026-04-01T00:00:00Z"},
+			},
+		},
+	}
+	if err := s.SaveJSON("instincts.json", instincts); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+
+	store = s
+	rootCmd.SetArgs([]string{"colony-vital-signs"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("colony-vital-signs returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+
+	var envelope map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &envelope); err != nil {
+		t.Fatalf("colony-vital-signs produced invalid JSON: %v", err)
+	}
+	result := envelope["result"].(map[string]interface{})
+	memoryPressure := result["memory_pressure"].(map[string]interface{})
+	if memoryPressure["instinct_count"] != float64(1) {
+		t.Fatalf("instinct_count = %v, want 1", memoryPressure["instinct_count"])
 	}
 }

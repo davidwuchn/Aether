@@ -1,0 +1,119 @@
+package cmd
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/calcosmic/Aether/pkg/colony"
+)
+
+func TestResolveCodexWorkerContextUsesColonyPrimeSections(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	hubDir := filepath.Join(tmpDir, "hub")
+	if err := os.MkdirAll(filepath.Join(hubDir, "hive"), 0755); err != nil {
+		t.Fatalf("mkdir hive: %v", err)
+	}
+	t.Setenv("AETHER_HUB_DIR", hubDir)
+
+	queenContent := `# QUEEN.md
+
+## User Preferences
+- Explain tradeoffs directly
+`
+	if err := os.WriteFile(filepath.Join(hubDir, "QUEEN.md"), []byte(queenContent), 0644); err != nil {
+		t.Fatalf("write QUEEN.md: %v", err)
+	}
+	hiveContent := `{"entries":[{"id":"go_1","text":"Prefer table-driven tests in Go","domain":"go","source_repo":"test","confidence":0.85,"created_at":"2026-04-01T00:00:00Z","accessed_at":"2026-04-01T00:00:00Z","access_count":1}]}`
+	if err := os.WriteFile(filepath.Join(hubDir, "hive", "wisdom.json"), []byte(hiveContent), 0644); err != nil {
+		t.Fatalf("write wisdom.json: %v", err)
+	}
+
+	now := time.Now().UTC()
+	goal := "Ship Codex ready for release"
+	taskID := "1.1"
+	state := colony.ColonyState{
+		Version:      "3.0",
+		Goal:         &goal,
+		State:        colony.StateEXECUTING,
+		CurrentPhase: 1,
+		Plan:         colony.Plan{Phases: []colony.Phase{{ID: 1, Name: "Release hardening", Status: colony.PhaseInProgress, Tasks: []colony.Task{{ID: &taskID, Goal: "Finish the runtime", Status: colony.TaskInProgress}}}}},
+		Memory: colony.Memory{
+			Decisions: []colony.Decision{{ID: "d1", Phase: 1, Claim: "Use colony-prime for Codex worker context", Rationale: "Matches Claude parity", Timestamp: now.Format(time.RFC3339)}},
+			PhaseLearnings: []colony.PhaseLearning{{
+				ID:        "l1",
+				Phase:     1,
+				PhaseName: "Release hardening",
+				Timestamp: now.Format(time.RFC3339),
+				Learnings: []colony.Learning{{Claim: "Expired signals must be filtered on read", Status: "validated", Tested: true}},
+			}},
+		},
+	}
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	instincts := colony.InstinctsFile{
+		Instincts: []colony.InstinctEntry{{
+			ID:         "i1",
+			Trigger:    "stale signal",
+			Action:     "filter on prompt read",
+			Domain:     "general",
+			TrustScore: 0.82,
+			TrustTier:  "high",
+			Confidence: 0.82,
+			Provenance: colony.InstinctProvenance{
+				Source:     "test",
+				SourceType: "test",
+				Evidence:   "coverage",
+				CreatedAt:  now.Format(time.RFC3339),
+			},
+		}},
+	}
+	if err := s.SaveJSON("instincts.json", instincts); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+
+	s0_9 := 0.9
+	pheromones := colony.PheromoneFile{
+		Signals: []colony.PheromoneSignal{{ID: "p1", Type: "REDIRECT", Priority: "high", Source: "user", CreatedAt: now.Format(time.RFC3339), Active: true, Strength: &s0_9, Content: json.RawMessage(`{"text":"Do not regress release parity"}`)}},
+	}
+	if err := s.SaveJSON("pheromones.json", pheromones); err != nil {
+		t.Fatalf("save pheromones: %v", err)
+	}
+
+	flags := colony.FlagsFile{
+		Decisions: []colony.FlagEntry{{ID: "f1", Type: "blocker", Description: "Mirror drift must be fixed before release"}},
+	}
+	if err := s.SaveJSON("flags.json", flags); err != nil {
+		t.Fatalf("save flags: %v", err)
+	}
+
+	context := resolveCodexWorkerContext()
+	for _, want := range []string{
+		"## HIVE WISDOM",
+		"## USER PREFERENCES",
+		"## Key Decisions",
+		"## Phase Learnings",
+		"## Active Blockers",
+		"Do not regress release parity",
+		"Prefer table-driven tests in Go",
+		"Explain tradeoffs directly",
+	} {
+		if !strings.Contains(context, want) {
+			t.Fatalf("worker context missing %q:\n%s", want, context)
+		}
+	}
+	if strings.Contains(context, "--- CONTEXT CAPSULE ---") {
+		t.Fatalf("worker context should prefer colony-prime output over the small context capsule:\n%s", context)
+	}
+}

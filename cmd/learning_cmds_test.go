@@ -119,20 +119,6 @@ func TestLearningPromote(t *testing.T) {
 	}
 	writeTestJSON(t, store.BasePath(), "learning-observations.json", obsData)
 
-	// Create a minimal COLONY_STATE.json
-	colonyData := map[string]interface{}{
-		"version":       "2.0",
-		"state":         "READY",
-		"current_phase": 1,
-		"plan":          map[string]interface{}{"phases": []interface{}{}},
-		"memory":        map[string]interface{}{"phase_learnings": []interface{}{}, "decisions": []interface{}{}, "instincts": []interface{}{}},
-		"errors":        map[string]interface{}{"records": []interface{}{}, "flagged_patterns": []interface{}{}},
-		"signals":       []interface{}{},
-		"graveyards":    []interface{}{},
-		"events":        []interface{}{},
-	}
-	writeTestJSON(t, store.BasePath(), "COLONY_STATE.json", colonyData)
-
 	rootCmd.SetArgs([]string{"learning-promote", "obs_999"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("learning-promote failed: %v", err)
@@ -142,6 +128,18 @@ func TestLearningPromote(t *testing.T) {
 	result := env["result"].(map[string]interface{})
 	if result["promoted"] != true {
 		t.Errorf("expected promoted true, got %v", result["promoted"])
+	}
+	data, err := os.ReadFile(filepath.Join(store.BasePath(), "instincts.json"))
+	if err != nil {
+		t.Fatalf("expected instincts.json to be created, got: %v", err)
+	}
+	var instinctsFile map[string]interface{}
+	if err := json.Unmarshal(data, &instinctsFile); err != nil {
+		t.Fatalf("failed to parse instincts.json: %v", err)
+	}
+	instincts := instinctsFile["instincts"].([]interface{})
+	if len(instincts) != 1 {
+		t.Fatalf("expected 1 instinct, got %d", len(instincts))
 	}
 }
 

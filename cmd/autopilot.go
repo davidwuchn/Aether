@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -27,6 +28,16 @@ type autopilotState struct {
 }
 
 const autopilotStatePath = "autopilot/state.json"
+
+func normalizeAutopilotPhaseStatus(status string) string {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "success":
+		return "completed"
+	default:
+		return status
+	}
+}
 
 // --- autopilot-init ---
 
@@ -79,7 +90,7 @@ var autopilotUpdateCmd = &cobra.Command{
 			return nil
 		}
 		phase := mustGetInt(cmd, "phase")
-		status := mustGetString(cmd, "status")
+		status := normalizeAutopilotPhaseStatus(mustGetString(cmd, "status"))
 		if status == "" {
 			return nil
 		}
@@ -224,7 +235,7 @@ var autopilotCheckReplanCmd = &cobra.Command{
 
 		completedPhases := 0
 		for _, p := range state.Phases {
-			if p.Status == "completed" {
+			if normalizeAutopilotPhaseStatus(p.Status) == "completed" {
 				completedPhases++
 			}
 		}

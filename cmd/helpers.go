@@ -17,7 +17,11 @@ import (
 //
 // This matches the shell's json_ok() function format for playbook compatibility.
 func outputOK(result interface{}) {
-	resultJSON, _ := json.Marshal(result)
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		outputError(2, fmt.Sprintf("failed to marshal command result: %v", err), nil)
+		return
+	}
 	fmt.Fprintf(stdout, "{\"ok\":true,\"result\":%s}\n", string(resultJSON))
 }
 
@@ -55,6 +59,26 @@ func mustGetString(cmd *cobra.Command, flag string) string {
 	return val
 }
 
+func mustGetStringCompat(cmd *cobra.Command, args []string, flag string, positional int) string {
+	val, _ := cmd.Flags().GetString(flag)
+	if strings.TrimSpace(val) != "" {
+		return val
+	}
+	if positional >= 0 && len(args) > positional {
+		val = strings.TrimSpace(args[positional])
+		if val != "" {
+			return val
+		}
+	}
+	outputError(1, fmt.Sprintf("flag --%s is required", flag), nil)
+	return ""
+}
+
+func mustGetStringCompatOptional(cmd *cobra.Command, flag string) string {
+	val, _ := cmd.Flags().GetString(flag)
+	return strings.TrimSpace(val)
+}
+
 // mustGetInt retrieves a required int flag, calling outputError and
 // exiting if the flag is missing.
 func mustGetInt(cmd *cobra.Command, flag string) int {
@@ -64,6 +88,22 @@ func mustGetInt(cmd *cobra.Command, flag string) int {
 		return 0
 	}
 	return val
+}
+
+func optionalArg(args []string, index int) string {
+	if index >= 0 && len(args) > index {
+		return strings.TrimSpace(args[index])
+	}
+	return ""
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // mustGetBool retrieves a required bool flag, calling outputError and

@@ -93,7 +93,7 @@ var hookStopCmd = &cobra.Command{
 		}
 
 		return emitHookBlock(fmt.Sprintf(
-			"Aether is still in %s. Finish the lifecycle with `aether continue`, or run `/ant:pause-colony` before stopping.",
+			"Aether is still in %s. Finish the lifecycle with `aether continue`, or run `aether pause-colony` before stopping.",
 			phaseLabel,
 		))
 	},
@@ -305,6 +305,18 @@ func ensureSessionSummary(state colony.ColonyState, commandName, suggestedNext, 
 		return
 	}
 
+	contextCleared := true
+	if _, err := syncColonyArtifacts(state, colonyArtifactOptions{
+		CommandName:    commandName,
+		SuggestedNext:  suggestedNext,
+		Summary:        summary,
+		HandoffTitle:   "Pre-Compact Snapshot",
+		WriteHandoff:   true,
+		ContextCleared: &contextCleared,
+	}); err == nil {
+		return
+	}
+
 	var session colony.SessionFile
 	if err := store.LoadJSON("session.json", &session); err != nil {
 		goal := ""
@@ -318,13 +330,12 @@ func ensureSessionSummary(state colony.ColonyState, commandName, suggestedNext, 
 			CurrentPhase:     state.CurrentPhase,
 			CurrentMilestone: state.Milestone,
 			SuggestedNext:    suggestedNext,
-			ContextCleared:   false,
+			ContextCleared:   true,
 			BaselineCommit:   getGitHEAD(),
 			ActiveTodos:      []string{},
 			Summary:          summary,
 		}
 	}
-
 	session.LastCommand = commandName
 	session.LastCommandAt = time.Now().UTC().Format(time.RFC3339)
 	session.CurrentPhase = state.CurrentPhase

@@ -228,7 +228,7 @@ Active signals: 5
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `.aether/aether CLI` | Modify | Add `pheromone-display` function |
+| `cmd/` | Modify | Add `pheromone-display` command flow |
 | `.claude/commands/ant/build.md` | Modify | Add Step 4.1 - display pheromones |
 | `.claude/commands/ant/status.md` | Modify | Add pheromone summary section |
 | `.claude/commands/ant/pheromones.md` | Create | New command for viewing/managing |

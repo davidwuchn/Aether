@@ -34,7 +34,7 @@ PHEROMONE COMMANDS
   /ant:feedback "<msg>"  Adjust behavior (priority: low, expires: phase end)
   /ant:pheromones        View and manage active pheromone signals
   /ant:export-signals [path]  Export pheromone signals to portable XML
-  /ant:import-signals <file> [colony]  Import signals from another colony's XML
+  /ant:import-signals <file>  Import signals from another colony's XML
 
 STATUS & UPDATES
 
@@ -147,4 +147,3 @@ OPENCODE USERS
   Without quotes, only the first word may be captured. Quoting is recommended.
 
 ```
-

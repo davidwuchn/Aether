@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 // TestCodexInstallCopiesAgents verifies that install copies .codex/agents/
@@ -559,5 +562,364 @@ func TestCodexInstallMultipleAgents(t *testing.T) {
 		if _, err := os.Stat(f); os.IsNotExist(err) {
 			t.Errorf("expected file %s to exist in hub after install", f)
 		}
+	}
+}
+
+func TestCodexInstallPreservesModifiedHomeAgent(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	packageDir := t.TempDir()
+	homeDir := t.TempDir()
+	srcDir := filepath.Join(packageDir, ".codex", "agents")
+
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create src dir: %v", err)
+	}
+	shipped := validCodexAgentTOML("aether-builder", "builder")
+	if err := os.WriteFile(filepath.Join(srcDir, "aether-builder.toml"), shipped, 0644); err != nil {
+		t.Fatalf("failed to create shipped agent: %v", err)
+	}
+
+	destDir := filepath.Join(homeDir, ".codex", "agents")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatalf("failed to create destination dir: %v", err)
+	}
+	local := []byte(`name = "aether-builder"
+description = "local override"
+nickname_candidates = ["builder", "local-builder"]
+developer_instructions = """
+Keep my local builder instructions.
+"""
+`)
+	destFile := filepath.Join(destDir, "aether-builder.toml")
+	if err := os.WriteFile(destFile, local, 0644); err != nil {
+		t.Fatalf("failed to seed local agent: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"install", "--package-dir", packageDir, "--home-dir", homeDir})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("install command failed: %v", err)
+	}
+
+	got, err := os.ReadFile(destFile)
+	if err != nil {
+		t.Fatalf("failed to read preserved local agent: %v", err)
+	}
+	if string(got) != string(local) {
+		t.Fatalf("expected install to preserve modified home agent\ngot:\n%s\nwant:\n%s", string(got), string(local))
+	}
+}
+
+func TestCodexInstallPreservesModifiedHomeSkill(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	packageDir := t.TempDir()
+	homeDir := t.TempDir()
+	srcDir := filepath.Join(packageDir, ".aether", "skills-codex", "colony", "build-discipline")
+
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("failed to create skill dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(packageDir, ".aether", "workers.md"), []byte("# Workers"), 0644); err != nil {
+		t.Fatalf("failed to create workers.md: %v", err)
+	}
+	shipped := []byte(`---
+name: build-discipline
+description: Shipped build discipline
+type: colony
+domains: []
+agent_roles: [builder]
+detect_files: []
+detect_packages: []
+priority: 10
+version: 1
+---
+Shipped skill
+`)
+	if err := os.WriteFile(filepath.Join(srcDir, "SKILL.md"), shipped, 0644); err != nil {
+		t.Fatalf("failed to create shipped skill: %v", err)
+	}
+
+	destDir := filepath.Join(homeDir, ".codex", "skills", "aether", "colony", "build-discipline")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		t.Fatalf("failed to create destination skill dir: %v", err)
+	}
+	local := []byte(`---
+name: build-discipline
+description: Local override
+type: colony
+domains: []
+agent_roles: [builder]
+detect_files: []
+detect_packages: []
+priority: 10
+version: 1
+---
+Local skill override
+`)
+	destFile := filepath.Join(destDir, "SKILL.md")
+	if err := os.WriteFile(destFile, local, 0644); err != nil {
+		t.Fatalf("failed to seed local skill: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"install", "--package-dir", packageDir, "--home-dir", homeDir})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("install command failed: %v", err)
+	}
+
+	got, err := os.ReadFile(destFile)
+	if err != nil {
+		t.Fatalf("failed to read preserved local skill: %v", err)
+	}
+	if string(got) != string(local) {
+		t.Fatalf("expected install to preserve modified home skill\ngot:\n%s\nwant:\n%s", string(got), string(local))
+	}
+}
+
+// all24AgentNames is the canonical list of all 24 Aether agent names.
+var all24AgentNames = []string{
+	"aether-ambassador",
+	"aether-archaeologist",
+	"aether-architect",
+	"aether-auditor",
+	"aether-builder",
+	"aether-chaos",
+	"aether-chronicler",
+	"aether-gatekeeper",
+	"aether-includer",
+	"aether-keeper",
+	"aether-measurer",
+	"aether-oracle",
+	"aether-probe",
+	"aether-queen",
+	"aether-route-setter",
+	"aether-sage",
+	"aether-scout",
+	"aether-surveyor-disciplines",
+	"aether-surveyor-nest",
+	"aether-surveyor-pathogens",
+	"aether-surveyor-provisions",
+	"aether-tracker",
+	"aether-watcher",
+	"aether-weaver",
+}
+
+// codexAgentTOML represents the required fields in a Codex agent TOML file.
+type codexAgentTOML struct {
+	Name                  string   `toml:"name"`
+	Description           string   `toml:"description"`
+	NicknameCandidates    []string `toml:"nickname_candidates"`
+	DeveloperInstructions string   `toml:"developer_instructions"`
+}
+
+// TestCodexInstallSetupUpdate_All24Agents verifies the full install -> setup
+// pipeline deploys all 24 Codex TOML agents correctly, and that each agent
+// file is valid TOML with all required fields.
+func TestCodexInstallSetupUpdate_All24Agents(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	packageDir := t.TempDir()
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+
+	// Step 1: Create mock package source with all 24 agent TOML files.
+	pkgCodex := filepath.Join(packageDir, ".codex", "agents")
+	if err := os.MkdirAll(pkgCodex, 0755); err != nil {
+		t.Fatalf("failed to create codex agents dir: %v", err)
+	}
+
+	for _, agentName := range all24AgentNames {
+		content := validCodexAgentTOML(agentName, agentName)
+		filename := agentName + ".toml"
+		if err := os.WriteFile(filepath.Join(pkgCodex, filename), content, 0644); err != nil {
+			t.Fatalf("failed to create %s: %v", filename, err)
+		}
+	}
+
+	// Create a minimal .aether/ so the hub has version.json.
+	pkgAether := filepath.Join(packageDir, ".aether")
+	if err := os.MkdirAll(pkgAether, 0755); err != nil {
+		t.Fatalf("failed to create package .aether dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pkgAether, "workers.md"), []byte("# Workers"), 0644); err != nil {
+		t.Fatalf("failed to write workers.md: %v", err)
+	}
+
+	// Step 2: Install to populate hub.
+	t.Run("install", func(t *testing.T) {
+		saveGlobals(t)
+		resetRootCmd(t)
+
+		var buf bytes.Buffer
+		stdout = &buf
+
+		rootCmd.SetArgs([]string{"install", "--package-dir", packageDir, "--home-dir", homeDir})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("install failed: %v", err)
+		}
+
+		// Verify all 24 agents exist in hub.
+		hubCodex := filepath.Join(homeDir, ".aether", "system", "codex")
+		for _, agentName := range all24AgentNames {
+			f := filepath.Join(hubCodex, agentName+".toml")
+			if _, err := os.Stat(f); os.IsNotExist(err) {
+				t.Errorf("expected %s in hub after install", f)
+			}
+		}
+	})
+
+	// Step 3: Setup to sync from hub to repo.
+	t.Run("setup", func(t *testing.T) {
+		saveGlobals(t)
+		resetRootCmd(t)
+
+		var buf bytes.Buffer
+		stdout = &buf
+
+		rootCmd.SetArgs([]string{"setup", "--repo-dir", repoDir, "--home-dir", homeDir})
+		if err := rootCmd.Execute(); err != nil {
+			t.Fatalf("setup failed: %v", err)
+		}
+
+		// Verify all 24 agent TOML files exist in target .codex/agents/.
+		repoCodex := filepath.Join(repoDir, ".codex", "agents")
+		for _, agentName := range all24AgentNames {
+			f := filepath.Join(repoCodex, agentName+".toml")
+			if _, err := os.Stat(f); os.IsNotExist(err) {
+				t.Errorf("expected %s in repo after setup", f)
+			}
+		}
+
+		// Verify each agent file is valid TOML with required fields.
+		for _, agentName := range all24AgentNames {
+			t.Run(agentName, func(t *testing.T) {
+				data, err := os.ReadFile(filepath.Join(repoCodex, agentName+".toml"))
+				if err != nil {
+					t.Fatalf("failed to read %s.toml: %v", agentName, err)
+				}
+
+				var agent codexAgentTOML
+				if _, err := toml.Decode(string(data), &agent); err != nil {
+					t.Fatalf("invalid TOML in %s.toml: %v", agentName, err)
+				}
+
+				if agent.Name == "" {
+					t.Errorf("%s: missing required field 'name'", agentName)
+				}
+				if agent.Description == "" {
+					t.Errorf("%s: missing required field 'description'", agentName)
+				}
+				if agent.DeveloperInstructions == "" {
+					t.Errorf("%s: missing required field 'developer_instructions'", agentName)
+				}
+			})
+		}
+	})
+}
+
+// TestCrossPlatformAgentParity verifies that all four agent directories have
+// exactly 24 entries with matching base names, confirming cross-platform parity.
+func TestCrossPlatformAgentParity(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("failed to find repo root: %v", err)
+	}
+
+	// Collect base names (stripped extensions) from each platform directory.
+	claudeDir := filepath.Join(repoRoot, ".claude", "agents", "ant")
+	opencodeDir := filepath.Join(repoRoot, ".opencode", "agents")
+	codexDir := filepath.Join(repoRoot, ".codex", "agents")
+	agentsCodexMirrorDir := filepath.Join(repoRoot, ".aether", "agents-codex")
+
+	claudeNames := listAgentBaseNames(t, claudeDir, ".md")
+	opencodeNames := listAgentBaseNames(t, opencodeDir, ".md")
+	codexNames := listAgentBaseNames(t, codexDir, ".toml")
+	agentsCodexNames := listAgentBaseNames(t, agentsCodexMirrorDir, ".toml")
+
+	// Verify each directory has exactly 24 entries.
+	const expectedCount = 24
+	if len(claudeNames) != expectedCount {
+		t.Errorf("Claude agents: expected %d, got %d", expectedCount, len(claudeNames))
+	}
+	if len(opencodeNames) != expectedCount {
+		t.Errorf("OpenCode agents: expected %d, got %d", expectedCount, len(opencodeNames))
+	}
+	if len(codexNames) != expectedCount {
+		t.Errorf("Codex agents: expected %d, got %d", expectedCount, len(codexNames))
+	}
+	if len(agentsCodexNames) != expectedCount {
+		t.Errorf("agents-codex mirror: expected %d, got %d", expectedCount, len(agentsCodexNames))
+	}
+
+	// Verify all four have matching base names.
+	if !slicesEqual(claudeNames, opencodeNames) {
+		t.Errorf("Claude and OpenCode agent names do not match.\nClaude:  %v\nOpenCode: %v", claudeNames, opencodeNames)
+	}
+	if !slicesEqual(claudeNames, codexNames) {
+		t.Errorf("Claude and Codex agent names do not match.\nClaude: %v\nCodex:  %v", claudeNames, codexNames)
+	}
+
+	// Verify agents-codex mirror matches .codex/agents/ exactly.
+	if !slicesEqual(codexNames, agentsCodexNames) {
+		t.Errorf("Codex and agents-codex mirror names do not match.\nCodex:        %v\nAgents-codex: %v", codexNames, agentsCodexNames)
+	}
+}
+
+// listAgentBaseNames reads a directory and returns sorted base names with the
+// given extension stripped. Only files ending in the specified extension are
+// included.
+func listAgentBaseNames(t *testing.T, dir, ext string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("failed to read directory %s: %v", dir, err)
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if strings.HasSuffix(name, ext) {
+			base := strings.TrimSuffix(name, ext)
+			names = append(names, base)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+// slicesEqual checks whether two sorted string slices are identical.
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// findRepoRoot walks up from the current working directory to find the
+// directory containing .claude/agents/ant/.
+func findRepoRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".claude", "agents", "ant")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", os.ErrNotExist
+		}
+		dir = parent
 	}
 }

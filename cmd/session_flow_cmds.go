@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -27,35 +25,24 @@ var pauseColonyCmd = &cobra.Command{
 			return nil
 		}
 
-		now := time.Now().UTC()
-		session, _ := loadOrCreateSessionSummary(now, state)
+		nextAction := "aether resume"
+		contextCleared := true
+		session, err := syncColonyArtifacts(state, colonyArtifactOptions{
+			CommandName:    "pause-colony",
+			SuggestedNext:  nextAction,
+			Summary:        fmt.Sprintf("Paused at phase %d", state.CurrentPhase),
+			SafeToClear:    "YES — Colony paused, safe to clear context",
+			HandoffTitle:   "Paused Colony",
+			WriteHandoff:   true,
+			ContextCleared: &contextCleared,
+		})
+		if err != nil {
+			outputError(2, fmt.Sprintf("failed to save recovery artifacts: %v", err), nil)
+			return nil
+		}
 		goal := session.ColonyGoal
 		if goal == "" && state.Goal != nil {
 			goal = *state.Goal
-		}
-		nextAction := computeNextAction(string(state.State), state.CurrentPhase, len(state.Plan.Phases))
-		session.LastCommand = "pause-colony"
-		session.LastCommandAt = now.Format(time.RFC3339)
-		session.SuggestedNext = "aether resume-colony"
-		session.ContextCleared = true
-		session.Summary = fmt.Sprintf("Paused at phase %d", state.CurrentPhase)
-		session.CurrentPhase = state.CurrentPhase
-		session.CurrentMilestone = state.Milestone
-
-		if err := store.SaveJSON("session.json", session); err != nil {
-			outputError(2, fmt.Sprintf("failed to save session: %v", err), nil)
-			return nil
-		}
-
-		handoffPath := filepath.Join(resolveAetherRootPath(), ".aether", "HANDOFF.md")
-		handoffContent := buildHandoffDocument(now, state, session, nextAction)
-		if err := os.MkdirAll(filepath.Dir(handoffPath), 0755); err != nil {
-			outputError(2, fmt.Sprintf("failed to create handoff directory: %v", err), nil)
-			return nil
-		}
-		if err := os.WriteFile(handoffPath, []byte(handoffContent), 0644); err != nil {
-			outputError(2, fmt.Sprintf("failed to write handoff: %v", err), nil)
-			return nil
 		}
 
 		result := map[string]interface{}{
@@ -64,8 +51,8 @@ var pauseColonyCmd = &cobra.Command{
 			"state":         state.State,
 			"current_phase": state.CurrentPhase,
 			"phase_name":    lookupPhaseName(state, state.CurrentPhase),
-			"handoff_path":  handoffPath,
-			"next":          "aether resume-colony",
+			"handoff_path":  handoffDocumentPath(),
+			"next":          "aether resume",
 		}
 		outputWorkflow(result, renderPauseVisual(result))
 		return nil
@@ -73,35 +60,44 @@ var pauseColonyCmd = &cobra.Command{
 }
 
 var resumeColonyCmd = &cobra.Command{
-	Use:   "resume-colony",
-	Short: "Restore colony context from handoff and mark the session resumed",
-	Args:  cobra.NoArgs,
+	Use:     "resume-colony",
+	Short:   "Restore colony context from handoff and mark the session resumed",
+	Aliases: []string{"resume"},
+	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if store == nil {
 			outputErrorMessage("no store initialized")
 			return nil
 		}
 
-		handoffPath := filepath.Join(resolveAetherRootPath(), ".aether", "HANDOFF.md")
-		handoffData, _ := os.ReadFile(handoffPath)
+		now := time.Now().UTC()
+		handoffPath := handoffDocumentPath()
+		handoffData, _ := readHandoffDocument()
 		handoffText := strings.TrimSpace(string(handoffData))
 
-		var session colony.SessionFile
-		if err := store.LoadJSON("session.json", &session); err == nil {
-			resumedAt := time.Now().UTC().Format(time.RFC3339)
-			session.ResumedAt = &resumedAt
-			session.ContextCleared = false
-			session.LastCommand = "resume-colony"
-			session.LastCommandAt = resumedAt
-			if session.SuggestedNext == "" {
-				session.SuggestedNext = "aether status"
-			}
-			if session.Summary == "" {
-				session.Summary = "Colony resumed"
-			}
-			if err := store.SaveJSON("session.json", session); err != nil {
+		var state colony.ColonyState
+		if err := store.LoadJSON("COLONY_STATE.json", &state); err == nil {
+			contextCleared := false
+			if _, err := syncColonyArtifacts(state, colonyArtifactOptions{
+				CommandName:    "resume-colony",
+				SuggestedNext:  nextCommandFromState(state),
+				Summary:        "Colony resumed",
+				HandoffTitle:   "Resumed Colony",
+				WriteHandoff:   false,
+				ContextCleared: &contextCleared,
+			}); err != nil {
 				outputError(2, fmt.Sprintf("failed to save session: %v", err), nil)
 				return nil
+			}
+
+			var session colony.SessionFile
+			if err := store.LoadJSON("session.json", &session); err == nil {
+				resumedAt := now.Format(time.RFC3339)
+				session.ResumedAt = &resumedAt
+				if err := store.SaveJSON("session.json", session); err != nil {
+					outputError(2, fmt.Sprintf("failed to mark session resumed: %v", err), nil)
+					return nil
+				}
 			}
 		}
 
@@ -111,7 +107,7 @@ var resumeColonyCmd = &cobra.Command{
 		result["handoff_path"] = handoffPath
 
 		if handoffText != "" {
-			if err := os.Remove(handoffPath); err == nil {
+			if err := removeHandoffDocument(); err == nil {
 				result["handoff_removed"] = true
 			} else {
 				result["handoff_removed"] = false
@@ -154,7 +150,7 @@ func buildHandoffDocument(now time.Time, state colony.ColonyState, session colon
 	b.WriteString("Next: ")
 	b.WriteString(nextAction)
 	b.WriteString("\n")
-	b.WriteString("Suggested resume: aether resume-colony\n\n")
+	b.WriteString("Suggested resume: aether resume\n\n")
 
 	openTasks := currentOpenTasks(state)
 	if len(openTasks) > 0 {
@@ -210,7 +206,7 @@ func loadOrCreateSessionSummary(now time.Time, state colony.ColonyState) (colony
 		ColonyGoal:       goal,
 		CurrentPhase:     state.CurrentPhase,
 		CurrentMilestone: state.Milestone,
-		SuggestedNext:    "aether resume-colony",
+		SuggestedNext:    "aether resume",
 		ContextCleared:   true,
 		BaselineCommit:   getGitHEAD(),
 		ResumedAt:        nil,

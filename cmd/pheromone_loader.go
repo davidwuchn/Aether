@@ -57,6 +57,26 @@ func loadPheromones() *colony.PheromoneFile {
 	return &pf
 }
 
+func signalActiveForPrompt(sig colony.PheromoneSignal, now time.Time) bool {
+	if !sig.Active {
+		return false
+	}
+	if signalExpiredByTime(sig, now) {
+		return false
+	}
+	return computeEffectiveStrength(sig, now) >= 0.1
+}
+
+func filterSignalsForPrompt(signals []colony.PheromoneSignal, now time.Time) []colony.PheromoneSignal {
+	filtered := make([]colony.PheromoneSignal, 0, len(signals))
+	for _, sig := range signals {
+		if signalActiveForPrompt(sig, now) {
+			filtered = append(filtered, sig)
+		}
+	}
+	return filtered
+}
+
 // extractSignalTextsFrom computes effective strengths, sorts, and returns formatted
 // signal texts from a pre-loaded PheromoneFile. This avoids a redundant disk read
 // when pheromones have already been loaded by the caller.
@@ -66,6 +86,10 @@ func extractSignalTextsFrom(pf *colony.PheromoneFile, maxSignals int) []string {
 	}
 
 	now := time.Now()
+	signals := filterSignalsForPrompt(pf.Signals, now)
+	if len(signals) == 0 {
+		return nil
+	}
 
 	type scoredSignal struct {
 		priority          int
@@ -74,14 +98,8 @@ func extractSignalTextsFrom(pf *colony.PheromoneFile, maxSignals int) []string {
 	}
 
 	var scored []scoredSignal
-	for _, sig := range pf.Signals {
-		if !sig.Active {
-			continue
-		}
+	for _, sig := range signals {
 		eff := computeEffectiveStrength(sig, now)
-		if eff < 0.1 {
-			continue
-		}
 		text := extractSignalText(sig.Content)
 		if text == "" {
 			continue

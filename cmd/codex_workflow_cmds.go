@@ -483,6 +483,20 @@ func updateSessionSummary(commandName, suggestedNext, summary string) {
 	if store == nil {
 		return
 	}
+
+	var state colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &state); err == nil {
+		if _, syncErr := syncColonyArtifacts(state, colonyArtifactOptions{
+			CommandName:   commandName,
+			SuggestedNext: suggestedNext,
+			Summary:       summary,
+			HandoffTitle:  "Session Snapshot",
+			WriteHandoff:  true,
+		}); syncErr == nil {
+			return
+		}
+	}
+
 	var session colony.SessionFile
 	if err := store.LoadJSON("session.json", &session); err != nil {
 		return

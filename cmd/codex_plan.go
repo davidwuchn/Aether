@@ -11,17 +11,18 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
-	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/codex"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 type codexPlanningDispatch struct {
-	Caste    string    `json:"caste"`
-	Name     string    `json:"name"`
-	Task     string    `json:"task"`
-	Outputs  []string  `json:"outputs"`
-	Status   string    `json:"status"`
-	Duration float64   `json:"duration,omitempty"` // Wall-clock seconds (0 = not measured)
+	Caste    string   `json:"caste"`
+	Name     string   `json:"name"`
+	Task     string   `json:"task"`
+	Outputs  []string `json:"outputs"`
+	Status   string   `json:"status"`
+	Duration float64  `json:"duration,omitempty"` // Wall-clock seconds (0 = not measured)
+	Claimed  []string `json:"-"`
 }
 
 type codexSurveyContext struct {
@@ -57,6 +58,27 @@ type codexPlanConfidence struct {
 	Dependencies int `json:"dependencies"`
 	Effort       int `json:"effort"`
 	Overall      int `json:"overall"`
+}
+
+type codexWorkerPlanArtifact struct {
+	Phases     []codexWorkerPlanPhase `json:"phases"`
+	Confidence codexPlanConfidence    `json:"confidence"`
+	Gaps       []string               `json:"gaps,omitempty"`
+}
+
+type codexWorkerPlanPhase struct {
+	Name            string                `json:"name"`
+	Description     string                `json:"description"`
+	Tasks           []codexWorkerPlanTask `json:"tasks"`
+	SuccessCriteria []string              `json:"success_criteria,omitempty"`
+}
+
+type codexWorkerPlanTask struct {
+	Goal            string   `json:"goal"`
+	Constraints     []string `json:"constraints,omitempty"`
+	Hints           []string `json:"hints,omitempty"`
+	SuccessCriteria []string `json:"success_criteria,omitempty"`
+	DependsOn       []string `json:"depends_on,omitempty"`
 }
 
 type phaseTemplate struct {
@@ -124,14 +146,15 @@ func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
 	if err := os.MkdirAll(phaseResearchDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create phase research directory: %w", err)
 	}
+	artifactSnapshots := snapshotRelativeFiles(root,
+		filepath.ToSlash(filepath.Join(".aether", "data", "planning")),
+		filepath.ToSlash(filepath.Join(".aether", "data", "phase-research")),
+	)
 
 	dispatches := plannedPlanningWorkers(root)
-
-	// Attempt real planning worker dispatch via WorkerInvoker
-	realDispatches, dispatchErr := dispatchRealPlanningWorkers(context.Background(), root, codex.NewWorkerInvoker())
-	if dispatchErr == nil && realDispatches != nil {
-		dispatches = realDispatches
-	}
+	dispatchMode := "synthetic"
+	artifactSource := "local-synthesis"
+	planSource := "local-synthesis"
 	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
 	for _, dispatch := range dispatches {
 		if err := spawnTree.RecordSpawn("Queen", dispatch.Caste, dispatch.Name, dispatch.Task, 1); err != nil {
@@ -139,32 +162,76 @@ func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
 		}
 	}
 
+	invoker := newCodexWorkerInvoker()
+	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
+		return nil, fmt.Errorf("codex CLI is not available in PATH")
+	}
+	emitVisualProgress(renderPlanDispatchPreview(*state.Goal, dispatches))
+	realDispatches, dispatchErr := dispatchRealPlanningWorkers(context.Background(), root, invoker)
+	if dispatchErr != nil {
+		if _, ok := invoker.(*codex.FakeInvoker); !ok {
+			for _, dispatch := range dispatches {
+				_ = spawnTree.UpdateStatus(dispatch.Name, "failed", dispatchErr.Error())
+			}
+			return nil, dispatchErr
+		}
+	} else if realDispatches != nil {
+		dispatches = realDispatches
+		if _, ok := invoker.(*codex.FakeInvoker); ok {
+			dispatchMode = "simulated"
+		} else {
+			dispatchMode = "real"
+		}
+	}
+
 	scoutReport := synthesizeScoutPlanningReport(*state.Goal, survey)
-	scoutFile, err := writePlanningScoutArtifact(planningDir, *state.Goal, granularity, survey, dispatches[0], scoutReport)
+	scoutFile, preservedScoutArtifact, err := writePlanningScoutArtifact(root, planningDir, *state.Goal, granularity, survey, dispatches[0], scoutReport, artifactSnapshots)
 	if err != nil {
 		return nil, err
 	}
 
 	phases, confidence, unresolvedGaps := synthesizeRouteSetterPlan(*state.Goal, granularity, survey, scoutReport)
-	routeSetterFile, err := writeRouteSetterArtifact(planningDir, *state.Goal, granularity, survey, dispatches[1], confidence, unresolvedGaps, phases)
+	if workerPlan, ok, note := loadWorkerPlanArtifact(root, artifactSnapshots, dispatches); ok {
+		phases = buildWorkerPlanPhases(workerPlan)
+		confidence = mergePlanConfidence(confidence, workerPlan.Confidence)
+		unresolvedGaps = limitStrings(uniqueSortedStrings(append(unresolvedGaps, workerPlan.Gaps...)), 4)
+		planSource = "worker-artifact"
+	} else if note != "" {
+		unresolvedGaps = limitStrings(uniqueSortedStrings(append(unresolvedGaps, note)), 4)
+	}
+	routeSetterFile, preservedRouteArtifact, err := writeRouteSetterArtifact(root, planningDir, *state.Goal, granularity, survey, dispatches[1], confidence, unresolvedGaps, phases, artifactSnapshots)
 	if err != nil {
 		return nil, err
 	}
-	phaseResearchFiles, err := writePhaseResearchArtifacts(phaseResearchDir, survey, scoutReport, phases)
+	planArtifactFile, preservedPlanArtifact, err := writeWorkerPlanArtifact(root, planningDir, confidence, unresolvedGaps, phases, artifactSnapshots, dispatches)
 	if err != nil {
 		return nil, err
+	}
+	phaseResearchFiles, preservedResearchArtifacts, err := writePhaseResearchArtifacts(root, phaseResearchDir, survey, scoutReport, phases, artifactSnapshots, dispatches)
+	if err != nil {
+		return nil, err
+	}
+	if preservedScoutArtifact || preservedRouteArtifact || preservedPlanArtifact || preservedResearchArtifacts > 0 {
+		artifactSource = "worker-written"
 	}
 
 	for i := range dispatches {
-		dispatches[i].Status = "completed"
-		if err := spawnTree.UpdateStatus(dispatches[i].Name, "completed", strings.Join(dispatches[i].Outputs, ", ")); err != nil {
+		status := dispatches[i].Status
+		if strings.TrimSpace(status) == "" || status == "spawned" {
+			status = "completed"
+		}
+		summary := strings.Join(dispatches[i].Outputs, ", ")
+		if dispatchMode != "real" {
+			summary = "Local planning synthesis fallback"
+		}
+		if err := spawnTree.UpdateStatus(dispatches[i].Name, status, summary); err != nil {
 			return nil, fmt.Errorf("failed to update planning completion: %w", err)
 		}
 	}
 
 	now := time.Now().UTC()
 	state.State = colony.StateREADY
-	state.CurrentPhase = 0
+	state.CurrentPhase = firstBuildablePhase(phases)
 	state.BuildStartedAt = nil
 	state.PlanGranularity = granularity
 	planConfidence := float64(confidence.Overall) / 100.0
@@ -216,9 +283,13 @@ func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
 		"confidence":           confidence,
 		"planning_dir":         planningDir,
 		"planning_files":       []string{filepath.Base(scoutFile), filepath.Base(routeSetterFile)},
+		"plan_artifact":        filepath.Base(planArtifactFile),
 		"phase_research_dir":   phaseResearchDir,
 		"phase_research_files": phaseResearchFiles,
 		"dispatches":           dispatchMaps,
+		"dispatch_mode":        dispatchMode,
+		"artifact_source":      artifactSource,
+		"plan_source":          planSource,
 		"gaps":                 unresolvedGaps,
 		"survey_docs":          survey.SurveyDocs,
 		"next":                 nextCommand,
@@ -277,10 +348,10 @@ func plannedPlanningWorkers(root string) []codexPlanningDispatch {
 
 // planningWorkerSpec defines a single planning worker for real dispatch.
 type planningWorkerSpec struct {
-	Caste      string // Worker caste (scout, route_setter)
-	AgentFile  string // TOML filename (e.g., "aether-scout.toml")
-	Task       string // Task brief
-	Outputs    []string
+	Caste     string // Worker caste (scout, route_setter)
+	AgentFile string // TOML filename (e.g., "aether-scout.toml")
+	Task      string // Task brief
+	Outputs   []string
 }
 
 // planningWorkerSpecs is the canonical list of planning workers, matching plannedPlanningWorkers order.
@@ -309,29 +380,40 @@ func dispatchRealPlanningWorkers(ctx context.Context, root string, invoker codex
 	codexAgentsDir := filepath.Join(root, ".codex", "agents")
 
 	dispatches := make([]codex.WorkerDispatch, 0, len(planningWorkerSpecs))
+	capsule := resolveCodexWorkerContext()
+	pheromoneSection := ""
 	for i, spec := range planningWorkerSpecs {
 		tomlPath := filepath.Join(codexAgentsDir, spec.AgentFile)
 
-		seed := fmt.Sprintf("%s|%s", root, spec.Caste)
-		workerName := deterministicAntName(spec.Caste, seed)
+		planned := plannedPlanningWorkers(root)
+		workerName := planned[i].Name
 
-		taskBrief := fmt.Sprintf("Planning task: %s\n\nOutputs: %s\n\nPlan the colony at %s", spec.Task, strings.Join(spec.Outputs, ", "), root)
+		taskBrief := renderPlanningWorkerBrief(root, spec)
 
 		dispatches = append(dispatches, codex.WorkerDispatch{
-			ID:            fmt.Sprintf("planning-%d", i),
-			WorkerName:    workerName,
-			AgentName:     strings.TrimSuffix(spec.AgentFile, ".toml"),
-			AgentTOMLPath: tomlPath,
-			Caste:         spec.Caste,
-			TaskID:        fmt.Sprintf("plan-%d", i),
-			TaskBrief:     taskBrief,
-			Wave:          1,
+			ID:               fmt.Sprintf("planning-%d", i),
+			WorkerName:       workerName,
+			AgentName:        strings.TrimSuffix(spec.AgentFile, ".toml"),
+			AgentTOMLPath:    tomlPath,
+			Caste:            spec.Caste,
+			TaskID:           fmt.Sprintf("plan-%d", i),
+			TaskBrief:        taskBrief,
+			ContextCapsule:   capsule,
+			SkillSection:     resolveSkillSection(spec.Caste, spec.Task),
+			PheromoneSection: pheromoneSection,
+			Root:             root,
+			Wave:             1,
 		})
 	}
 
 	results, err := codex.DispatchBatch(ctx, invoker, dispatches)
 	if err != nil {
-		return nil, nil
+		return nil, err
+	}
+	for _, result := range results {
+		if result.Status != "completed" {
+			return convertPlanningDispatchResults(results, root), fmt.Errorf("planning worker %s did not complete: %s", result.WorkerName, result.Status)
+		}
 	}
 
 	return convertPlanningDispatchResults(results, root), nil
@@ -370,6 +452,9 @@ func convertPlanningDispatchResults(results []codex.DispatchResult, root string)
 			}
 			if r.WorkerResult != nil {
 				d.Duration = r.WorkerResult.Duration.Seconds()
+				d.Claimed = append(d.Claimed, r.WorkerResult.FilesCreated...)
+				d.Claimed = append(d.Claimed, r.WorkerResult.FilesModified...)
+				d.Claimed = uniqueSortedStrings(d.Claimed)
 			}
 		}
 
@@ -587,8 +672,142 @@ func clampInt(value, min, max int) int {
 	return value
 }
 
-func writePlanningScoutArtifact(planningDir, goal string, granularity colony.PlanGranularity, survey codexSurveyContext, dispatch codexPlanningDispatch, report codexScoutReport) (string, error) {
+func renderPlanningWorkerBrief(root string, spec planningWorkerSpec) string {
+	planningDir := filepath.ToSlash(filepath.Join(".aether", "data", "planning"))
+	phaseResearchDir := filepath.ToSlash(filepath.Join(".aether", "data", "phase-research"))
+	primaryOutputs := make([]string, 0, len(spec.Outputs))
+	for _, output := range spec.Outputs {
+		primaryOutputs = append(primaryOutputs, filepath.ToSlash(filepath.Join(planningDir, output)))
+	}
+
+	var b strings.Builder
+	b.WriteString("Planning task: ")
+	b.WriteString(spec.Task)
+	b.WriteString("\n\n")
+	b.WriteString("Write planning outputs directly into the repository.\n")
+	b.WriteString("- Primary outputs: ")
+	b.WriteString(strings.Join(primaryOutputs, ", "))
+	b.WriteString("\n")
+	b.WriteString("- Planning dir: ")
+	b.WriteString(planningDir)
+	b.WriteString("\n")
+	b.WriteString("- Phase research dir: ")
+	b.WriteString(phaseResearchDir)
+	b.WriteString("\n")
+	if spec.Caste == "route_setter" {
+		b.WriteString("- Also write a machine-readable plan artifact at ")
+		b.WriteString(filepath.ToSlash(filepath.Join(planningDir, "phase-plan.json")))
+		b.WriteString(" using this JSON shape:\n")
+		b.WriteString(`  {"phases":[{"name":"","description":"","tasks":[{"goal":"","constraints":[],"hints":[],"success_criteria":[],"depends_on":[]}],"success_criteria":[]}],"confidence":{"knowledge":0,"requirements":0,"risks":0,"dependencies":0,"effort":0,"overall":0},"gaps":[]}` + "\n")
+	}
+	b.WriteString("\nPlan the colony at ")
+	b.WriteString(root)
+	return b.String()
+}
+
+func claimedPlanningFiles(dispatches []codexPlanningDispatch) map[string]bool {
+	claimed := map[string]bool{}
+	for _, dispatch := range dispatches {
+		for relPath := range claimedArtifactSet(dispatch.Claimed) {
+			claimed[relPath] = true
+		}
+	}
+	return claimed
+}
+
+func loadWorkerPlanArtifact(root string, snapshots map[string]codexArtifactSnapshot, dispatches []codexPlanningDispatch) (codexWorkerPlanArtifact, bool, string) {
+	relPath := filepath.ToSlash(filepath.Join(".aether", "data", "planning", "phase-plan.json"))
+	if !shouldPreserveWorkerArtifact(root, relPath, snapshots, claimedPlanningFiles(dispatches)) {
+		return codexWorkerPlanArtifact{}, false, ""
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(relPath)))
+	if err != nil {
+		return codexWorkerPlanArtifact{}, false, "Route-setter wrote phase-plan.json but it could not be read, so planning fell back to local synthesis."
+	}
+
+	var artifact codexWorkerPlanArtifact
+	if err := json.Unmarshal(data, &artifact); err != nil {
+		return codexWorkerPlanArtifact{}, false, "Route-setter phase-plan.json was invalid, so planning fell back to local synthesis."
+	}
+	if len(artifact.Phases) == 0 {
+		return codexWorkerPlanArtifact{}, false, "Route-setter phase-plan.json contained no phases, so planning fell back to local synthesis."
+	}
+	return artifact, true, ""
+}
+
+func buildWorkerPlanPhases(artifact codexWorkerPlanArtifact) []colony.Phase {
+	phases := make([]colony.Phase, 0, len(artifact.Phases))
+	for i, sourcePhase := range artifact.Phases {
+		phase := colony.Phase{
+			ID:              i + 1,
+			Name:            strings.TrimSpace(sourcePhase.Name),
+			Description:     strings.TrimSpace(sourcePhase.Description),
+			Status:          colony.PhasePending,
+			Tasks:           []colony.Task{},
+			SuccessCriteria: uniqueSortedStrings(sourcePhase.SuccessCriteria),
+		}
+		if phase.Name == "" {
+			phase.Name = fmt.Sprintf("Phase %d", i+1)
+		}
+		if i == 0 {
+			phase.Status = colony.PhaseReady
+		}
+		for j, sourceTask := range sourcePhase.Tasks {
+			goal := strings.TrimSpace(sourceTask.Goal)
+			if goal == "" {
+				continue
+			}
+			taskID := fmt.Sprintf("%d.%d", i+1, j+1)
+			phase.Tasks = append(phase.Tasks, colony.Task{
+				ID:              &taskID,
+				Goal:            goal,
+				Status:          colony.TaskPending,
+				Constraints:     uniqueSortedStrings(sourceTask.Constraints),
+				Hints:           uniqueSortedStrings(sourceTask.Hints),
+				SuccessCriteria: uniqueSortedStrings(sourceTask.SuccessCriteria),
+				DependsOn:       uniqueSortedStrings(sourceTask.DependsOn),
+			})
+		}
+		phases = append(phases, phase)
+	}
+	return phases
+}
+
+func mergePlanConfidence(base codexPlanConfidence, override codexPlanConfidence) codexPlanConfidence {
+	if override.Knowledge > 0 {
+		base.Knowledge = override.Knowledge
+	}
+	if override.Requirements > 0 {
+		base.Requirements = override.Requirements
+	}
+	if override.Risks > 0 {
+		base.Risks = override.Risks
+	}
+	if override.Dependencies > 0 {
+		base.Dependencies = override.Dependencies
+	}
+	if override.Effort > 0 {
+		base.Effort = override.Effort
+	}
+	if override.Overall > 0 {
+		base.Overall = override.Overall
+	} else {
+		base.Overall = int(float64(base.Knowledge)*0.25 +
+			float64(base.Requirements)*0.25 +
+			float64(base.Risks)*0.20 +
+			float64(base.Dependencies)*0.15 +
+			float64(base.Effort)*0.15 + 0.5)
+	}
+	return base
+}
+
+func writePlanningScoutArtifact(root, planningDir, goal string, granularity colony.PlanGranularity, survey codexSurveyContext, dispatch codexPlanningDispatch, report codexScoutReport, snapshots map[string]codexArtifactSnapshot) (string, bool, error) {
 	path := filepath.Join(planningDir, "SCOUT.md")
+	relPath := filepath.ToSlash(filepath.Join(".aether", "data", "planning", "SCOUT.md"))
+	if shouldPreserveWorkerArtifact(root, relPath, snapshots, claimedArtifactSet(dispatch.Claimed)) {
+		return path, true, nil
+	}
 	var b strings.Builder
 	b.WriteString("# Planning Scout Report\n\n")
 	b.WriteString(fmt.Sprintf("- Generated: %s\n", time.Now().UTC().Format(time.RFC3339)))
@@ -610,9 +829,9 @@ func writePlanningScoutArtifact(planningDir, goal string, granularity colony.Pla
 	b.WriteString(bulletList(survey.SurveyDocs, "No territory survey docs were available."))
 	b.WriteString("\n")
 	if err := os.WriteFile(path, []byte(b.String()), 0644); err != nil {
-		return "", fmt.Errorf("failed to write planning scout report: %w", err)
+		return "", false, fmt.Errorf("failed to write planning scout report: %w", err)
 	}
-	return path, nil
+	return path, false, nil
 }
 
 func synthesizeRouteSetterPlan(goal string, granularity colony.PlanGranularity, survey codexSurveyContext, report codexScoutReport) ([]colony.Phase, codexPlanConfidence, []string) {
@@ -890,8 +1109,13 @@ func commonHints(survey codexSurveyContext) []string {
 	return limitStrings(uniqueSortedStrings(hints), 5)
 }
 
-func writeRouteSetterArtifact(planningDir, goal string, granularity colony.PlanGranularity, survey codexSurveyContext, dispatch codexPlanningDispatch, confidence codexPlanConfidence, unresolvedGaps []string, phases []colony.Phase) (string, error) {
+func writeRouteSetterArtifact(root, planningDir, goal string, granularity colony.PlanGranularity, survey codexSurveyContext, dispatch codexPlanningDispatch, confidence codexPlanConfidence, unresolvedGaps []string, phases []colony.Phase, snapshots map[string]codexArtifactSnapshot) (string, bool, error) {
 	path := filepath.Join(planningDir, "ROUTE-SETTER.md")
+	relPath := filepath.ToSlash(filepath.Join(".aether", "data", "planning", "ROUTE-SETTER.md"))
+	if shouldPreserveWorkerArtifact(root, relPath, snapshots, claimedArtifactSet(dispatch.Claimed)) {
+		return path, true, nil
+	}
+
 	var b strings.Builder
 	b.WriteString("# Route-Setter Plan\n\n")
 	b.WriteString(fmt.Sprintf("- Generated: %s\n", time.Now().UTC().Format(time.RFC3339)))
@@ -909,16 +1133,65 @@ func writeRouteSetterArtifact(planningDir, goal string, granularity colony.PlanG
 	}
 	b.WriteString("\n")
 	if err := os.WriteFile(path, []byte(b.String()), 0644); err != nil {
-		return "", fmt.Errorf("failed to write route-setter artifact: %w", err)
+		return "", false, fmt.Errorf("failed to write route-setter artifact: %w", err)
 	}
-	return path, nil
+	return path, false, nil
 }
 
-func writePhaseResearchArtifacts(dir string, survey codexSurveyContext, report codexScoutReport, phases []colony.Phase) ([]string, error) {
+func writeWorkerPlanArtifact(root, planningDir string, confidence codexPlanConfidence, unresolvedGaps []string, phases []colony.Phase, snapshots map[string]codexArtifactSnapshot, dispatches []codexPlanningDispatch) (string, bool, error) {
+	path := filepath.Join(planningDir, "phase-plan.json")
+	relPath := filepath.ToSlash(filepath.Join(".aether", "data", "planning", "phase-plan.json"))
+	if shouldPreserveWorkerArtifact(root, relPath, snapshots, claimedPlanningFiles(dispatches)) {
+		return path, true, nil
+	}
+
+	artifact := codexWorkerPlanArtifact{
+		Confidence: confidence,
+		Gaps:       limitStrings(uniqueSortedStrings(unresolvedGaps), 4),
+		Phases:     make([]codexWorkerPlanPhase, 0, len(phases)),
+	}
+	for _, phase := range phases {
+		entry := codexWorkerPlanPhase{
+			Name:            phase.Name,
+			Description:     phase.Description,
+			Tasks:           make([]codexWorkerPlanTask, 0, len(phase.Tasks)),
+			SuccessCriteria: uniqueSortedStrings(phase.SuccessCriteria),
+		}
+		for _, task := range phase.Tasks {
+			entry.Tasks = append(entry.Tasks, codexWorkerPlanTask{
+				Goal:            task.Goal,
+				Constraints:     uniqueSortedStrings(task.Constraints),
+				Hints:           uniqueSortedStrings(task.Hints),
+				SuccessCriteria: uniqueSortedStrings(task.SuccessCriteria),
+				DependsOn:       uniqueSortedStrings(task.DependsOn),
+			})
+		}
+		artifact.Phases = append(artifact.Phases, entry)
+	}
+
+	data, err := json.MarshalIndent(artifact, "", "  ")
+	if err != nil {
+		return "", false, fmt.Errorf("failed to marshal worker plan artifact: %w", err)
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+		return "", false, fmt.Errorf("failed to write worker plan artifact: %w", err)
+	}
+	return path, false, nil
+}
+
+func writePhaseResearchArtifacts(root, dir string, survey codexSurveyContext, report codexScoutReport, phases []colony.Phase, snapshots map[string]codexArtifactSnapshot, dispatches []codexPlanningDispatch) ([]string, int, error) {
 	written := make([]string, 0, len(phases))
+	claimed := claimedPlanningFiles(dispatches)
+	preserved := 0
 	for _, phase := range phases {
 		name := fmt.Sprintf("phase-%d-research.md", phase.ID)
 		path := filepath.Join(dir, name)
+		relPath := filepath.ToSlash(filepath.Join(".aether", "data", "phase-research", name))
+		if shouldPreserveWorkerArtifact(root, relPath, snapshots, claimed) {
+			written = append(written, name)
+			preserved++
+			continue
+		}
 		var b strings.Builder
 		b.WriteString(fmt.Sprintf("# Phase %d Research: %s\n\n", phase.ID, phase.Name))
 		b.WriteString(fmt.Sprintf("- Generated: %s\n", time.Now().UTC().Format(time.RFC3339)))
@@ -946,10 +1219,10 @@ func writePhaseResearchArtifacts(dir string, survey codexSurveyContext, report c
 		b.WriteString(bulletList(limitStrings(uniqueSortedStrings(files), 6), "No specific file anchors were identified."))
 		b.WriteString("\n")
 		if err := os.WriteFile(path, []byte(b.String()), 0644); err != nil {
-			return nil, fmt.Errorf("failed to write %s: %w", name, err)
+			return nil, 0, fmt.Errorf("failed to write %s: %w", name, err)
 		}
 		written = append(written, name)
 	}
 	sort.Strings(written)
-	return written, nil
+	return written, preserved, nil
 }

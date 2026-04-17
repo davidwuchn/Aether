@@ -11,17 +11,18 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
-	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/codex"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 type codexSurveyorDispatch struct {
-	Caste    string    `json:"caste"`
-	Name     string    `json:"name"`
-	Task     string    `json:"task"`
-	Outputs  []string  `json:"outputs"`
-	Status   string    `json:"status"`
-	Duration float64   `json:"duration,omitempty"` // Wall-clock seconds (0 = not measured)
+	Caste    string   `json:"caste"`
+	Name     string   `json:"name"`
+	Task     string   `json:"task"`
+	Outputs  []string `json:"outputs"`
+	Status   string   `json:"status"`
+	Duration float64  `json:"duration,omitempty"` // Wall-clock seconds (0 = not measured)
+	Claimed  []string `json:"-"`
 }
 
 type codexWorkspaceFacts struct {
@@ -78,19 +79,11 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 	if err := os.MkdirAll(surveyDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create survey directory: %w", err)
 	}
+	surveySnapshots := snapshotRelativeFiles(root, filepath.ToSlash(filepath.Join(".aether", "data", "survey")))
 
 	dispatches := plannedSurveyors(root)
-
-	// Attempt real surveyor dispatch via WorkerInvoker
-	invoker := codex.NewWorkerInvoker()
-	realDispatches, dispatchErr := dispatchRealSurveyors(context.Background(), root, invoker)
-	if dispatchErr == nil && realDispatches != nil {
-		dispatches = realDispatches
-		logActivity("colonize", fmt.Sprintf("Brick-76: Real surveyor dispatch (invoker available), %d workers", len(dispatches)))
-	} else {
-		logActivity("colonize", "Brick-76: Fallback to planned surveyors (invoker unavailable or dispatch error)")
-	}
-
+	dispatchMode := "synthetic"
+	artifactSource := "local-synthesis"
 	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
 	for _, dispatch := range dispatches {
 		if err := spawnTree.RecordSpawn("Queen", "surveyor", dispatch.Name, dispatch.Task, 1); err != nil {
@@ -98,17 +91,53 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 		}
 	}
 
-	surveyFiles, err := writeSurveyArtifacts(surveyDir, facts, dispatches)
+	invoker := newCodexWorkerInvoker()
+	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
+		return nil, fmt.Errorf("codex CLI is not available in PATH")
+	}
+	emitVisualProgress(renderColonizeDispatchPreview(facts.Root, dispatches))
+
+	realDispatches, dispatchErr := dispatchRealSurveyors(context.Background(), root, invoker)
+	if dispatchErr != nil {
+		if _, ok := invoker.(*codex.FakeInvoker); !ok {
+			for _, dispatch := range dispatches {
+				_ = spawnTree.UpdateStatus(dispatch.Name, "failed", dispatchErr.Error())
+			}
+			return nil, dispatchErr
+		}
+		logActivity("colonize", "Brick-76: Fallback to planned surveyors (dispatch error)")
+	} else if realDispatches != nil {
+		dispatches = realDispatches
+		if _, ok := invoker.(*codex.FakeInvoker); ok {
+			dispatchMode = "simulated"
+		} else {
+			dispatchMode = "real"
+		}
+		logActivity("colonize", fmt.Sprintf("Brick-76: %s surveyor dispatch, %d workers", dispatchMode, len(dispatches)))
+	} else {
+	}
+
+	surveyFiles, preservedWorkerArtifacts, err := writeSurveyArtifacts(root, surveyDir, facts, dispatches, surveySnapshots)
 	if err != nil {
 		return nil, err
+	}
+	if preservedWorkerArtifacts > 0 {
+		artifactSource = "worker-written"
 	}
 	if err := writeSurveyCompatibilityJSON(surveyDir, facts); err != nil {
 		return nil, err
 	}
 
 	for i := range dispatches {
-		dispatches[i].Status = "completed"
-		if err := spawnTree.UpdateStatus(dispatches[i].Name, "completed", strings.Join(dispatches[i].Outputs, ", ")); err != nil {
+		status := dispatches[i].Status
+		if strings.TrimSpace(status) == "" || status == "spawned" {
+			status = "completed"
+		}
+		summary := strings.Join(dispatches[i].Outputs, ", ")
+		if dispatchMode != "real" {
+			summary = "Local survey synthesis fallback"
+		}
+		if err := spawnTree.UpdateStatus(dispatches[i].Name, status, summary); err != nil {
 			return nil, fmt.Errorf("failed to update surveyor completion: %w", err)
 		}
 	}
@@ -148,6 +177,8 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 		"existing_survey":    existingSurvey,
 		"force_resurvey":     force,
 		"territory_surveyed": surveyedAt,
+		"dispatch_mode":      dispatchMode,
+		"artifact_source":    artifactSource,
 		"stats": map[string]interface{}{
 			"files":       facts.FileCount,
 			"directories": facts.DirectoryCount,
@@ -365,6 +396,8 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 	codexAgentsDir := filepath.Join(root, ".codex", "agents")
 
 	dispatches := make([]codex.WorkerDispatch, 0, len(surveyorSpecs))
+	capsule := resolveCodexWorkerContext()
+	pheromoneSection := ""
 	for i, spec := range surveyorSpecs {
 		tomlFile := fmt.Sprintf("aether-surveyor-%s.toml", spec.AgentSuffix)
 		tomlPath := filepath.Join(codexAgentsDir, tomlFile)
@@ -372,24 +405,36 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 		seed := fmt.Sprintf("%s|%s", root, spec.AgentSuffix)
 		workerName := deterministicAntName("surveyor", seed)
 
-		taskBrief := fmt.Sprintf("Survey task: %s\n\nOutputs: %s\n\nSurvey the territory at %s", spec.Task, strings.Join(spec.Outputs, ", "), root)
+		outputPaths := make([]string, 0, len(spec.Outputs))
+		for _, output := range spec.Outputs {
+			outputPaths = append(outputPaths, filepath.ToSlash(filepath.Join(".aether", "data", "survey", output)))
+		}
+		taskBrief := fmt.Sprintf("Survey task: %s\n\nWrite these survey outputs in the repo: %s\n\nSurvey the territory at %s", spec.Task, strings.Join(outputPaths, ", "), root)
 
 		dispatches = append(dispatches, codex.WorkerDispatch{
-			ID:            fmt.Sprintf("surveyor-%d", i),
-			WorkerName:    workerName,
-			AgentName:     fmt.Sprintf("aether-surveyor-%s", spec.AgentSuffix),
-			AgentTOMLPath: tomlPath,
-			Caste:         spec.Caste,
-			TaskID:        fmt.Sprintf("survey-%d", i),
-			TaskBrief:     taskBrief,
-			Wave:          1,
+			ID:               fmt.Sprintf("surveyor-%d", i),
+			WorkerName:       workerName,
+			AgentName:        fmt.Sprintf("aether-surveyor-%s", spec.AgentSuffix),
+			AgentTOMLPath:    tomlPath,
+			Caste:            spec.Caste,
+			TaskID:           fmt.Sprintf("survey-%d", i),
+			TaskBrief:        taskBrief,
+			ContextCapsule:   capsule,
+			SkillSection:     resolveSkillSection(spec.Caste, spec.Task),
+			PheromoneSection: pheromoneSection,
+			Root:             root,
+			Wave:             1,
 		})
 	}
 
 	results, err := codex.DispatchBatch(ctx, invoker, dispatches)
 	if err != nil {
-		// DispatchBatch itself returned an error -- fall back to planned
-		return plannedSurveyors(root), nil
+		return nil, err
+	}
+	for _, result := range results {
+		if result.Status != "completed" {
+			return convertDispatchResults(results, surveyorSpecs, root), fmt.Errorf("surveyor %s did not complete: %s", result.WorkerName, result.Status)
+		}
 	}
 
 	return convertDispatchResults(results, surveyorSpecs, root), nil
@@ -431,6 +476,9 @@ func convertDispatchResults(results []codex.DispatchResult, specs []surveyorSpec
 			}
 			if r.WorkerResult != nil {
 				d.Duration = r.WorkerResult.Duration.Seconds()
+				d.Claimed = append(d.Claimed, r.WorkerResult.FilesCreated...)
+				d.Claimed = append(d.Claimed, r.WorkerResult.FilesModified...)
+				d.Claimed = uniqueSortedStrings(d.Claimed)
 			}
 		}
 
@@ -440,7 +488,7 @@ func convertDispatchResults(results []codex.DispatchResult, specs []surveyorSpec
 	return dispatches
 }
 
-func writeSurveyArtifacts(surveyDir string, facts codexWorkspaceFacts, dispatches []codexSurveyorDispatch) ([]string, error) {
+func writeSurveyArtifacts(root, surveyDir string, facts codexWorkspaceFacts, dispatches []codexSurveyorDispatch, snapshots map[string]codexArtifactSnapshot) ([]string, int, error) {
 	generatedAt := time.Now().UTC().Format(time.RFC3339)
 	files := map[string]string{
 		"PROVISIONS.md":         renderSurveyProvisions(generatedAt, facts, dispatches[0]),
@@ -451,16 +499,29 @@ func writeSurveyArtifacts(surveyDir string, facts codexWorkspaceFacts, dispatche
 		"SENTINEL-PROTOCOLS.md": renderSurveySentinel(generatedAt, facts, dispatches[2]),
 		"PATHOGENS.md":          renderSurveyPathogens(generatedAt, facts, dispatches[3]),
 	}
+	claimed := make(map[string]bool)
+	for _, dispatch := range dispatches {
+		for relPath := range claimedArtifactSet(dispatch.Claimed) {
+			claimed[relPath] = true
+		}
+	}
 
 	names := make([]string, 0, len(files))
+	preserved := 0
 	for name, content := range files {
+		relPath := filepath.ToSlash(filepath.Join(".aether", "data", "survey", name))
+		if shouldPreserveWorkerArtifact(root, relPath, snapshots, claimed) {
+			names = append(names, name)
+			preserved++
+			continue
+		}
 		if err := os.WriteFile(filepath.Join(surveyDir, name), []byte(content), 0644); err != nil {
-			return nil, fmt.Errorf("failed to write %s: %w", name, err)
+			return nil, 0, fmt.Errorf("failed to write %s: %w", name, err)
 		}
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	return names, nil
+	return names, preserved, nil
 }
 
 func writeSurveyCompatibilityJSON(surveyDir string, facts codexWorkspaceFacts) error {
@@ -819,13 +880,26 @@ func renderSurveyPathogens(generatedAt string, facts codexWorkspaceFacts, dispat
 }
 
 func identifyPathogens(facts codexWorkspaceFacts) []string {
-	issues := []string{
-		"Codex workflow docs describe ant-style worker orchestration, but `cmd/codex_workflow_cmds.go` still handles core lifecycle steps inline rather than dispatching specialized workers.",
-		"`cmd/survey.go` still models territory survey as five JSON summaries, while the colony playbooks and session freshness logic expect seven markdown survey documents.",
-		"`pkg/colony/colony.go` exposes a narrower state machine than the platform docs describe, which makes lifecycle parity and status reporting harder to keep honest.",
+	var issues []string
+
+	if len(facts.TestFiles) == 0 {
+		issues = append(issues, "No test files detected — consider adding tests.")
 	}
-	if len(facts.TODOs) > 0 {
-		issues = append(issues, "The repository still carries TODO/FIXME/HACK markers that should be reviewed before claiming platform parity.")
+	if len(facts.TypeSafetyGaps) > 0 {
+		issues = append(issues, fmt.Sprintf("Type safety gaps found in %d file(s) — review for correctness.", len(facts.TypeSafetyGaps)))
+	}
+	if len(facts.SecurityPatterns) > 3 {
+		issues = append(issues, fmt.Sprintf("High volume of env/eval patterns (%d) — verify none leak secrets.", len(facts.SecurityPatterns)))
+	}
+	if len(facts.TODOs) > 5 {
+		issues = append(issues, fmt.Sprintf("%d TODO/FIXME/HACK markers need review.", len(facts.TODOs)))
+	}
+	if len(facts.KeyDependencies) == 0 && facts.FileCount > 10 {
+		issues = append(issues, "No dependency manifest detected.")
+	}
+
+	if len(issues) == 0 {
+		return []string{"No obvious technical debt markers detected."}
 	}
 	return issues
 }

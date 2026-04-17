@@ -192,13 +192,13 @@ func TestColonyArchiveXMLOutputFlag(t *testing.T) {
 	pf := colony.PheromoneFile{
 		Signals: []colony.PheromoneSignal{
 			{
-				ID:       "sig-archive-1",
-				Type:     "FOCUS",
-				Priority: "normal",
-				Source:   "user",
+				ID:        "sig-archive-1",
+				Type:      "FOCUS",
+				Priority:  "normal",
+				Source:    "user",
 				CreatedAt: "2026-04-06T10:00:00Z",
-				Active:   true,
-				Content:  content,
+				Active:    true,
+				Content:   content,
 			},
 		},
 	}
@@ -246,6 +246,56 @@ func TestColonyArchiveXMLOutputFlag(t *testing.T) {
 	}
 }
 
+func TestImportSignalsAcceptsFileFlag(t *testing.T) {
+	saveGlobalsCmd(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+	var errBuf bytes.Buffer
+	stderr = &errBuf
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	content, _ := json.Marshal(map[string]string{"text": "Focus imported from XML"})
+	xmlData, err := exchange.ExportPheromones([]colony.PheromoneSignal{
+		{
+			ID:        "sig-import-1",
+			Type:      "FOCUS",
+			Priority:  "normal",
+			Source:    "test",
+			CreatedAt: "2026-04-17T00:00:00Z",
+			Active:    true,
+			Content:   content,
+		},
+	})
+	if err != nil {
+		t.Fatalf("export xml: %v", err)
+	}
+	xmlPath := filepath.Join(tmpDir, "signals.xml")
+	if err := os.WriteFile(xmlPath, xmlData, 0644); err != nil {
+		t.Fatalf("write xml: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"import-signals", "--file", xmlPath})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("import-signals returned error: %v", err)
+	}
+
+	env := parseEnvelopeCmd(t, buf.String())
+	if env["ok"] != true {
+		t.Fatalf("expected ok:true, got %v", env)
+	}
+	result := env["result"].(map[string]interface{})
+	if result["imported"] != float64(1) {
+		t.Fatalf("imported = %v, want 1", result["imported"])
+	}
+	if result["source"] != xmlPath {
+		t.Fatalf("source = %v, want %s", result["source"], xmlPath)
+	}
+}
+
 // TestColonyArchiveXMLPositionalArg tests backward compatibility: passing the
 // output path as a positional argument instead of --output flag.
 func TestColonyArchiveXMLPositionalArg(t *testing.T) {
@@ -264,13 +314,13 @@ func TestColonyArchiveXMLPositionalArg(t *testing.T) {
 	pf := colony.PheromoneFile{
 		Signals: []colony.PheromoneSignal{
 			{
-				ID:       "sig-pos-1",
-				Type:     "REDIRECT",
-				Priority: "high",
-				Source:   "user",
+				ID:        "sig-pos-1",
+				Type:      "REDIRECT",
+				Priority:  "high",
+				Source:    "user",
 				CreatedAt: "2026-04-06T11:00:00Z",
-				Active:   true,
-				Content:  content,
+				Active:    true,
+				Content:   content,
 			},
 		},
 	}

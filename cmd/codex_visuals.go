@@ -39,6 +39,32 @@ var casteEmojiMap = map[string]string{
 	"dreamer":       "💭🐜",
 }
 
+var casteColorMap = map[string]string{
+	"queen":         "35",
+	"builder":       "33",
+	"watcher":       "36",
+	"scout":         "32",
+	"colonizer":     "34",
+	"surveyor":      "34",
+	"architect":     "95",
+	"chaos":         "31",
+	"archaeologist": "93",
+	"oracle":        "35",
+	"route_setter":  "94",
+	"ambassador":    "96",
+	"auditor":       "37",
+	"chronicler":    "92",
+	"gatekeeper":    "91",
+	"guardian":      "96",
+	"includer":      "96",
+	"keeper":        "92",
+	"measurer":      "93",
+	"probe":         "36",
+	"tracker":       "31",
+	"weaver":        "95",
+	"dreamer":       "90",
+}
+
 func shouldRenderVisualOutput(w io.Writer) bool {
 	mode := strings.ToLower(strings.TrimSpace(os.Getenv("AETHER_OUTPUT_MODE")))
 	switch mode {
@@ -73,6 +99,17 @@ func outputWorkflow(result interface{}, visual string) {
 		return
 	}
 	outputOK(result)
+}
+
+func emitVisualProgress(visual string) {
+	if !shouldRenderVisualOutput(stdout) {
+		return
+	}
+	visual = strings.TrimSpace(visual)
+	if visual == "" {
+		return
+	}
+	fmt.Fprint(stdout, visual+"\n\n")
 }
 
 func spacedTitle(title string) string {
@@ -219,11 +256,17 @@ func renderColonizeVisual(result map[string]interface{}) string {
 	if surveyors, ok := result["surveyors"].([]interface{}); ok && len(surveyors) > 0 {
 		dispatches := parseSurveyorMaps(surveyors)
 		hasRealData := hasRealExecutionData(dispatches)
-		if hasRealData {
-			b.WriteString("Dispatch: Real\n")
-		} else {
-			b.WriteString("Dispatch: Simulated\n")
+		dispatchMode := strings.TrimSpace(stringValue(result["dispatch_mode"]))
+		if dispatchMode == "" {
+			if hasRealData {
+				dispatchMode = "real"
+			} else {
+				dispatchMode = "synthetic"
+			}
 		}
+		b.WriteString("Dispatch: ")
+		b.WriteString(humanizeDispatchMode(dispatchMode))
+		b.WriteString("\n")
 		if hasRealData {
 			b.WriteString("\nSurveyors\n")
 			b.WriteString(renderSurveyorResults(dispatches))
@@ -245,6 +288,26 @@ func renderColonizeVisual(result map[string]interface{}) string {
 		b.WriteString(renderIndentedList(files))
 	}
 	b.WriteString(renderNextUp(`Run ` + "`aether plan`" + ` to turn this scan into a phase plan.`))
+	return b.String()
+}
+
+func renderColonizeDispatchPreview(root string, dispatches []codexSurveyorDispatch) string {
+	var b strings.Builder
+	b.WriteString(renderBanner("🗺️", "Colonize Dispatch"))
+	b.WriteString(visualDivider)
+	b.WriteString("Surveyor wave dispatching.\n")
+	b.WriteString("Root: ")
+	b.WriteString(root)
+	b.WriteString("\n\nSurveyors\n")
+	for _, dispatch := range dispatches {
+		b.WriteString("  ")
+		b.WriteString(casteEmoji("surveyor"))
+		b.WriteString(" ")
+		b.WriteString(dispatch.Name)
+		b.WriteString("  ")
+		b.WriteString(dispatch.Task)
+		b.WriteString("\n")
+	}
 	return b.String()
 }
 
@@ -305,7 +368,7 @@ func renderSurveyorResults(surveyors []codexSurveyorDispatch) string {
 		b.WriteString(" ")
 		b.WriteString(s.Name)
 		b.WriteString(" (")
-		b.WriteString(s.Caste)
+		b.WriteString(colorizeCaste(s.Caste, s.Caste))
 		b.WriteString(")  ")
 		b.WriteString(statusIcon)
 		b.WriteString(" ")
@@ -381,7 +444,7 @@ func renderPlanningWorkerResults(workers []codexPlanningDispatch) string {
 		b.WriteString(" ")
 		b.WriteString(w.Name)
 		b.WriteString(" (")
-		b.WriteString(w.Caste)
+		b.WriteString(colorizeCaste(w.Caste, w.Caste))
 		b.WriteString(")  ")
 		b.WriteString(statusIcon)
 		b.WriteString(" ")
@@ -429,8 +492,14 @@ func renderPlanVisual(result map[string]interface{}) string {
 	if dispatches, ok := result["dispatches"].([]interface{}); ok && len(dispatches) > 0 {
 		parsed := parsePlanningDispatchMaps(dispatches)
 		hasRealData := hasRealPlanningExecutionData(parsed)
-		if hasRealData {
-			b.WriteString("Dispatch: Real\n")
+		dispatchMode := strings.TrimSpace(stringValue(result["dispatch_mode"]))
+		if dispatchMode == "" && hasRealData {
+			dispatchMode = "real"
+		}
+		if dispatchMode != "" {
+			b.WriteString("Dispatch: ")
+			b.WriteString(humanizeDispatchMode(dispatchMode))
+			b.WriteString("\n")
 		}
 		b.WriteString("\nWorkers\n")
 		if hasRealData {
@@ -488,6 +557,26 @@ func renderPlanVisual(result map[string]interface{}) string {
 	return b.String()
 }
 
+func renderPlanDispatchPreview(goal string, dispatches []codexPlanningDispatch) string {
+	var b strings.Builder
+	b.WriteString(renderBanner("📋", "Plan Dispatch"))
+	b.WriteString(visualDivider)
+	b.WriteString("Planning worker wave dispatching.\n")
+	b.WriteString("Goal: ")
+	b.WriteString(goal)
+	b.WriteString("\n\nWorkers\n")
+	for _, dispatch := range dispatches {
+		b.WriteString("  ")
+		b.WriteString(casteEmoji(dispatch.Caste))
+		b.WriteString(" ")
+		b.WriteString(dispatch.Name)
+		b.WriteString("  ")
+		b.WriteString(dispatch.Task)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
 func renderBuildVisual(state colony.ColonyState, phase colony.Phase) string {
 	return renderBuildVisualWithDispatches(state, phase, plannedBuildDispatches(phase, state.ColonyDepth))
 }
@@ -521,6 +610,26 @@ func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phas
 		`Run `+"`aether continue`"+` after the work is implemented and independently verified.`,
 		`Run `+"`aether status`"+` if you want to inspect progress before advancing.`,
 	))
+	return b.String()
+}
+
+func renderBuildDispatchPreview(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
+	var b strings.Builder
+	b.WriteString(renderBanner("🔨", fmt.Sprintf("Build Dispatch %d", phase.ID)))
+	b.WriteString(visualDivider)
+	b.WriteString("Worker wave dispatching.\n")
+	b.WriteString(renderProgressSummary(phase.ID, len(state.Plan.Phases)))
+	b.WriteString("\n")
+	b.WriteString("Phase: ")
+	b.WriteString(phase.Name)
+	b.WriteString("\n")
+	if strings.TrimSpace(phase.Description) != "" {
+		b.WriteString("Objective: ")
+		b.WriteString(strings.TrimSpace(phase.Description))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(renderSpawnPlanForDispatches(dispatches))
 	return b.String()
 }
 
@@ -834,7 +943,7 @@ func renderPauseVisual(result map[string]interface{}) string {
 		b.WriteString("\n")
 	}
 	b.WriteString(renderNextUp(
-		`Run `+"`aether resume-colony`"+` when you want to restore the paused colony.`,
+		`Run `+"`aether resume`"+` when you want to restore the paused colony.`,
 		`Run `+"`aether resume`"+` for the compact dashboard view instead.`,
 	))
 	return b.String()
@@ -884,6 +993,42 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 		b.WriteString(parallelMode)
 		b.WriteString("\n")
 	}
+	if nextPhase, ok := result["next_phase"].(map[string]interface{}); ok {
+		id := intValue(nextPhase["id"])
+		name := strings.TrimSpace(stringValue(nextPhase["name"]))
+		if id > 0 && id != phase {
+			b.WriteString("Next phase: ")
+			if totalPhases > 0 {
+				b.WriteString(fmt.Sprintf("%d/%d", id, totalPhases))
+			} else {
+				b.WriteString(fmt.Sprintf("%d", id))
+			}
+			if name != "" && name != "(unnamed)" {
+				b.WriteString(" — ")
+				b.WriteString(name)
+			}
+			b.WriteString("\n")
+		}
+	}
+
+	var suggestedNext string
+	if session, ok := result["session"].(map[string]interface{}); ok {
+		if summary := strings.TrimSpace(stringValue(session["summary"])); summary != "" {
+			b.WriteString("\nSession Summary\n")
+			b.WriteString("  ")
+			b.WriteString(summary)
+			b.WriteString("\n")
+		}
+		if todos := stringSliceValue(session["active_todos"]); len(todos) > 0 {
+			b.WriteString("\nActive Todos\n")
+			for _, todo := range limitStrings(todos, 5) {
+				b.WriteString("  - ")
+				b.WriteString(todo)
+				b.WriteString("\n")
+			}
+		}
+		suggestedNext = strings.TrimSpace(stringValue(session["suggested_next"]))
+	}
 
 	if mh, ok := result["memory_health"].(map[string]interface{}); ok {
 		b.WriteString("\nMemory Health\n")
@@ -904,9 +1049,30 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 		}
 	}
 
-	nextCommand := "aether status"
-	if state != "" {
+	if recovery, ok := result["recovery"].(map[string]interface{}); ok {
+		contextPath := strings.TrimSpace(stringValue(recovery["context_path"]))
+		handoffPath := strings.TrimSpace(stringValue(recovery["handoff_path"]))
+		if contextPath != "" || handoffPath != "" {
+			b.WriteString("\nRecovery Files\n")
+			if contextPath != "" {
+				b.WriteString("  Context: ")
+				b.WriteString(contextPath)
+				b.WriteString("\n")
+			}
+			if handoffPath != "" {
+				b.WriteString("  Handoff: ")
+				b.WriteString(handoffPath)
+				b.WriteString("\n")
+			}
+		}
+	}
+
+	nextCommand := suggestedNext
+	if nextCommand == "" && state != "" {
 		nextCommand = computeNextAction(state, phase, totalPhases)
+	}
+	if nextCommand == "" {
+		nextCommand = "aether status"
 	}
 	alt := "`aether memory-details`"
 	if full {
@@ -1165,7 +1331,14 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 			b.WriteString(fmt.Sprintf("Wave %d\n", dispatch.Wave))
 			lastWave = dispatch.Wave
 		}
-		b.WriteString(fmt.Sprintf("  %s %s  %s\n", casteEmoji(dispatch.Caste), dispatch.Name, strings.TrimSpace(dispatch.Task)))
+		b.WriteString("  ")
+		b.WriteString(casteEmoji(dispatch.Caste))
+		b.WriteString(" ")
+		b.WriteString(dispatch.Name)
+		b.WriteString("  ")
+		b.WriteString(strings.TrimSpace(dispatch.Task))
+		writeDispatchExecutionStatus(&b, dispatch)
+		b.WriteString("\n")
 	}
 	if lastWave > 0 {
 		b.WriteString("\n")
@@ -1175,7 +1348,14 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 	if len(strategy) > 0 {
 		b.WriteString("Strategy\n")
 		for _, dispatch := range strategy {
-			b.WriteString(fmt.Sprintf("  %s %s  %s\n", casteEmoji(dispatch.Caste), dispatch.Name, strings.TrimSpace(dispatch.Task)))
+			b.WriteString("  ")
+			b.WriteString(casteEmoji(dispatch.Caste))
+			b.WriteString(" ")
+			b.WriteString(dispatch.Name)
+			b.WriteString("  ")
+			b.WriteString(strings.TrimSpace(dispatch.Task))
+			writeDispatchExecutionStatus(&b, dispatch)
+			b.WriteString("\n")
 		}
 		b.WriteString("\n")
 	}
@@ -1185,16 +1365,56 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 	if len(verification) > 0 || len(resilience) > 0 {
 		b.WriteString("Verification\n")
 		for _, dispatch := range verification {
-			b.WriteString(fmt.Sprintf("  %s %s  %s\n", casteEmoji(dispatch.Caste), dispatch.Name, strings.TrimSpace(dispatch.Task)))
+			b.WriteString("  ")
+			b.WriteString(casteEmoji(dispatch.Caste))
+			b.WriteString(" ")
+			b.WriteString(dispatch.Name)
+			b.WriteString("  ")
+			b.WriteString(strings.TrimSpace(dispatch.Task))
+			writeDispatchExecutionStatus(&b, dispatch)
+			b.WriteString("\n")
 		}
 		for _, dispatch := range resilience {
-			b.WriteString(fmt.Sprintf("  %s %s  %s\n", casteEmoji(dispatch.Caste), dispatch.Name, strings.TrimSpace(dispatch.Task)))
+			b.WriteString("  ")
+			b.WriteString(casteEmoji(dispatch.Caste))
+			b.WriteString(" ")
+			b.WriteString(dispatch.Name)
+			b.WriteString("  ")
+			b.WriteString(strings.TrimSpace(dispatch.Task))
+			writeDispatchExecutionStatus(&b, dispatch)
+			b.WriteString("\n")
 		}
 	}
 
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("Total planned dispatches: %d\n", len(dispatches)))
 	return b.String()
+}
+
+func writeDispatchExecutionStatus(b *strings.Builder, dispatch codexBuildDispatch) {
+	status := strings.TrimSpace(dispatch.Status)
+	if status == "" || status == "spawned" {
+		return
+	}
+	icon := "\u2717"
+	if status == "completed" {
+		icon = "\u2713"
+	}
+	b.WriteString("  ")
+	b.WriteString(icon)
+	b.WriteString(" ")
+	b.WriteString(status)
+	if dispatch.Duration > 0 {
+		b.WriteString(fmt.Sprintf(" %.1fs", dispatch.Duration))
+	}
+	if summary := strings.TrimSpace(dispatch.Summary); summary != "" {
+		b.WriteString("  ")
+		b.WriteString(summary)
+	}
+	if len(dispatch.Blockers) > 0 {
+		b.WriteString("  blockers: ")
+		b.WriteString(strings.Join(dispatch.Blockers, "; "))
+	}
 }
 
 func filterBuildDispatches(dispatches []codexBuildDispatch, stage string) []codexBuildDispatch {
@@ -1300,9 +1520,43 @@ func deterministicAntName(caste, seed string) string {
 func casteEmoji(caste string) string {
 	caste = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(caste, "-", "_")))
 	if emoji, ok := casteEmojiMap[caste]; ok {
-		return emoji
+		return colorizeCaste(caste, emoji)
 	}
-	return "🐜"
+	return colorizeCaste(caste, "🐜")
+}
+
+func colorizeCaste(caste, text string) string {
+	if !shouldUseANSIColors() {
+		return text
+	}
+	caste = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(caste, "-", "_")))
+	color := casteColorMap[caste]
+	if color == "" && strings.HasPrefix(caste, "surveyor") {
+		color = casteColorMap["surveyor"]
+	}
+	if color == "" {
+		return text
+	}
+	return "\x1b[" + color + "m" + text + "\x1b[0m"
+}
+
+func shouldUseANSIColors() bool {
+	if strings.TrimSpace(os.Getenv("NO_COLOR")) != "" {
+		return false
+	}
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("AETHER_OUTPUT_MODE")))
+	if mode == "json" {
+		return false
+	}
+	return shouldRenderVisualOutput(stdout)
+}
+
+func humanizeDispatchMode(mode string) string {
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return ""
+	}
+	return strings.ToUpper(mode[:1]) + mode[1:]
 }
 
 func signalPriorityValue(sigType string) string {

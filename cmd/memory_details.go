@@ -97,7 +97,7 @@ var colonyVitalSignsCmd = &cobra.Command{
 		}
 
 		// Compute basic metrics
-		instinctCount := len(state.Memory.Instincts)
+		instinctCount := activeInstinctCount(store, &state)
 		errorCount := len(state.Errors.Records)
 		completedPhases := 0
 		for _, phase := range state.Plan.Phases {

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/codex"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 func TestPlanUsesSurveyAndRecordsPlanningDispatches(t *testing.T) {
@@ -123,6 +123,22 @@ func TestPlanUsesSurveyAndRecordsPlanningDispatches(t *testing.T) {
 	if len(state.Events) == 0 || !strings.Contains(state.Events[len(state.Events)-1], "plan_generated|plan") {
 		t.Fatalf("expected plan_generated event, got %v", state.Events)
 	}
+
+	contextData, err := os.ReadFile(filepath.Join(root, ".aether", "CONTEXT.md"))
+	if err != nil {
+		t.Fatalf("expected CONTEXT.md: %v", err)
+	}
+	if !strings.Contains(string(contextData), "aether build 1") {
+		t.Fatalf("expected CONTEXT.md to point at the first build, got:\n%s", string(contextData))
+	}
+
+	handoffData, err := os.ReadFile(filepath.Join(root, ".aether", "HANDOFF.md"))
+	if err != nil {
+		t.Fatalf("expected HANDOFF.md: %v", err)
+	}
+	if !strings.Contains(string(handoffData), goal) {
+		t.Fatalf("expected HANDOFF.md to include the goal, got:\n%s", string(handoffData))
+	}
 }
 
 func TestPlanReturnsExistingPlanWithoutRefresh(t *testing.T) {
@@ -209,6 +225,78 @@ func TestPlanRefreshRejectsActivePhase(t *testing.T) {
 	}
 }
 
+func TestPlanUsesWorkerWrittenArtifactsWhenProvided(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("failed to chdir to test root: %v", err)
+	}
+	defer os.Chdir(oldDir)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/aether-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	goal := "Ground the plan in worker artifacts"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan:    colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	originalInvoker := newCodexWorkerInvoker
+	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &planningArtifactInvoker{} }
+	defer func() { newCodexWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"plan"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("plan returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if got := result["dispatch_mode"]; got != "real" {
+		t.Fatalf("dispatch_mode = %v, want real", got)
+	}
+	if got := result["artifact_source"]; got != "worker-written" {
+		t.Fatalf("artifact_source = %v, want worker-written", got)
+	}
+	if got := result["plan_source"]; got != "worker-artifact" {
+		t.Fatalf("plan_source = %v, want worker-artifact", got)
+	}
+
+	phases := result["phases"].([]interface{})
+	firstPhase := phases[0].(map[string]interface{})
+	if firstPhase["name"] != "Worker planned phase" {
+		t.Fatalf("first phase name = %v, want Worker planned phase", firstPhase["name"])
+	}
+
+	for _, check := range []struct {
+		path string
+		want string
+	}{
+		{filepath.Join(dataDir, "planning", "SCOUT.md"), "worker-authored scout"},
+		{filepath.Join(dataDir, "planning", "ROUTE-SETTER.md"), "worker-authored route-setter"},
+		{filepath.Join(dataDir, "phase-research", "phase-1-research.md"), "worker-authored phase research"},
+	} {
+		data, err := os.ReadFile(check.path)
+		if err != nil {
+			t.Fatalf("read %s: %v", filepath.Base(check.path), err)
+		}
+		if !strings.Contains(string(data), check.want) {
+			t.Fatalf("expected %s to be preserved, got:\n%s", filepath.Base(check.path), string(data))
+		}
+	}
+}
+
 // --- dispatchRealPlanningWorkers tests ---
 
 func TestDispatchRealPlanningWorkers_NilInvoker_ReturnsNil(t *testing.T) {
@@ -287,7 +375,105 @@ func (u *planTestUnavailableInvoker) ValidateAgent(path string) error {
 	return nil
 }
 
-func TestDispatchRealPlanningWorkers_CancelledContext_ReturnsResults(t *testing.T) {
+type planningArtifactInvoker struct{}
+
+func (p *planningArtifactInvoker) Invoke(_ context.Context, config codex.WorkerConfig) (codex.WorkerResult, error) {
+	result := codex.WorkerResult{
+		WorkerName: config.WorkerName,
+		Caste:      config.Caste,
+		TaskID:     config.TaskID,
+		Status:     "completed",
+		Summary:    "worker-authored planning artifact",
+	}
+	switch config.Caste {
+	case "scout":
+		target := filepath.Join(config.Root, ".aether", "data", "planning", "SCOUT.md")
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return codex.WorkerResult{}, err
+		}
+		if err := os.WriteFile(target, []byte("# worker-authored scout\n"), 0644); err != nil {
+			return codex.WorkerResult{}, err
+		}
+		result.FilesCreated = []string{filepath.ToSlash(filepath.Join(".aether", "data", "planning", "SCOUT.md"))}
+	case "route_setter":
+		planningDir := filepath.Join(config.Root, ".aether", "data", "planning")
+		if err := os.MkdirAll(planningDir, 0755); err != nil {
+			return codex.WorkerResult{}, err
+		}
+		if err := os.WriteFile(filepath.Join(planningDir, "ROUTE-SETTER.md"), []byte("# worker-authored route-setter\n"), 0644); err != nil {
+			return codex.WorkerResult{}, err
+		}
+		planArtifact := `{
+  "phases": [
+    {
+      "name": "Worker planned phase",
+      "description": "Phase loaded from route-setter artifact.",
+      "tasks": [
+        {
+          "goal": "Land the worker-authored planning flow",
+          "constraints": ["Keep plan artifact authoritative"],
+          "hints": ["cmd/codex_plan.go"],
+          "success_criteria": ["The worker plan is applied"],
+          "depends_on": []
+        }
+      ],
+      "success_criteria": ["Worker route-setter plan used"]
+    },
+    {
+      "name": "Verification",
+      "description": "Verify the worker-authored plan.",
+      "tasks": [
+        {
+          "goal": "Confirm the worker plan survives serialization",
+          "constraints": [],
+          "hints": ["cmd/codex_plan_test.go"],
+          "success_criteria": ["Regression coverage exists"],
+          "depends_on": ["1.1"]
+        }
+      ],
+      "success_criteria": ["Plan verification ready"]
+    }
+  ],
+  "confidence": {
+    "knowledge": 91,
+    "requirements": 88,
+    "risks": 84,
+    "dependencies": 79,
+    "effort": 86,
+    "overall": 86
+  },
+  "gaps": ["Worker identified one remaining follow-up."]
+}`
+		if err := os.WriteFile(filepath.Join(planningDir, "phase-plan.json"), []byte(planArtifact), 0644); err != nil {
+			return codex.WorkerResult{}, err
+		}
+
+		researchDir := filepath.Join(config.Root, ".aether", "data", "phase-research")
+		if err := os.MkdirAll(researchDir, 0755); err != nil {
+			return codex.WorkerResult{}, err
+		}
+		if err := os.WriteFile(filepath.Join(researchDir, "phase-1-research.md"), []byte("# worker-authored phase research\n"), 0644); err != nil {
+			return codex.WorkerResult{}, err
+		}
+
+		result.FilesCreated = []string{
+			filepath.ToSlash(filepath.Join(".aether", "data", "planning", "ROUTE-SETTER.md")),
+			filepath.ToSlash(filepath.Join(".aether", "data", "planning", "phase-plan.json")),
+			filepath.ToSlash(filepath.Join(".aether", "data", "phase-research", "phase-1-research.md")),
+		}
+	}
+	return result, nil
+}
+
+func (p *planningArtifactInvoker) IsAvailable(_ context.Context) bool {
+	return true
+}
+
+func (p *planningArtifactInvoker) ValidateAgent(_ string) error {
+	return nil
+}
+
+func TestDispatchRealPlanningWorkers_CancelledContext_ReturnsTimeoutError(t *testing.T) {
 	tmpDir := t.TempDir()
 	codexAgentsDir := filepath.Join(tmpDir, ".codex", "agents")
 	if err := os.MkdirAll(codexAgentsDir, 0755); err != nil {
@@ -306,10 +492,10 @@ developer_instructions = "test instructions"`), 0644); err != nil {
 
 	invoker := &codex.FakeInvoker{}
 	result, err := dispatchRealPlanningWorkers(ctx, tmpDir, invoker)
-	if err != nil {
-		t.Fatalf("expected nil error for cancelled context, got: %v", err)
+	if err == nil {
+		t.Fatal("expected timeout error for cancelled context")
 	}
 	if result == nil {
-		t.Fatal("expected non-nil result for cancelled context (workers should still return results)")
+		t.Fatal("expected non-nil result for cancelled context")
 	}
 }

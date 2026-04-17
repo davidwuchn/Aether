@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -9,6 +12,7 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/codex"
 	"github.com/calcosmic/Aether/pkg/colony"
 )
 
@@ -19,10 +23,13 @@ type codexBuildDispatch struct {
 	Name      string   `json:"name"`
 	Task      string   `json:"task"`
 	Status    string   `json:"status"`
+	Summary   string   `json:"summary,omitempty"`
 	TaskID    string   `json:"task_id,omitempty"`
 	TaskIndex int      `json:"task_index,omitempty"`
 	DependsOn []string `json:"depends_on,omitempty"`
 	Outputs   []string `json:"outputs,omitempty"`
+	Blockers  []string `json:"blockers,omitempty"`
+	Duration  float64  `json:"duration,omitempty"`
 }
 
 type codexBuildTaskPlan struct {
@@ -39,6 +46,7 @@ type codexBuildManifest struct {
 	Goal            string               `json:"goal,omitempty"`
 	Root            string               `json:"root"`
 	ColonyDepth     string               `json:"colony_depth"`
+	DispatchMode    string               `json:"dispatch_mode,omitempty"`
 	GeneratedAt     string               `json:"generated_at"`
 	State           string               `json:"state"`
 	Checkpoint      string               `json:"checkpoint"`
@@ -53,9 +61,12 @@ type codexBuildManifest struct {
 type codexBuildClaims struct {
 	FilesCreated  []string `json:"files_created"`
 	FilesModified []string `json:"files_modified"`
+	TestsWritten  []string `json:"tests_written,omitempty"`
 	BuildPhase    int      `json:"build_phase"`
 	Timestamp     string   `json:"timestamp"`
 }
+
+var newCodexWorkerInvoker = codex.NewWorkerInvoker
 
 func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 	if store == nil {
@@ -75,6 +86,10 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 	if err := validateCodexBuildState(state, phaseNum); err != nil {
 		return nil, err
 	}
+	originalState, err := cloneColonyState(state)
+	if err != nil {
+		return nil, fmt.Errorf("failed to clone colony state: %w", err)
+	}
 
 	startedAt := time.Now().UTC()
 	phase := state.Plan.Phases[phaseNum-1]
@@ -84,7 +99,7 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 	}
 	playbooks := codexBuildPlaybooks()
 	dispatches := plannedBuildDispatches(phase, depth)
-	dispatches, err := ensureUniqueBuildDispatchNames(dispatches)
+	dispatches, err = ensureUniqueBuildDispatchNames(dispatches)
 	if err != nil {
 		return nil, err
 	}
@@ -101,21 +116,40 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 	updatedState := state
 	applyCodexBuildState(&updatedState, phaseNum, startedAt)
 	updatedPhase := updatedState.Plan.Phases[phaseNum-1]
-
-	briefPaths, dispatches, err := writeCodexBuildArtifacts(root, updatedState, updatedPhase, buildDirRel, checkpointRel, claimsRel, playbooks, dispatches, startedAt)
-	if err != nil {
-		return nil, err
-	}
-	if err := writeCodexBuildClaims(claimsRel, phaseNum, startedAt); err != nil {
-		return nil, err
-	}
-	if err := recordCodexBuildDispatches(dispatches); err != nil {
-		return nil, err
-	}
 	if err := store.SaveJSON("COLONY_STATE.json", updatedState); err != nil {
 		return nil, fmt.Errorf("failed to save colony state: %w", err)
 	}
-	_ = updateCodexBuildContext(updatedPhase, dispatches, parallelWaves, startedAt)
+
+	briefPaths, dispatches, err := writeCodexBuildArtifacts(root, updatedState, updatedPhase, buildDirRel, checkpointRel, claimsRel, playbooks, dispatches, startedAt, "")
+	if err != nil {
+		rollbackCodexBuildFailure(originalState, phaseNum, startedAt, err)
+		return nil, err
+	}
+	if err := recordCodexBuildDispatches(dispatches); err != nil {
+		rollbackCodexBuildFailure(originalState, phaseNum, startedAt, err)
+		return nil, err
+	}
+	emitVisualProgress(renderBuildDispatchPreview(updatedState, updatedPhase, dispatches))
+
+	dispatches, claims, mode, err := executeCodexBuildDispatches(context.Background(), root, updatedPhase, dispatches, playbooks, startedAt, newCodexWorkerInvoker())
+	if err != nil {
+		rollbackCodexBuildFailure(originalState, phaseNum, startedAt, err)
+		return nil, err
+	}
+	if err := writeCodexBuildClaims(claimsRel, phaseNum, startedAt, claims); err != nil {
+		return nil, err
+	}
+	updatedState.State = colony.StateBUILT
+	if _, _, err := writeCodexBuildArtifacts(root, updatedState, updatedPhase, buildDirRel, checkpointRel, claimsRel, playbooks, dispatches, startedAt, mode); err != nil {
+		return nil, err
+	}
+
+	updatedState.Events = append(trimmedEvents(updatedState.Events),
+		fmt.Sprintf("%s|build_completed|build|Phase %d build packet prepared (%s dispatch)", startedAt.Format(time.RFC3339), phaseNum, mode),
+	)
+	if err := store.SaveJSON("COLONY_STATE.json", updatedState); err != nil {
+		return nil, fmt.Errorf("failed to save built colony state: %w", err)
+	}
 
 	updateSessionSummary("build", "aether continue", fmt.Sprintf("Phase %d dispatched to %d workers across %d waves", phaseNum, len(dispatches), max(parallelWaves, 1)))
 
@@ -140,6 +174,15 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 		if len(dispatch.Outputs) > 0 {
 			entry["outputs"] = dispatch.Outputs
 		}
+		if dispatch.Summary != "" {
+			entry["summary"] = dispatch.Summary
+		}
+		if dispatch.Duration > 0 {
+			entry["duration"] = dispatch.Duration
+		}
+		if len(dispatch.Blockers) > 0 {
+			entry["blockers"] = dispatch.Blockers
+		}
 		dispatchMaps = append(dispatchMaps, entry)
 	}
 
@@ -153,6 +196,7 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 		"dispatches":     dispatchMaps,
 		"dispatch_count": len(dispatches),
 		"parallel_waves": parallelWaves,
+		"dispatch_mode":  mode,
 		"checkpoint":     displayDataPath(checkpointRel),
 		"build_dir":      displayDataPath(buildDirRel),
 		"manifest":       displayDataPath(manifestRel),
@@ -163,8 +207,17 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 }
 
 func validateCodexBuildState(state colony.ColonyState, phaseNum int) error {
-	if state.State == colony.StateEXECUTING && state.CurrentPhase > 0 && state.CurrentPhase != phaseNum {
-		return fmt.Errorf("phase %d is already active; run `aether continue` before dispatching phase %d", state.CurrentPhase, phaseNum)
+	switch state.State {
+	case colony.StateEXECUTING:
+		if state.CurrentPhase > 0 {
+			return fmt.Errorf("phase %d is already active; run `aether continue` before dispatching another build", state.CurrentPhase)
+		}
+		return fmt.Errorf("a build is already in progress; run `aether continue` before dispatching phase %d", phaseNum)
+	case colony.StateBUILT:
+		if state.CurrentPhase > 0 {
+			return fmt.Errorf("phase %d is already built; run `aether continue` before dispatching another build", state.CurrentPhase)
+		}
+		return fmt.Errorf("a build is waiting for verification; run `aether continue` before dispatching phase %d", phaseNum)
 	}
 
 	for i := 0; i < phaseNum-1; i++ {
@@ -178,7 +231,7 @@ func validateCodexBuildState(state colony.ColonyState, phaseNum int) error {
 		return fmt.Errorf("phase %d is already completed", phaseNum)
 	}
 
-	if err := colony.Transition(state.State, colony.StateEXECUTING); err != nil && state.State != colony.StateEXECUTING {
+	if err := colony.Transition(state.State, colony.StateEXECUTING); err != nil {
 		return err
 	}
 	return nil
@@ -338,7 +391,91 @@ func buildTaskID(task colony.Task, idx int) string {
 	return fmt.Sprintf("task-%d", idx+1)
 }
 
-func writeCodexBuildArtifacts(root string, state colony.ColonyState, phase colony.Phase, buildDirRel, checkpointRel, claimsRel string, playbooks []string, dispatches []codexBuildDispatch, startedAt time.Time) ([]string, []codexBuildDispatch, error) {
+func executeCodexBuildDispatches(ctx context.Context, root string, phase colony.Phase, dispatches []codexBuildDispatch, playbooks []string, startedAt time.Time, invoker codex.WorkerInvoker) ([]codexBuildDispatch, *codex.ClaimsSummary, string, error) {
+	if invoker == nil {
+		invoker = &codex.FakeInvoker{}
+	}
+	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(ctx) {
+		return nil, nil, "", fmt.Errorf("codex CLI is not available in PATH")
+	}
+
+	capsule := resolveCodexWorkerContext()
+	pheromoneSection := ""
+	workerDispatches := make([]codex.WorkerDispatch, 0, len(dispatches))
+	indexByName := make(map[string]int, len(dispatches))
+	for i, dispatch := range dispatches {
+		workerDispatches = append(workerDispatches, codex.WorkerDispatch{
+			ID:               fmt.Sprintf("phase-%d-dispatch-%d", phase.ID, i+1),
+			WorkerName:       dispatch.Name,
+			AgentName:        codexAgentNameForCaste(dispatch.Caste),
+			AgentTOMLPath:    filepath.Join(root, ".codex", "agents", codexAgentFileForCaste(dispatch.Caste)),
+			Caste:            dispatch.Caste,
+			TaskID:           normalizedDispatchTaskID(dispatch),
+			TaskBrief:        renderCodexBuildWorkerBrief(root, phase, dispatch, playbooks, startedAt),
+			ContextCapsule:   capsule,
+			SkillSection:     resolveSkillSection(dispatch.Caste, dispatch.Task),
+			PheromoneSection: pheromoneSection,
+			Root:             root,
+			Wave:             normalizedDispatchWave(dispatch),
+		})
+		indexByName[dispatch.Name] = i
+	}
+
+	results, err := codex.DispatchBatch(ctx, invoker, workerDispatches)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("dispatch build workers: %w", err)
+	}
+
+	mode := "real"
+	if _, ok := invoker.(*codex.FakeInvoker); ok {
+		mode = "simulated"
+	}
+	for _, result := range results {
+		idx, ok := indexByName[result.WorkerName]
+		if !ok {
+			continue
+		}
+		dispatches[idx].Status = result.Status
+		if dispatches[idx].Status == "" {
+			dispatches[idx].Status = "failed"
+		}
+		if result.WorkerResult != nil {
+			dispatches[idx].Summary = strings.TrimSpace(result.WorkerResult.Summary)
+			dispatches[idx].Blockers = append([]string{}, result.WorkerResult.Blockers...)
+			dispatches[idx].Duration = result.WorkerResult.Duration.Seconds()
+		}
+		if result.Error != nil && len(dispatches[idx].Blockers) == 0 {
+			dispatches[idx].Blockers = []string{result.Error.Error()}
+		}
+	}
+
+	claims := codex.ExtractClaims(results)
+	return dispatches, claims, mode, markCodexBuildDispatchesAwaitingContinue(dispatches)
+}
+
+func markCodexBuildDispatchesAwaitingContinue(dispatches []codexBuildDispatch) error {
+	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+	for _, dispatch := range dispatches {
+		summary := strings.TrimSpace(dispatch.Summary)
+		if summary == "" && len(dispatch.Blockers) > 0 {
+			summary = strings.Join(dispatch.Blockers, "; ")
+		}
+		if summary == "" {
+			summary = dispatch.Task
+		}
+		status := strings.TrimSpace(dispatch.Status)
+		if status == "" || status == "completed" {
+			status = "active"
+			summary = "Awaiting continue verification"
+		}
+		if err := spawnTree.UpdateStatus(dispatch.Name, status, summary); err != nil {
+			return fmt.Errorf("failed to update build dispatch %s: %w", dispatch.Name, err)
+		}
+	}
+	return nil
+}
+
+func writeCodexBuildArtifacts(root string, state colony.ColonyState, phase colony.Phase, buildDirRel, checkpointRel, claimsRel string, playbooks []string, dispatches []codexBuildDispatch, startedAt time.Time, dispatchMode string) ([]string, []codexBuildDispatch, error) {
 	briefPaths := make([]string, 0, len(dispatches))
 	briefOutputs := map[string]string{}
 
@@ -388,6 +525,7 @@ func writeCodexBuildArtifacts(root string, state colony.ColonyState, phase colon
 		Goal:            goal,
 		Root:            root,
 		ColonyDepth:     normalizedBuildDepth(state.ColonyDepth),
+		DispatchMode:    strings.TrimSpace(dispatchMode),
 		GeneratedAt:     startedAt.Format(time.RFC3339),
 		State:           string(state.State),
 		Checkpoint:      displayDataPath(checkpointRel),
@@ -404,6 +542,45 @@ func writeCodexBuildArtifacts(root string, state colony.ColonyState, phase colon
 	}
 
 	return briefPaths, dispatches, nil
+}
+
+func rollbackCodexBuildFailure(previous colony.ColonyState, phaseNum int, startedAt time.Time, dispatchErr error) {
+	if store == nil {
+		return
+	}
+
+	rollback := previous
+	summary := fmt.Sprintf("Build dispatch for phase %d failed", phaseNum)
+	if dispatchErr != nil {
+		summary = strings.TrimSpace(dispatchErr.Error())
+		rollback.Events = append(trimmedEvents(rollback.Events),
+			fmt.Sprintf("%s|build_dispatch_failed|build|Phase %d dispatch failed: %s", startedAt.Format(time.RFC3339), phaseNum, summary),
+		)
+	}
+
+	if err := store.SaveJSON("COLONY_STATE.json", rollback); err != nil {
+		return
+	}
+	_, _ = syncColonyArtifacts(rollback, colonyArtifactOptions{
+		CommandName:   "build",
+		SuggestedNext: nextCommandFromState(rollback),
+		Summary:       summary,
+		SafeToClear:   "YES — Build dispatch failed and state was restored",
+		HandoffTitle:  "Build Dispatch Failed",
+		WriteHandoff:  true,
+	})
+}
+
+func cloneColonyState(state colony.ColonyState) (colony.ColonyState, error) {
+	data, err := json.Marshal(state)
+	if err != nil {
+		return colony.ColonyState{}, err
+	}
+	var cloned colony.ColonyState
+	if err := json.Unmarshal(data, &cloned); err != nil {
+		return colony.ColonyState{}, err
+	}
+	return cloned, nil
 }
 
 func renderCodexBuildWorkerBrief(root string, phase colony.Phase, dispatch codexBuildDispatch, playbooks []string, startedAt time.Time) string {
@@ -560,12 +737,12 @@ func expectedDispatchOutcome(dispatch codexBuildDispatch) string {
 	}
 }
 
-func writeCodexBuildClaims(relPath string, phaseNum int, startedAt time.Time) error {
-	claims := codexBuildClaims{
-		FilesCreated:  []string{},
-		FilesModified: []string{},
-		BuildPhase:    phaseNum,
-		Timestamp:     startedAt.Format(time.RFC3339),
+func writeCodexBuildClaims(relPath string, phaseNum int, startedAt time.Time, summary *codex.ClaimsSummary) error {
+	claims := codexBuildClaims{BuildPhase: phaseNum, Timestamp: startedAt.Format(time.RFC3339)}
+	if summary != nil {
+		claims.FilesCreated = append([]string{}, summary.FilesCreated...)
+		claims.FilesModified = append([]string{}, summary.FilesModified...)
+		claims.TestsWritten = append([]string{}, summary.TestsWritten...)
 	}
 	if err := store.SaveJSON(relPath, claims); err != nil {
 		return fmt.Errorf("failed to write build claims: %w", err)
@@ -615,7 +792,7 @@ func ensureUniqueBuildDispatchNames(dispatches []codexBuildDispatch) ([]codexBui
 }
 
 func updateCodexBuildContext(phase colony.Phase, dispatches []codexBuildDispatch, parallelWaves int, startedAt time.Time) error {
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		return nil
 	}
@@ -633,7 +810,7 @@ func updateCodexBuildContext(phase colony.Phase, dispatches []codexBuildDispatch
 		content = appendWorkerSpawnEntry(content, dispatch.Name, dispatch.Caste, dispatch.Task, startedAt.Format(time.RFC3339))
 	}
 
-	return store.AtomicWrite(contextFileName, []byte(content))
+	return writeContextDocument(content)
 }
 
 func displayDataPath(rel string) string {
@@ -645,4 +822,114 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func codexAgentFileForCaste(caste string) string {
+	normalized := strings.ToLower(strings.TrimSpace(strings.ReplaceAll(caste, "_", "-")))
+	if normalized == "" {
+		normalized = "builder"
+	}
+	return "aether-" + normalized + ".toml"
+}
+
+func codexAgentNameForCaste(caste string) string {
+	return strings.TrimSuffix(codexAgentFileForCaste(caste), ".toml")
+}
+
+func normalizedDispatchWave(dispatch codexBuildDispatch) int {
+	if dispatch.Wave > 0 {
+		return dispatch.Wave
+	}
+	switch dispatch.Stage {
+	case "strategy":
+		return 1
+	case "verification":
+		return 100
+	case "resilience":
+		return 101
+	default:
+		return 1
+	}
+}
+
+func normalizedDispatchTaskID(dispatch codexBuildDispatch) string {
+	if strings.TrimSpace(dispatch.TaskID) != "" {
+		return strings.TrimSpace(dispatch.TaskID)
+	}
+	parts := []string{strings.TrimSpace(dispatch.Stage), strings.TrimSpace(dispatch.Caste), strings.TrimSpace(dispatch.Name)}
+	joined := strings.ToLower(strings.Join(parts, "-"))
+	joined = strings.ReplaceAll(joined, " ", "-")
+	return strings.Trim(joined, "-")
+}
+
+// resolveSkillSection matches skills for the given role and task, then formats
+// them into a markdown section. Returns empty string if no matches.
+func resolveSkillSection(caste, task string) string {
+	result := matchSkills(resolveHubPath(), caste, task)
+	allSkills := append(result.ColonySkills, result.DomainSkills...)
+	if len(allSkills) == 0 {
+		return ""
+	}
+
+	var sections []string
+	for _, entry := range allSkills {
+		content, err := os.ReadFile(entry.Path)
+		if err != nil {
+			continue
+		}
+		sections = append(sections, fmt.Sprintf("### Skill: %s\n\n%s", entry.Name, string(content)))
+	}
+	if len(sections) == 0 {
+		return ""
+	}
+	return strings.Join(sections, "\n---\n")
+}
+
+// resolvePheromoneSection extracts active pheromone signals, groups them by
+// type, and formats them into a markdown section. Returns empty string if no signals
+// or if the store is not initialized.
+func resolvePheromoneSection() string {
+	if store == nil {
+		return ""
+	}
+	texts := extractSignalTexts(8)
+	if len(texts) == 0 {
+		return ""
+	}
+
+	var focus, redirect, feedback []string
+	for _, text := range texts {
+		switch {
+		case strings.HasPrefix(text, "FOCUS:"):
+			focus = append(focus, strings.TrimPrefix(text, "FOCUS:"))
+		case strings.HasPrefix(text, "REDIRECT:"):
+			redirect = append(redirect, strings.TrimPrefix(text, "REDIRECT:"))
+		case strings.HasPrefix(text, "FEEDBACK:"):
+			feedback = append(feedback, strings.TrimPrefix(text, "FEEDBACK:"))
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString("### Active Pheromone Signals\n\n")
+	if len(focus) > 0 {
+		b.WriteString("**FOCUS:**\n")
+		for _, f := range focus {
+			b.WriteString(fmt.Sprintf("- %s\n", strings.TrimSpace(f)))
+		}
+		b.WriteString("\n")
+	}
+	if len(redirect) > 0 {
+		b.WriteString("**REDIRECT:**\n")
+		for _, r := range redirect {
+			b.WriteString(fmt.Sprintf("- %s\n", strings.TrimSpace(r)))
+		}
+		b.WriteString("\n")
+	}
+	if len(feedback) > 0 {
+		b.WriteString("**FEEDBACK:**\n")
+		for _, f := range feedback {
+			b.WriteString(fmt.Sprintf("- %s\n", strings.TrimSpace(f)))
+		}
+	}
+	return strings.TrimSpace(b.String())
 }

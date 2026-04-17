@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/memory"
 	"github.com/spf13/cobra"
 )
 
@@ -287,30 +289,14 @@ var learningPromoteCmd = &cobra.Command{
 			return nil
 		}
 
-		// Load colony state and add instinct
-		var state colony.ColonyState
-		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-			outputError(1, "COLONY_STATE.json not found", nil)
-			return nil
-		}
+		bus := events.NewBus(store, events.DefaultConfig())
+		promoteService := memory.NewPromoteService(store, bus)
+		ctx, cancel := timeoutCtx(cmd)
+		defer cancel()
 
-		now := time.Now().UTC().Format("2006-01-02T15:04:05Z")
-		instinct := colony.Instinct{
-			ID:         fmt.Sprintf("inst_promoted_%d", time.Now().Unix()),
-			Trigger:    found.WisdomType,
-			Action:     found.Content,
-			Confidence: 0.75,
-			Status:     "active",
-			Domain:     "general",
-			Source:     "promotion",
-			Evidence:   []string{fmt.Sprintf("promoted from observation %s", obsID)},
-			CreatedAt:  now,
-		}
-
-		state.Memory.Instincts = append(state.Memory.Instincts, instinct)
-
-		if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
-			outputError(2, fmt.Sprintf("failed to save colony state: %v", err), nil)
+		result, err := promoteService.Promote(ctx, *found, "manual-promote")
+		if err != nil {
+			outputError(2, fmt.Sprintf("failed to promote observation: %v", err), nil)
 			return nil
 		}
 
@@ -324,7 +310,9 @@ var learningPromoteCmd = &cobra.Command{
 		outputOK(map[string]interface{}{
 			"promoted":    true,
 			"observation": obsID,
-			"instinct_id": instinct.ID,
+			"instinct_id": result.Instinct.ID,
+			"deduped":     result.WasDeduped,
+			"is_new":      result.IsNew,
 		})
 		return nil
 	},
@@ -390,48 +378,55 @@ var learningUndoPromotionsCmd = &cobra.Command{
 			count = 1
 		}
 
-		var state colony.ColonyState
-		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-			outputError(1, "COLONY_STATE.json not found", nil)
-			return nil
-		}
-
-		totalInstincts := len(state.Memory.Instincts)
+		file := loadInstinctFileOrEmpty(store)
+		active := sortedActiveInstinctEntries(file)
+		totalInstincts := len(active)
 		if count > totalInstincts {
 			count = totalInstincts
 		}
 
-		// Collect IDs of instincts being removed for observation status revert
-		removedIDs := map[string]bool{}
+		// Collect source observation hashes from instincts being archived.
+		removedSources := map[string]bool{}
 		for i := totalInstincts - count; i < totalInstincts; i++ {
-			removedIDs[state.Memory.Instincts[i].ID] = true
+			targetID := active[i].ID
+			for idx := range file.Instincts {
+				if file.Instincts[idx].ID != targetID {
+					continue
+				}
+				file.Instincts[idx].Archived = true
+				if src := file.Instincts[idx].Provenance.Source; src != "" {
+					removedSources[src] = true
+				}
+				break
+			}
 		}
 
-		state.Memory.Instincts = state.Memory.Instincts[:totalInstincts-count]
-
-		if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
-			outputError(2, fmt.Sprintf("failed to save colony state: %v", err), nil)
+		if err := store.SaveJSON("instincts.json", file); err != nil {
+			outputError(2, fmt.Sprintf("failed to save instincts: %v", err), nil)
 			return nil
 		}
 
 		// Revert corresponding observations back to "proposed"
-		var file colony.LearningFile
-		if err := store.LoadJSON("learning-observations.json", &file); err == nil {
+		var obsFile colony.LearningFile
+		if err := store.LoadJSON("learning-observations.json", &obsFile); err == nil {
 			reverted := 0
-			for i := range file.Observations {
-				if file.Observations[i].SourceType == "promoted" {
-					file.Observations[i].SourceType = "proposed"
+			for i := range obsFile.Observations {
+				if !removedSources[obsFile.Observations[i].ContentHash] {
+					continue
+				}
+				if obsFile.Observations[i].SourceType == "promoted" {
+					obsFile.Observations[i].SourceType = "proposed"
 					reverted++
 				}
 			}
 			if reverted > 0 {
-				store.SaveJSON("learning-observations.json", file)
+				store.SaveJSON("learning-observations.json", obsFile)
 			}
 		}
 
 		outputOK(map[string]interface{}{
 			"undone":              count,
-			"remaining_instincts": len(state.Memory.Instincts),
+			"remaining_instincts": len(sortedActiveInstinctEntries(file)),
 		})
 		return nil
 	},

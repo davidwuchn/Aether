@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/calcosmic/Aether/pkg/agent"
 	"github.com/calcosmic/Aether/pkg/colony"
 )
 
@@ -164,6 +165,73 @@ func TestStatusPheromoneSummary(t *testing.T) {
 	}
 }
 
+func TestStatusUsesStandaloneInstincts(t *testing.T) {
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	s, tmpDir := setupTestStore(t)
+	defer os.RemoveAll(tmpDir)
+
+	var state colony.ColonyState
+	if err := s.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("failed to load colony state: %v", err)
+	}
+	state.Memory.Instincts = []colony.Instinct{}
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatalf("failed to save colony state: %v", err)
+	}
+
+	instincts := colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "inst_live_1",
+				Trigger:    "trigger one",
+				Action:     "action one",
+				Domain:     "go",
+				Confidence: 0.9,
+				TrustScore: 0.9,
+				TrustTier:  "canonical",
+				Provenance: colony.InstinctProvenance{Source: "obs_1", CreatedAt: "2026-04-01T00:00:00Z"},
+			},
+			{
+				ID:         "inst_live_2",
+				Trigger:    "trigger two",
+				Action:     "action two",
+				Domain:     "testing",
+				Confidence: 0.6,
+				TrustScore: 0.6,
+				TrustTier:  "emerging",
+				Provenance: colony.InstinctProvenance{Source: "obs_2", CreatedAt: "2026-04-02T00:00:00Z"},
+			},
+		},
+	}
+	if err := s.SaveJSON("instincts.json", instincts); err != nil {
+		t.Fatalf("failed to save instincts: %v", err)
+	}
+
+	origRoot := os.Getenv("AETHER_ROOT")
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", origRoot)
+
+	store = s
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "2 learned") {
+		t.Errorf("expected standalone instincts count in output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "1 strong") {
+		t.Errorf("expected strong instinct count from instincts.json, got:\n%s", output)
+	}
+}
+
 func TestStatusOutput_ParallelModeDefault(t *testing.T) {
 	var buf bytes.Buffer
 	stdout = &buf
@@ -271,5 +339,41 @@ func TestStatusMemoryHealth(t *testing.T) {
 	}
 	if !strings.Contains(output, "Recent Failures") {
 		t.Errorf("output missing 'Recent Failures' row")
+	}
+}
+
+func TestStatusShowsActiveWorkersFromSpawnTree(t *testing.T) {
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	s, tmpDir := setupTestStore(t)
+	defer os.RemoveAll(tmpDir)
+
+	spawnTree := agent.NewSpawnTree(s, "spawn-tree.txt")
+	if err := spawnTree.RecordSpawn("Queen", "surveyor", "Atlas-55", "Map provisions and external trails", 1); err != nil {
+		t.Fatalf("failed to record spawn: %v", err)
+	}
+	if err := spawnTree.RecordSpawn("Queen", "surveyor", "Map-91", "Map architecture and chamber layout", 1); err != nil {
+		t.Fatalf("failed to record spawn: %v", err)
+	}
+
+	origRoot := os.Getenv("AETHER_ROOT")
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", origRoot)
+
+	store = s
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	for _, want := range []string{"Active Workers", "Atlas-55", "Map-91", "2 active workers", "in-flight command"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("status output missing %q\n%s", want, output)
+		}
 	}
 }

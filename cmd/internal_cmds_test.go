@@ -197,6 +197,111 @@ func TestInstinctRead(t *testing.T) {
 	}
 }
 
+func TestInstinctReadFromStandaloneStore(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	instincts := map[string]interface{}{
+		"version": "1.0",
+		"instincts": []interface{}{
+			map[string]interface{}{
+				"id":          "inst_file_1",
+				"trigger":     "file_trigger",
+				"action":      "file_action",
+				"confidence":  0.85,
+				"trust_score": 0.85,
+				"trust_tier":  "trusted",
+				"provenance": map[string]interface{}{
+					"source":            "obs_file_1",
+					"source_type":       "observation",
+					"evidence":          "from file",
+					"created_at":        "2026-04-01T00:00:00Z",
+					"application_count": 0,
+				},
+				"application_history": []interface{}{},
+				"related_instincts":   []interface{}{},
+				"archived":            false,
+			},
+		},
+	}
+	writeTestJSON(t, s.BasePath(), "instincts.json", instincts)
+
+	rootCmd.SetArgs([]string{"instinct-read", "inst_file_1"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("instinct-read failed: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["found"] != true {
+		t.Errorf("expected found true, got %v", result["found"])
+	}
+}
+
+func TestInstinctApplyUpdatesStandaloneStore(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, _ := newTestStore(t)
+	store = s
+
+	instincts := map[string]interface{}{
+		"version": "1.0",
+		"instincts": []interface{}{
+			map[string]interface{}{
+				"id":          "inst_file_2",
+				"trigger":     "file_trigger",
+				"action":      "file_action",
+				"confidence":  0.85,
+				"trust_score": 0.85,
+				"trust_tier":  "trusted",
+				"provenance": map[string]interface{}{
+					"source":            "obs_file_2",
+					"source_type":       "observation",
+					"evidence":          "from file",
+					"created_at":        "2026-04-01T00:00:00Z",
+					"application_count": 0,
+				},
+				"application_history": []interface{}{},
+				"related_instincts":   []interface{}{},
+				"archived":            false,
+			},
+		},
+	}
+	writeTestJSON(t, s.BasePath(), "instincts.json", instincts)
+
+	rootCmd.SetArgs([]string{"instinct-apply", "inst_file_2", "--success=false"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("instinct-apply failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(s.BasePath(), "instincts.json"))
+	if err != nil {
+		t.Fatalf("read instincts.json: %v", err)
+	}
+	var file map[string]interface{}
+	if err := json.Unmarshal(data, &file); err != nil {
+		t.Fatalf("parse instincts.json: %v", err)
+	}
+	instinctList := file["instincts"].([]interface{})
+	instinct := instinctList[0].(map[string]interface{})
+	provenance := instinct["provenance"].(map[string]interface{})
+	if provenance["application_count"] != float64(1) {
+		t.Fatalf("application_count = %v, want 1", provenance["application_count"])
+	}
+	history := instinct["application_history"].([]interface{})
+	if len(history) != 1 {
+		t.Fatalf("expected 1 application_history entry, got %d", len(history))
+	}
+}
+
 func TestSpawnGetDepth(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)

@@ -30,12 +30,11 @@ type ContextCapsuleOutput struct {
 	PhaseName     string `json:"phase_name"`
 }
 
-// resumeDashboardCmd returns session restore information for /ant:resume (CMD-15).
+// resumeDashboardCmd returns a read-only session recovery dashboard.
 var resumeDashboardCmd = &cobra.Command{
-	Use:     "resume-dashboard",
-	Short:   "Return session restore information for `aether resume`",
-	Aliases: []string{"resume"},
-	Args:    cobra.NoArgs,
+	Use:   "resume-dashboard",
+	Short: "Show session recovery information without restoring handoff state",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if store == nil {
 			outputErrorMessage("no store initialized")
@@ -49,10 +48,17 @@ var resumeDashboardCmd = &cobra.Command{
 }
 
 func buildResumeDashboardResult() map[string]interface{} {
+	var session colony.SessionFile
+	sessionFound := store.LoadJSON("session.json", &session) == nil
+	handoffExists := false
+	if _, err := os.Stat(handoffDocumentPath()); err == nil {
+		handoffExists = true
+	}
+
 	// Load COLONY_STATE.json. If missing, return defaults.
 	var state colony.ColonyState
 	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-		return map[string]interface{}{
+		result := map[string]interface{}{
 			"current": map[string]interface{}{
 				"phase":         0,
 				"phase_name":    "",
@@ -76,6 +82,33 @@ func buildResumeDashboardResult() map[string]interface{} {
 				"available": true,
 			},
 		}
+		if sessionFound {
+			result["session"] = map[string]interface{}{
+				"summary":         session.Summary,
+				"suggested_next":  session.SuggestedNext,
+				"active_todos":    session.ActiveTodos,
+				"last_command":    session.LastCommand,
+				"context_cleared": session.ContextCleared,
+			}
+		}
+		result["recovery"] = map[string]interface{}{
+			"context_path":   contextDocumentPath(),
+			"handoff_path":   handoffDocumentPath(),
+			"handoff_exists": handoffExists,
+		}
+		return result
+	}
+
+	phaseName := lookupPhaseName(state, state.CurrentPhase)
+	if state.CurrentPhase <= 0 {
+		phaseName = ""
+	}
+	recovery := recoveryPhase(&state)
+	nextPhaseID := 0
+	nextPhaseName := ""
+	if recovery != nil && recovery.ID != state.CurrentPhase {
+		nextPhaseID = recovery.ID
+		nextPhaseName = recovery.Name
 	}
 
 	// Extract core state fields
@@ -86,10 +119,6 @@ func buildResumeDashboardResult() map[string]interface{} {
 		goal = *state.Goal
 	}
 	totalPhases := len(state.Plan.Phases)
-	phaseName := lookupPhaseName(state, currentPhase)
-	if currentPhase <= 0 {
-		phaseName = ""
-	}
 
 	// Extract parallel_mode with default fallback
 	parallelMode := string(state.ParallelMode)
@@ -133,7 +162,7 @@ func buildResumeDashboardResult() map[string]interface{} {
 		}
 	}
 
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"current": map[string]interface{}{
 			"phase":         currentPhase,
 			"phase_name":    phaseName,
@@ -156,7 +185,41 @@ func buildResumeDashboardResult() map[string]interface{} {
 			"command":   "aether memory-details",
 			"available": true,
 		},
+		"recovery": map[string]interface{}{
+			"context_path":   contextDocumentPath(),
+			"handoff_path":   handoffDocumentPath(),
+			"handoff_exists": handoffExists,
+		},
 	}
+
+	if nextPhaseID > 0 {
+		result["next_phase"] = map[string]interface{}{
+			"id":   nextPhaseID,
+			"name": nextPhaseName,
+		}
+	}
+	if sessionFound {
+		todos := session.ActiveTodos
+		if len(todos) == 0 {
+			todos = sessionActiveTodosFromState(state)
+		}
+		suggestedNext := strings.TrimSpace(session.SuggestedNext)
+		if suggestedNext == "" {
+			suggestedNext = nextCommandFromState(state)
+		}
+		summary := strings.TrimSpace(session.Summary)
+		if summary == "" {
+			summary = defaultProgressSummary(state, suggestedNext)
+		}
+		result["session"] = map[string]interface{}{
+			"summary":         summary,
+			"suggested_next":  suggestedNext,
+			"active_todos":    todos,
+			"last_command":    session.LastCommand,
+			"context_cleared": session.ContextCleared,
+		}
+	}
+	return result
 }
 
 // contextCapsuleCmd assembles worker context for prompt injection (CMD-16).
@@ -171,142 +234,130 @@ var contextCapsuleCmd = &cobra.Command{
 		}
 
 		compact, _ := cmd.Flags().GetBool("compact")
-		// jsonFlag, _ := cmd.Flags().GetBool("json") // reserved for future use
 		maxSignals, _ := cmd.Flags().GetInt("max-signals")
 		maxDecisions, _ := cmd.Flags().GetInt("max-decisions")
 		maxRisks, _ := cmd.Flags().GetInt("max-risks")
 		maxWords, _ := cmd.Flags().GetInt("max-words")
-
-		// Validate and clamp
-		if maxSignals < 1 {
-			maxSignals = 1
-		}
-		if maxDecisions < 1 {
-			maxDecisions = 1
-		}
-		if maxRisks < 1 {
-			maxRisks = 1
-		}
-		if maxWords < 80 {
-			maxWords = 80
-		}
-
-		// Initialize session cache for this invocation
-		sc := cache.NewSessionCache(store.BasePath())
-
-		// Auto-cleanup stale cache files older than 24 hours (non-blocking)
-		sc.ClearStale(24 * time.Hour)
-
-		// Load COLONY_STATE.json via session cache
-		var state colony.ColonyState
-		statePath := filepath.Join(store.BasePath(), "COLONY_STATE.json")
-		if err := sc.Load(statePath, &state); err != nil {
-			outputOK(ContextCapsuleOutput{
-				Exists:        false,
-				WordCount:     0,
-				PromptSection: "",
-			})
-			return nil
-		}
-
-		// Extract goal
-		goal := "No goal set"
-		if state.Goal != nil {
-			goal = *state.Goal
-		}
-		goal = truncateString(goal, 160)
-
-		// Extract state
-		stateStr := string(state.State)
-		if stateStr == "" {
-			stateStr = "IDLE"
-		}
-
-		// Extract phase info
-		phase := state.CurrentPhase
-		totalPhases := len(state.Plan.Phases)
-		phaseName := lookupPhaseName(state, phase)
-
-		// Compute next_action
-		nextAction := computeNextAction(stateStr, phase, totalPhases)
-
-		// Extract decisions
-		decisionTexts := extractDecisionTexts(state.Memory.Decisions, maxDecisions)
-
-		// Extract risks from flags
-		riskTexts := extractRiskTexts(maxRisks)
-
-		// Extract signals (shared pheromone load via session cache)
-		pf, _ := loadPheromonesOnce(store, sc)
-		signalTexts := extractSignalTextsFrom(&pf, maxSignals)
-
-		// Extract rolling summary
-		summaryTexts := extractRollingSummary(3)
-
-		// Build prompt section
-		var b strings.Builder
-		b.WriteString("--- CONTEXT CAPSULE ---\n")
-		fmt.Fprintf(&b, "Goal: %s\n", goal)
-		fmt.Fprintf(&b, "State: %s\n", stateStr)
-		fmt.Fprintf(&b, "Phase: %d/%d - %s\n", phase, totalPhases, phaseName)
-		fmt.Fprintf(&b, "Next: %s\n", nextAction)
-
-		if len(signalTexts) > 0 {
-			b.WriteString("\nActive signals:\n")
-			for _, s := range signalTexts {
-				fmt.Fprintf(&b, "- %s\n", s)
-			}
-		}
-
-		if len(decisionTexts) > 0 {
-			b.WriteString("\nRecent decisions:\n")
-			for _, d := range decisionTexts {
-				fmt.Fprintf(&b, "- %s\n", d)
-			}
-		}
-
-		if len(riskTexts) > 0 {
-			b.WriteString("\nOpen risks:\n")
-			for _, r := range riskTexts {
-				fmt.Fprintf(&b, "- %s\n", r)
-			}
-		}
-
-		if len(summaryTexts) > 0 {
-			b.WriteString("\nRecent narrative:\n")
-			for _, s := range summaryTexts {
-				fmt.Fprintf(&b, "- %s\n", s)
-			}
-		}
-
-		b.WriteString("--- END CONTEXT CAPSULE ---\n")
-
-		promptSection := b.String()
-		wc := wordCount(promptSection)
-
-		// Compact mode: trim sections if word count exceeds budget
-		if compact && wc > maxWords {
-			promptSection = trimSection(promptSection, "Recent narrative:")
-			wc = wordCount(promptSection)
-		}
-		if compact && wc > maxWords {
-			promptSection = trimSection(promptSection, "Open risks:")
-			wc = wordCount(promptSection)
-		}
-
-		outputOK(ContextCapsuleOutput{
-			Exists:        true,
-			State:         stateStr,
-			NextAction:    nextAction,
-			WordCount:     wc,
-			PromptSection: promptSection,
-			Goal:          goal,
-			Phase:         phase,
-			TotalPhases:   totalPhases,
-			PhaseName:     phaseName,
-		})
+		outputOK(buildContextCapsuleOutput(compact, maxSignals, maxDecisions, maxRisks, maxWords))
 		return nil
 	},
+}
+
+func buildContextCapsuleOutput(compact bool, maxSignals, maxDecisions, maxRisks, maxWords int) ContextCapsuleOutput {
+	if store == nil {
+		return ContextCapsuleOutput{
+			Exists:        false,
+			WordCount:     0,
+			PromptSection: "",
+		}
+	}
+	if maxSignals < 1 {
+		maxSignals = 1
+	}
+	if maxDecisions < 1 {
+		maxDecisions = 1
+	}
+	if maxRisks < 1 {
+		maxRisks = 1
+	}
+	if maxWords < 80 {
+		maxWords = 80
+	}
+
+	sc := cache.NewSessionCache(store.BasePath())
+	sc.ClearStale(24 * time.Hour)
+
+	var state colony.ColonyState
+	statePath := filepath.Join(store.BasePath(), "COLONY_STATE.json")
+	if err := sc.Load(statePath, &state); err != nil {
+		return ContextCapsuleOutput{
+			Exists:        false,
+			WordCount:     0,
+			PromptSection: "",
+		}
+	}
+
+	goal := "No goal set"
+	if state.Goal != nil {
+		goal = *state.Goal
+	}
+	goal = truncateString(goal, 160)
+
+	stateStr := string(state.State)
+	if stateStr == "" {
+		stateStr = "IDLE"
+	}
+
+	phase := state.CurrentPhase
+	totalPhases := len(state.Plan.Phases)
+	phaseName := lookupPhaseName(state, phase)
+	nextAction := computeNextAction(stateStr, phase, totalPhases)
+
+	decisionTexts := extractDecisionTexts(state.Memory.Decisions, maxDecisions)
+	riskTexts := extractRiskTexts(maxRisks)
+	pf, _ := loadPheromonesOnce(store, sc)
+	signalTexts := extractSignalTextsFrom(&pf, maxSignals)
+	summaryTexts := extractRollingSummary(3)
+
+	var b strings.Builder
+	b.WriteString("--- CONTEXT CAPSULE ---\n")
+	fmt.Fprintf(&b, "Goal: %s\n", goal)
+	fmt.Fprintf(&b, "State: %s\n", stateStr)
+	fmt.Fprintf(&b, "Phase: %d/%d - %s\n", phase, totalPhases, phaseName)
+	fmt.Fprintf(&b, "Next: %s\n", nextAction)
+
+	if len(signalTexts) > 0 {
+		b.WriteString("\nActive signals:\n")
+		for _, s := range signalTexts {
+			fmt.Fprintf(&b, "- %s\n", s)
+		}
+	}
+
+	if len(decisionTexts) > 0 {
+		b.WriteString("\nRecent decisions:\n")
+		for _, d := range decisionTexts {
+			fmt.Fprintf(&b, "- %s\n", d)
+		}
+	}
+
+	if len(riskTexts) > 0 {
+		b.WriteString("\nOpen risks:\n")
+		for _, r := range riskTexts {
+			fmt.Fprintf(&b, "- %s\n", r)
+		}
+	}
+
+	if len(summaryTexts) > 0 {
+		b.WriteString("\nRecent narrative:\n")
+		for _, s := range summaryTexts {
+			fmt.Fprintf(&b, "- %s\n", s)
+		}
+	}
+
+	b.WriteString("--- END CONTEXT CAPSULE ---\n")
+
+	promptSection := b.String()
+	wc := wordCount(promptSection)
+	if compact && wc > maxWords {
+		promptSection = trimSection(promptSection, "Recent narrative:")
+		wc = wordCount(promptSection)
+	}
+	if compact && wc > maxWords {
+		promptSection = trimSection(promptSection, "Open risks:")
+		wc = wordCount(promptSection)
+	}
+
+	return ContextCapsuleOutput{
+		Exists:        true,
+		State:         stateStr,
+		NextAction:    nextAction,
+		WordCount:     wc,
+		PromptSection: promptSection,
+		Goal:          goal,
+		Phase:         phase,
+		TotalPhases:   totalPhases,
+		PhaseName:     phaseName,
+	}
 }
 
 // PRContextOutput is the typed output for pr-context (CMD-17).
@@ -424,9 +475,9 @@ var prContextCmd = &cobra.Command{
 			fallbacks = append(fallbacks, "pheromones: no active signals")
 		}
 
-		// Also load instincts from pre-loaded colony state (non-fatal if missing)
+		// Also load instincts from the standalone instincts store, falling back to state.
 		if colStateErr == nil {
-			instincts = colState.Memory.Instincts
+			instincts = loadRuntimeInstincts(store, &colState)
 		}
 
 		signalsMap := map[string]interface{}{
@@ -1078,6 +1129,16 @@ var _ = os.ReadFile
 
 // resolveAetherRootPath returns the Aether root directory.
 func resolveAetherRootPath() string {
+	if store != nil {
+		if root := aetherRootFromDataPath(store.BasePath()); root != "" {
+			return root
+		}
+	}
+	if dataDir := strings.TrimSpace(os.Getenv("COLONY_DATA_DIR")); dataDir != "" {
+		if root := aetherRootFromDataPath(dataDir); root != "" {
+			return root
+		}
+	}
 	if root := strings.TrimSpace(os.Getenv("AETHER_ROOT")); root != "" {
 		return root
 	}
@@ -1089,6 +1150,22 @@ func resolveAetherRootPath() string {
 	}
 	dir, _ := os.Getwd()
 	return dir
+}
+
+func aetherRootFromDataPath(dataPath string) string {
+	dataPath = strings.TrimSpace(dataPath)
+	if dataPath == "" {
+		return ""
+	}
+	clean := filepath.Clean(dataPath)
+	if filepath.Base(clean) != "data" {
+		return ""
+	}
+	parent := filepath.Base(filepath.Dir(clean))
+	if parent != ".aether" {
+		return ""
+	}
+	return filepath.Dir(filepath.Dir(clean))
 }
 
 // readQUEENMd reads a QUEEN.md file and parses key-value pairs from Wisdom and Patterns sections.

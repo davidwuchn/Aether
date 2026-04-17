@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
@@ -340,7 +341,7 @@ func runExportArchive(cmd *cobra.Command, args []string) error {
 var importPheromonesCmd = &cobra.Command{
 	Use:   "pheromones <file>",
 	Short: "Import pheromone signals from XML",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runImportPheromones,
 }
 
@@ -350,7 +351,22 @@ func runImportPheromones(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no colony initialized")
 	}
 
-	xmlData, err := os.ReadFile(args[0])
+	inputPath := ""
+	if len(args) > 0 {
+		inputPath = strings.TrimSpace(args[0])
+	}
+	if inputPath == "" {
+		inputPath, _ = cmd.Flags().GetString("input")
+	}
+	if inputPath == "" {
+		inputPath, _ = cmd.Flags().GetString("file")
+	}
+	if inputPath == "" {
+		outputErrorMessage("import pheromones: input file is required")
+		return nil
+	}
+
+	xmlData, err := os.ReadFile(inputPath)
 	if err != nil {
 		outputErrorMessage(fmt.Sprintf("read file: %v", err))
 		return nil
@@ -403,7 +419,7 @@ func runImportPheromones(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	outputOK(map[string]interface{}{"imported": len(sanitized), "total": len(file.Signals)})
+	outputOK(map[string]interface{}{"imported": len(sanitized), "total": len(file.Signals), "source": inputPath})
 	return nil
 }
 

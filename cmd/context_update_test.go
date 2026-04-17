@@ -24,9 +24,14 @@ func setupContextUpdateTest(t *testing.T) (string, string) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		t.Fatalf("failed to create data dir: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".aether"), 0755); err != nil {
+		t.Fatalf("failed to create aether dir: %v", err)
+	}
 
 	os.Setenv("COLONY_DATA_DIR", dataDir)
 	t.Cleanup(func() { os.Unsetenv("COLONY_DATA_DIR") })
+	os.Setenv("AETHER_ROOT", tmpDir)
+	t.Cleanup(func() { os.Unsetenv("AETHER_ROOT") })
 
 	store = nil
 	stdout = &bytes.Buffer{}
@@ -63,7 +68,7 @@ func parseResult(t *testing.T, out string) map[string]interface{} {
 // writeContextFile writes a CONTEXT.md to the store's base path.
 func writeContextFile(t *testing.T, s *storage.Store, content string) {
 	t.Helper()
-	if err := s.AtomicWrite("CONTEXT.md", []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		t.Fatalf("failed to write CONTEXT.md: %v", err)
 	}
 }
@@ -71,7 +76,7 @@ func writeContextFile(t *testing.T, s *storage.Store, content string) {
 // readContextFile reads CONTEXT.md from the store.
 func readContextFile(t *testing.T, s *storage.Store) string {
 	t.Helper()
-	data, err := s.ReadFile("CONTEXT.md")
+	data, err := readContextDocument()
 	if err != nil {
 		t.Fatalf("failed to read CONTEXT.md: %v", err)
 	}
@@ -119,7 +124,7 @@ func TestContextUpdateInit(t *testing.T) {
 // --- build-start sub-action ---
 
 func TestContextUpdateBuildStart(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	// Pre-write CONTEXT.md via direct file I/O (before Execute initializes store)
 	initContent := `# Aether Colony — Current Context
@@ -143,7 +148,7 @@ Nothing yet.
 
 ## Next Steps
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(initContent), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(initContent), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "build-start", "3", "4", "10"})
 	out := executeContextCmd(t)
@@ -172,14 +177,14 @@ Nothing yet.
 // --- build-progress sub-action ---
 
 func TestContextUpdateBuildProgress(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `## What's In Progress
 
 **Phase 2 Build IN PROGRESS**
 - Workers: 3 | Tasks: 5
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "build-progress", "3", "5"})
 	out := executeContextCmd(t)
@@ -202,7 +207,7 @@ func TestContextUpdateBuildProgress(t *testing.T) {
 // --- build-complete sub-action ---
 
 func TestContextUpdateBuildComplete(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `# Aether Colony
 
@@ -221,7 +226,7 @@ func TestContextUpdateBuildComplete(t *testing.T) {
 
 ## Next Steps
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "build-complete", "completed", "success"})
 	out := executeContextCmd(t)
@@ -250,7 +255,7 @@ func TestContextUpdateBuildComplete(t *testing.T) {
 // --- worker-spawn sub-action ---
 
 func TestContextUpdateWorkerSpawn(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `## What's In Progress
 
@@ -258,7 +263,7 @@ func TestContextUpdateWorkerSpawn(t *testing.T) {
 - Workers: 3 | Tasks: 5
 - Started: 2026-04-01T00:00:00Z
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "worker-spawn", "Branthos", "builder", "implement feature X"})
 	out := executeContextCmd(t)
@@ -287,7 +292,7 @@ func TestContextUpdateWorkerSpawn(t *testing.T) {
 // --- worker-complete sub-action ---
 
 func TestContextUpdateWorkerComplete(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `## What's In Progress
 
@@ -297,7 +302,7 @@ func TestContextUpdateWorkerComplete(t *testing.T) {
   - 2026-04-01T00:01:00Z: Spawned Branthos (builder) for: implement feature X
   - 2026-04-01T00:01:01Z: Spawned Watcher (watcher) for: verify tests
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "worker-complete", "Branthos", "completed"})
 	out := executeContextCmd(t)
@@ -381,7 +386,7 @@ func TestContextUpdateSummaryFlag(t *testing.T) {
 // --- positional arg takes priority over --summary ---
 
 func TestContextUpdatePositionalOverridesSummary(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	initContent := `# Aether Colony
 
@@ -394,7 +399,7 @@ func TestContextUpdatePositionalOverridesSummary(t *testing.T) {
 
 Nothing yet.
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(initContent), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(initContent), 0644)
 
 	// Both positional arg and --summary provided; positional should win
 	rootCmd.SetArgs([]string{"context-update", "init", "goal text", "--summary", "ignored"})
@@ -409,7 +414,7 @@ Nothing yet.
 // --- activity sub-action ---
 
 func TestContextUpdateActivity(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `# Aether Colony
 
@@ -427,7 +432,7 @@ func TestContextUpdateActivity(t *testing.T) {
 
 ## Next Steps
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "activity", "build 3", "completed", "5"})
 	out := executeContextCmd(t)
@@ -453,7 +458,7 @@ func TestContextUpdateActivity(t *testing.T) {
 // --- update-phase sub-action ---
 
 func TestContextUpdatePhase(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `# Aether Colony
 
@@ -468,7 +473,7 @@ func TestContextUpdatePhase(t *testing.T) {
 
 ## Next Steps
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "update-phase", "3", "feature work", "YES", "Phase advanced"})
 	out := executeContextCmd(t)
@@ -494,7 +499,7 @@ func TestContextUpdatePhase(t *testing.T) {
 // --- decision sub-action ---
 
 func TestContextUpdateDecision(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `# Aether Colony
 
@@ -509,7 +514,7 @@ func TestContextUpdateDecision(t *testing.T) {
 
 ## Next Steps
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "decision", "Use React for frontend", "Better component model", "Queen"})
 	out := executeContextCmd(t)
@@ -535,7 +540,7 @@ func TestContextUpdateDecision(t *testing.T) {
 // --- safe-to-clear sub-action ---
 
 func TestContextUpdateSafeToClear(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `# Aether Colony
 
@@ -548,7 +553,7 @@ func TestContextUpdateSafeToClear(t *testing.T) {
 
 ## Next Steps
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "safe-to-clear", "YES", "Build complete, ready to continue"})
 	out := executeContextCmd(t)
@@ -568,7 +573,7 @@ func TestContextUpdateSafeToClear(t *testing.T) {
 // --- --section/--key/--content flags ---
 
 func TestContextUpdateSectionKeyContent(t *testing.T) {
-	_, dataDir := setupContextUpdateTest(t)
+	tmpDir, _ := setupContextUpdateTest(t)
 
 	content := `# Aether Colony
 
@@ -590,7 +595,7 @@ func TestContextUpdateSectionKeyContent(t *testing.T) {
 
 ## Next Steps
 `
-	os.WriteFile(filepath.Join(dataDir, "CONTEXT.md"), []byte(content), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".aether", "CONTEXT.md"), []byte(content), 0644)
 
 	rootCmd.SetArgs([]string{"context-update", "--section", "constraint", "--key", "redirect", "--content", "avoid pattern X", "user"})
 	out := executeContextCmd(t)

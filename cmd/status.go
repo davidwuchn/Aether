@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/calcosmic/Aether/pkg/agent"
 	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/storage"
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -61,11 +62,26 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 
 	// Progress
 	totalPhases := len(state.Plan.Phases)
-	phaseBar := generateProgressBar(state.CurrentPhase, totalPhases, 20)
+	completedPhases := 0
+	for _, phase := range state.Plan.Phases {
+		if phase.Status == colony.PhaseCompleted {
+			completedPhases++
+		}
+	}
+	phasePosition := completedPhases
+	switch state.State {
+	case colony.StateEXECUTING, colony.StateBUILT:
+		if state.CurrentPhase > phasePosition {
+			phasePosition = state.CurrentPhase
+		}
+	case colony.StateCOMPLETED:
+		phasePosition = totalPhases
+	}
+	phaseBar := generateProgressBar(phasePosition, totalPhases, 20)
 	fmt.Fprintf(&b, "Progress\n")
 	phasePercent := 0
 	if totalPhases > 0 {
-		cappedPhase := state.CurrentPhase
+		cappedPhase := phasePosition
 		if cappedPhase < 0 {
 			cappedPhase = 0
 		}
@@ -74,17 +90,20 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 		}
 		phasePercent = cappedPhase * 100 / totalPhases
 	}
-	fmt.Fprintf(&b, "   Phase: [Phase %d/%d] %s %d%%\n", state.CurrentPhase, totalPhases, phaseBar, phasePercent)
+	fmt.Fprintf(&b, "   Phase: [Phase %d/%d] %s %d%%\n", phasePosition, totalPhases, phaseBar, phasePercent)
 
 	// Task progress in current phase
 	var tasksCompleted, tasksTotal int
 	var phaseName string
-	if state.CurrentPhase > 0 && state.CurrentPhase <= totalPhases {
-		phase := state.Plan.Phases[state.CurrentPhase-1]
+	displayPhase := recoveryPhase(&state)
+	displayPhaseNum := 0
+	if displayPhase != nil {
+		displayPhaseNum = displayPhase.ID
+		phase := *displayPhase
 		phaseName = phase.Name
 		tasksTotal = len(phase.Tasks)
 		for _, task := range phase.Tasks {
-			if task.Status == "completed" {
+			if task.Status == colony.TaskCompleted {
 				tasksCompleted++
 			}
 		}
@@ -102,9 +121,9 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 		taskPercent = cappedTasks * 100 / tasksTotal
 	}
 	if phaseName != "" {
-		fmt.Fprintf(&b, "   Tasks: [Tasks %d/%d] %s %d%% in Phase %d (%s)\n\n", tasksCompleted, tasksTotal, taskBar, taskPercent, state.CurrentPhase, phaseName)
+		fmt.Fprintf(&b, "   Tasks: [Tasks %d/%d] %s %d%% in Phase %d (%s)\n\n", tasksCompleted, tasksTotal, taskBar, taskPercent, displayPhaseNum, phaseName)
 	} else {
-		fmt.Fprintf(&b, "   Tasks: [Tasks %d/%d] %s %d%% in Phase %d\n\n", tasksCompleted, tasksTotal, taskBar, taskPercent, state.CurrentPhase)
+		fmt.Fprintf(&b, "   Tasks: [Tasks %d/%d] %s %d%% in Phase %d\n\n", tasksCompleted, tasksTotal, taskBar, taskPercent, displayPhaseNum)
 	}
 
 	// Constraints
@@ -112,9 +131,10 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 	fmt.Fprintf(&b, "Focus: %d areas | Avoid: %d patterns\n", focusCount, avoidCount)
 
 	// Instincts
-	totalInstincts := len(state.Memory.Instincts)
+	instincts := loadRuntimeInstincts(s, &state)
+	totalInstincts := len(instincts)
 	highConf := 0
-	for _, inst := range state.Memory.Instincts {
+	for _, inst := range instincts {
 		if inst.Confidence >= 0.7 {
 			highConf++
 		}
@@ -164,15 +184,60 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 	// Top instincts
 	if totalInstincts > 0 {
 		b.WriteString("\nColony Instincts:\n")
-		renderTopInstincts(&b, state.Memory.Instincts)
+		renderTopInstincts(&b, instincts)
+	}
+
+	activeWorkers := loadActiveSpawnEntries(s)
+	if len(activeWorkers) > 0 {
+		b.WriteString("\nActive Workers\n")
+		renderActiveWorkers(&b, activeWorkers)
 	}
 
 	// State
-	fmt.Fprintf(&b, "\nState: %s\n", state.State)
+	fmt.Fprintf(&b, "\nState: %s", state.State)
+	if len(activeWorkers) > 0 {
+		fmt.Fprintf(&b, " (%d active workers)", len(activeWorkers))
+	}
+	b.WriteString("\n")
+	if len(activeWorkers) > 0 {
+		b.WriteString(renderNextUp(
+			"Active workers are still running. Wait for the in-flight command to finish.",
+			`Run `+"`aether status`"+` again to refresh the spawn view.`,
+			`Run `+"`tail -f .aether/data/spawn-tree.txt`"+` in another terminal to watch status changes.`,
+		))
+		return b.String()
+	}
 	primary, alternatives := workflowSuggestionsForState(state)
 	b.WriteString(renderNextUp(primary, alternatives...))
 
 	return b.String()
+}
+
+func loadActiveSpawnEntries(s *storage.Store) []agent.SpawnEntry {
+	if s == nil {
+		return nil
+	}
+	return agent.NewSpawnTree(s, "spawn-tree.txt").Active()
+}
+
+func renderActiveWorkers(b *strings.Builder, entries []agent.SpawnEntry) {
+	limit := len(entries)
+	if limit > 6 {
+		limit = 6
+	}
+	for i := 0; i < limit; i++ {
+		entry := entries[i]
+		fmt.Fprintf(b, "   %s %s (%s) — %s [%s]\n",
+			casteEmoji(entry.Caste),
+			entry.AgentName,
+			entry.Caste,
+			entry.Task,
+			entry.Status,
+		)
+	}
+	if len(entries) > limit {
+		fmt.Fprintf(b, "   ... and %d more active workers\n", len(entries)-limit)
+	}
 }
 
 // generateProgressBar creates a Unicode progress bar string.

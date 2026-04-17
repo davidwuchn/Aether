@@ -4,7 +4,12 @@ This directory contains actively maintained documentation for the Aether colony 
 
 Runtime/behavior authority remains in:
 - `aether` CLI binary (Go implementation in `cmd/`)
-- `.claude/commands/ant/*.md` (command flow)
+- `AGENTS.md` + `.codex/CODEX.md` + `.codex/agents/*.toml` (Codex direct CLI surface)
+- `.claude/commands/ant/*.md` and `.opencode/commands/ant/*.md` (slash-command surfaces)
+
+Codex release note:
+- `aether run`, `aether watch`, and `aether oracle` are now part of the shipped
+  Codex CLI surface and arrive in target repos through `aether update`.
 
 Docs in this directory are explanatory references and should not override runtime behavior.
 
@@ -27,7 +32,7 @@ Distributed to target repos via `aether update` (update allowlist):
 
 ## Colony System Docs
 
-Packaged in npm, available to all Aether installations:
+Shipped with the installed Aether companion files and available after `aether install` / `aether update`:
 
 | File | Purpose |
 |------|---------|
@@ -42,7 +47,7 @@ Packaged in npm, available to all Aether installations:
 
 ## Development Docs
 
-Packaged in npm, documents active issues:
+Distributed developer references:
 
 | File | Purpose |
 |------|---------|

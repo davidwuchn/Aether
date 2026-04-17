@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,19 +69,19 @@ var hiveInitCmd = &cobra.Command{
 // --- hive-store ---
 
 var hiveStoreCmd = &cobra.Command{
-	Use:   "hive-store",
+	Use:   "hive-store [text] [domain] [source-repo]",
 	Short: "Store a wisdom entry with deduplication and LRU cap",
-	Args:  cobra.NoArgs,
+	Args:  cobra.MaximumNArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		text := mustGetString(cmd, "text")
+		text := mustGetStringCompat(cmd, args, "text", 0)
 		if text == "" {
 			return nil
 		}
-		domain := mustGetString(cmd, "domain")
+		domain := firstNonEmpty(mustGetStringCompatOptional(cmd, "domain"), optionalArg(args, 1))
 		if domain == "" {
-			return nil
+			domain = "general"
 		}
-		sourceRepo := mustGetString(cmd, "source-repo")
+		sourceRepo := mustGetStringCompat(cmd, args, "source-repo", 2)
 		if sourceRepo == "" {
 			return nil
 		}
@@ -193,11 +194,11 @@ var hiveReadCmd = &cobra.Command{
 // --- hive-abstract ---
 
 var hiveAbstractCmd = &cobra.Command{
-	Use:   "hive-abstract",
+	Use:   "hive-abstract [instinct]",
 	Short: "Abstract repo-specific text into generalized wisdom",
-	Args:  cobra.NoArgs,
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		instinct := mustGetString(cmd, "instinct")
+		instinct := mustGetStringCompat(cmd, args, "instinct", 0)
 		if instinct == "" {
 			return nil
 		}
@@ -225,22 +226,29 @@ var hiveAbstractCmd = &cobra.Command{
 // --- hive-promote ---
 
 var hivePromoteCmd = &cobra.Command{
-	Use:   "hive-promote",
+	Use:   "hive-promote [text] [domain] [source-repo] [confidence]",
 	Short: "End-to-end abstract + store pipeline for wisdom promotion",
-	Args:  cobra.NoArgs,
+	Args:  cobra.MaximumNArgs(4),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		text := mustGetString(cmd, "text")
+		text := mustGetStringCompat(cmd, args, "text", 0)
 		if text == "" {
 			return nil
 		}
-		domain := mustGetString(cmd, "domain")
+		domain := firstNonEmpty(mustGetStringCompatOptional(cmd, "domain"), optionalArg(args, 1))
 		if domain == "" {
-			return nil
+			domain = "general"
 		}
-		sourceRepo, _ := cmd.Flags().GetString("source-repo")
+		sourceRepo := firstNonEmpty(mustGetStringCompatOptional(cmd, "source-repo"), optionalArg(args, 2))
 		confidence, _ := cmd.Flags().GetFloat64("confidence")
 		if confidence <= 0 {
-			confidence = 0.75
+			if argConfidence := optionalArg(args, 3); argConfidence != "" {
+				if parsed, err := strconv.ParseFloat(argConfidence, 64); err == nil && parsed > 0 {
+					confidence = parsed
+				}
+			}
+			if confidence <= 0 {
+				confidence = 0.75
+			}
 		}
 
 		// Abstract
@@ -318,6 +326,9 @@ func writeWisdom(path string, wf hiveWisdomData) error {
 	encoded, err := json.MarshalIndent(wf, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("mkdir hive dir: %w", err)
 	}
 	return os.WriteFile(path, append(encoded, '\n'), 0644)
 }

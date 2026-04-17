@@ -476,7 +476,7 @@ Import ALL available data types (per D-09 -- no cherry-picking):
 ```bash
 # Import pheromones (per D-09)
 if [[ -f "$latest_chamber/pheromones.xml" ]]; then
-  pher_import=$(aether pheromone-import-xml --input "$latest_chamber/pheromones.xml" --colony "imported" 2>/dev/null || echo '{"ok":false}')
+  pher_import=$(aether import-signals --file "$latest_chamber/pheromones.xml" 2>/dev/null || echo '{"ok":false}')
   pher_imported=$(echo "$pher_import" | jq -r '.result.imported // 0' 2>/dev/null || echo "0")
   echo "Pheromones: ${pher_imported} signal(s) imported"
 fi

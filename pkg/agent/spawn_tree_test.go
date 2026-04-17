@@ -85,6 +85,29 @@ func TestSpawnTreeUpdateStatus(t *testing.T) {
 	}
 }
 
+func TestSpawnTreeUpdateStatusTargetsMostRecentDuplicateName(t *testing.T) {
+	dir := t.TempDir()
+	store, err := storage.NewStore(dir)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+
+	st := NewSpawnTree(store, "spawn-tree.txt")
+	st.RecordSpawn("colony-prime", "builder", "worker-1", "first task", 1)
+	st.RecordSpawn("colony-prime", "builder", "worker-1", "second task", 1)
+
+	if err := st.UpdateStatus("worker-1", "completed", "latest run"); err != nil {
+		t.Fatalf("UpdateStatus() error: %v", err)
+	}
+
+	if st.entries[0].Status != "spawned" {
+		t.Fatalf("first duplicate status = %q, want spawned", st.entries[0].Status)
+	}
+	if st.entries[1].Status != "completed" {
+		t.Fatalf("last duplicate status = %q, want completed", st.entries[1].Status)
+	}
+}
+
 func TestSpawnTreeFormat(t *testing.T) {
 	dir := t.TempDir()
 	store, err := storage.NewStore(dir)
@@ -217,6 +240,47 @@ func TestSpawnTreeParseShellFormat(t *testing.T) {
 	}
 	if entries[1].Status != "spawned" {
 		t.Errorf("entries[1].Status = %q, want %q", entries[1].Status, "spawned")
+	}
+}
+
+func TestSpawnTreeSanitizesReservedFieldCharacters(t *testing.T) {
+	dir := t.TempDir()
+	store, err := storage.NewStore(dir)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+
+	st := NewSpawnTree(store, "spawn-tree.txt")
+	if err := st.RecordSpawn("queen|prime", "builder", "worker\n1", "build | feature\nset", 1); err != nil {
+		t.Fatalf("RecordSpawn() error: %v", err)
+	}
+	if err := st.UpdateStatus("worker\n1", "completed", "fixed | verified\ncleanly"); err != nil {
+		t.Fatalf("UpdateStatus() error: %v", err)
+	}
+
+	entries, err := st.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Parse() returned %d entries, want 1", len(entries))
+	}
+
+	entry := entries[0]
+	if strings.Contains(entry.ParentName, "|") || strings.Contains(entry.AgentName, "\n") || strings.Contains(entry.Task, "|") || strings.Contains(entry.Summary, "\n") {
+		t.Fatalf("reserved characters were not sanitized: %#v", entry)
+	}
+	if got, want := entry.ParentName, "queen¦prime"; got != want {
+		t.Fatalf("ParentName = %q, want %q", got, want)
+	}
+	if got, want := entry.AgentName, "worker 1"; got != want {
+		t.Fatalf("AgentName = %q, want %q", got, want)
+	}
+	if got, want := entry.Task, "build ¦ feature set"; got != want {
+		t.Fatalf("Task = %q, want %q", got, want)
+	}
+	if got, want := entry.Summary, "fixed ¦ verified cleanly"; got != want {
+		t.Fatalf("Summary = %q, want %q", got, want)
 	}
 }
 

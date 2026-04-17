@@ -18,23 +18,34 @@ var spawnLogCmd = &cobra.Command{
 			return nil
 		}
 
-		parent := mustGetString(cmd, "parent")
+		parent, _ := cmd.Flags().GetString("parent")
+		name, _ := cmd.Flags().GetString("name")
+		legacyID, _ := cmd.Flags().GetString("id")
+		legacyDescription, _ := cmd.Flags().GetString("description")
+		if legacyID != "" {
+			if parent == "" && name != "" {
+				parent = name
+			}
+			name = legacyID
+		}
 		if parent == "" {
+			outputError(1, "flag --parent is required", nil)
 			return nil
 		}
 		caste := mustGetString(cmd, "caste")
 		if caste == "" {
 			return nil
 		}
-		name := mustGetString(cmd, "name")
 		if name == "" {
+			outputError(1, "flag --name is required", nil)
 			return nil
 		}
-		task := mustGetString(cmd, "task")
+		task := firstNonEmpty(mustGetStringCompatOptional(cmd, "task"), legacyDescription)
 		if task == "" {
+			outputError(1, "flag --task is required", nil)
 			return nil
 		}
-		depth := mustGetInt(cmd, "depth")
+		depth, _ := cmd.Flags().GetInt("depth")
 
 		st := agent.NewSpawnTree(store, "spawn-tree.txt")
 		if err := st.RecordSpawn(parent, caste, name, task, depth); err != nil {
@@ -285,7 +296,9 @@ func init() {
 	spawnLogCmd.Flags().String("parent", "", "Parent agent name (required)")
 	spawnLogCmd.Flags().String("caste", "", "Agent caste (required)")
 	spawnLogCmd.Flags().String("name", "", "Agent name (required)")
+	spawnLogCmd.Flags().String("id", "", "Legacy alias for child agent name")
 	spawnLogCmd.Flags().String("task", "", "Task description (required)")
+	spawnLogCmd.Flags().String("description", "", "Legacy alias for task description")
 	spawnLogCmd.Flags().Int("depth", 0, "Spawn depth (required)")
 
 	spawnCompleteCmd.Flags().String("name", "", "Agent name to complete (required)")

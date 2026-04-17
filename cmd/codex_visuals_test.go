@@ -35,7 +35,7 @@ func TestPlanVisualOutput(t *testing.T) {
 	if strings.Contains(output, `{"ok":true`) {
 		t.Fatalf("expected visual output, got JSON: %s", output)
 	}
-	for _, want := range []string{"📋", "P L A N", "aether build 1"} {
+	for _, want := range []string{"📋", "P L A N", "P L A N   D I S P A T C H", "aether build 1"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("plan visual output missing %q\n%s", want, output)
 		}
@@ -81,9 +81,57 @@ func TestBuildVisualOutputShowsSpawnPlan(t *testing.T) {
 	if strings.Contains(output, `{"ok":true`) {
 		t.Fatalf("expected visual output, got JSON: %s", output)
 	}
-	for _, want := range []string{"🔨", "S P A W N   P L A N", "🔨🐜", "👁️🐜", "aether continue"} {
+	for _, want := range []string{"🔨", "B U I L D   D I S P A T C H   1", "S P A W N   P L A N", "🔨🐜", "👁️🐜", "aether continue"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("build visual output missing %q\n%s", want, output)
+		}
+	}
+}
+
+func TestColonizeVisualOutputShowsDispatchPreview(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("failed to chdir to test root: %v", err)
+	}
+	defer os.Chdir(oldDir)
+
+	t.Setenv("AETHER_OUTPUT_MODE", "visual")
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/aether-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Test workspace\n"), 0644); err != nil {
+		t.Fatalf("failed to write README: %v", err)
+	}
+
+	goal := "Survey the repo"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan:    colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	rootCmd.SetArgs([]string{"colonize"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("colonize returned error: %v", err)
+	}
+
+	output := stdout.(*bytes.Buffer).String()
+	if strings.Contains(output, `{"ok":true`) {
+		t.Fatalf("expected visual output, got JSON: %s", output)
+	}
+	for _, want := range []string{"🗺️", "C O L O N I Z E   D I S P A T C H", "Surveyors", "C O L O N I Z E", "aether plan"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("colonize visual output missing %q\n%s", want, output)
 		}
 	}
 }
@@ -333,7 +381,7 @@ func TestPauseResumePatrolPhaseAndHistoryVisualOutput(t *testing.T) {
 		}
 	}
 
-	checkVisual([]string{"pause-colony"}, "💾", "P A U S E   C O L O N Y", "HANDOFF.md", "aether resume-colony")
+	checkVisual([]string{"pause-colony"}, "💾", "P A U S E   C O L O N Y", "HANDOFF.md", "aether resume")
 	checkVisual([]string{"resume-colony"}, "💾", "R E S U M E   C O L O N Y", "Session UX", "aether continue")
 	checkVisual([]string{"patrol"}, "📊", "P A T R O L", "Signals: 1 active")
 	checkVisual([]string{"phase"}, "🧱", "Session UX", "Write resume-colony")
@@ -371,9 +419,9 @@ func TestRenderColonizeVisual_FakeDispatch(t *testing.T) {
 	if !strings.Contains(output, "Map architecture") {
 		t.Errorf("legacy output missing surveyor task %q\n%s", "Map architecture", output)
 	}
-	// Should show simulated dispatch indicator
-	if !strings.Contains(output, "Dispatch: Simulated") {
-		t.Errorf("legacy output should contain 'Dispatch: Simulated'\n%s", output)
+	// Should show a non-real dispatch indicator
+	if !strings.Contains(output, "Dispatch: Simulated") && !strings.Contains(output, "Dispatch: Synthetic") {
+		t.Errorf("legacy output should contain a non-real dispatch indicator\n%s", output)
 	}
 	// Should NOT show real dispatch indicator
 	if strings.Contains(output, "Dispatch: Real") {

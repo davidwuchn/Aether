@@ -5,7 +5,7 @@
 > Author: Weld-19 (Builder)
 > Date: 2026-03-30
 > Depends on: Task 1.1 state-contract-design.md
-> Verified against: `.aether/utils/midden Go commands`, `.aether/aether CLI`
+> Verified against: `cmd/` midden commands and the Go `aether` runtime
 
 ---
 

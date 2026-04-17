@@ -11,6 +11,7 @@ import (
 
 	"github.com/calcosmic/Aether/pkg/agent"
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 func TestContinueConsumesBuildPacketAndAdvancesPhase(t *testing.T) {
@@ -30,7 +31,7 @@ func TestContinueConsumesBuildPacketAndAdvancesPhase(t *testing.T) {
 	createTestColonyState(t, dataDir, colony.ColonyState{
 		Version:        "3.0",
 		Goal:           &goal,
-		State:          colony.StateEXECUTING,
+		State:          colony.StateBUILT,
 		CurrentPhase:   1,
 		BuildStartedAt: &now,
 		Plan: colony.Plan{
@@ -119,6 +120,22 @@ func TestContinueConsumesBuildPacketAndAdvancesPhase(t *testing.T) {
 			t.Fatalf("spawn tree missing completion line %q\n%s", want, string(spawnTreeData))
 		}
 	}
+
+	contextData, err := os.ReadFile(filepath.Join(root, ".aether", "CONTEXT.md"))
+	if err != nil {
+		t.Fatalf("expected CONTEXT.md: %v", err)
+	}
+	if !strings.Contains(string(contextData), "aether build 2") {
+		t.Fatalf("expected CONTEXT.md to point at the next build, got:\n%s", string(contextData))
+	}
+
+	handoffData, err := os.ReadFile(filepath.Join(root, ".aether", "HANDOFF.md"))
+	if err != nil {
+		t.Fatalf("expected HANDOFF.md: %v", err)
+	}
+	if !strings.Contains(string(handoffData), "Keep moving") {
+		t.Fatalf("expected HANDOFF.md to include next-phase task, got:\n%s", string(handoffData))
+	}
 }
 
 func TestContinueCompletesFinalPhase(t *testing.T) {
@@ -136,7 +153,7 @@ func TestContinueCompletesFinalPhase(t *testing.T) {
 	createTestColonyState(t, dataDir, colony.ColonyState{
 		Version:        "3.0",
 		Goal:           &goal,
-		State:          colony.StateEXECUTING,
+		State:          colony.StateBUILT,
 		CurrentPhase:   1,
 		BuildStartedAt: &now,
 		Plan: colony.Plan{
@@ -265,8 +282,16 @@ func seedContinueBuildPacket(t *testing.T, dataDir string, phase int, phaseName,
 		t.Fatalf("failed to create worker brief dir: %v", err)
 	}
 
-	briefs := make([]string, 0, len(dispatches))
-	for _, dispatch := range dispatches {
+	normalizedDispatches := make([]codexBuildDispatch, len(dispatches))
+	copy(normalizedDispatches, dispatches)
+	for i := range normalizedDispatches {
+		if normalizedDispatches[i].Status == "" || normalizedDispatches[i].Status == "spawned" {
+			normalizedDispatches[i].Status = "completed"
+		}
+	}
+
+	briefs := make([]string, 0, len(normalizedDispatches))
+	for _, dispatch := range normalizedDispatches {
 		rel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase), "worker-briefs", dispatch.Name+".md"))
 		if err := store.AtomicWrite(rel, []byte("# brief\n")); err != nil {
 			t.Fatalf("failed to write worker brief: %v", err)
@@ -280,24 +305,154 @@ func seedContinueBuildPacket(t *testing.T, dataDir string, phase int, phaseName,
 		Goal:         goal,
 		Root:         filepath.Dir(filepath.Dir(dataDir)),
 		ColonyDepth:  "standard",
+		DispatchMode: "simulated",
 		GeneratedAt:  time.Now().UTC().Format(time.RFC3339),
-		State:        string(colony.StateEXECUTING),
+		State:        string(colony.StateBUILT),
 		ClaimsPath:   displayDataPath("last-build-claims.json"),
 		WorkerBriefs: briefs,
-		Dispatches:   dispatches,
+		Dispatches:   normalizedDispatches,
 	}
 	if err := store.SaveJSON(filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase), "manifest.json")), manifest); err != nil {
 		t.Fatalf("failed to write manifest: %v", err)
 	}
-	if err := store.SaveJSON("last-build-claims.json", codexBuildClaims{BuildPhase: phase, Timestamp: time.Now().UTC().Format(time.RFC3339)}); err != nil {
+	claims := codexBuildClaims{BuildPhase: phase, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	for _, dispatch := range normalizedDispatches {
+		if dispatch.Caste == "builder" {
+			claims.FilesModified = append(claims.FilesModified, "main.go")
+			break
+		}
+	}
+	if err := store.SaveJSON("last-build-claims.json", claims); err != nil {
 		t.Fatalf("failed to write claims: %v", err)
 	}
 
 	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
-	for _, dispatch := range dispatches {
+	for _, dispatch := range normalizedDispatches {
 		if err := spawnTree.RecordSpawn("Queen", dispatch.Caste, dispatch.Name, dispatch.Task, 1); err != nil {
 			t.Fatalf("failed to seed spawn tree: %v", err)
 		}
+	}
+}
+
+func TestVerifyCodexBuildClaims_SimulatedMode_AllCompleted_Passes(t *testing.T) {
+	saveGlobals(t)
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		t.Fatalf("failed to create data dir: %v", err)
+	}
+	s, err := storage.NewStore(dataDir)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	store = s
+
+	// Write empty claims (simulated mode -- FakeInvoker produces empty arrays)
+	claims := codexBuildClaims{BuildPhase: 1, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	if err := store.SaveJSON("last-build-claims.json", claims); err != nil {
+		t.Fatalf("failed to write claims: %v", err)
+	}
+
+	manifest := codexContinueManifest{
+		Present: true,
+		Path:    "build/phase-1/manifest.json",
+		Data: codexBuildManifest{
+			Phase:        1,
+			DispatchMode: "simulated",
+			ClaimsPath:   displayDataPath("last-build-claims.json"),
+			Dispatches: []codexBuildDispatch{
+				{Stage: "wave", Caste: "builder", Name: "Forge-1", Task: "Build it", Status: "completed"},
+				{Stage: "verification", Caste: "watcher", Name: "Keen-1", Task: "Verify it", Status: "completed"},
+			},
+		},
+	}
+
+	result := verifyCodexBuildClaims(tmpDir, manifest)
+	if !result.Passed {
+		t.Fatalf("expected Passed=true for simulated mode (all dispatches completed), got Passed=false: %s", result.Summary)
+	}
+	if !strings.Contains(result.Summary, "simulated mode") {
+		t.Fatalf("expected summary to mention simulated mode, got: %s", result.Summary)
+	}
+}
+
+func TestVerifyCodexBuildClaims_IncompleteDispatches_StillFails(t *testing.T) {
+	saveGlobals(t)
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		t.Fatalf("failed to create data dir: %v", err)
+	}
+	s, err := storage.NewStore(dataDir)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	store = s
+
+	// Write empty claims
+	claims := codexBuildClaims{BuildPhase: 1, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	if err := store.SaveJSON("last-build-claims.json", claims); err != nil {
+		t.Fatalf("failed to write claims: %v", err)
+	}
+
+	manifest := codexContinueManifest{
+		Present: true,
+		Path:    "build/phase-1/manifest.json",
+		Data: codexBuildManifest{
+			Phase:        1,
+			DispatchMode: "real",
+			ClaimsPath:   displayDataPath("last-build-claims.json"),
+			Dispatches: []codexBuildDispatch{
+				{Stage: "wave", Caste: "builder", Name: "Forge-1", Task: "Build it", Status: "failed"},
+				{Stage: "verification", Caste: "watcher", Name: "Keen-1", Task: "Verify it", Status: "completed"},
+			},
+		},
+	}
+
+	result := verifyCodexBuildClaims(tmpDir, manifest)
+	if result.Passed {
+		t.Fatalf("expected Passed=false when dispatches are incomplete, got Passed=true: %s", result.Summary)
+	}
+}
+
+func TestVerifyCodexBuildClaims_RealMode_EmptyClaimsFail(t *testing.T) {
+	saveGlobals(t)
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		t.Fatalf("failed to create data dir: %v", err)
+	}
+	s, err := storage.NewStore(dataDir)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	store = s
+
+	claims := codexBuildClaims{BuildPhase: 1, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	if err := store.SaveJSON("last-build-claims.json", claims); err != nil {
+		t.Fatalf("failed to write claims: %v", err)
+	}
+
+	manifest := codexContinueManifest{
+		Present: true,
+		Path:    "build/phase-1/manifest.json",
+		Data: codexBuildManifest{
+			Phase:        1,
+			DispatchMode: "real",
+			ClaimsPath:   displayDataPath("last-build-claims.json"),
+			Dispatches: []codexBuildDispatch{
+				{Stage: "wave", Caste: "builder", Name: "Forge-1", Task: "Build it", Status: "completed"},
+				{Stage: "verification", Caste: "watcher", Name: "Keen-1", Task: "Verify it", Status: "completed"},
+			},
+		},
+	}
+
+	result := verifyCodexBuildClaims(tmpDir, manifest)
+	if result.Passed {
+		t.Fatalf("expected Passed=false for real mode empty claims, got Passed=true: %s", result.Summary)
+	}
+	if !strings.Contains(result.Summary, "real mode") {
+		t.Fatalf("expected summary to mention real mode, got: %s", result.Summary)
 	}
 }
 

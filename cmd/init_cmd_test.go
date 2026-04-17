@@ -74,6 +74,9 @@ func TestInitCmd_BasicInit(t *testing.T) {
 	if session.ColonyGoal != "Build feature X" {
 		t.Errorf("session.colony_goal = %q, want 'Build feature X'", session.ColonyGoal)
 	}
+	if session.SuggestedNext != "aether plan" {
+		t.Errorf("session.suggested_next = %q, want 'aether plan'", session.SuggestedNext)
+	}
 
 	// Verify CONTEXT.md was created
 	contextPath := filepath.Join(tmpDir, ".aether", "CONTEXT.md")
@@ -83,6 +86,14 @@ func TestInitCmd_BasicInit(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "Build feature X") {
 		t.Errorf("CONTEXT.md does not contain goal")
+	}
+	if !strings.Contains(string(data), "aether plan") {
+		t.Errorf("CONTEXT.md does not contain the next step")
+	}
+
+	handoffPath := filepath.Join(tmpDir, ".aether", "HANDOFF.md")
+	if _, err := os.Stat(handoffPath); err != nil {
+		t.Fatalf("HANDOFF.md not found: %v", err)
 	}
 
 	// Verify activity.log was created
@@ -321,7 +332,7 @@ func TestInitCmd_ContextMDContent(t *testing.T) {
 	content := string(data)
 	requiredStrings := []string{
 		"Context content test",
-		"# Colony Context",
+		"# Aether Colony — Current Context",
 	}
 	for _, s := range requiredStrings {
 		if !strings.Contains(content, s) {
@@ -601,12 +612,12 @@ func TestInitCmd_NoPlaceholderStrings(t *testing.T) {
 
 	// Placeholder patterns to search for
 	placeholderPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`__\w+__`),     // __PLACEHOLDER__ style
-		regexp.MustCompile(`\bTODO\b`),    // TODO markers
-		regexp.MustCompile(`\bFIXME\b`),   // FIXME markers
-		regexp.MustCompile(`\bXXX\b`),     // XXX markers
-		regexp.MustCompile(`\bHACK\b`),    // HACK markers
-		regexp.MustCompile(`<\w+>`),       // <PLACEHOLDER> angle-bracket style
+		regexp.MustCompile(`__\w+__`),       // __PLACEHOLDER__ style
+		regexp.MustCompile(`\bTODO\b`),      // TODO markers
+		regexp.MustCompile(`\bFIXME\b`),     // FIXME markers
+		regexp.MustCompile(`\bXXX\b`),       // XXX markers
+		regexp.MustCompile(`\bHACK\b`),      // HACK markers
+		regexp.MustCompile(`<\w+>`),         // <PLACEHOLDER> angle-bracket style
 		regexp.MustCompile(`\{\{[^}]+\}\}`), // {{placeholder}} mustache style
 	}
 

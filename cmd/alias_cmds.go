@@ -23,7 +23,7 @@ func init() {
 var pheromoneExportXMLCmd = &cobra.Command{
 	Use:          "pheromone-export-xml",
 	Short:        "Export pheromone signals to XML (alias for export pheromones)",
-	Aliases:      []string{"export-signals"},
+	Aliases:      []string{"export-signals", "pheromone-export"},
 	SilenceUsage: true,
 	RunE:         runExportPheromones,
 }
@@ -31,8 +31,8 @@ var pheromoneExportXMLCmd = &cobra.Command{
 var pheromoneImportXMLCmd = &cobra.Command{
 	Use:          "pheromone-import-xml <file>",
 	Short:        "Import pheromone signals from XML (alias for import pheromones)",
-	Aliases:      []string{"import-signals"},
-	Args:         cobra.ExactArgs(1),
+	Aliases:      []string{"import-signals", "pheromone-import"},
+	Args:         cobra.MaximumNArgs(1),
 	SilenceUsage: true,
 	RunE:         runImportPheromones,
 }
@@ -79,6 +79,7 @@ func init() {
 	pheromoneExportXMLCmd.Flags().String("output", "", "Write XML to file instead of stdout")
 
 	pheromoneImportXMLCmd.Flags().String("input", "", "Input file path (positional arg preferred)")
+	pheromoneImportXMLCmd.Flags().String("file", "", "Input file path (alias for --input)")
 
 	wisdomExportXMLCmd.Flags().String("output", "", "Write XML to file instead of stdout")
 	wisdomExportXMLCmd.Flags().Float64("min-confidence", 0.5, "Minimum confidence threshold for wisdom export")

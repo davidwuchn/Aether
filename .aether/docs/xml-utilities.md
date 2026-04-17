@@ -16,7 +16,7 @@ These utilities back XML export/import/validation flows used by runtime subcomma
 
 ## Runtime Integration
 
-Core XML subcommands in `.aether/aether CLI`:
+Core XML subcommands in the Go `aether` runtime:
 
 - `pheromone-export-xml`
 - `pheromone-import-xml`

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -9,7 +10,9 @@ import (
 	"testing"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/codex"
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 func TestBuildWritesDispatchArtifactsAndUpdatesState(t *testing.T) {
@@ -94,6 +97,9 @@ func TestBuildWritesDispatchArtifactsAndUpdatesState(t *testing.T) {
 	if manifest.Phase != 1 || manifest.PhaseName != "Build parity" {
 		t.Fatalf("unexpected manifest header: %+v", manifest)
 	}
+	if manifest.DispatchMode != "simulated" {
+		t.Fatalf("dispatch mode = %q, want simulated", manifest.DispatchMode)
+	}
 	if len(manifest.Dispatches) != 6 {
 		t.Fatalf("expected 6 manifest dispatches, got %d", len(manifest.Dispatches))
 	}
@@ -135,8 +141,8 @@ func TestBuildWritesDispatchArtifactsAndUpdatesState(t *testing.T) {
 	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
 		t.Fatalf("failed to reload colony state: %v", err)
 	}
-	if state.State != colony.StateEXECUTING {
-		t.Fatalf("state = %s, want EXECUTING", state.State)
+	if state.State != colony.StateBUILT {
+		t.Fatalf("state = %s, want BUILT", state.State)
 	}
 	if state.CurrentPhase != 1 {
 		t.Fatalf("current_phase = %d, want 1", state.CurrentPhase)
@@ -155,6 +161,22 @@ func TestBuildWritesDispatchArtifactsAndUpdatesState(t *testing.T) {
 	}
 	if len(state.Events) < 2 || !strings.Contains(strings.Join(state.Events[len(state.Events)-2:], "\n"), "build_dispatched|build") {
 		t.Fatalf("expected build_dispatched event, got %v", state.Events)
+	}
+
+	contextData, err := os.ReadFile(filepath.Join(root, ".aether", "CONTEXT.md"))
+	if err != nil {
+		t.Fatalf("expected CONTEXT.md: %v", err)
+	}
+	if !strings.Contains(string(contextData), "aether continue") {
+		t.Fatalf("expected CONTEXT.md to point at continue, got:\n%s", string(contextData))
+	}
+
+	handoffData, err := os.ReadFile(filepath.Join(root, ".aether", "HANDOFF.md"))
+	if err != nil {
+		t.Fatalf("expected HANDOFF.md: %v", err)
+	}
+	if !strings.Contains(string(handoffData), "Phase 1 dispatched") {
+		t.Fatalf("expected HANDOFF.md to summarize build progress, got:\n%s", string(handoffData))
 	}
 }
 
@@ -263,5 +285,198 @@ func TestBuildAllocatesUniqueNamesWhenSpawnHistoryCollides(t *testing.T) {
 	}
 	if !strings.HasPrefix(manifest.Dispatches[0].Name, baseDispatches[0].Name+"-r") {
 		t.Fatalf("expected retry-style suffix on renamed worker, got %q", manifest.Dispatches[0].Name)
+	}
+}
+
+type buildFailInvoker struct{}
+
+func (f *buildFailInvoker) Invoke(ctx context.Context, config codex.WorkerConfig) (codex.WorkerResult, error) {
+	return codex.WorkerResult{}, context.DeadlineExceeded
+}
+
+func (f *buildFailInvoker) IsAvailable(ctx context.Context) bool { return false }
+
+func (f *buildFailInvoker) ValidateAgent(path string) error { return nil }
+
+func TestBuildRollsBackStateWhenDispatchFails(t *testing.T) {
+	saveGlobals(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("failed to chdir to root: %v", err)
+	}
+	defer os.Chdir(oldDir)
+
+	goal := "Rollback failed build dispatches"
+	taskID := "1.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Rollback phase",
+					Status: colony.PhaseReady,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "Try the failing build", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	originalInvoker := newCodexWorkerInvoker
+	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &buildFailInvoker{} }
+	defer func() { newCodexWorkerInvoker = originalInvoker }()
+
+	_, err = runCodexBuild(root, 1)
+	if err == nil {
+		t.Fatal("expected build failure")
+	}
+
+	var state colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("failed to reload state: %v", err)
+	}
+	if state.State != colony.StateREADY {
+		t.Fatalf("state = %s, want READY after rollback", state.State)
+	}
+	if state.CurrentPhase != 0 {
+		t.Fatalf("current phase = %d, want 0 after rollback", state.CurrentPhase)
+	}
+	if state.BuildStartedAt != nil {
+		t.Fatal("expected BuildStartedAt to be cleared by rollback")
+	}
+	if state.Plan.Phases[0].Status != colony.PhaseReady {
+		t.Fatalf("phase status = %s, want ready after rollback", state.Plan.Phases[0].Status)
+	}
+
+	contextData, readErr := os.ReadFile(filepath.Join(root, ".aether", "CONTEXT.md"))
+	if readErr != nil {
+		t.Fatalf("expected CONTEXT.md after rollback: %v", readErr)
+	}
+	if !strings.Contains(string(contextData), "codex CLI is not available") {
+		t.Fatalf("expected rollback context summary, got:\n%s", string(contextData))
+	}
+}
+
+func floatPtr(v float64) *float64 { return &v }
+
+func TestResolvePheromoneSection_GroupsSignalsByType(t *testing.T) {
+	saveGlobals(t)
+	dataDir := t.TempDir() + "/.aether/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		t.Fatalf("failed to create data dir: %v", err)
+	}
+	s, err := storage.NewStore(dataDir)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	store = s
+
+	pf := colony.PheromoneFile{
+		Signals: []colony.PheromoneSignal{
+			{Type: "FOCUS", Content: json.RawMessage(`{"text":"security"}`), Active: true, Strength: floatPtr(0.8), CreatedAt: "2026-04-16T00:00:00Z"},
+			{Type: "REDIRECT", Content: json.RawMessage(`{"text":"avoid global state"}`), Active: true, Strength: floatPtr(0.9), CreatedAt: "2026-04-16T00:00:00Z"},
+			{Type: "FEEDBACK", Content: json.RawMessage(`{"text":"prefer interfaces"}`), Active: true, Strength: floatPtr(0.7), CreatedAt: "2026-04-16T00:00:00Z"},
+		},
+	}
+	if err := store.SaveJSON("pheromones.json", pf); err != nil {
+		t.Fatalf("failed to save pheromones: %v", err)
+	}
+
+	section := resolvePheromoneSection()
+	if section == "" {
+		t.Fatal("expected non-empty pheromone section when signals exist")
+	}
+	if !strings.Contains(section, "### Active Pheromone Signals") {
+		t.Fatalf("missing section header in pheromone section:\n%s", section)
+	}
+	if !strings.Contains(section, "FOCUS") {
+		t.Fatalf("missing FOCUS type in pheromone section:\n%s", section)
+	}
+	if !strings.Contains(section, "REDIRECT") {
+		t.Fatalf("missing REDIRECT type in pheromone section:\n%s", section)
+	}
+	if !strings.Contains(section, "FEEDBACK") {
+		t.Fatalf("missing FEEDBACK type in pheromone section:\n%s", section)
+	}
+	if !strings.Contains(section, "security") {
+		t.Fatalf("missing signal content in pheromone section:\n%s", section)
+	}
+}
+
+func TestResolvePheromoneSection_ReturnsEmptyWhenNoSignals(t *testing.T) {
+	saveGlobals(t)
+	dataDir := t.TempDir() + "/.aether/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		t.Fatalf("failed to create data dir: %v", err)
+	}
+	s, err := storage.NewStore(dataDir)
+	if err != nil {
+		t.Fatalf("failed to create store: %v", err)
+	}
+	store = s
+
+	pf := colony.PheromoneFile{Signals: []colony.PheromoneSignal{}}
+	if err := store.SaveJSON("pheromones.json", pf); err != nil {
+		t.Fatalf("failed to save pheromones: %v", err)
+	}
+
+	section := resolvePheromoneSection()
+	if section != "" {
+		t.Fatalf("expected empty pheromone section when no signals, got:\n%s", section)
+	}
+}
+
+func TestResolveSkillSection_FormatsMatchedSkills(t *testing.T) {
+	saveGlobals(t)
+
+	tmpDir := t.TempDir()
+	hubDir := tmpDir + "/hub"
+	skillsDir := hubDir + "/skills/colony/test-skill"
+	if err := os.MkdirAll(skillsDir, 0755); err != nil {
+		t.Fatalf("failed to create skill dir: %v", err)
+	}
+	skillContent := "---\nname: test-skill\ntype: colony\ncategory: testing\nagent_roles:\n  - builder\n---\nThis is the test skill content."
+	if err := os.WriteFile(filepath.Join(skillsDir, "SKILL.md"), []byte(skillContent), 0644); err != nil {
+		t.Fatalf("failed to write skill: %v", err)
+	}
+
+	os.Setenv("AETHER_HUB_DIR", hubDir)
+	t.Cleanup(func() { os.Unsetenv("AETHER_HUB_DIR") })
+
+	section := resolveSkillSection("builder", "testing task")
+	if section == "" {
+		t.Fatal("expected non-empty skill section when a matching skill exists")
+	}
+	if !strings.Contains(section, "### Skill: test-skill") {
+		t.Fatalf("missing skill header in skill section:\n%s", section)
+	}
+	if !strings.Contains(section, "This is the test skill content") {
+		t.Fatalf("missing skill content in skill section:\n%s", section)
+	}
+}
+
+func TestResolveSkillSection_ReturnsEmptyWhenNoMatches(t *testing.T) {
+	saveGlobals(t)
+
+	tmpDir := t.TempDir()
+	hubDir := tmpDir + "/hub"
+	if err := os.MkdirAll(hubDir, 0755); err != nil {
+		t.Fatalf("failed to create hub dir: %v", err)
+	}
+
+	os.Setenv("AETHER_HUB_DIR", hubDir)
+	t.Cleanup(func() { os.Unsetenv("AETHER_HUB_DIR") })
+
+	section := resolveSkillSection("builder", "some task")
+	if section != "" {
+		t.Fatalf("expected empty skill section when no skills exist, got:\n%s", section)
 	}
 }

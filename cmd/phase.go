@@ -31,7 +31,9 @@ var phaseCmd = &cobra.Command{
 		// Determine which phase to display
 		phaseNum := phaseNumber
 		if phaseNum == 0 {
-			phaseNum = state.CurrentPhase
+			if phase := recoveryPhase(&state); phase != nil {
+				phaseNum = phase.ID
+			}
 		}
 
 		// Find the phase

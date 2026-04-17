@@ -344,7 +344,7 @@ Run using the Bash tool with description "Importing pheromone signals...":
 # Import the EXTRACTED pheromone-only XML (NOT the combined colony-archive.xml)
 # $import_tmp_pheromones has <pheromones> as root — the format pheromone-import-xml expects
 # Second argument triggers prefix-tagging — imported signal IDs become "{source_colony}:original_id"
-import_result=$(aether pheromone-import-xml --input "$import_tmp_pheromones" --colony "$source_colony" 2>&1)
+import_result=$(aether import-signals --file "$import_tmp_pheromones" 2>&1)
 import_ok=$(echo "$import_result" | jq -r '.ok // false' 2>/dev/null)
 
 if [[ "$import_ok" == "true" ]]; then

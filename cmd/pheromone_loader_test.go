@@ -84,6 +84,49 @@ func TestExtractSignalTextsFromMaxSignals(t *testing.T) {
 	}
 }
 
+func TestExtractSignalTextsFromSkipsExpiredSignals(t *testing.T) {
+	now := time.Now().UTC()
+	expiredAt := now.Add(-1 * time.Hour).Format(time.RFC3339)
+	futureAt := now.Add(1 * time.Hour).Format(time.RFC3339)
+	createdAt := now.Add(-24 * time.Hour).Format(time.RFC3339)
+	s1 := 0.9
+
+	pf := &colony.PheromoneFile{
+		Signals: []colony.PheromoneSignal{
+			{
+				ID:        "expired",
+				Type:      "REDIRECT",
+				Priority:  "high",
+				Source:    "user",
+				CreatedAt: createdAt,
+				ExpiresAt: &expiredAt,
+				Active:    true,
+				Strength:  &s1,
+				Content:   json.RawMessage(`{"text": "Expired constraint"}`),
+			},
+			{
+				ID:        "live",
+				Type:      "FOCUS",
+				Priority:  "normal",
+				Source:    "user",
+				CreatedAt: createdAt,
+				ExpiresAt: &futureAt,
+				Active:    true,
+				Strength:  &s1,
+				Content:   json.RawMessage(`{"text": "Still active"}`),
+			},
+		},
+	}
+
+	result := extractSignalTextsFrom(pf, 8)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 non-expired signal, got %d (%v)", len(result), result)
+	}
+	if result[0] != "FOCUS: Still active" {
+		t.Fatalf("unexpected remaining signal: %v", result)
+	}
+}
+
 // --- TDD Cycle 2: loadPheromones using global store ---
 
 func TestLoadPheromones(t *testing.T) {

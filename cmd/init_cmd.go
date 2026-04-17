@@ -122,8 +122,9 @@ var initCmd = &cobra.Command{
 			ColonyGoal:       goal,
 			CurrentPhase:     0,
 			CurrentMilestone: "",
-			SuggestedNext:    "plan",
+			SuggestedNext:    "aether plan",
 			ActiveTodos:      []string{},
+			Summary:          "Colony initialized",
 		}
 
 		if err := store.SaveJSON("session.json", session); err != nil {
@@ -131,25 +132,14 @@ var initCmd = &cobra.Command{
 			return nil
 		}
 
-		// Create CONTEXT.md
-		contextContent := fmt.Sprintf(`# Colony Context
-
-> Initialized: %s
-
-## Goal
-
-%s
-
-## State
-
-- **Status:** READY
-- **Current Phase:** 0
-- **Version:** 3.0
-`, nowStr, goal)
-
-		contextPath := filepath.Join(aetherDir, "CONTEXT.md")
-		if err := os.WriteFile(contextPath, []byte(contextContent), 0644); err != nil {
-			outputError(1, fmt.Sprintf("failed to create CONTEXT.md: %v", err), nil)
+		if _, err := syncColonyArtifacts(state, colonyArtifactOptions{
+			CommandName:   "init",
+			SuggestedNext: "aether plan",
+			Summary:       "Colony initialized",
+			HandoffTitle:  "Initialized Colony",
+			WriteHandoff:  true,
+		}); err != nil {
+			outputError(1, fmt.Sprintf("failed to create recovery artifacts: %v", err), nil)
 			return nil
 		}
 

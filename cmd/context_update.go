@@ -112,8 +112,8 @@ Colony initialization in progress...
 
 ## Next Steps
 
-1. Run ` + "`" + `/ant:plan` + "`" + ` to generate phases for the goal
-2. Run ` + "`" + `/ant:build 1` + "`" + ` to start building
+1. Run ` + "`" + `aether plan` + "`" + ` to generate phases for the goal
+2. Run ` + "`" + `aether build 1` + "`" + ` to start building
 
 ---
 
@@ -153,12 +153,12 @@ Git Commits:  0
 
 ---
 
-*This document updates automatically with every ant command. If you see old timestamps, run ` + "`" + `/ant:status` + "`" + ` to refresh.*
+*This document updates automatically with every Aether command. If you see old timestamps, run ` + "`" + `aether status` + "`" + ` to refresh.*
 
 **Colony Memory Active**
 `
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -177,7 +177,7 @@ func runContextBuildStart(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -202,7 +202,7 @@ func runContextBuildStart(args []string) error {
 		phaseID, workers, tasks, ts,
 	))
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -222,7 +222,7 @@ func runContextBuildProgress(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -246,7 +246,7 @@ func runContextBuildProgress(args []string) error {
 	content := string(data)
 	content = strings.Replace(content, "Build IN PROGRESS", fmt.Sprintf("Build IN PROGRESS (%d%% complete)", percent), 1)
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -266,7 +266,7 @@ func runContextBuildComplete(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -290,7 +290,7 @@ func runContextBuildComplete(args []string) error {
 	// Update Safe to Clear
 	content = replaceContextTableRow(content, "Safe to Clear?", fmt.Sprintf("YES — Build %s", status))
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -310,7 +310,7 @@ func runContextWorkerSpawn(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -324,7 +324,7 @@ func runContextWorkerSpawn(args []string) error {
 	content := string(data)
 	content = appendWorkerSpawnEntry(content, antName, caste, task, ts)
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -344,7 +344,7 @@ func runContextWorkerComplete(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -360,7 +360,7 @@ func runContextWorkerComplete(args []string) error {
 	content := string(data)
 	content = markWorkerComplete(content, antName, status, ts)
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -380,7 +380,7 @@ func runContextActivity(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -394,7 +394,7 @@ func runContextActivity(args []string) error {
 	content := string(data)
 	content = appendActivityEntry(content, ts, command, status, detail)
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -413,7 +413,7 @@ func runContextUpdatePhase(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -430,7 +430,7 @@ func runContextUpdatePhase(args []string) error {
 	content = replaceContextTableRow(content, "Phase Name", phaseName)
 	content = replaceContextTableRow(content, "Safe to Clear?", fmt.Sprintf("%s — %s", safeToClear, note))
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -450,7 +450,7 @@ func runContextDecision(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -464,7 +464,7 @@ func runContextDecision(args []string) error {
 	content := string(data)
 	content = appendDecisionEntry(content, ts, description, rationale, madeBy)
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -483,7 +483,7 @@ func runContextSafeToClear(args []string) error {
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -505,7 +505,7 @@ func runContextSafeToClear(args []string) error {
 	content := string(data)
 	content = replaceContextTableRow(content, "Safe to Clear?", displayValue)
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}
@@ -525,7 +525,7 @@ func runContextSectionUpdate(section, key, contentText string, args []string) er
 		return nil
 	}
 
-	data, err := store.ReadFile(contextFileName)
+	data, err := readContextDocument()
 	if err != nil {
 		outputErrorMessage("CONTEXT.md not found. Run 'context-update init' first.")
 		return nil
@@ -541,7 +541,7 @@ func runContextSectionUpdate(section, key, contentText string, args []string) er
 		content = appendConstraintEntry(content, ts, contentText, "user", strings.ToUpper(key))
 	}
 
-	if err := store.AtomicWrite(contextFileName, []byte(content)); err != nil {
+	if err := writeContextDocument(content); err != nil {
 		outputErrorMessage(fmt.Sprintf("failed to write CONTEXT.md: %v", err))
 		return nil
 	}

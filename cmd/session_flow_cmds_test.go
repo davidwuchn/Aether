@@ -64,7 +64,7 @@ func TestPauseColonyWritesHandoffAndSession(t *testing.T) {
 		t.Fatalf("expected handoff file: %v", err)
 	}
 	handoff := string(data)
-	for _, want := range []string{"# Colony Handoff", "Pause this colony cleanly", "Implement pause-colony", "aether resume-colony"} {
+	for _, want := range []string{"# Colony Session — Paused Colony", "Pause this colony cleanly", "Implement pause-colony", "aether resume"} {
 		if !strings.Contains(handoff, want) {
 			t.Errorf("handoff missing %q\n%s", want, handoff)
 		}
@@ -108,7 +108,7 @@ func TestResumeColonyRestoresSessionAndClearsHandoff(t *testing.T) {
 	}
 
 	handoffPath := filepath.Join(os.Getenv("AETHER_ROOT"), ".aether", "HANDOFF.md")
-	if err := os.WriteFile(handoffPath, []byte("# Colony Handoff\n\nNext: aether continue\n"), 0644); err != nil {
+	if err := os.WriteFile(handoffPath, []byte("# Colony Session — Paused Colony\n\n- Run `aether continue`\n"), 0644); err != nil {
 		t.Fatalf("failed to seed handoff: %v", err)
 	}
 
@@ -137,5 +137,61 @@ func TestResumeColonyRestoresSessionAndClearsHandoff(t *testing.T) {
 	}
 	if updated.ResumedAt == nil || *updated.ResumedAt == "" {
 		t.Fatal("expected ResumedAt to be populated")
+	}
+}
+
+func TestResumeDashboardShowsNextPlannedPhaseAndSessionTodos(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	goal := "Keep the plan after context clears"
+	taskID := "task-1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Planned phase",
+					Status: colony.PhaseReady,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "Implement the durable resume path", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	if err := store.SaveJSON("session.json", colony.SessionFile{
+		SessionID:      "resume-dashboard",
+		StartedAt:      "2026-04-15T10:00:00Z",
+		ColonyGoal:     goal,
+		SuggestedNext:  "aether build 1",
+		ContextCleared: true,
+		Summary:        "Plan persisted for later recovery",
+	}); err != nil {
+		t.Fatalf("failed to seed session: %v", err)
+	}
+
+	result := buildResumeDashboardResult()
+	nextPhase, ok := result["next_phase"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected next_phase in resume dashboard, got %v", result)
+	}
+	if got := intValue(nextPhase["id"]); got != 1 {
+		t.Fatalf("next phase id = %d, want 1", got)
+	}
+
+	session, ok := result["session"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected session block in resume dashboard, got %v", result)
+	}
+	if summary := stringValue(session["summary"]); summary != "Plan persisted for later recovery" {
+		t.Fatalf("summary = %q, want seeded summary", summary)
+	}
+	todos := stringSliceValue(session["active_todos"])
+	if len(todos) != 1 || todos[0] != "Implement the durable resume path" {
+		t.Fatalf("active_todos = %v, want seeded phase task", todos)
 	}
 }

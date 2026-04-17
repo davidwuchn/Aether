@@ -14,7 +14,7 @@ If `$ARGUMENTS` is empty or equals "--watch":
 
 Run the real-time swarm display:
 ```bash
-aether swarm-display
+aether swarm --watch
 ```
 
 This shows:
@@ -209,7 +209,7 @@ Wait for all 4 scouts to complete.
 
 As each scout returns, add their findings:
 ```bash
-aether swarm-findings-add "{swarm_id}" "{scout_type}" "{confidence}" '{finding_json}'
+aether swarm-findings-add --id "{swarm_id}" --agent "{scout_type}" --finding '{finding_json}'
 ```
 
 Display each scout's report as they complete:
@@ -294,7 +294,7 @@ Inject learnings:
 
 Set solution in swarm findings and log success:
 ```bash
-aether swarm-solution-set "{swarm_id}" '{solution_json}'
+aether swarm-solution-set --id "{swarm_id}" --solution '{solution_json}'
 aether activity-log --command "SWARM_SUCCESS" --details "Queen: Swarm {swarm_id} fixed: {brief description}"
 ```
 
@@ -337,7 +337,7 @@ Swarm will not attempt further fixes on this issue.
 
 Archive findings:
 ```bash
-aether swarm-cleanup "{swarm_id}" --archive
+aether swarm-cleanup --id "{swarm_id}"
 ```
 
 Generate the state-based Next Up block:

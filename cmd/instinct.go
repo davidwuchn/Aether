@@ -25,17 +25,17 @@ var (
 )
 
 var instinctCreateCmd = &cobra.Command{
-	Use:   "instinct-create",
+	Use:   "instinct-create [trigger] [action]",
 	Short: "Create or reinforce an instinct entry",
-	Args:  cobra.NoArgs,
+	Args:  cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if store == nil {
 			outputErrorMessage("no store initialized")
 			return nil
 		}
 
-		trigger := mustGetString(cmd, "trigger")
-		action := mustGetString(cmd, "action")
+		trigger := mustGetStringCompat(cmd, args, "trigger", 0)
+		action := mustGetStringCompat(cmd, args, "action", 1)
 		if trigger == "" || action == "" {
 			return nil
 		}

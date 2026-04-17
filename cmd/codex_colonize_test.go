@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/codex"
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 func TestColonizeWritesSurveyArtifactsAndUpdatesState(t *testing.T) {
@@ -156,6 +156,60 @@ func TestColonizeRequiresForceResurveyWhenSurveyExists(t *testing.T) {
 	}
 }
 
+func TestColonizePreservesWorkerWrittenSurveyArtifacts(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("failed to chdir to test root: %v", err)
+	}
+	defer os.Chdir(oldDir)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/aether-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	goal := "Survey the repo"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan:    colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	originalInvoker := newCodexWorkerInvoker
+	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &surveyorArtifactInvoker{} }
+	defer func() { newCodexWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"colonize"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("colonize returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if got := result["dispatch_mode"]; got != "real" {
+		t.Fatalf("dispatch_mode = %v, want real", got)
+	}
+	if got := result["artifact_source"]; got != "worker-written" {
+		t.Fatalf("artifact_source = %v, want worker-written", got)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dataDir, "survey", "PROVISIONS.md"))
+	if err != nil {
+		t.Fatalf("read PROVISIONS.md: %v", err)
+	}
+	if !strings.Contains(string(data), "worker-authored provisions") {
+		t.Fatalf("expected worker-authored PROVISIONS.md to be preserved, got:\n%s", string(data))
+	}
+}
+
 // unavailableInvoker always reports not available, forcing fallback.
 type unavailableInvoker struct{}
 
@@ -286,8 +340,8 @@ developer_instructions = "You are a test surveyor."
 	timeoutInvoker := &timeoutTestInvoker{}
 
 	got, err := dispatchRealSurveyors(context.Background(), root, timeoutInvoker)
-	if err != nil {
-		t.Fatalf("dispatchRealSurveyors returned error: %v", err)
+	if err == nil {
+		t.Fatal("expected timeout error from dispatchRealSurveyors")
 	}
 
 	for i, d := range got {
@@ -317,4 +371,158 @@ func (ti *timeoutTestInvoker) IsAvailable(_ context.Context) bool {
 
 func (ti *timeoutTestInvoker) ValidateAgent(_ string) error {
 	return nil
+}
+
+type surveyorArtifactInvoker struct{}
+
+func (s *surveyorArtifactInvoker) Invoke(_ context.Context, config codex.WorkerConfig) (codex.WorkerResult, error) {
+	claims := codex.WorkerResult{
+		WorkerName: config.WorkerName,
+		Caste:      config.Caste,
+		TaskID:     config.TaskID,
+		Status:     "completed",
+		Summary:    "worker-authored survey artifact",
+	}
+	if config.Caste == "surveyor-provisions" {
+		target := filepath.Join(config.Root, ".aether", "data", "survey", "PROVISIONS.md")
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return codex.WorkerResult{}, err
+		}
+		if err := os.WriteFile(target, []byte("# worker-authored provisions\n"), 0644); err != nil {
+			return codex.WorkerResult{}, err
+		}
+		claims.FilesCreated = []string{filepath.ToSlash(filepath.Join(".aether", "data", "survey", "PROVISIONS.md"))}
+	}
+	return claims, nil
+}
+
+func (s *surveyorArtifactInvoker) IsAvailable(_ context.Context) bool {
+	return true
+}
+
+func (s *surveyorArtifactInvoker) ValidateAgent(_ string) error {
+	return nil
+}
+
+func TestIdentifyPathogens_NoTestsDetected(t *testing.T) {
+	facts := codexWorkspaceFacts{
+		TestFiles: []string{},
+	}
+	got := identifyPathogens(facts)
+	found := false
+	for _, issue := range got {
+		if strings.Contains(issue, "No test files detected") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'No test files detected' issue, got %v", got)
+	}
+}
+
+func TestIdentifyPathogens_TypeSafetyGaps(t *testing.T) {
+	facts := codexWorkspaceFacts{
+		TestFiles:      []string{"main_test.go"},
+		TypeSafetyGaps: []string{"file1.go:10 interface{}", "file2.go:20 : any"},
+	}
+	got := identifyPathogens(facts)
+	found := false
+	for _, issue := range got {
+		if strings.Contains(issue, "Type safety gaps found in 2 file(s)") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'Type safety gaps found in 2 file(s)' issue, got %v", got)
+	}
+}
+
+func TestIdentifyPathogens_HighSecurityPatterns(t *testing.T) {
+	facts := codexWorkspaceFacts{
+		TestFiles:        []string{"main_test.go"},
+		SecurityPatterns: []string{"a", "b", "c", "d"},
+	}
+	got := identifyPathogens(facts)
+	found := false
+	for _, issue := range got {
+		if strings.Contains(issue, "High volume of env/eval patterns (4)") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'High volume of env/eval patterns (4)' issue, got %v", got)
+	}
+}
+
+func TestIdentifyPathogens_ManyTODOs(t *testing.T) {
+	facts := codexWorkspaceFacts{
+		TestFiles: []string{"main_test.go"},
+		TODOs:     []string{"a", "b", "c", "d", "e", "f"},
+	}
+	got := identifyPathogens(facts)
+	found := false
+	for _, issue := range got {
+		if strings.Contains(issue, "6 TODO/FIXME/HACK markers need review") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected '6 TODO/FIXME/HACK markers need review' issue, got %v", got)
+	}
+}
+
+func TestIdentifyPathogens_NoDependenciesLargeRepo(t *testing.T) {
+	facts := codexWorkspaceFacts{
+		TestFiles:       []string{"main_test.go"},
+		KeyDependencies: []string{},
+		FileCount:       20,
+	}
+	got := identifyPathogens(facts)
+	found := false
+	for _, issue := range got {
+		if strings.Contains(issue, "No dependency manifest detected") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected 'No dependency manifest detected' issue, got %v", got)
+	}
+}
+
+func TestIdentifyPathogens_NoIssuesCleanRepo(t *testing.T) {
+	facts := codexWorkspaceFacts{
+		TestFiles:        []string{"main_test.go"},
+		TypeSafetyGaps:   []string{},
+		SecurityPatterns: []string{"a", "b"},
+		TODOs:            []string{"a", "b"},
+		KeyDependencies:  []string{"github.com/spf13/cobra"},
+		FileCount:        5,
+	}
+	got := identifyPathogens(facts)
+	if len(got) != 1 {
+		t.Fatalf("expected exactly 1 issue for clean repo, got %d: %v", len(got), got)
+	}
+	if got[0] != "No obvious technical debt markers detected." {
+		t.Errorf("expected clean message, got %q", got[0])
+	}
+}
+
+func TestIdentifyPathogens_MultipleIssues(t *testing.T) {
+	facts := codexWorkspaceFacts{
+		TestFiles:        []string{},
+		TypeSafetyGaps:   []string{"file.go:1 interface{}"},
+		SecurityPatterns: []string{"a", "b", "c", "d"},
+		TODOs:            []string{"a", "b", "c", "d", "e", "f"},
+		KeyDependencies:  []string{},
+		FileCount:        20,
+	}
+	got := identifyPathogens(facts)
+	if len(got) < 4 {
+		t.Errorf("expected at least 4 issues, got %d: %v", len(got), got)
+	}
 }

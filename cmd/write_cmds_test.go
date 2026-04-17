@@ -382,6 +382,43 @@ func TestFlagAddWithDescriptionAndPhase(t *testing.T) {
 	}
 }
 
+func TestFlagAddLegacyPositionalForm(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	rootCmd.SetArgs([]string{"flag-add", "blocker", "build fails", "detailed error info", "chaos-testing", "3"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	if env["ok"] != true {
+		t.Fatalf("expected ok:true, got: %v", env["ok"])
+	}
+
+	result := env["result"].(map[string]interface{})
+	flag := result["flag"].(map[string]interface{})
+	if got, want := flag["type"], "blocker"; got != want {
+		t.Fatalf("type = %v, want %q", got, want)
+	}
+	if got, want := flag["description"], "detailed error info"; got != want {
+		t.Fatalf("description = %v, want %q", got, want)
+	}
+	if got, want := flag["source"], "chaos-testing"; got != want {
+		t.Fatalf("source = %v, want %q", got, want)
+	}
+	if got := int(flag["phase"].(float64)); got != 3 {
+		t.Fatalf("phase = %d, want 3", got)
+	}
+}
+
 func TestFlagAddPhaseZeroOmitsPhase(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -649,6 +686,42 @@ func TestSpawnLog(t *testing.T) {
 	}
 	if result["depth"] != float64(1) {
 		t.Errorf("depth = %v, want 1", result["depth"])
+	}
+}
+
+func TestSpawnLogLegacyFlagAliases(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	rootCmd.SetArgs([]string{"spawn-log", "--name", "Queen", "--caste", "builder", "--id", "Hammer-42", "--description", "implementing auth"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	if env["ok"] != true {
+		t.Fatalf("expected ok:true, got: %v", env["ok"])
+	}
+
+	result := env["result"].(map[string]interface{})
+	if got, want := result["parent"], "Queen"; got != want {
+		t.Fatalf("parent = %v, want %q", got, want)
+	}
+	if got, want := result["name"], "Hammer-42"; got != want {
+		t.Fatalf("name = %v, want %q", got, want)
+	}
+	if got, want := result["task"], "implementing auth"; got != want {
+		t.Fatalf("task = %v, want %q", got, want)
+	}
+	if got := int(result["depth"].(float64)); got != 0 {
+		t.Fatalf("depth = %d, want 0", got)
 	}
 }
 

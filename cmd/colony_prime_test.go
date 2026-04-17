@@ -258,6 +258,65 @@ func TestColonyPrime_NoPheromones_NoPheromoneSection(t *testing.T) {
 	}
 }
 
+func TestColonyPrime_ExcludesExpiredSignals(t *testing.T) {
+	saveGlobalsCmd(t)
+	resetRootCmd(t)
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	state, pheromones := colonyPrimeTestEnv(t, nil)
+	now := time.Now().UTC()
+	createdAt := now.Add(-24 * time.Hour).Format(time.RFC3339)
+	expiredAt := now.Add(-1 * time.Hour).Format(time.RFC3339)
+	liveStrength := 0.9
+
+	pheromones.Signals = []colony.PheromoneSignal{
+		{
+			ID:        "expired",
+			Type:      "REDIRECT",
+			Priority:  "high",
+			Source:    "user",
+			CreatedAt: createdAt,
+			ExpiresAt: &expiredAt,
+			Active:    true,
+			Strength:  &liveStrength,
+			Content:   json.RawMessage(`{"text": "Expired redirect"}`),
+		},
+		{
+			ID:        "live",
+			Type:      "FOCUS",
+			Priority:  "normal",
+			Source:    "user",
+			CreatedAt: createdAt,
+			Active:    true,
+			Strength:  &liveStrength,
+			Content:   json.RawMessage(`{"text": "Current focus"}`),
+		},
+	}
+
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveJSON("pheromones.json", pheromones); err != nil {
+		t.Fatal(err)
+	}
+
+	envelope := runColonyPrime(t, s, nil)
+	result := envelope["result"].(map[string]interface{})
+	if got := int(result["signal_count"].(float64)); got != 1 {
+		t.Fatalf("signal_count = %d, want 1", got)
+	}
+	contextStr := result["context"].(string)
+	if strings.Contains(contextStr, "Expired redirect") {
+		t.Fatalf("expired signal should not appear in context:\n%s", contextStr)
+	}
+	if !strings.Contains(contextStr, "Current focus") {
+		t.Fatalf("live signal missing from context:\n%s", contextStr)
+	}
+}
+
 // --- Test: colony-prime with only inactive signals shows no pheromone section ---
 
 func TestColonyPrime_OnlyInactiveSignals_NoPheromoneSection(t *testing.T) {
@@ -395,11 +454,9 @@ func TestColonyPrime_CompactFlag_IncludesPheromones(t *testing.T) {
 	}
 }
 
-// --- Test: colony-prime with expired pheromones (strength decayed to near zero) ---
+// --- Test: colony-prime excludes expired pheromones during prompt reads ---
 
-func TestColonyPrime_OldSignals_StillAppear(t *testing.T) {
-	// colony-prime does NOT apply strength decay -- it only checks sig.Active.
-	// Signals created long ago but still marked Active should still appear.
+func TestColonyPrime_OldSignalsAreFiltered(t *testing.T) {
 	saveGlobalsCmd(t)
 	resetRootCmd(t)
 
@@ -429,9 +486,8 @@ func TestColonyPrime_OldSignals_StillAppear(t *testing.T) {
 	result := envelope["result"].(map[string]interface{})
 	contextStr := result["context"].(string)
 
-	// colony-prime only checks Active flag, not effective strength decay
-	if !strings.Contains(contextStr, "Old but active focus") {
-		t.Error("colony-prime should include old-but-still-Active signals in context")
+	if strings.Contains(contextStr, "Old but active focus") {
+		t.Error("colony-prime should exclude expired or decayed signals from worker context")
 	}
 }
 

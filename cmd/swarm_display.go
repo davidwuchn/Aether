@@ -133,10 +133,12 @@ var swarmDisplayInlineCmd = &cobra.Command{
 			}
 		}
 
+		instinctCount := activeInstinctCount(store, state)
+
 		sections := map[string]interface{}{
 			"progress": fmt.Sprintf("Phase %d/%d (%d complete)", state.CurrentPhase, totalPhases, completedPhases),
 			"memory": fmt.Sprintf("%d learnings | %d instincts",
-				len(state.Memory.PhaseLearnings), len(state.Memory.Instincts)),
+				len(state.Memory.PhaseLearnings), instinctCount),
 		}
 
 		if section != "" {
@@ -196,8 +198,9 @@ var swarmDisplayTextCmd = &cobra.Command{
 		var lines []string
 		lines = append(lines, fmt.Sprintf("Colony: %s", goalStr(state.Goal)))
 		lines = append(lines, fmt.Sprintf("Milestone: %s | State: %s", state.Milestone, string(state.State)))
+		instinctCount := activeInstinctCount(store, state)
 		lines = append(lines, fmt.Sprintf("Memory: %d phase learnings, %d decisions, %d instincts",
-			len(state.Memory.PhaseLearnings), len(state.Memory.Decisions), len(state.Memory.Instincts)))
+			len(state.Memory.PhaseLearnings), len(state.Memory.Decisions), instinctCount))
 		lines = append(lines, "")
 
 		showSection := section == "" || strings.Contains(section, "phases")

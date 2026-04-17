@@ -24,8 +24,8 @@ Aether is an open-source biomimetic AI colony that replaces deterministic agent 
 [![Go Reference](https://pkg.go.dev/badge/github.com/calcosmic/Aether.svg)](https://pkg.go.dev/github.com/calcosmic/Aether)
 
 [![agents](https://img.shields.io/badge/agents-24-purple?style=flat-square)](https://github.com/calcosmic/Aether#key-features)
-[![commands](https://img.shields.io/badge/commands-45-orange?style=flat-square)](https://github.com/calcosmic/Aether#command-reference)
-[![colony](https://img.shields.io/badge/colony-v1.0.1-gold?style=flat-square)](https://github.com/calcosmic/Aether/releases)
+[![commands](https://img.shields.io/badge/commands-46-orange?style=flat-square)](https://github.com/calcosmic/Aether#command-reference)
+[![colony](https://img.shields.io/badge/colony-v1.0.2-gold?style=flat-square)](https://github.com/calcosmic/Aether/releases)
 
 <br>
 
@@ -134,8 +134,11 @@ aether lay-eggs
 # Codex CLI
 aether init "Build X"
 aether plan
+aether run --max-phases 2
+aether watch
 aether build 1
 aether continue
+aether oracle "release concern"
 aether seal
 
 # Claude Code / OpenCode
@@ -154,7 +157,7 @@ same lifecycle through slash commands after the repo is bootstrapped.
 | | Feature | Description |
 |---|---------|-------------|
 | **Agents** | 24 Specialized Workers | Builder, Watcher, Scout, Tracker, Archaeologist, Oracle, and more |
-| **Commands** | 45 Slash Commands + Native CLI | Slash workflow for Claude Code and OpenCode, native `aether` lifecycle for Codex CLI |
+| **Commands** | 46 Slash Commands + Native CLI | Slash workflow for Claude Code and OpenCode, native `aether` lifecycle for Codex CLI |
 | **Signals** | Pheromone System | FOCUS, REDIRECT, FEEDBACK — guide colony attention |
 | **Memory** | Colony Wisdom | Learnings and instincts persist via QUEEN.md |
 | **Hive Brain** | Cross-colony | Domain-scoped wisdom sharing |
@@ -200,8 +203,8 @@ same lifecycle through slash commands after the repo is bootstrapped.
 | **Memory / Learning** | Colony Wisdom — learnings persist as instincts, promote to QUEEN.md, share cross-colony via Hive Brain | Short-term memory + optional long-term via integration | No built-in persistent memory | Checkpoint-based state persistence |
 | **Agent Coordination** | Pheromone signals (FOCUS, REDIRECT, FEEDBACK) guide attention without rewriting prompts | Hierarchical task delegation between role-assigned agents | Turn-based conversation between agents | Explicit graph edges define control flow |
 | **Workers / Agents** | 24 specialized castes (Builder, Watcher, Scout, Tracker, Oracle, Archaeologist, etc.) | User-defined roles with goals and backstories | Configurable assistant and user proxy agents | Nodes as functions or LangChain runnables |
-| **Commands / Control** | 45 slash commands on Claude/OpenCode + native `aether` CLI workflow on Codex | Python SDK calls | Programmatic API | Python SDK + LangGraph Studio |
-| **Autopilot** | `/ant:run` on Claude/OpenCode, explicit build/continue loop on Codex | Sequential task execution, no built-in loop | No built-in loop | Can loop via graph cycles, not opinionated |
+| **Commands / Control** | 46 slash commands on Claude/OpenCode + native `aether` CLI workflow on Codex | Python SDK calls | Programmatic API | Python SDK + LangGraph Studio |
+| **Autopilot** | `/ant:run` on Claude/OpenCode, `aether run` on Codex | Sequential task execution, no built-in loop | No built-in loop | Can loop via graph cycles, not opinionated |
 | **Quality Gates** | 6-phase verification before advancing phases | Optional human-in-the-loop review | No built-in gates | Manual checkpoint implementation |
 | **Research** | Oracle + Scouts — autonomous deep research before task decomposition | No dedicated research agents | Group chat can approximate research | No built-in research pattern |
 | **Platform Support** | Claude Code, OpenCode, Codex CLI | Any Python environment | Any Python environment | Any Python environment |
@@ -210,7 +213,7 @@ same lifecycle through slash commands after the repo is bootstrapped.
 
 ```
 .aether/                        Colony files (repo-local)
-├── commands/                   45 YAML command sources
+├── commands/                   Slash-command mirrors and platform command docs
 ├── agents-claude/               Claude agent definitions
 ├── skills-codex/               Codex skill mirror
 ├── skills/                     28 skills (10 colony + 18 domain)
@@ -424,9 +427,9 @@ It pauses — not crashes — when something needs attention: test failures, cri
 
 ## 🔌 Works With
 
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code?utm_source=github&utm_medium=readme&utm_campaign=aether)** - 45 slash commands + 24 agent definitions
-- **[OpenCode](https://github.com/opencode-ai/opencode?utm_source=github&utm_medium=readme&utm_campaign=aether)** - 45 slash commands + agent definitions
-- **Codex CLI** - native `aether` lifecycle + 24 TOML agent definitions
+- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code?utm_source=github&utm_medium=readme&utm_campaign=aether)** - 46 slash commands + 24 agent definitions
+- **[OpenCode](https://github.com/opencode-ai/opencode?utm_source=github&utm_medium=readme&utm_campaign=aether)** - 46 slash commands + agent definitions
+- **Codex CLI** - native `aether` lifecycle, `aether run`, `aether watch`, `aether oracle`, and 24 TOML agent definitions
 
 <div align="center">
   <img src="assets/logo/logo.jpg" alt="✦" width="80" />
@@ -435,15 +438,16 @@ It pauses — not crashes — when something needs attention: test failures, cri
 ## 📋 Command Reference (Claude Code / OpenCode)
 
 <details>
-<summary>45 slash commands for Claude Code and OpenCode — click to expand</summary>
+<summary>46 slash commands for Claude Code and OpenCode — click to expand</summary>
 
-Aether provides 45 slash commands organized into seven categories for Claude
+Aether provides 46 slash commands organized into seven categories for Claude
 Code and OpenCode. This section is the slash-command reference.
 
 Codex CLI uses the native Go binary instead. The core Codex workflow is:
 `aether install`, `aether lay-eggs`, `aether init`, `aether plan`,
-`aether build <phase>`, `aether continue`, `aether seal`, `aether focus`,
-`aether redirect`, `aether feedback`, `aether status`, and `aether update`.
+`aether run`, `aether watch`, `aether build <phase>`, `aether continue`,
+`aether oracle`, `aether seal`, `aether focus`, `aether redirect`,
+`aether feedback`, `aether status`, and `aether update`.
 
 ---
 
@@ -602,7 +606,7 @@ aether lay-eggs
 ```
 Colony nest initialized.
   .aether/            Colony files (repo-local)
-  .aether/commands/   45 slash commands
+  .claude/commands/ant + .opencode/commands/ant   46 slash commands each
   .aether/agents-claude/   Agent definitions
   .aether/skills/     28 skills loaded
   .aether/data/       Colony state (local only)
@@ -832,13 +836,19 @@ The pattern repeats. `aether build N`, then `aether continue`. Each phase
 builds on the verified output of the last. Instincts accumulate. The colony
 gets smarter about your project's patterns.
 
-On Codex, you keep using the explicit loop:
+On Codex, you can keep using the explicit loop when you want tight control:
 
 ```bash
 aether build 3
 aether continue
 aether build 4
 aether continue
+```
+
+Or hand the next stretch to the native Codex autopilot:
+
+```bash
+aether run --max-phases 2
 ```
 
 <details><summary>Phase progression output (click to expand)</summary>
@@ -970,8 +980,9 @@ Autopilot runs every remaining phase, pausing only when something needs your
 attention -- a test failure, a security concern, a blocker it cannot resolve.
 Fix the issue, run `/ant:run` again, and it resumes.
 
-Codex currently uses the explicit `aether build` -> `aether continue` loop
-instead of a top-level autopilot command.
+Codex now supports both the explicit `aether build` -> `aether continue`
+loop and a native `aether run` autopilot path, plus `aether watch` for live
+worker visibility and `aether oracle` for research workspace management.
 
 ---
 
@@ -995,15 +1006,16 @@ Five commands from zero to deployed. The colony writes code, verifies quality, a
 
 ## 🗺️ Roadmap
 
-### 🎉 v1.0.1 -- Released (Current)
+### 🎉 v1.0.2 -- Released (Current)
 
 - 24 specialized worker castes (Builder, Watcher, Scout, Tracker, Oracle, Archaeologist, and more)
-- 45 slash commands across the full colony lifecycle, plus native Codex CLI workflow
+- 46 slash commands across the full colony lifecycle, plus native Codex CLI workflow
 - Pheromone signal system (FOCUS, REDIRECT, FEEDBACK) for steering workers without rewriting prompts
 - Colony wisdom pipeline -- observations flow through trust scoring into instincts, QUEEN.md, and the Hive Brain
-- Context continuity across sessions via compact context capsules
-- Autopilot mode (`/ant:run`) for automated build-verify-advance loops with smart pause on Claude Code and OpenCode
-- Claude Code, OpenCode, and Codex CLI support
+- Context continuity across sessions via compact colony-prime context and persisted handoff artifacts
+- Autopilot mode via `/ant:run` on Claude/OpenCode and `aether run` on Codex
+- Live worker visibility via `aether watch` / `aether swarm --watch`, plus Codex oracle workspace support via `aether oracle`
+- Claude Code, OpenCode, and Codex CLI support with aligned release workflows
 - Go binary distribution across Linux, macOS, and Windows (amd64 + arm64)
 
 ### 📅 Near-Term

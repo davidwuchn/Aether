@@ -69,10 +69,10 @@ func (st *SpawnTree) RecordSpawn(parent, caste, name, task string, depth int) er
 
 	entry := SpawnEntry{
 		Timestamp:  time.Now().UTC().Format(time.RFC3339),
-		ParentName: parent,
-		Caste:      caste,
-		AgentName:  name,
-		Task:       task,
+		ParentName: sanitizeSpawnField(parent),
+		Caste:      sanitizeSpawnField(caste),
+		AgentName:  sanitizeSpawnField(name),
+		Task:       sanitizeSpawnField(task),
 		Depth:      depth,
 		Status:     "spawned",
 	}
@@ -87,11 +87,14 @@ func (st *SpawnTree) UpdateStatus(name string, status string, summary string) er
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	// Find and update the entry
+	name = sanitizeSpawnField(name)
+	summary = sanitizeSpawnField(summary)
+
+	// Find and update the most recent matching entry.
 	found := false
-	for i := range st.entries {
+	for i := len(st.entries) - 1; i >= 0; i-- {
 		if st.entries[i].AgentName == name {
-			st.entries[i].Status = status
+			st.entries[i].Status = sanitizeSpawnField(status)
 			st.entries[i].Summary = summary
 			found = true
 			break
@@ -105,7 +108,7 @@ func (st *SpawnTree) UpdateStatus(name string, status string, summary string) er
 	st.completions = append(st.completions, completionLine{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Name:      name,
-		Status:    status,
+		Status:    sanitizeSpawnField(status),
 		Summary:   summary,
 	})
 
@@ -163,7 +166,7 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 			continue
 		}
 
-		fields := strings.Split(line, "|")
+		fields := strings.SplitN(line, "|", 7)
 		fieldCount := len(fields)
 
 		if fieldCount == 7 {
@@ -183,21 +186,25 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 			}
 			nameToIdx[fields[3]] = len(entries)
 			entries = append(entries, entry)
-		} else if fieldCount >= 4 {
+			continue
+		}
+
+		completionFields := strings.SplitN(line, "|", 4)
+		if len(completionFields) >= 4 {
 			// Completion line: timestamp|name|status|summary
 			// Old format (no summary): timestamp|name|status|  -> field[3] = ""
 			// New format (with summary): timestamp|name|status|summary -> field[3] = summary
-			status := fields[2]
+			status := completionFields[2]
 			if status == "completed" || status == "failed" || status == "blocked" {
-				summary := fields[3]
+				summary := completionFields[3]
 				completions = append(completions, completionLine{
-					Timestamp: fields[0],
-					Name:      fields[1],
+					Timestamp: completionFields[0],
+					Name:      completionFields[1],
 					Status:    status,
 					Summary:   summary,
 				})
 				// Merge status and summary into the matching spawn entry
-				if idx, ok := nameToIdx[fields[1]]; ok {
+				if idx, ok := nameToIdx[completionFields[1]]; ok {
 					entries[idx].Status = status
 					if summary != "" {
 						entries[idx].Summary = summary
@@ -208,6 +215,13 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 	}
 
 	return entries, completions, nil
+}
+
+func sanitizeSpawnField(value string) string {
+	value = strings.ReplaceAll(value, "\r", " ")
+	value = strings.ReplaceAll(value, "\n", " ")
+	value = strings.ReplaceAll(value, "|", "¦")
+	return strings.TrimSpace(value)
 }
 
 // Parse reads the file and returns all spawn entries with statuses merged

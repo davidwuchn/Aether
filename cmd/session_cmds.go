@@ -101,7 +101,7 @@ var sessionInitCmd = &cobra.Command{
 			ColonyGoal:       goal,
 			CurrentPhase:     0,
 			CurrentMilestone: "First Mound",
-			SuggestedNext:    "/ant:plan",
+			SuggestedNext:    "aether plan",
 			ContextCleared:   false,
 			BaselineCommit:   baseline,
 			ResumedAt:        nil,
@@ -210,7 +210,7 @@ var sessionUpdateCmd = &cobra.Command{
 				ColonyGoal:       "",
 				CurrentPhase:     0,
 				CurrentMilestone: "First Mound",
-				SuggestedNext:    "/ant:plan",
+				SuggestedNext:    "aether plan",
 				ContextCleared:   false,
 				BaselineCommit:   getGitHEAD(),
 				ResumedAt:        nil,
@@ -231,6 +231,7 @@ var sessionUpdateCmd = &cobra.Command{
 			if state.Milestone != "" {
 				session.CurrentMilestone = state.Milestone
 			}
+			session.ActiveTodos = sessionActiveTodosFromState(state)
 		}
 
 		// Update fields

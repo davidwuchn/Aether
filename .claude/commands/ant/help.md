@@ -34,7 +34,7 @@ PHEROMONE COMMANDS
   /ant:feedback "<msg>"  Adjust behavior (priority: low, expires: phase end)
   /ant:pheromones        View and manage active pheromone signals
   /ant:export-signals [path]  Export pheromone signals to portable XML
-  /ant:import-signals <file> [colony]  Import signals from another colony's XML
+  /ant:import-signals <file>  Import signals from another colony's XML
 
 STATUS & UPDATES
 
@@ -151,4 +151,3 @@ current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
 total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
 aether print-next-up
 ```
-

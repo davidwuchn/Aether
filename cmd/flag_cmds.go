@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
@@ -9,9 +10,9 @@ import (
 )
 
 var flagAddCmd = &cobra.Command{
-	Use:   "flag-add [title]",
+	Use:   "flag-add [title] | flag-add <type> <title> <description> [source] [phase]",
 	Short: "Create a new flag",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.MaximumNArgs(5),
 	Aliases: []string{
 		"flag",
 	},
@@ -22,12 +23,8 @@ var flagAddCmd = &cobra.Command{
 		}
 
 		title, _ := cmd.Flags().GetString("title")
-		if title == "" && len(args) > 0 {
+		if title == "" && len(args) == 1 {
 			title = args[0]
-		}
-		if title == "" {
-			outputError(1, "flag title is required", nil)
-			return nil
 		}
 		severity, _ := cmd.Flags().GetString("severity")
 		if severity == "" {
@@ -37,6 +34,30 @@ var flagAddCmd = &cobra.Command{
 		flagType, _ := cmd.Flags().GetString("type")
 		description, _ := cmd.Flags().GetString("description")
 		phaseNum, _ := cmd.Flags().GetInt("phase")
+
+		if len(args) >= 3 {
+			if flagType == "" {
+				flagType = args[0]
+			}
+			if title == "" {
+				title = args[1]
+			}
+			if description == "" {
+				description = args[2]
+			}
+			if source == "" && len(args) >= 4 {
+				source = args[3]
+			}
+			if phaseNum == 0 && len(args) >= 5 {
+				if parsed, err := strconv.Atoi(args[4]); err == nil {
+					phaseNum = parsed
+				}
+			}
+		}
+		if title == "" {
+			outputError(1, "flag title is required", nil)
+			return nil
+		}
 
 		if flagType == "" {
 			flagType = "issue"

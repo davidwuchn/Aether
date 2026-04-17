@@ -70,12 +70,12 @@ Example:
 Run:
 
 ```bash
-aether phase-insert --name "<phase_name>" --goal "<goal_text>" --constraints "<constraints_text>"
+aether phase-insert --after <phase_index> --name "<phase_name>" --description "<description>"
 ```
 
 Parse JSON result:
 - If `ok != true`, display error and stop.
-- Extract `inserted_phase_id` and `after_phase`.
+- Extract `phase_id` and `after`.
 
 ### Step 5: Confirm Outcome
 
@@ -83,14 +83,9 @@ Display:
 
 ```text
 Inserted corrective phase successfully.
-  New phase: <inserted_phase_id> — <phase_name>
-  Inserted after phase: <after_phase>
-  Goal: <goal_text>
-```
-
-If constraints were provided, also display:
-```text
-  Constraints captured: <constraints_text>
+  New phase: <phase_id> — <phase_name>
+  Inserted after phase: <after>
+  Description: <description>
 ```
 
 ### Step 6: Next Up

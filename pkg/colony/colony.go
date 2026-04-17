@@ -293,5 +293,5 @@ var ErrInvalidTransition = fmt.Errorf("invalid state transition")
 var legalTransitions = map[State][]State{
 	StateREADY:     {StateEXECUTING, StateCOMPLETED},
 	StateEXECUTING: {StateBUILT, StateCOMPLETED},
-	StateBUILT:     {StateREADY},
+	StateBUILT:     {StateREADY, StateCOMPLETED},
 }

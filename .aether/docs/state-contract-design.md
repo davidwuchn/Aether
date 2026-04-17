@@ -181,7 +181,7 @@ When a PR is merged into main, state flows as follows:
 
 ### 4.1 Code changes (handled by git merge)
 
-All changes to `.aether/aether CLI`, `.aether/pkg/ packages`, `.claude/commands/`,
+All changes to `cmd/`, `pkg/`, `.claude/commands/`,
 `.claude/agents/`, etc. are merged into main via git. These are source-of-truth
 files tracked by git.
 
