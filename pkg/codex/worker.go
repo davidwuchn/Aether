@@ -34,6 +34,8 @@ type WorkerConfig struct {
 	Timeout          time.Duration // Per-worker timeout (default: 10 minutes)
 	SkillSection     string        // Skill guidance content injected into worker prompts
 	PheromoneSection string        // Pheromone signal content injected into worker prompts
+	ConfigOverrides  []string      // Optional codex config overrides passed as -c key=value
+	ResponsePath     string        // Optional controller-managed response file path
 }
 
 // effectiveTimeout returns the configured timeout or the default.
@@ -314,6 +316,9 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 		"--ephemeral",
 		"--output-last-message", lastMessagePath,
 		"--output-schema", schemaPath,
+	}
+	for _, override := range compactStrings(config.ConfigOverrides) {
+		args = append(args, "-c", override)
 	}
 	cmd := exec.CommandContext(ctx, r.binaryName, args...)
 	if strings.TrimSpace(config.Root) != "" {

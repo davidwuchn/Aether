@@ -24,6 +24,16 @@ As Oracle, you:
 
 ## Workflow
 
+### CLI-Managed RALF Loop
+
+When the `aether oracle` command invokes you for the Oracle RALF loop:
+1. Treat `.aether/oracle/` as the active workspace
+2. Treat the task brief and context capsule as the controller-owned source of truth for the current question
+3. Do not read or rewrite `.aether/oracle/state.json`, `plan.json`, `gaps.md`, `synthesis.md`, or `research-plan.md` unless the task brief explicitly tells you to
+4. Write only the single response file path the controller provides for this iteration
+5. Prefer local codebase, generated-artifact, and runtime-command evidence first; use web sources only when local evidence is insufficient
+6. Do not modify source code, tests, colony state, session files, or pheromones
+
 ### Queen-Spawned (Single-Pass)
 
 1. **Receive research request** - What does the colony need to know?
@@ -82,6 +92,7 @@ As Oracle, you:
 - `.github/workflows/` - CI configuration
 
 ### Oracle-Specific Boundaries
+- **DO write to `.aether/oracle/`** when the task brief explicitly says you are in the Oracle RALF loop
 - **DO write to `.aether/data/research/`** - Designated output directory
 - **Do NOT modify COLONY_STATE.json, source code, or test files**
 - **Do NOT modify pheromones.json**

@@ -1062,6 +1062,54 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 		suggestedNext = strings.TrimSpace(stringValue(session["suggested_next"]))
 	}
 
+	if signals, ok := result["signals"].(map[string]interface{}); ok {
+		items := stringSliceValue(signals["items"])
+		b.WriteString("\nActive Signals\n")
+		if len(items) == 0 {
+			b.WriteString("  None\n")
+		} else {
+			for _, item := range limitStrings(items, 6) {
+				b.WriteString("  - ")
+				b.WriteString(item)
+				b.WriteString("\n")
+			}
+		}
+	}
+
+	blockers := stringSliceValue(result["blockers"])
+	b.WriteString("\nBlockers\n")
+	if len(blockers) == 0 {
+		b.WriteString("  None\n")
+	} else {
+		for _, blocker := range limitStrings(blockers, 5) {
+			b.WriteString("  - ")
+			b.WriteString(blocker)
+			b.WriteString("\n")
+		}
+	}
+
+	if survey, ok := result["survey"].(map[string]interface{}); ok {
+		b.WriteString("\nSurvey Context\n")
+		if surveyedAt := strings.TrimSpace(stringValue(survey["territory_surveyed"])); surveyedAt != "" {
+			b.WriteString("  Surveyed: ")
+			b.WriteString(surveyedAt)
+			b.WriteString("\n")
+		}
+		files := stringSliceValue(survey["files"])
+		if len(files) == 0 {
+			b.WriteString("  Files: none\n")
+		} else {
+			b.WriteString("  Files: ")
+			b.WriteString(strings.Join(limitStrings(files, 6), ", "))
+			b.WriteString("\n")
+		}
+		if surveyPath := strings.TrimSpace(stringValue(survey["path"])); surveyPath != "" {
+			b.WriteString("  Path: ")
+			b.WriteString(surveyPath)
+			b.WriteString("\n")
+		}
+	}
+
 	if mh, ok := result["memory_health"].(map[string]interface{}); ok {
 		b.WriteString("\nMemory Health\n")
 		b.WriteString(fmt.Sprintf("  Wisdom: %d\n", intValue(mh["wisdom_count"])))
@@ -1082,10 +1130,16 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 	}
 
 	if recovery, ok := result["recovery"].(map[string]interface{}); ok {
+		source := strings.TrimSpace(stringValue(recovery["source"]))
 		contextPath := strings.TrimSpace(stringValue(recovery["context_path"]))
 		handoffPath := strings.TrimSpace(stringValue(recovery["handoff_path"]))
-		if contextPath != "" || handoffPath != "" {
-			b.WriteString("\nRecovery Files\n")
+		if source != "" || contextPath != "" || handoffPath != "" {
+			b.WriteString("\nRecovery\n")
+			if source != "" {
+				b.WriteString("  Source: ")
+				b.WriteString(source)
+				b.WriteString("\n")
+			}
 			if contextPath != "" {
 				b.WriteString("  Context: ")
 				b.WriteString(contextPath)

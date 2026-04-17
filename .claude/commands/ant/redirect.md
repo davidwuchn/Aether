@@ -1,76 +1,12 @@
 <!-- Generated from .aether/commands/redirect.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:redirect
-description: "Emit REDIRECT signal to warn colony away from patterns"
+description: "🚫🐜↪️🐜🚫 Emit a REDIRECT pheromone through the Aether CLI runtime"
 ---
 
+Use the Go `aether` CLI as the source of truth.
 
-You are the **Queen**. Emit a REDIRECT pheromone signal.
-
-
-
-## Instructions
-
-The pattern to avoid is: `$ARGUMENTS`
-
-### Step 1: Validate
-
-If `$ARGUMENTS` empty -> show usage: `/ant:redirect <pattern to avoid>`, stop.
-If content > 500 chars -> "Redirect content too long (max 500 chars)", stop.
-
-
-Parse optional flags from `$ARGUMENTS`:
-- `--ttl <value>`: signal lifetime (e.g., `2h`, `1d`, `7d`). Default: `phase_end`.
-- Strip flags from content before using it as the pattern.
-
-
-### Step 2: Write Signal
-
-Read `.aether/data/COLONY_STATE.json`.
-If `goal: null` -> "No colony initialized.", stop.
-
-
-Run using the Bash tool with description "Setting colony redirect...":
-```bash
-aether pheromone-write --type REDIRECT --content "<content>" --strength 0.9 --reason "User warned colony away from pattern" --ttl <ttl>
-```
-
-Parse the returned JSON for the signal ID.
-
-### Step 2.5: Update Context Document
-
-Run using the Bash tool with description "Updating context document...":
-```bash
-aether context-update --section constraint --key redirect --content "<content>" "user" 2>/dev/null || true
-```
-
-### Step 3: Get Active Counts
-
-Run using the Bash tool with description "Counting active signals...":
-```bash
-aether pheromone-count
-```
-
-### Step 4: Confirm
-
-Output (3-4 lines, no banners):
-```
-REDIRECT signal emitted
-  Avoid: "<content truncated to 60 chars>"
-  Strength: 0.9 | Expires: <phase end or ttl value>
-  Active signals: <focus_count> FOCUS, <redirect_count> REDIRECT, <feedback_count> FEEDBACK
-```
-
-
-
-
-### Step 5: Next Up
-
-Generate the state-based Next Up block by running using the Bash tool with description "Generating Next Up suggestions...":
-```bash
-state=$(jq -r '.state // "IDLE"' .aether/data/COLONY_STATE.json)
-current_phase=$(jq -r '.current_phase // 0' .aether/data/COLONY_STATE.json)
-total_phases=$(jq -r '.plan.phases | length' .aether/data/COLONY_STATE.json)
-aether print-next-up
-```
-
+- Execute `aether redirect "$ARGUMENTS"` directly.
+- Do not append to `constraints.json` or rewrite pheromone state by hand.
+- If `$ARGUMENTS` is empty, show `Usage: /ant:redirect <avoid-pattern>`.
+- Report the CLI result directly.

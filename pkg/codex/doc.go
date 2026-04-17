@@ -222,6 +222,7 @@
 //	    ContextCapsule string        // The assembled compact colony-prime context
 //	    Root           string        // Repository root directory (working dir for subprocess)
 //	    Timeout        time.Duration // Per-worker timeout (default: 10 minutes)
+//	    ResponsePath   string        // Optional controller-managed response file path
 //	}
 //
 // # Worker Result (codexWorkerResult)

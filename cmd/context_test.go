@@ -337,6 +337,123 @@ func TestResumeDashboardWithMemory(t *testing.T) {
 	}
 }
 
+func TestResumeDashboardIncludesSignalsBlockersSurveyAndRecoverySource(t *testing.T) {
+	saveGlobalsCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+	var errBuf bytes.Buffer
+	stderr = &errBuf
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	goal := "resume recovery parity"
+	surveyedAt := "2026-04-17T10:00:00Z"
+	state := colony.ColonyState{
+		Version:           "1.0",
+		Goal:              &goal,
+		State:             colony.StateEXECUTING,
+		CurrentPhase:      2,
+		TerritorySurveyed: &surveyedAt,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Survey", Status: "completed"},
+				{ID: 2, Name: "Build", Status: "in_progress"},
+			},
+		},
+	}
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SaveJSON("session.json", colony.SessionFile{
+		SessionID:      "resume-rich",
+		StartedAt:      "2026-04-17T09:00:00Z",
+		ColonyGoal:     goal,
+		SuggestedNext:  "aether continue",
+		ContextCleared: true,
+		Summary:        "Paused with real recovery context",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	strength := 0.9
+	if err := s.SaveJSON("pheromones.json", colony.PheromoneFile{
+		Signals: []colony.PheromoneSignal{
+			{
+				ID:        "sig-1",
+				Type:      "FOCUS",
+				CreatedAt: "2026-04-17T09:30:00Z",
+				Active:    true,
+				Strength:  &strength,
+				Content:   []byte(`{"text":"protect recovery parity"}`),
+			},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.SaveJSON("flags.json", colony.FlagsFile{
+		Version: "1.0",
+		Decisions: []colony.FlagEntry{
+			{ID: "flag-1", Type: "blocker", Description: "resume path still missing survey section", CreatedAt: "2026-04-17T09:35:00Z"},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	surveyDir := filepath.Join(s.BasePath(), "survey")
+	if err := os.MkdirAll(surveyDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(surveyDir, "blueprint.json"), []byte(`{"name":"recovery"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	handoffPath := filepath.Join(tmpDir, ".aether", "HANDOFF.md")
+	if err := os.MkdirAll(filepath.Dir(handoffPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(handoffPath, []byte("# handoff\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	rootCmd.SetArgs([]string{"resume-dashboard"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("resume-dashboard returned error: %v", err)
+	}
+
+	envelope := parseEnvelopeCmd(t, buf.String())
+	result := envelope["result"].(map[string]interface{})
+
+	signals := result["signals"].(map[string]interface{})
+	items := signals["items"].([]interface{})
+	if len(items) != 1 || items[0].(string) != "FOCUS: protect recovery parity" {
+		t.Fatalf("signals.items = %v, want injected focus signal", items)
+	}
+
+	blockers := result["blockers"].([]interface{})
+	if len(blockers) != 1 || blockers[0].(string) != "resume path still missing survey section" {
+		t.Fatalf("blockers = %v, want blocker summary", blockers)
+	}
+
+	survey := result["survey"].(map[string]interface{})
+	if survey["available"] != true {
+		t.Fatalf("survey.available = %v, want true", survey["available"])
+	}
+	if survey["territory_surveyed"] != surveyedAt {
+		t.Fatalf("territory_surveyed = %v, want %s", survey["territory_surveyed"], surveyedAt)
+	}
+
+	recovery := result["recovery"].(map[string]interface{})
+	if recovery["source"] != "HANDOFF.md" {
+		t.Fatalf("recovery.source = %v, want HANDOFF.md", recovery["source"])
+	}
+}
+
 // --- context-capsule tests ---
 
 func TestContextCapsule(t *testing.T) {

@@ -389,6 +389,32 @@ func TestPauseResumePatrolPhaseAndHistoryVisualOutput(t *testing.T) {
 		t.Fatalf("failed to seed pheromones: %v", err)
 	}
 
+	if err := store.SaveJSON("flags.json", colony.FlagsFile{
+		Version: "1.0",
+		Decisions: []colony.FlagEntry{
+			{ID: "flag-1", Type: "blocker", Description: "resume parity still missing survey context", CreatedAt: "2026-04-15T10:20:00Z"},
+		},
+	}); err != nil {
+		t.Fatalf("failed to seed flags: %v", err)
+	}
+
+	surveyedAt := "2026-04-15T10:05:00Z"
+	var seededState colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &seededState); err != nil {
+		t.Fatalf("failed to load seeded state: %v", err)
+	}
+	seededState.TerritorySurveyed = &surveyedAt
+	if err := store.SaveJSON("COLONY_STATE.json", seededState); err != nil {
+		t.Fatalf("failed to resave seeded state: %v", err)
+	}
+	surveyDir := filepath.Join(dataDir, "survey")
+	if err := os.MkdirAll(surveyDir, 0755); err != nil {
+		t.Fatalf("failed to create survey dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(surveyDir, "blueprint.json"), []byte(`{"name":"ux"}`), 0644); err != nil {
+		t.Fatalf("failed to seed survey file: %v", err)
+	}
+
 	checkVisual := func(args []string, wants ...string) {
 		stdout = &bytes.Buffer{}
 		rootCmd.SetArgs(args)
@@ -407,7 +433,7 @@ func TestPauseResumePatrolPhaseAndHistoryVisualOutput(t *testing.T) {
 	}
 
 	checkVisual([]string{"pause-colony"}, "💾", "P A U S E   C O L O N Y", "HANDOFF.md", "aether resume")
-	checkVisual([]string{"resume-colony"}, "💾", "R E S U M E   C O L O N Y", "Session UX", "aether continue")
+	checkVisual([]string{"resume-colony"}, "💾", "R E S U M E   C O L O N Y", "Session UX", "Active Signals", "Blockers", "Survey Context", "Source:", "aether continue")
 	checkVisual([]string{"patrol"}, "📊", "P A T R O L", "Signals: 1 active")
 	checkVisual([]string{"phase"}, "🧱", "Session UX", "Write resume-colony")
 	checkVisual([]string{"history"}, "📜", "Colony initialized", "Worker wave launched")

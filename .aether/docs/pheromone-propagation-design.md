@@ -607,6 +607,8 @@ File: `.aether/data/pheromone-merge-log.json` (gitignored, appended on main)
 
 ## 8. Integration Points
 
+> Status note: this section is still design intent, not current default runtime behavior. `pheromone-snapshot-inject` and `pheromone-merge-back` remain deferred placeholders, and the main Codex build/continue/run loop does not invoke them automatically today.
+
 ### 8.1 New Subcommands
 
 | Subcommand | Purpose | When |

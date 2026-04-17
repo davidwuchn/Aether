@@ -1,3 +1,5 @@
+> Runtime note: the current Go `aether build` path dispatches workers from the active repository root. The worktree allocation steps in this playbook are design-level guidance and are not wired into the default Codex build path unless the runtime explicitly calls the worktree commands.
+
 ### Step 4.5: Checkpoint State
 
 Before modifying colony state during the build, create a rolling backup:

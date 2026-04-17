@@ -21,14 +21,6 @@ type runCompatibilityOptions struct {
 	Verbose               bool
 }
 
-type oracleStateFile struct {
-	Status    string `json:"status"`
-	Topic     string `json:"topic,omitempty"`
-	Platform  string `json:"platform,omitempty"`
-	StartedAt string `json:"started_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
-}
-
 var watchCmd = &cobra.Command{
 	Use:   "watch",
 	Short: "Compatibility alias for live worker activity",
@@ -49,7 +41,7 @@ var watchCmd = &cobra.Command{
 
 var oracleCmd = &cobra.Command{
 	Use:   "oracle [topic|status|stop]",
-	Short: "Compatibility entrypoint for oracle research workspace management",
+	Short: "Run the autonomous Oracle RALF research loop",
 	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if store == nil {
@@ -127,245 +119,6 @@ func writeWatchArtifacts(result map[string]interface{}, visual string) error {
 		return err
 	}
 	return store.AtomicWrite("watch-progress.txt", []byte(visual))
-}
-
-func runOracleCompatibility(root string, args []string) (map[string]interface{}, error) {
-	mode := "status"
-	if len(args) > 0 {
-		mode = strings.ToLower(strings.TrimSpace(args[0]))
-	}
-
-	switch mode {
-	case "", "status":
-		return oracleStatusResult(root)
-	case "stop":
-		return stopOracleCompatibility(root)
-	default:
-		return startOracleCompatibility(root, strings.TrimSpace(strings.Join(args, " ")))
-	}
-}
-
-func oracleStatusResult(root string) (map[string]interface{}, error) {
-	oracleDir := filepath.Join(root, ".aether", "oracle")
-	statePath := filepath.Join(oracleDir, "state.json")
-	planPath := filepath.Join(oracleDir, "plan.json")
-	synthesisPath := filepath.Join(oracleDir, "synthesis.md")
-	researchPlanPath := filepath.Join(oracleDir, "research-plan.md")
-
-	state := oracleStateFile{}
-	if data, err := os.ReadFile(statePath); err == nil {
-		_ = json.Unmarshal(data, &state)
-	}
-
-	active := strings.EqualFold(state.Status, "active") || strings.EqualFold(state.Status, "planned")
-	next := "aether oracle \"research topic\""
-	if active {
-		next = "aether oracle stop"
-	} else if fileExists(researchPlanPath) {
-		next = "aether oracle status"
-	}
-
-	return map[string]interface{}{
-		"mode":              "status",
-		"active":            active,
-		"status":            emptyFallback(strings.TrimSpace(state.Status), "idle"),
-		"topic":             strings.TrimSpace(state.Topic),
-		"platform":          emptyFallback(strings.TrimSpace(state.Platform), "codex"),
-		"state_path":        statePath,
-		"plan_path":         planPath,
-		"synthesis_path":    synthesisPath,
-		"research_plan":     researchPlanPath,
-		"has_state":         fileExists(statePath),
-		"has_plan":          fileExists(planPath),
-		"has_synthesis":     fileExists(synthesisPath),
-		"has_research_plan": fileExists(researchPlanPath),
-		"next":              next,
-	}, nil
-}
-
-func stopOracleCompatibility(root string) (map[string]interface{}, error) {
-	oracleDir := filepath.Join(root, ".aether", "oracle")
-	if err := os.MkdirAll(oracleDir, 0755); err != nil {
-		return nil, fmt.Errorf("create oracle dir: %w", err)
-	}
-	stopPath := filepath.Join(oracleDir, ".stop")
-	if err := os.WriteFile(stopPath, []byte(time.Now().UTC().Format(time.RFC3339)+"\n"), 0644); err != nil {
-		return nil, fmt.Errorf("write stop marker: %w", err)
-	}
-	_ = os.Remove(filepath.Join(oracleDir, ".loop-active"))
-
-	statePath := filepath.Join(oracleDir, "state.json")
-	state := oracleStateFile{
-		Status:    "stopped",
-		Platform:  "codex",
-		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-	}
-	if data, err := os.ReadFile(statePath); err == nil {
-		_ = json.Unmarshal(data, &state)
-		state.Status = "stopped"
-		state.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-	}
-	if encoded, err := json.MarshalIndent(state, "", "  "); err == nil {
-		_ = os.WriteFile(statePath, append(encoded, '\n'), 0644)
-	}
-
-	return map[string]interface{}{
-		"mode":       "stop",
-		"stopped":    true,
-		"status":     "stopped",
-		"state_path": statePath,
-		"stop_path":  stopPath,
-		"next":       "aether oracle status",
-	}, nil
-}
-
-func startOracleCompatibility(root, topic string) (map[string]interface{}, error) {
-	if topic == "" {
-		return oracleStatusResult(root)
-	}
-
-	oracleDir := filepath.Join(root, ".aether", "oracle")
-	if err := os.MkdirAll(filepath.Join(oracleDir, "archive"), 0755); err != nil {
-		return nil, fmt.Errorf("create oracle archive dir: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Join(oracleDir, "discoveries"), 0755); err != nil {
-		return nil, fmt.Errorf("create oracle discoveries dir: %w", err)
-	}
-
-	detectedType, languages, frameworks := detectOracleProjectProfile(root)
-	now := time.Now().UTC().Format(time.RFC3339)
-	state := oracleStateFile{
-		Status:    "planned",
-		Topic:     topic,
-		Platform:  "codex",
-		StartedAt: now,
-		UpdatedAt: now,
-	}
-	statePath := filepath.Join(oracleDir, "state.json")
-	if encoded, err := json.MarshalIndent(state, "", "  "); err != nil {
-		return nil, fmt.Errorf("marshal oracle state: %w", err)
-	} else if err := os.WriteFile(statePath, append(encoded, '\n'), 0644); err != nil {
-		return nil, fmt.Errorf("write oracle state: %w", err)
-	}
-
-	plan := map[string]interface{}{
-		"topic":      topic,
-		"detected":   detectedType,
-		"languages":  languages,
-		"frameworks": frameworks,
-		"created_at": now,
-		"questions": []string{
-			"What is the actual failure mode or risk behind this topic?",
-			"Which files, systems, or commands matter most for this investigation?",
-			"What evidence would be strong enough to turn findings into a release decision?",
-		},
-	}
-	planPath := filepath.Join(oracleDir, "plan.json")
-	if encoded, err := json.MarshalIndent(plan, "", "  "); err != nil {
-		return nil, fmt.Errorf("marshal oracle plan: %w", err)
-	} else if err := os.WriteFile(planPath, append(encoded, '\n'), 0644); err != nil {
-		return nil, fmt.Errorf("write oracle plan: %w", err)
-	}
-
-	researchPlanPath := filepath.Join(oracleDir, "research-plan.md")
-	researchPlan := strings.TrimSpace(fmt.Sprintf(`# Oracle Research Plan
-
-Topic: %s
-
-Detected Type: %s
-Languages: %s
-Frameworks: %s
-
-Next moves:
-- Gather primary evidence from the affected files and commands.
-- Record gaps in gaps.md as unknowns are discovered.
-- Write findings and release recommendations in synthesis.md.
-`, topic, emptyFallback(detectedType, "unknown"), renderCSV(languages, "unknown"), renderCSV(frameworks, "none detected"))) + "\n"
-	if err := os.WriteFile(researchPlanPath, []byte(researchPlan), 0644); err != nil {
-		return nil, fmt.Errorf("write research plan: %w", err)
-	}
-
-	gapsPath := filepath.Join(oracleDir, "gaps.md")
-	gaps := strings.TrimSpace(fmt.Sprintf(`# Oracle Gaps
-
-- Unknown root cause for: %s
-- Unknown strongest evidence path
-- Unknown release impact boundary
-`, topic)) + "\n"
-	if err := os.WriteFile(gapsPath, []byte(gaps), 0644); err != nil {
-		return nil, fmt.Errorf("write oracle gaps: %w", err)
-	}
-
-	synthesisPath := filepath.Join(oracleDir, "synthesis.md")
-	synthesis := strings.TrimSpace(fmt.Sprintf(`# Oracle Synthesis
-
-Status: planned
-Topic: %s
-
-Findings will accumulate here as the investigation progresses.
-`, topic)) + "\n"
-	if err := os.WriteFile(synthesisPath, []byte(synthesis), 0644); err != nil {
-		return nil, fmt.Errorf("write oracle synthesis: %w", err)
-	}
-
-	return map[string]interface{}{
-		"mode":           "start",
-		"started":        true,
-		"status":         "planned",
-		"topic":          topic,
-		"detected_type":  detectedType,
-		"languages":      languages,
-		"frameworks":     frameworks,
-		"state_path":     statePath,
-		"plan_path":      planPath,
-		"gaps_path":      gapsPath,
-		"synthesis_path": synthesisPath,
-		"research_plan":  researchPlanPath,
-		"next":           "aether oracle status",
-	}, nil
-}
-
-func detectOracleProjectProfile(root string) (string, []string, []string) {
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return "unknown", nil, nil
-	}
-
-	entryNames := make(map[string]bool, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		entryNames[entry.Name()] = true
-	}
-
-	detected := "unknown"
-	seenLanguages := map[string]bool{}
-	seenFrameworks := map[string]bool{}
-	languages := []string{}
-	frameworks := []string{}
-
-	for _, det := range projectDetectors {
-		if !entryNames[det.file] {
-			continue
-		}
-		if detected == "unknown" {
-			detected = det.typ
-		}
-		if !seenLanguages[det.typ] {
-			seenLanguages[det.typ] = true
-			languages = append(languages, det.typ)
-		}
-		for _, framework := range det.frameworks {
-			if seenFrameworks[framework] {
-				continue
-			}
-			seenFrameworks[framework] = true
-			frameworks = append(frameworks, framework)
-		}
-	}
-
-	return detected, languages, frameworks
 }
 
 func runCompatibilityAutopilot(root string, opts runCompatibilityOptions) (map[string]interface{}, error) {
@@ -723,12 +476,72 @@ func renderOracleCompatibilityVisual(result map[string]interface{}) string {
 	b.WriteString("\n")
 	if topic := strings.TrimSpace(stringValue(result["topic"])); topic != "" {
 		b.WriteString("Topic: ")
-		b.WriteString(topic)
+		b.WriteString(oracleTopicHeadline(topic))
 		b.WriteString("\n")
 	}
 	b.WriteString("Status: ")
 	b.WriteString(emptyFallback(stringValue(result["status"]), "idle"))
 	b.WriteString("\n")
+	if phase := strings.TrimSpace(stringValue(result["phase"])); phase != "" {
+		b.WriteString("Phase: ")
+		b.WriteString(phase)
+		b.WriteString("\n")
+	}
+	if iteration := intValue(result["iteration"]); iteration > 0 {
+		b.WriteString(fmt.Sprintf("Iteration: %d", iteration))
+		if maxIterations := intValue(result["max_iterations"]); maxIterations > 0 {
+			b.WriteString(fmt.Sprintf(" of %d", maxIterations))
+		}
+		b.WriteString("\n")
+	}
+	if attempt := intValue(result["active_attempt"]); attempt > 0 {
+		b.WriteString(fmt.Sprintf("Attempt: %d\n", attempt))
+	}
+	if reasoning := strings.TrimSpace(stringValue(result["active_reasoning"])); reasoning != "" {
+		b.WriteString("Reasoning: ")
+		b.WriteString(reasoning)
+		b.WriteString("\n")
+	}
+	if timeoutSec := intValue(result["active_timeout_sec"]); timeoutSec > 0 {
+		b.WriteString(fmt.Sprintf("Watchdog: %ds\n", timeoutSec))
+		if elapsedSec := intValue(result["active_elapsed_sec"]); elapsedSec > 0 {
+			b.WriteString(fmt.Sprintf("Elapsed: %ds\n", elapsedSec))
+		}
+	}
+	if confidence := intValue(result["overall_confidence"]); confidence > 0 {
+		b.WriteString(fmt.Sprintf("Confidence: %d%%", confidence))
+		if target := intValue(result["target_confidence"]); target > 0 {
+			b.WriteString(fmt.Sprintf(" / %d%%", target))
+		}
+		b.WriteString("\n")
+	}
+	if questionCount := intValue(result["question_count"]); questionCount > 0 {
+		b.WriteString(fmt.Sprintf("Questions: %d", questionCount))
+		if answered := intValue(result["answered_count"]); answered >= 0 {
+			b.WriteString(fmt.Sprintf(" (%d answered)", answered))
+		}
+		b.WriteString("\n")
+	}
+	if activeQuestion := strings.TrimSpace(stringValue(result["active_question"])); activeQuestion != "" {
+		b.WriteString("Target: ")
+		b.WriteString(activeQuestion)
+		b.WriteString("\n")
+	}
+	if stopReason := strings.TrimSpace(stringValue(result["stop_reason"])); stopReason != "" {
+		b.WriteString("Stop Reason: ")
+		b.WriteString(stopReason)
+		b.WriteString("\n")
+	}
+	if summary := strings.TrimSpace(stringValue(result["summary"])); summary != "" {
+		b.WriteString("Summary: ")
+		b.WriteString(summary)
+		b.WriteString("\n")
+	}
+	if artifact := strings.TrimSpace(stringValue(result["last_artifact_path"])); artifact != "" {
+		b.WriteString("Last Artifact: ")
+		b.WriteString(artifact)
+		b.WriteString("\n")
+	}
 	if path := strings.TrimSpace(stringValue(result["research_plan"])); path != "" {
 		b.WriteString("Research Plan: ")
 		b.WriteString(path)

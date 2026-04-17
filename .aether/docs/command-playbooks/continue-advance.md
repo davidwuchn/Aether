@@ -1,3 +1,5 @@
+> Runtime note: the current Go `aether continue` path verifies and advances state directly. Worktree merge-back and pheromone merge-back remain explicit/deferred flows, not default Codex runtime steps.
+
 ### Step 2.0.7: Generate Review Context (pr-context)
 
 After verification passes, generate structured colony context for the review and learning steps that follow.

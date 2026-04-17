@@ -47,7 +47,7 @@ This only applies to genuinely new conversations, not after /clear.
 | `/ant:flags` | List active flags |
 | `/ant:flag "<title>"` | Create a flag |
 | `/ant:history` | Browse colony events |
-| `/ant:watch` | Live tmux monitoring |
+| `/ant:watch` | Colony watch dashboard / compatibility view |
 | `/ant:memory-details` | Drill-down memory view |
 | `/ant:patrol` | System health check |
 | `/ant:help` | List available commands |
@@ -56,7 +56,7 @@ This only applies to genuinely new conversations, not after /clear.
 | Command | Purpose |
 |---------|---------|
 | `/ant:pause-colony` | Save state and create handoff |
-| `/ant:resume-colony` | Restore from pause |
+| `/ant:resume-colony` | Restore from pause with the full recovery view |
 | `/ant:resume` | Quick session restore |
 
 ### Lifecycle
@@ -87,21 +87,6 @@ This only applies to genuinely new conversations, not after /clear.
 | `/ant:tunnels` | View colony communication tunnels |
 | `/ant:data-clean` | Clean test artifacts from data files |
 | `/ant:verify-castes` | Verify worker caste assignments |
-| `/ant:bump-version` | Bump version, rebuild, push, and tag |
-
-## Cross-Platform Support
-
-Aether works across three AI coding platforms:
-
-| Platform | Commands | Agents | Format |
-|----------|----------|--------|--------|
-| Claude Code | 46 slash commands (`/ant:*`) | 24 agents (`.md`) | `.claude/commands/ant/`, `.claude/agents/ant/` |
-| OpenCode | 46 slash commands (`/ant:*`) | 24 agents (`.md`) | `.opencode/commands/ant/`, `.opencode/agents/` |
-| Codex CLI | `aether` CLI commands | 24 agents (`.toml`) | `.codex/CODEX.md`, `.codex/agents/` |
-
-All platforms share the same 9 worker castes and 24 agent roles. Commands in Codex use
-the `aether` CLI directly (e.g., `aether pheromone-write`, `aether state-mutate`) rather
-than slash commands.
 
 ## Typical Workflow
 
@@ -120,13 +105,14 @@ Starting a colony:
    /ant:run                                (or use autopilot for all phases)
 
 After /clear or session break:
-8. /ant:resume-colony                      (restore full context)
-9. /ant:status                             (see where you left off)
+8. /ant:resume                             (quick restore)
+9. /ant:resume-colony                      (full recovery view if needed)
+10. /ant:status                            (see where you left off)
 
 After completing a colony:
-10. /ant:seal                              (mark as complete)
-11. /ant:entomb                            (archive to chambers)
-12. /ant:init "next project goal"          (start fresh colony)
+11. /ant:seal                              (mark as complete)
+12. /ant:entomb                            (archive to chambers)
+13. /ant:init "next project goal"          (start fresh colony)
 ```
 
 ## Worker Castes
@@ -145,8 +131,6 @@ Workers are assigned to castes based on task type:
 | route_setter | Phase planning |
 | archaeologist | Git history analysis |
 
-The same 24 agent definitions are available across all platforms (Claude Code, OpenCode, Codex).
-
 ## Protected Paths
 
 **Never modify these programmatically:**
@@ -163,28 +147,9 @@ The same 24 agent definitions are available across all platforms (Claude Code, O
 State is stored in `.aether/data/COLONY_STATE.json` and includes:
 - Colony goal and current phase
 - Task breakdown and completion status
-- Parallel mode (`parallel_mode`: "in-repo" or "worktree")
 - Instincts (learned patterns with confidence scores)
 - Pheromone signals (FOCUS/REDIRECT/FEEDBACK)
 - Event history
-
-## Parallel Mode
-
-Parallel mode controls how workers are isolated during builds with multiple tasks:
-
-| Mode | Behavior |
-|------|----------|
-| `in-repo` | All workers share the same repository directory (default) |
-| `worktree` | Each worker gets its own git worktree for isolated file changes |
-
-**Setting the mode:**
-- During `/ant:init` — you are prompted to choose a parallel strategy
-- After init — run `aether parallel-mode set <mode>` to change it
-
-**Checking the mode:**
-- `/ant:status` — colony dashboard shows the current parallel mode
-- `/ant:resume` — session restore displays the parallel mode
-- `aether parallel-mode get` — returns the current mode directly
 
 ## Pheromone System
 
@@ -194,5 +159,3 @@ Signals guide colony behavior without hard-coding instructions:
 - **FEEDBACK** — calibrates behavior based on observation (low priority)
 
 Use FOCUS + REDIRECT before builds to steer. Use FEEDBACK after builds to adjust.
-
-In Codex CLI, use `aether pheromone-write --type FOCUS --content "..."` instead of `/ant:focus`.

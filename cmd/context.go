@@ -50,8 +50,10 @@ var resumeDashboardCmd = &cobra.Command{
 func buildResumeDashboardResult() map[string]interface{} {
 	var session colony.SessionFile
 	sessionFound := store.LoadJSON("session.json", &session) == nil
+	restoredLegacySession := false
 	if !sessionFound {
 		if restored, err := ensureLegacySessionMirror(store); err == nil && restored {
+			restoredLegacySession = true
 			sessionFound = store.LoadJSON("session.json", &session) == nil
 		}
 	}
@@ -59,6 +61,7 @@ func buildResumeDashboardResult() map[string]interface{} {
 	if _, err := os.Stat(handoffDocumentPath()); err == nil {
 		handoffExists = true
 	}
+	recoverySource := resumeRecoverySourceLabel(handoffExists, sessionFound, restoredLegacySession)
 
 	// Load COLONY_STATE.json. If missing, return defaults.
 	var state colony.ColonyState
@@ -86,6 +89,15 @@ func buildResumeDashboardResult() map[string]interface{} {
 				"command":   "aether memory-details",
 				"available": true,
 			},
+			"signals": map[string]interface{}{
+				"items": []string{},
+				"count": 0,
+			},
+			"blockers": []string{},
+			"survey": map[string]interface{}{
+				"available": false,
+				"files":     []string{},
+			},
 		}
 		if sessionFound {
 			result["session"] = map[string]interface{}{
@@ -100,6 +112,7 @@ func buildResumeDashboardResult() map[string]interface{} {
 			"context_path":   contextDocumentPath(),
 			"handoff_path":   handoffDocumentPath(),
 			"handoff_exists": handoffExists,
+			"source":         recoverySource,
 		}
 		return result
 	}
@@ -167,6 +180,10 @@ func buildResumeDashboardResult() map[string]interface{} {
 		}
 	}
 
+	signals := extractSignalTexts(8)
+	blockers := extractBlockerTexts()
+	survey := buildResumeSurveySummary(state)
+
 	result := map[string]interface{}{
 		"current": map[string]interface{}{
 			"phase":         currentPhase,
@@ -190,10 +207,17 @@ func buildResumeDashboardResult() map[string]interface{} {
 			"command":   "aether memory-details",
 			"available": true,
 		},
+		"signals": map[string]interface{}{
+			"items": signals,
+			"count": len(signals),
+		},
+		"blockers": blockers,
+		"survey":   survey,
 		"recovery": map[string]interface{}{
 			"context_path":   contextDocumentPath(),
 			"handoff_path":   handoffDocumentPath(),
 			"handoff_exists": handoffExists,
+			"source":         recoverySource,
 		},
 	}
 
@@ -225,6 +249,43 @@ func buildResumeDashboardResult() map[string]interface{} {
 		}
 	}
 	return result
+}
+
+func resumeRecoverySourceLabel(handoffExists, sessionFound, restoredLegacySession bool) string {
+	switch {
+	case handoffExists:
+		return "HANDOFF.md"
+	case restoredLegacySession:
+		return "legacy session mirror"
+	case sessionFound:
+		return "session.json + COLONY_STATE.json"
+	default:
+		return "COLONY_STATE.json"
+	}
+}
+
+func buildResumeSurveySummary(state colony.ColonyState) map[string]interface{} {
+	surveyDir := filepath.Join(store.BasePath(), "survey")
+	files := []string{}
+	if entries, err := os.ReadDir(surveyDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			files = append(files, entry.Name())
+		}
+		sort.Strings(files)
+	}
+
+	summary := map[string]interface{}{
+		"available": len(files) > 0,
+		"path":      surveyDir,
+		"files":     files,
+	}
+	if state.TerritorySurveyed != nil && strings.TrimSpace(*state.TerritorySurveyed) != "" {
+		summary["territory_surveyed"] = strings.TrimSpace(*state.TerritorySurveyed)
+	}
+	return summary
 }
 
 // contextCapsuleCmd assembles worker context for prompt injection (CMD-16).

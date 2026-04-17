@@ -22,6 +22,32 @@ jobs:
         with:
           go-version: '1.26'
 
+      - name: Install goreleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          install-only: true
+
+      - name: Validate goreleaser config
+        run: goreleaser check
+
+      - name: Build
+        run: go build ./cmd/aether
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Run Go tests
+        run: go test ./... -count=1 -timeout 300s
+
+      - name: Run Go tests with race detection
+        run: go test ./... -race -count=1 -timeout 600s
+
+      - name: Build GoReleaser snapshot
+        run: goreleaser build --snapshot --clean
+
+      - name: Binary smoke test
+        run: ./dist/Aether_linux_amd64_v1/Aether version
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

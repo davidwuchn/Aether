@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-04-17
+
+Codex orchestration hardening, autonomous Oracle execution, and parity-doc cleanup.
+
+### Added
+- Autonomous Oracle RALF loop execution through `aether oracle`, including watchdogs, heartbeat state, controller-led response merging, and stop/process-tree cleanup
+- Regression coverage for platform doc hygiene across the main Claude/OpenCode lifecycle surfaces and all OpenCode agent docs
+
+### Changed
+- Codex workflow docs, Claude command wrappers, and OpenCode command wrappers now consistently treat the Go `aether` CLI as the runtime source of truth
+- OpenCode agent guidance now reports progress and blockers through structured returns instead of legacy `.aether/aether-utils.sh` helper calls
+- Release CI now enforces stronger validation for the Codex-oriented runtime path and packaging flow
+
+### Fixed
+- `aether oracle` no longer behaves like a workspace stub; it launches and manages a real iterative research loop
+- Oracle runs no longer get stuck rereading their own workspace without producing findings; controller-led question packets now drive progress and persist concrete blocker reasons
+- Remaining Claude/OpenCode lifecycle docs no longer teach direct colony-state mutation, stale shell-session behavior, or outdated council/update flows
+- Codex parity guidance now aligns more closely with the actual worker-dispatch behavior for `colonize`, `plan`, `build`, `run`, `continue`, `seal`, `entomb`, and `update`
+
 ## [1.0.8] - 2026-04-17
 
 Legacy colony-state compatibility and clearer update guidance.

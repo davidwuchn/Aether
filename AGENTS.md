@@ -1,6 +1,6 @@
 # AGENTS.md -- Aether Development Guide (Codex CLI)
 
-> **Current Version:** v1.0.8
+> **Current Version:** v1.0.9
 > **Last Updated:** 2026-04-17
 > **Platform:** Codex CLI (OpenAI)
 
@@ -14,7 +14,7 @@ OpenCode, and Codex CLI.
 
 | What | Count/Status |
 |------|--------------|
-| Version | v1.0.8 |
+| Version | v1.0.9 |
 | Agent definitions | 24 (TOML in `.codex/agents/`) |
 | Skills | 28 (10 colony + 18 domain) |
 | Go binary | `aether` CLI (Go binary in cmd/) |
@@ -141,7 +141,7 @@ aether oracle "release concern"
 
 Codex also exposes compatibility entrypoints for the flows users reach for most:
 `aether run` for autopilot-style build/continue looping, `aether watch` for live
-worker visibility, and `aether oracle` for research workspace management.
+worker visibility, and `aether oracle` for the autonomous Oracle RALF research loop.
 
 ### Publishing Changes
 
@@ -178,7 +178,7 @@ Since Codex CLI has no slash commands, all colony operations use the `aether` CL
 | `aether continue` | Verify work, extract learnings, advance |
 | `aether run` | Autopilot the remaining build/continue loop |
 | `aether swarm [problem]` | Route to the right explicit workflow step or watch active workers |
-| `aether oracle [topic]` | Bootstrap or inspect the oracle research workspace |
+| `aether oracle [topic]` | Run or inspect the autonomous Oracle RALF research loop |
 
 ### Pheromone Signals
 
@@ -716,4 +716,4 @@ data files clean, and test coverage comprehensive as features evolve.
 
 ---
 
-*Updated for Aether v1.0.8 -- 2026-04-17*
+*Updated for Aether v1.0.9 -- 2026-04-17*

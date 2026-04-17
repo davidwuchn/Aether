@@ -2,13 +2,20 @@ package cmd
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/codex"
 	"github.com/calcosmic/Aether/pkg/colony"
 )
 
@@ -322,7 +329,7 @@ func TestWatchCompatibilityWritesArtifacts(t *testing.T) {
 	}
 }
 
-func TestOracleCompatibilityCreatesAndStopsWorkspace(t *testing.T) {
+func TestOracleCompatibilityRunsAutonomousLoop(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)
 
@@ -333,6 +340,17 @@ func TestOracleCompatibilityCreatesAndStopsWorkspace(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-test\n\ngo 1.24\n"), 0644); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	originalInvoker := newOracleWorkerInvoker
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return &oracleCompletingInvoker{} }
+	defer func() { newOracleWorkerInvoker = originalInvoker }()
 
 	rootCmd.SetArgs([]string{"oracle", "release parity"})
 	if err := rootCmd.Execute(); err != nil {
@@ -344,8 +362,26 @@ func TestOracleCompatibilityCreatesAndStopsWorkspace(t *testing.T) {
 	if startResult["started"] != true {
 		t.Fatalf("expected started:true, got %v", startResult)
 	}
+	if startResult["status"] != "complete" {
+		t.Fatalf("status = %v, want complete", startResult["status"])
+	}
+	if startResult["autonomous"] != true {
+		t.Fatalf("expected autonomous:true, got %v", startResult["autonomous"])
+	}
 	if startResult["detected_type"] != "go" {
 		t.Fatalf("detected_type = %v, want go", startResult["detected_type"])
+	}
+	if startResult["answered_count"] != startResult["question_count"] {
+		t.Fatalf("answered_count = %v, question_count = %v", startResult["answered_count"], startResult["question_count"])
+	}
+	if _, err := os.Stat(filepath.Join(root, ".aether", "oracle", ".loop-active")); !os.IsNotExist(err) {
+		t.Fatalf("expected loop marker to be removed after completion, got err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".aether", "oracle", "responses")); err != nil {
+		t.Fatalf("expected oracle responses dir to exist, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".aether", "oracle", "discoveries")); err != nil {
+		t.Fatalf("expected oracle discoveries dir to exist, got %v", err)
 	}
 
 	stdout.(*bytes.Buffer).Reset()
@@ -359,6 +395,18 @@ func TestOracleCompatibilityCreatesAndStopsWorkspace(t *testing.T) {
 	if statusResult["has_state"] != true || statusResult["has_plan"] != true {
 		t.Fatalf("expected oracle workspace files to exist, got %v", statusResult)
 	}
+	if statusResult["status"] != "complete" {
+		t.Fatalf("status = %v, want complete", statusResult["status"])
+	}
+}
+
+func TestOracleCompatibilityStopCommandWritesMarker(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
 
 	stdout.(*bytes.Buffer).Reset()
 	rootCmd.SetArgs([]string{"oracle", "stop"})
@@ -374,6 +422,673 @@ func TestOracleCompatibilityCreatesAndStopsWorkspace(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".aether", "oracle", ".stop")); err != nil {
 		t.Fatalf("expected .stop marker, got %v", err)
 	}
+}
+
+func TestOracleCompatibilityStopKillsControllerProcessTree(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process-tree termination test is Unix-only")
+	}
+
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	oracleDir := filepath.Join(root, ".aether", "oracle")
+	if err := os.MkdirAll(oracleDir, 0755); err != nil {
+		t.Fatalf("mkdir oracle dir: %v", err)
+	}
+
+	cmd := exec.Command("sh", "-c", "sleep 30 & wait")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start oracle controller fixture: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_, _ = cmd.Process.Wait()
+	})
+
+	var tree []int
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var err error
+		tree, err = oracleProcessTree(cmd.Process.Pid)
+		if err == nil && len(tree) >= 2 {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if len(tree) < 2 {
+		t.Fatalf("expected parent+child process tree, got %v", tree)
+	}
+
+	state := oracleStateFile{
+		Version:       "1.1",
+		Topic:         "stop test",
+		Status:        "active",
+		Phase:         "survey",
+		Iteration:     1,
+		MaxIterations: 8,
+		Platform:      "codex",
+		ControllerPID: cmd.Process.Pid,
+	}
+	if err := writeOracleStateFile(filepath.Join(oracleDir, "state.json"), state); err != nil {
+		t.Fatalf("write oracle state: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(oracleDir, ".loop-active"), []byte("active\n"), 0644); err != nil {
+		t.Fatalf("write loop marker: %v", err)
+	}
+
+	result, err := runOracleCompatibility(root, []string{"stop"})
+	if err != nil {
+		t.Fatalf("oracle stop returned error: %v", err)
+	}
+	if result["stopped"] != true {
+		t.Fatalf("expected stopped:true, got %v", result)
+	}
+
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		alive := false
+		for _, pid := range tree {
+			if oracleProcessExists(pid) {
+				alive = true
+				break
+			}
+		}
+		if !alive {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	t.Fatalf("expected oracle stop to kill process tree, still alive: %v", tree)
+}
+
+func TestOracleCompatibilityStopsAtIterationBoundary(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-stop-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	originalInvoker := newOracleWorkerInvoker
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return &oracleStopSignalInvoker{} }
+	defer func() { newOracleWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"oracle", "manual stop test"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("oracle start returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if result["status"] != "stopped" {
+		t.Fatalf("status = %v, want stopped", result["status"])
+	}
+	if result["stop_reason"] != "manual_stop" {
+		t.Fatalf("stop_reason = %v, want manual_stop", result["stop_reason"])
+	}
+}
+
+func TestOracleCompatibilityPersistsWorkerErrorReason(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-error-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	originalInvoker := newOracleWorkerInvoker
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return &oracleErrorInvoker{} }
+	defer func() { newOracleWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"oracle", "worker error test"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("oracle start returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if result["status"] != "blocked" {
+		t.Fatalf("status = %v, want blocked", result["status"])
+	}
+	if result["stop_reason"] != "worker_error" {
+		t.Fatalf("stop_reason = %v, want worker_error", result["stop_reason"])
+	}
+	summary := result["summary"].(string)
+	if !strings.Contains(summary, "invalid JSON") {
+		t.Fatalf("summary = %q, want invalid JSON reason", summary)
+	}
+	if !strings.Contains(summary, ".aether/oracle/discoveries/iteration-01.json") {
+		t.Fatalf("summary missing discovery artifact path: %q", summary)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".aether", "oracle", "discoveries", "iteration-01.json")); err != nil {
+		t.Fatalf("expected discovery artifact, got %v", err)
+	}
+}
+
+func TestOracleCompatibilityRetriesRecoverableWorkerFailure(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-retry-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	retrying := &oracleRetryInvoker{}
+	originalInvoker := newOracleWorkerInvoker
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return retrying }
+	defer func() { newOracleWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"oracle", "retryable oracle topic"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("oracle start returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if result["status"] != "complete" {
+		t.Fatalf("status = %v, want complete", result["status"])
+	}
+	if retrying.calls < 2 {
+		t.Fatalf("calls = %d, want at least 2", retrying.calls)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, ".aether", "oracle", "discoveries", "iteration-01.json"))
+	if err != nil {
+		t.Fatalf("read discovery artifact: %v", err)
+	}
+	if !strings.Contains(string(data), "\"attempt\": 2") {
+		t.Fatalf("expected canonical artifact to record the successful retry attempt, got:\n%s", string(data))
+	}
+}
+
+func TestOracleCompatibilityAppliesSurveyAttemptPolicy(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-policy-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	capturing := &oracleCapturingInvoker{}
+	originalInvoker := newOracleWorkerInvoker
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return capturing }
+	defer func() { newOracleWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"oracle", "release parity"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("oracle start returned error: %v", err)
+	}
+	if len(capturing.configs) == 0 {
+		t.Fatal("expected at least one oracle worker invocation")
+	}
+
+	first := capturing.configs[0]
+	if first.Timeout != 3*time.Minute {
+		t.Fatalf("survey timeout = %v, want 3m", first.Timeout)
+	}
+	if !containsString(first.ConfigOverrides, `model_reasoning_effort="low"`) {
+		t.Fatalf("config overrides = %v, want survey low reasoning override", first.ConfigOverrides)
+	}
+	if first.ResponsePath == "" {
+		t.Fatal("expected controller-managed oracle response path to be set")
+	}
+	if strings.Contains(first.TaskBrief, "Read .aether/utils/oracle/oracle.md") || strings.Contains(first.TaskBrief, "Update the complete .aether/oracle/state.json") {
+		t.Fatalf("oracle task brief still tells workers to rewrite workspace files:\n%s", first.TaskBrief)
+	}
+	if !strings.Contains(first.TaskBrief, "Response File:") {
+		t.Fatalf("oracle task brief missing response file contract:\n%s", first.TaskBrief)
+	}
+}
+
+func TestOracleCompatibilityWritesHeartbeatWhileRunning(t *testing.T) {
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-heartbeat-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	originalInvoker := newOracleWorkerInvoker
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return &oracleSlowCompletingInvoker{delay: 80 * time.Millisecond} }
+	defer func() { newOracleWorkerInvoker = originalInvoker }()
+
+	originalPolicy := oracleAttemptPolicyForPhase
+	oracleAttemptPolicyForPhase = func(phase string, attempt int) oracleAttemptPolicy {
+		return oracleAttemptPolicy{
+			ReasoningEffort: "low",
+			Timeout:         250 * time.Millisecond,
+			Heartbeat:       10 * time.Millisecond,
+		}
+	}
+	defer func() { oracleAttemptPolicyForPhase = originalPolicy }()
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := runOracleCompatibility(root, []string{"heartbeat test"})
+		done <- err
+	}()
+
+	statePath := filepath.Join(root, ".aether", "oracle", "state.json")
+	deadline := time.Now().Add(300 * time.Millisecond)
+	heartbeatSeen := false
+	for time.Now().Before(deadline) {
+		var state oracleStateFile
+		data, err := os.ReadFile(statePath)
+		if err == nil && json.Unmarshal(data, &state) == nil {
+			if strings.Contains(state.Summary, "elapsed") {
+				heartbeatSeen = true
+				break
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if err := <-done; err != nil {
+		t.Fatalf("runOracleCompatibility returned error: %v", err)
+	}
+	if !heartbeatSeen {
+		t.Fatal("expected oracle heartbeat update while worker was still running")
+	}
+}
+
+func TestOracleCompatibilityShortCircuitsOnValidResponseFile(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-response-shortcut-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	responseFirst := &oracleResponseFirstInvoker{}
+	originalInvoker := newOracleWorkerInvoker
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return responseFirst }
+	defer func() { newOracleWorkerInvoker = originalInvoker }()
+
+	originalPolicy := oracleAttemptPolicyForPhase
+	oracleAttemptPolicyForPhase = func(phase string, attempt int) oracleAttemptPolicy {
+		return oracleAttemptPolicy{
+			ReasoningEffort: "low",
+			Timeout:         250 * time.Millisecond,
+			Heartbeat:       10 * time.Millisecond,
+		}
+	}
+	defer func() { oracleAttemptPolicyForPhase = originalPolicy }()
+
+	rootCmd.SetArgs([]string{"oracle", "release parity"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("oracle start returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if result["status"] != "complete" {
+		t.Fatalf("status = %v, want complete", result["status"])
+	}
+	if atomic.LoadInt32(&responseFirst.cancelled) == 0 {
+		t.Fatal("expected controller to cancel at least one worker after a valid response file appeared")
+	}
+}
+
+func TestOracleCompatibilityRejectsDuplicateActiveLoop(t *testing.T) {
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	oracleDir := filepath.Join(root, ".aether", "oracle")
+	if err := os.MkdirAll(oracleDir, 0755); err != nil {
+		t.Fatalf("mkdir oracle dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(oracleDir, ".loop-active"), []byte("active\n"), 0644); err != nil {
+		t.Fatalf("write loop marker: %v", err)
+	}
+	if err := writeOracleStateFile(filepath.Join(oracleDir, "state.json"), oracleStateFile{
+		Version:   "1.1",
+		Topic:     "existing oracle loop",
+		Phase:     "survey",
+		Iteration: 1,
+		Status:    "active",
+		Platform:  "codex",
+	}); err != nil {
+		t.Fatalf("write oracle state: %v", err)
+	}
+
+	_, err := runOracleCompatibility(root, []string{"new topic"})
+	if err == nil {
+		t.Fatal("expected duplicate active loop error, got nil")
+	}
+	if !strings.Contains(err.Error(), "already active") {
+		t.Fatalf("error = %v, want duplicate active loop message", err)
+	}
+}
+
+type oracleCompletingInvoker struct{}
+
+func (i *oracleCompletingInvoker) Invoke(ctx context.Context, cfg codex.WorkerConfig) (codex.WorkerResult, error) {
+	if err := writeOracleTestResponse(cfg, oracleWorkerResponse{
+		Status:     "answered",
+		Confidence: 90,
+		Summary:    "Autonomous oracle loop produced a source-backed answer.",
+		Findings: []oracleWorkerFinding{{
+			Text: "Autonomous oracle loop produced a source-backed answer.",
+			Evidence: []oracleWorkerEvidence{{
+				Title:    "Oracle loop implementation",
+				Location: "cmd/oracle_loop.go",
+				Type:     "codebase",
+			}},
+		}},
+		Recommendation: "Continue until all planned questions are answered.",
+	}); err != nil {
+		return codex.WorkerResult{}, err
+	}
+
+	return codex.WorkerResult{
+		WorkerName: cfg.WorkerName,
+		Caste:      cfg.Caste,
+		TaskID:     cfg.TaskID,
+		Status:     "completed",
+		Summary:    "Oracle iteration completed with fully answered questions.",
+	}, nil
+}
+
+func (i *oracleCompletingInvoker) IsAvailable(ctx context.Context) bool { return true }
+func (i *oracleCompletingInvoker) ValidateAgent(path string) error      { return nil }
+
+type oracleStopSignalInvoker struct{}
+
+func (i *oracleStopSignalInvoker) Invoke(ctx context.Context, cfg codex.WorkerConfig) (codex.WorkerResult, error) {
+	paths := oracleWorkspacePaths(cfg.Root)
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := writeOracleTestResponse(cfg, oracleWorkerResponse{
+		Status:     "partial",
+		Confidence: 40,
+		Summary:    "Progress made before a manual stop request.",
+		Findings: []oracleWorkerFinding{{
+			Text: "Progress made before a manual stop request.",
+			Evidence: []oracleWorkerEvidence{{
+				Title:    "Oracle loop implementation",
+				Location: "cmd/oracle_loop.go",
+				Type:     "codebase",
+			}},
+		}},
+		Gaps: []string{"Remaining questions after stop request"},
+	}); err != nil {
+		return codex.WorkerResult{}, err
+	}
+	if err := os.WriteFile(paths.StopPath, []byte(now+"\n"), 0644); err != nil {
+		return codex.WorkerResult{}, err
+	}
+
+	return codex.WorkerResult{
+		WorkerName: cfg.WorkerName,
+		Caste:      cfg.Caste,
+		TaskID:     cfg.TaskID,
+		Status:     "completed",
+		Summary:    "Oracle iteration completed and a stop signal was emitted.",
+	}, nil
+}
+
+func (i *oracleStopSignalInvoker) IsAvailable(ctx context.Context) bool { return true }
+func (i *oracleStopSignalInvoker) ValidateAgent(path string) error      { return nil }
+
+type oracleErrorInvoker struct{}
+
+func (i *oracleErrorInvoker) Invoke(ctx context.Context, cfg codex.WorkerConfig) (codex.WorkerResult, error) {
+	return codex.WorkerResult{
+		WorkerName: cfg.WorkerName,
+		Caste:      cfg.Caste,
+		TaskID:     cfg.TaskID,
+		Status:     "failed",
+		RawOutput:  "worker emitted malformed output",
+		Error:      fmt.Errorf("parse worker output: invalid JSON"),
+	}, nil
+}
+
+func (i *oracleErrorInvoker) IsAvailable(ctx context.Context) bool { return true }
+func (i *oracleErrorInvoker) ValidateAgent(path string) error      { return nil }
+
+type oracleCapturingInvoker struct {
+	configs []codex.WorkerConfig
+}
+
+func (i *oracleCapturingInvoker) Invoke(ctx context.Context, cfg codex.WorkerConfig) (codex.WorkerResult, error) {
+	i.configs = append(i.configs, cfg)
+	if err := writeOracleTestResponse(cfg, oracleWorkerResponse{
+		Status:     "answered",
+		Confidence: 86,
+		Summary:    "Oracle worker invocation captured the expected policy overrides.",
+		Findings: []oracleWorkerFinding{{
+			Text: "Oracle worker invocation captured the expected policy overrides.",
+			Evidence: []oracleWorkerEvidence{{
+				Title:    "Oracle policy capture test",
+				Location: "cmd/oracle_loop.go",
+				Type:     "codebase",
+			}},
+		}},
+	}); err != nil {
+		return codex.WorkerResult{}, err
+	}
+
+	return codex.WorkerResult{
+		WorkerName: cfg.WorkerName,
+		Caste:      cfg.Caste,
+		TaskID:     cfg.TaskID,
+		Status:     "completed",
+		Summary:    "Oracle policy capture completed.",
+	}, nil
+}
+
+func (i *oracleCapturingInvoker) IsAvailable(ctx context.Context) bool { return true }
+func (i *oracleCapturingInvoker) ValidateAgent(path string) error      { return nil }
+
+type oracleSlowCompletingInvoker struct {
+	delay time.Duration
+}
+
+func (i *oracleSlowCompletingInvoker) Invoke(ctx context.Context, cfg codex.WorkerConfig) (codex.WorkerResult, error) {
+	timer := time.NewTimer(i.delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return codex.WorkerResult{
+			WorkerName: cfg.WorkerName,
+			Caste:      cfg.Caste,
+			TaskID:     cfg.TaskID,
+			Status:     "failed",
+			Error:      ctx.Err(),
+		}, nil
+	case <-timer.C:
+	}
+
+	if err := writeOracleTestResponse(cfg, oracleWorkerResponse{
+		Status:     "answered",
+		Confidence: 87,
+		Summary:    "Heartbeat test completed after a deliberately slow worker pass.",
+		Findings: []oracleWorkerFinding{{
+			Text: "Heartbeat test completed after a deliberately slow worker pass.",
+			Evidence: []oracleWorkerEvidence{{
+				Title:    "Oracle heartbeat test",
+				Location: "cmd/oracle_loop.go",
+				Type:     "codebase",
+			}},
+		}},
+	}); err != nil {
+		return codex.WorkerResult{}, err
+	}
+
+	return codex.WorkerResult{
+		WorkerName: cfg.WorkerName,
+		Caste:      cfg.Caste,
+		TaskID:     cfg.TaskID,
+		Status:     "completed",
+		Summary:    "Oracle slow worker completed.",
+	}, nil
+}
+
+func (i *oracleSlowCompletingInvoker) IsAvailable(ctx context.Context) bool { return true }
+func (i *oracleSlowCompletingInvoker) ValidateAgent(path string) error      { return nil }
+
+type oracleRetryInvoker struct {
+	calls int
+}
+
+func (i *oracleRetryInvoker) Invoke(ctx context.Context, cfg codex.WorkerConfig) (codex.WorkerResult, error) {
+	i.calls++
+	if i.calls == 1 {
+		return codex.WorkerResult{
+			WorkerName: cfg.WorkerName,
+			Caste:      cfg.Caste,
+			TaskID:     cfg.TaskID,
+			Status:     "failed",
+			Summary:    "first attempt failed",
+			Error:      fmt.Errorf("parse worker output: truncated JSON"),
+			RawOutput:  "malformed output",
+		}, nil
+	}
+
+	if err := writeOracleTestResponse(cfg, oracleWorkerResponse{
+		Status:     "answered",
+		Confidence: 88,
+		Summary:    "Retry path completed the oracle iteration successfully.",
+		Findings: []oracleWorkerFinding{{
+			Text: "Retry path completed the oracle iteration successfully.",
+			Evidence: []oracleWorkerEvidence{{
+				Title:    "Oracle retry test",
+				Location: "cmd/oracle_loop.go",
+				Type:     "codebase",
+			}},
+		}},
+	}); err != nil {
+		return codex.WorkerResult{}, err
+	}
+
+	return codex.WorkerResult{
+		WorkerName: cfg.WorkerName,
+		Caste:      cfg.Caste,
+		TaskID:     cfg.TaskID,
+		Status:     "completed",
+		Summary:    "Oracle retry completed successfully.",
+	}, nil
+}
+
+func (i *oracleRetryInvoker) IsAvailable(ctx context.Context) bool { return true }
+func (i *oracleRetryInvoker) ValidateAgent(path string) error      { return nil }
+
+type oracleResponseFirstInvoker struct {
+	cancelled int32
+}
+
+func (i *oracleResponseFirstInvoker) Invoke(ctx context.Context, cfg codex.WorkerConfig) (codex.WorkerResult, error) {
+	if err := writeOracleTestResponse(cfg, oracleWorkerResponse{
+		Status:     "answered",
+		Confidence: 85,
+		Summary:    "Response file was written before the worker finished its normal final message path.",
+		Findings: []oracleWorkerFinding{{
+			Text: "The controller can consume a valid response file before the nested worker emits its final claims JSON.",
+			Evidence: []oracleWorkerEvidence{{
+				Title:    "Oracle response shortcut test",
+				Location: "cmd/oracle_loop.go",
+				Type:     "codebase",
+			}},
+		}},
+	}); err != nil {
+		return codex.WorkerResult{}, err
+	}
+
+	<-ctx.Done()
+	atomic.AddInt32(&i.cancelled, 1)
+	return codex.WorkerResult{
+		WorkerName: cfg.WorkerName,
+		Caste:      cfg.Caste,
+		TaskID:     cfg.TaskID,
+		Status:     "failed",
+		Error:      ctx.Err(),
+	}, nil
+}
+
+func (i *oracleResponseFirstInvoker) IsAvailable(ctx context.Context) bool { return true }
+func (i *oracleResponseFirstInvoker) ValidateAgent(path string) error      { return nil }
+
+func writeOracleTestResponse(cfg codex.WorkerConfig, response oracleWorkerResponse) error {
+	if strings.TrimSpace(cfg.ResponsePath) == "" {
+		return fmt.Errorf("missing oracle response path")
+	}
+	data, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(cfg.ResponsePath), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(cfg.ResponsePath, append(data, '\n'), 0644)
 }
 
 func TestRunCompatibilityDryRunPlansLifecycle(t *testing.T) {

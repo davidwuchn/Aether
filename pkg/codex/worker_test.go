@@ -53,14 +53,14 @@ func TestFakeInvoker_ReturnsDeterministicResults(t *testing.T) {
 
 	ctx := context.Background()
 	cfg := WorkerConfig{
-		AgentName:     "aether-builder",
-		AgentTOMLPath: "/path/to/aether-builder.toml",
-		Caste:         "builder",
-		WorkerName:    "Hammer-23",
-		TaskID:        "2.1",
-		TaskBrief:     "Build the thing",
+		AgentName:      "aether-builder",
+		AgentTOMLPath:  "/path/to/aether-builder.toml",
+		Caste:          "builder",
+		WorkerName:     "Hammer-23",
+		TaskID:         "2.1",
+		TaskBrief:      "Build the thing",
 		ContextCapsule: "--- CONTEXT CAPSULE ---\nGoal: test\n--- END CONTEXT CAPSULE ---",
-		Root:          "/tmp/repo",
+		Root:           "/tmp/repo",
 	}
 
 	result, err := invoker.Invoke(ctx, cfg)
@@ -357,6 +357,79 @@ printf '{"event":"done"}\n'
 	for _, want := range []string{"You are the Builder.", "Goal: test", "Build the feature.", "Final Response Contract"} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing %q\n%s", want, prompt)
+		}
+	}
+}
+
+func TestRealInvoker_Invoke_PassesConfigOverrides(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell stub uses POSIX sh")
+	}
+
+	dir := t.TempDir()
+	tomlPath := filepath.Join(dir, "aether-builder.toml")
+	if err := os.WriteFile(tomlPath, []byte(`name = "aether-builder"
+description = "Builder"
+nickname_candidates = ["builder", "hammer"]
+developer_instructions = '''
+You are the Builder.
+'''
+`), 0644); err != nil {
+		t.Fatalf("failed to write agent TOML: %v", err)
+	}
+
+	argsPath := filepath.Join(dir, "captured-args.txt")
+	scriptPath := filepath.Join(dir, "fake-codex.sh")
+	script := `#!/bin/sh
+printf '%s\n' "$@" > "$ARGS_PATH"
+out=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --output-last-message)
+      out="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+cat >/dev/null
+printf '{"ant_name":"Hammer-23","caste":"builder","task_id":"2.1","status":"completed","summary":"implemented the task","files_created":[],"files_modified":[],"tests_written":[],"tool_count":0,"blockers":[],"spawns":[]}' > "$out"
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		t.Fatalf("failed to write fake codex script: %v", err)
+	}
+
+	invoker := NewRealInvoker()
+	invoker.binaryName = scriptPath
+
+	t.Setenv("ARGS_PATH", argsPath)
+
+	cfg := WorkerConfig{
+		AgentName:       "aether-builder",
+		AgentTOMLPath:   tomlPath,
+		Caste:           "builder",
+		WorkerName:      "Hammer-23",
+		TaskID:          "2.1",
+		TaskBrief:       "Build the feature.",
+		ContextCapsule:  "Goal: test",
+		Root:            dir,
+		ConfigOverrides: []string{`model_reasoning_effort="medium"`, `model="gpt-5.4"`},
+	}
+
+	if _, err := invoker.Invoke(context.Background(), cfg); err != nil {
+		t.Fatalf("RealInvoker.Invoke returned error: %v", err)
+	}
+
+	argsData, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatalf("failed to read captured args: %v", err)
+	}
+	argsText := string(argsData)
+	for _, want := range []string{"-c", `model_reasoning_effort="medium"`, `model="gpt-5.4"`} {
+		if !strings.Contains(argsText, want) {
+			t.Fatalf("captured args missing %q\n%s", want, argsText)
 		}
 	}
 }
