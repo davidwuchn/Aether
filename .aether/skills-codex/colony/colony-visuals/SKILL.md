@@ -14,6 +14,15 @@ version: "1.0"
 
 All colony output must look consistent. Users should never see mismatched banner styles, missing progress bars, or unformatted raw output. This skill standardizes every visual element.
 
+## Literal CLI Commands
+
+When the user already typed a literal `aether ...` command and you run it through the shell:
+
+- Let the CLI's own visual output stand on its own.
+- Do not paraphrase the banner, progress, or next-step block back to the user.
+- Do not wrap the command with extra decorative commentary before and after execution.
+- Add your own short note only when the CLI failed, the output needs one sentence of clarification, or the user explicitly asked for explanation.
+
 ## Banner Format
 
 Use spaced-letter format for all section banners. The standard pattern is:

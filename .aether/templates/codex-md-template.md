@@ -14,6 +14,10 @@ in the shell instead of reinterpreting it as a vague request.
 - Treat the installed `aether` binary and `aether --help` as the source of truth.
 - If the command fails, report the actual CLI failure first; only then fall back
   to manual help.
+- Do not announce that you are "checking the repo", "interpreting the workflow",
+  or "using colony skills" before executing a literal command.
+- Do not restate the CLI output in a long follow-up. The command result is primary;
+  your own wrapper should be at most one short sentence.
 
 ## Common Commands
 

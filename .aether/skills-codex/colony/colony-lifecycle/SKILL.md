@@ -24,6 +24,9 @@ When the user message is already a literal `aether ...` command, treat it as an 
 - Treat the installed `aether` binary as the source of truth if docs and runtime disagree.
 - If the binary does not expose a documented command, say so plainly and follow the binary's actual command surface.
 - When invoking lifecycle commands through Codex shell execution, prefer `AETHER_OUTPUT_MODE=visual aether ...` unless the user explicitly wants JSON.
+- Do not prepend exploratory narration like "I'm checking the repo" or "I'm treating this as..."
+- Do not append a generic "Next Up" explanation when the CLI already printed the result.
+- For read-only commands like `aether status`, `aether history`, `aether version`, or `aether pheromones`, your own post-command summary should be zero or one short sentence.
 
 ## State Machine
 
@@ -50,6 +53,10 @@ literal persisted state values.
 ## Next Up Block
 
 Every command output must end with a "Next Up" block. This block tells the user exactly what to do next based on the current state.
+
+Literal CLI exception:
+- If the `aether` CLI already rendered the result, do not restate the same guidance in a second synthetic "Next Up" block.
+- Only add your own next-step note when the CLI output is missing, failed, or ambiguous.
 
 ### Format
 

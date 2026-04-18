@@ -65,6 +65,37 @@ func TestStatusNoColony(t *testing.T) {
 	}
 }
 
+func TestStatusNoColonyVisual(t *testing.T) {
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+	t.Setenv("AETHER_OUTPUT_MODE", "visual")
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	origRoot := os.Getenv("AETHER_ROOT")
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", origRoot)
+
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	for _, want := range []string{"📊", "C O L O N Y   S T A T U S", "No colony initialized in this repo.", "aether init", "aether lay-eggs"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("visual no-colony status missing %q\n%s", want, output)
+		}
+	}
+}
+
 func TestStatusOutput(t *testing.T) {
 	var buf bytes.Buffer
 	stdout = &buf

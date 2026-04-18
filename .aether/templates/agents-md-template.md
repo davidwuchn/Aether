@@ -32,6 +32,11 @@ When running those commands from Codex, prefer `AETHER_OUTPUT_MODE=visual aether
 for lifecycle operations so the CLI can render caste emojis, color, and workflow
 ceremony even when command execution is non-TTY.
 
+For literal `aether ...` commands:
+- do not preface execution with "I'm checking the repo" or similar commentary
+- do not summarize obvious command output in multiple paragraphs afterward
+- keep any extra explanation to one short sentence unless the user asks for more
+
 Agent definitions live in `.codex/agents/*.toml` (TOML format).
 
 ---

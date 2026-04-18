@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.12] - 2026-04-18
+
+Codex command-wrapper simplification and visual no-colony status.
+
+### Changed
+- Codex-specific colony skills and generated repo templates now tell Codex to stop wrapping literal `aether ...` commands with repo archaeology, skill narration, and long post-command summaries
+
+### Fixed
+- `aether status` with no active colony now renders through the Aether visual layer instead of falling back to plain text
+- Updated Codex repos now get stronger guidance to let Aether’s own banners, caste emoji output, and next-step blocks speak for themselves
+- Literal `aether ...` commands in Codex are now documented to use a near-zero wrapper instead of the current play-by-play commentary
+
 ## [1.0.11] - 2026-04-18
 
 Update error visibility fix.

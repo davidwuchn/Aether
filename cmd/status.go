@@ -21,6 +21,10 @@ var statusCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		state, err := loadActiveColonyState()
 		if err != nil {
+			if shouldRenderVisualOutput(stdout) && strings.Contains(colonyStateLoadMessage(err), "No colony initialized") {
+				fmt.Fprint(stdout, renderNoColonyStatusVisual())
+				return nil
+			}
 			fmt.Fprintln(stdout, colonyStateLoadMessage(err))
 			return nil
 		}
@@ -33,6 +37,18 @@ var statusCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(statusCmd)
+}
+
+func renderNoColonyStatusVisual() string {
+	var b strings.Builder
+	b.WriteString(renderBanner("📊", "Colony Status"))
+	b.WriteString(visualDivider)
+	b.WriteString("No colony initialized in this repo.\n")
+	b.WriteString(renderNextUp(
+		`Run `+"`aether init \"goal\"`"+` to start a colony.`,
+		`Run `+"`aether lay-eggs`"+` first if this repo has not been set up for Aether yet.`,
+	))
+	return b.String()
 }
 
 // renderDashboard produces the full colony status dashboard string.

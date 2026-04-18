@@ -1,6 +1,6 @@
 # AGENTS.md -- Aether Development Guide (Codex CLI)
 
-> **Current Version:** v1.0.11
+> **Current Version:** v1.0.12
 > **Last Updated:** 2026-04-18
 > **Platform:** Codex CLI (OpenAI)
 
@@ -14,7 +14,7 @@ OpenCode, and Codex CLI.
 
 | What | Count/Status |
 |------|--------------|
-| Version | v1.0.11 |
+| Version | v1.0.12 |
 | Agent definitions | 24 (TOML in `.codex/agents/`) |
 | Skills | 28 (10 colony + 18 domain) |
 | Go binary | `aether` CLI (Go binary in cmd/) |
@@ -42,6 +42,9 @@ CLI command first. Do not reinterpret it as a fuzzy workflow prompt, and use
 `aether --help` as the runtime source of truth if markdown docs disagree. For
 lifecycle commands run through Codex shell execution, prefer
 `AETHER_OUTPUT_MODE=visual aether ...` unless the user explicitly wants JSON.
+Do not preface literal commands with repo archaeology, skill narration, or
+"I'm checking..." commentary. The CLI output is primary; your own wrapper
+should be zero or one short sentence.
 
 Agent definitions live in `.codex/agents/*.toml` (TOML format) and Codex reads
 them as part of its agent discovery system.
@@ -716,4 +719,4 @@ data files clean, and test coverage comprehensive as features evolve.
 
 ---
 
-*Updated for Aether v1.0.11 -- 2026-04-18*
+*Updated for Aether v1.0.12 -- 2026-04-18*

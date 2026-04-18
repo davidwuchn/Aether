@@ -139,6 +139,9 @@ command first. Do not inspect repo files to infer intent, and do not treat comma
 mirrors as more authoritative than the installed `aether` binary. For lifecycle commands
 run through Codex shell execution, prefer `AETHER_OUTPUT_MODE=visual aether ...` unless the
 user explicitly wants JSON output.
+Do not preface literal commands with repo archaeology, skill narration, or
+"I'm checking..." commentary. Let the CLI output stand on its own and keep any
+extra explanation to one short sentence unless the user asks for more.
 
 ### Agent Definitions (TOML Format)
 
@@ -428,4 +431,4 @@ aether update
 
 ---
 
-*Updated for Aether v1.0.11 -- 2026-04-18*
+*Updated for Aether v1.0.12 -- 2026-04-18*
