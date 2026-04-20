@@ -104,6 +104,10 @@ func shouldRenderVisualOutput(w io.Writer) bool {
 		return true
 	}
 
+	return isTerminalWriter(w)
+}
+
+func isTerminalWriter(w io.Writer) bool {
 	file, ok := w.(*os.File)
 	if !ok {
 		return false
@@ -114,6 +118,13 @@ func shouldRenderVisualOutput(w io.Writer) bool {
 		return false
 	}
 	return (info.Mode() & os.ModeCharDevice) == os.ModeCharDevice
+}
+
+func shouldUseLiveWatchRefresh(w io.Writer, once bool) bool {
+	if once || !shouldRenderVisualOutput(w) {
+		return false
+	}
+	return isTerminalWriter(w)
 }
 
 func outputWorkflow(result interface{}, visual string) {
@@ -1948,6 +1959,15 @@ func floatValue(value interface{}) float64 {
 		return float64(v)
 	default:
 		return 0
+	}
+}
+
+func boolValue(value interface{}) bool {
+	switch v := value.(type) {
+	case bool:
+		return v
+	default:
+		return false
 	}
 }
 

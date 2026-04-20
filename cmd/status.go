@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
 	"github.com/calcosmic/Aether/pkg/colony"
@@ -195,19 +196,31 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 	b.WriteString("\nActive Pheromones\n")
 	renderPheromoneSummary(&b, s)
 
-	// Top instincts
-	if totalInstincts > 0 {
-		b.WriteString("\nColony Instincts:\n")
-		renderTopInstincts(&b, instincts)
+	spawnSummary := loadSpawnActivitySummary(s)
+	liveSpawnView := state.State == colony.StateEXECUTING && !state.Paused && state.BuildStartedAt != nil
+	if !liveSpawnView {
+		spawnSummary = withoutLiveSpawnEntries(spawnSummary)
+	}
+	if spawnSummary.TotalCount > 0 {
+		b.WriteString("\nSpawn Activity\n")
+		renderSpawnActivity(&b, spawnSummary)
 	}
 
 	activeWorkers := []agent.SpawnEntry{}
-	if state.State == colony.StateEXECUTING && !state.Paused && state.BuildStartedAt != nil {
-		activeWorkers = loadActiveSpawnEntries(s)
+	if liveSpawnView {
+		activeWorkers = spawnSummary.ActiveEntries
 	}
 	if len(activeWorkers) > 0 {
 		b.WriteString("\nActive Workers\n")
 		renderActiveWorkers(&b, activeWorkers)
+	}
+
+	if totalInstincts > 0 {
+		recentInstincts := loadRecentRuntimeInstincts(s, &state, 3)
+		if len(recentInstincts) > 0 {
+			b.WriteString("\nRecent Instincts\n")
+			renderRecentInstincts(&b, recentInstincts)
+		}
 	}
 
 	// State
@@ -235,10 +248,60 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 }
 
 func loadActiveSpawnEntries(s *storage.Store) []agent.SpawnEntry {
+	return loadSpawnActivitySummary(s).ActiveEntries
+}
+
+type spawnActivitySummary struct {
+	Entries        []agent.SpawnEntry
+	ActiveEntries  []agent.SpawnEntry
+	TotalCount     int
+	ActiveCount    int
+	CompletedCount int
+	BlockedCount   int
+	FailedCount    int
+}
+
+func loadSpawnActivitySummary(s *storage.Store) spawnActivitySummary {
 	if s == nil {
-		return nil
+		return spawnActivitySummary{}
 	}
-	return agent.NewSpawnTree(s, "spawn-tree.txt").Active()
+
+	entries, err := agent.NewSpawnTree(s, "spawn-tree.txt").Parse()
+	if err != nil || len(entries) == 0 {
+		return spawnActivitySummary{}
+	}
+
+	summary := spawnActivitySummary{
+		Entries:    make([]agent.SpawnEntry, len(entries)),
+		TotalCount: len(entries),
+	}
+	copy(summary.Entries, entries)
+	sort.Slice(summary.Entries, func(i, j int) bool {
+		return spawnEntryTimestamp(summary.Entries[i]).After(spawnEntryTimestamp(summary.Entries[j]))
+	})
+
+	for _, entry := range summary.Entries {
+		switch entry.Status {
+		case "spawned", "active":
+			summary.ActiveCount++
+			summary.ActiveEntries = append(summary.ActiveEntries, entry)
+		case "completed":
+			summary.CompletedCount++
+		case "blocked":
+			summary.BlockedCount++
+		case "failed":
+			summary.FailedCount++
+		}
+	}
+	return summary
+}
+
+func spawnEntryTimestamp(entry agent.SpawnEntry) time.Time {
+	ts, err := time.Parse(time.RFC3339, entry.Timestamp)
+	if err != nil {
+		return time.Time{}
+	}
+	return ts
 }
 
 func renderActiveWorkers(b *strings.Builder, entries []agent.SpawnEntry) {
@@ -259,6 +322,63 @@ func renderActiveWorkers(b *strings.Builder, entries []agent.SpawnEntry) {
 	if len(entries) > limit {
 		fmt.Fprintf(b, "   ... and %d more active workers\n", len(entries)-limit)
 	}
+}
+
+func renderSpawnActivity(b *strings.Builder, summary spawnActivitySummary) {
+	if summary.TotalCount == 0 {
+		b.WriteString("   No worker activity recorded\n")
+		return
+	}
+
+	parts := []string{
+		fmt.Sprintf("%d active", summary.ActiveCount),
+		fmt.Sprintf("%d completed", summary.CompletedCount),
+		fmt.Sprintf("%d blocked", summary.BlockedCount),
+	}
+	if summary.FailedCount > 0 {
+		parts = append(parts, fmt.Sprintf("%d failed", summary.FailedCount))
+	}
+	fmt.Fprintf(b, "   %s\n", strings.Join(parts, " | "))
+
+	limit := len(summary.Entries)
+	if limit > 6 {
+		limit = 6
+	}
+	for i := 0; i < limit; i++ {
+		entry := summary.Entries[i]
+		fmt.Fprintf(b, "   %s %s (%s) — %s [%s]\n",
+			casteEmoji(entry.Caste),
+			entry.AgentName,
+			entry.Caste,
+			entry.Task,
+			entry.Status,
+		)
+	}
+	if len(summary.Entries) > limit {
+		fmt.Fprintf(b, "   ... and %d more recent workers\n", len(summary.Entries)-limit)
+	}
+}
+
+func withoutLiveSpawnEntries(summary spawnActivitySummary) spawnActivitySummary {
+	filtered := spawnActivitySummary{
+		Entries: make([]agent.SpawnEntry, 0, len(summary.Entries)),
+	}
+	for _, entry := range summary.Entries {
+		switch entry.Status {
+		case "completed":
+			filtered.CompletedCount++
+		case "blocked":
+			filtered.BlockedCount++
+		case "failed":
+			filtered.FailedCount++
+		default:
+			continue
+		}
+		filtered.Entries = append(filtered.Entries, entry)
+	}
+	filtered.TotalCount = len(filtered.Entries)
+	filtered.ActiveEntries = []agent.SpawnEntry{}
+	return filtered
 }
 
 // generateProgressBar creates a Unicode progress bar string.
@@ -384,72 +504,65 @@ func renderPheromoneSummary(b *strings.Builder, s *storage.Store) {
 		return
 	}
 
-	// Group signals by type
-	typeCounts := make(map[string]int)
-	typeStrongest := make(map[string]string)
-
+	now := time.Now().UTC()
+	type pheromoneRow struct {
+		Type     string
+		Strength float64
+		Signal   string
+	}
+	rows := []pheromoneRow{}
 	for _, sig := range pf.Signals {
 		if !sig.Active {
 			continue
 		}
-		typeCounts[sig.Type]++
-		// Track strongest signal
-		content := extractContentText(sig.Content)
-		if existing, ok := typeStrongest[sig.Type]; !ok || content != "" {
-			if !ok || len(content) > len(existing) {
-				typeStrongest[sig.Type] = content
-			}
-		}
+		rows = append(rows, pheromoneRow{
+			Type:     sig.Type,
+			Strength: computeEffectiveStrength(sig, now),
+			Signal:   extractContentText(sig.Content),
+		})
 	}
 
-	if len(typeCounts) == 0 {
+	if len(rows) == 0 {
 		b.WriteString("   No active signals\n")
 		return
 	}
 
-	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Type", "Count", "Strongest Signal"})
+	sort.Slice(rows, func(i, j int) bool {
+		if signalPriority(rows[i].Type) != signalPriority(rows[j].Type) {
+			return signalPriority(rows[i].Type) < signalPriority(rows[j].Type)
+		}
+		if rows[i].Strength != rows[j].Strength {
+			return rows[i].Strength > rows[j].Strength
+		}
+		return rows[i].Signal < rows[j].Signal
+	})
 
-	// Display in consistent order: FOCUS, REDIRECT, FEEDBACK
-	for _, sigType := range []string{"FOCUS", "REDIRECT", "FEEDBACK"} {
-		count := typeCounts[sigType]
-		if count == 0 {
-			continue
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"Type", "Strength", "Signal"})
+	b.WriteString("   Strength reflects the active decay-adjusted signal weight.\n")
+
+	for _, row := range rows {
+		signal := row.Signal
+		if signal == "" {
+			signal = "none"
 		}
-		strongest := typeStrongest[sigType]
-		if strongest == "" {
-			strongest = "none"
+		if len(signal) > 44 {
+			signal = signal[:41] + "..."
 		}
-		if len(strongest) > 30 {
-			strongest = strongest[:27] + "..."
-		}
-		t.AppendRow(table.Row{sigType, count, strongest})
+		t.AppendRow(table.Row{row.Type, fmt.Sprintf("%.2f", row.Strength), signal})
 	}
 
 	t.SetStyle(table.StyleRounded)
 	b.WriteString(t.Render() + "\n")
 }
 
-// renderTopInstincts shows the top 3 instincts sorted by confidence.
-func renderTopInstincts(b *strings.Builder, instincts []colony.Instinct) {
-	// Sort by confidence descending
-	sorted := make([]colony.Instinct, len(instincts))
-	copy(sorted, instincts)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Confidence > sorted[j].Confidence
-	})
-
-	limit := 3
-	if len(sorted) < limit {
-		limit = len(sorted)
-	}
-	for i := 0; i < limit; i++ {
-		inst := sorted[i]
+func renderRecentInstincts(b *strings.Builder, instincts []colony.Instinct) {
+	for _, inst := range instincts {
 		domain := inst.Domain
 		if domain == "" {
 			domain = "general"
 		}
-		fmt.Fprintf(b, "   [%.1f] %s: %s\n", inst.Confidence, domain, inst.Action)
+		fmt.Fprintf(b, "   [%.2f] %s: %s\n", inst.Confidence, domain, inst.Action)
 	}
 }
 

@@ -385,6 +385,7 @@ func TestWatchVisualOutputShowsSnapshotArtifacts(t *testing.T) {
 	createTestColonyState(t, dataDir, colony.ColonyState{
 		Version:      "3.0",
 		Goal:         &goal,
+		Scope:        colony.ScopeMeta,
 		State:        colony.StateEXECUTING,
 		CurrentPhase: 1,
 		Plan: colony.Plan{
@@ -407,14 +408,26 @@ func TestWatchVisualOutputShowsSnapshotArtifacts(t *testing.T) {
 
 	output := stdout.(*bytes.Buffer).String()
 	for _, want := range []string{
+		"Scope: meta",
 		".aether/data/spawn-tree.txt",
 		".aether/data/watch-status.txt",
 		".aether/data/watch-progress.txt",
-		"one-shot snapshot",
+		"Run in a TTY for live refresh.",
 	} {
 		if !strings.Contains(output, want) {
 			t.Errorf("watch visual output missing %q\n%s", want, output)
 		}
+	}
+}
+
+func TestWatchLiveRefreshRequiresTTY(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "visual")
+
+	if shouldUseLiveWatchRefresh(&bytes.Buffer{}, false) {
+		t.Fatal("expected non-TTY visual output to stay snapshot-friendly")
+	}
+	if shouldUseLiveWatchRefresh(&bytes.Buffer{}, true) {
+		t.Fatal("expected --once style behavior to disable live refresh")
 	}
 }
 

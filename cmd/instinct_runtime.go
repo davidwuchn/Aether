@@ -141,3 +141,52 @@ func sortedActiveInstinctEntries(file colony.InstinctsFile) []colony.InstinctEnt
 	})
 	return active
 }
+
+func loadRecentRuntimeInstincts(s *storage.Store, state *colony.ColonyState, limit int) []colony.Instinct {
+	if limit <= 0 {
+		return []colony.Instinct{}
+	}
+
+	file := loadInstinctFileOrEmpty(s)
+	if recent := recentInstinctEntries(file, limit); len(recent) > 0 {
+		out := make([]colony.Instinct, 0, len(recent))
+		for _, entry := range recent {
+			out = append(out, instinctEntryToLegacy(entry))
+		}
+		return out
+	}
+
+	if state == nil || len(state.Memory.Instincts) == 0 {
+		return []colony.Instinct{}
+	}
+
+	sorted := make([]colony.Instinct, len(state.Memory.Instincts))
+	copy(sorted, state.Memory.Instincts)
+	sort.Slice(sorted, func(i, j int) bool {
+		ti, _ := time.Parse(time.RFC3339, sorted[i].CreatedAt)
+		tj, _ := time.Parse(time.RFC3339, sorted[j].CreatedAt)
+		if ti.Equal(tj) {
+			return sorted[i].ID < sorted[j].ID
+		}
+		return ti.After(tj)
+	})
+	if limit > len(sorted) {
+		limit = len(sorted)
+	}
+	return sorted[:limit]
+}
+
+func recentInstinctEntries(file colony.InstinctsFile, limit int) []colony.InstinctEntry {
+	active := sortedActiveInstinctEntries(file)
+	if len(active) == 0 {
+		return []colony.InstinctEntry{}
+	}
+	if limit > len(active) {
+		limit = len(active)
+	}
+	recent := make([]colony.InstinctEntry, 0, limit)
+	for i := len(active) - 1; i >= 0 && len(recent) < limit; i-- {
+		recent = append(recent, active[i])
+	}
+	return recent
+}

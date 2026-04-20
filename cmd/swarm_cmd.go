@@ -90,23 +90,26 @@ func init() {
 
 func runSwarmCompatibility(root, target string, watch bool) (map[string]interface{}, error) {
 	if watch || strings.TrimSpace(target) == "" {
-		return buildSwarmWatchResult(target, watch), nil
+		return buildSwarmWatchResult(target, watch, false), nil
 	}
 	return runSwarmDestroy(root, target)
 }
 
-func buildSwarmWatchResult(target string, watch bool) map[string]interface{} {
+func buildSwarmWatchResult(target string, watch, liveRefresh bool) map[string]interface{} {
 	state, _ := loadColonyState()
-	active := loadActiveSpawnEntries(store)
+	spawnSummary := loadSpawnActivitySummary(store)
+	active := spawnSummary.ActiveEntries
 
 	next := `aether init "describe the goal"`
 	phaseName := ""
 	stateName := ""
 	goal := ""
+	scope := "project"
 	if state != nil {
 		next = nextCommandFromState(*state)
 		phaseName = lookupPhaseName(*state, state.CurrentPhase)
 		stateName = string(state.State)
+		scope = string(state.EffectiveScope())
 		if state.Goal != nil {
 			goal = strings.TrimSpace(*state.Goal)
 		}
@@ -118,10 +121,11 @@ func buildSwarmWatchResult(target string, watch bool) map[string]interface{} {
 	workers := make([]map[string]interface{}, 0, len(active))
 	for _, entry := range active {
 		workers = append(workers, map[string]interface{}{
-			"name":   entry.AgentName,
-			"caste":  entry.Caste,
-			"task":   entry.Task,
-			"status": entry.Status,
+			"name":    entry.AgentName,
+			"caste":   entry.Caste,
+			"task":    entry.Task,
+			"status":  entry.Status,
+			"summary": entry.Summary,
 		})
 	}
 
@@ -130,10 +134,15 @@ func buildSwarmWatchResult(target string, watch bool) map[string]interface{} {
 		"target":              target,
 		"autopilot_available": true,
 		"goal":                goal,
+		"scope":               scope,
 		"state":               stateName,
 		"phase_name":          phaseName,
 		"active_workers":      workers,
 		"active_count":        len(workers),
+		"completed_count":     spawnSummary.CompletedCount,
+		"blocked_count":       spawnSummary.BlockedCount,
+		"failed_count":        spawnSummary.FailedCount,
+		"live_refresh":        liveRefresh,
 		"next":                next,
 		"watch":               watch || target == "",
 	}
@@ -723,11 +732,37 @@ func renderSwarmCompatibilityVisual(result map[string]interface{}) string {
 	mode := strings.TrimSpace(stringValue(result["mode"]))
 	target := strings.TrimSpace(stringValue(result["target"]))
 	if mode == "watch" {
-		b.WriteString("Live colony activity view.\n")
-		b.WriteString("This is a one-shot snapshot of active workers.\n")
+		if live, _ := result["live_refresh"].(bool); live {
+			b.WriteString("Live colony activity view.\n")
+			b.WriteString("Refreshing automatically. Press Ctrl+C to exit.\n")
+		} else {
+			b.WriteString("Colony activity snapshot.\n")
+			b.WriteString("Run in a TTY for live refresh.\n")
+		}
 		if target != "" {
 			b.WriteString("Target: " + target + "\n")
 		}
+		if goal := strings.TrimSpace(stringValue(result["goal"])); goal != "" {
+			b.WriteString("Goal: " + goal + "\n")
+		}
+		if scope := strings.TrimSpace(stringValue(result["scope"])); scope != "" {
+			b.WriteString("Scope: " + scope + "\n")
+		}
+		if state := strings.TrimSpace(stringValue(result["state"])); state != "" {
+			b.WriteString("State: " + state + "\n")
+		}
+		if phaseName := strings.TrimSpace(stringValue(result["phase_name"])); phaseName != "" {
+			b.WriteString("Phase: " + phaseName + "\n")
+		}
+		b.WriteString(fmt.Sprintf("Workers: %d active | %d completed | %d blocked",
+			intValue(result["active_count"]),
+			intValue(result["completed_count"]),
+			intValue(result["blocked_count"]),
+		))
+		if failed := intValue(result["failed_count"]); failed > 0 {
+			b.WriteString(fmt.Sprintf(" | %d failed", failed))
+		}
+		b.WriteString("\n")
 		renderSwarmWorkers(&b, result)
 		b.WriteString(renderArtifactsSection(
 			displayDataPath("spawn-tree.txt"),

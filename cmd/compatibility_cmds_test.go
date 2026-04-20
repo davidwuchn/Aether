@@ -214,10 +214,14 @@ func TestSwarmCompatibilityWatchReportsActiveWorkers(t *testing.T) {
 
 	dataDir := setupBuildFlowTest(t)
 	goal := "Watch worker activity"
+	now := time.Now().UTC()
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version: "3.0",
-		Goal:    &goal,
-		State:   colony.StateEXECUTING,
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		Scope:          colony.ScopeMeta,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
 				{ID: 1, Name: "Execution", Status: colony.PhaseInProgress},
@@ -232,6 +236,12 @@ func TestSwarmCompatibilityWatchReportsActiveWorkers(t *testing.T) {
 	if err := spawnTree.UpdateStatus("Hammer-1", "active", "Awaiting continue verification"); err != nil {
 		t.Fatalf("mark active: %v", err)
 	}
+	if err := spawnTree.RecordSpawn("Queen", "watcher", "Keen-2", "Verify the fix", 1); err != nil {
+		t.Fatalf("record completed spawn: %v", err)
+	}
+	if err := spawnTree.UpdateStatus("Keen-2", "completed", "Verified"); err != nil {
+		t.Fatalf("mark completed: %v", err)
+	}
 
 	rootCmd.SetArgs([]string{"swarm", "--watch"})
 	if err := rootCmd.Execute(); err != nil {
@@ -245,6 +255,15 @@ func TestSwarmCompatibilityWatchReportsActiveWorkers(t *testing.T) {
 	}
 	if result["active_count"] != float64(1) {
 		t.Fatalf("active_count = %v, want 1", result["active_count"])
+	}
+	if result["scope"] != "meta" {
+		t.Fatalf("scope = %v, want meta", result["scope"])
+	}
+	if result["completed_count"] != float64(1) {
+		t.Fatalf("completed_count = %v, want 1", result["completed_count"])
+	}
+	if live, _ := result["live_refresh"].(bool); live {
+		t.Fatalf("expected snapshot-style swarm watch result, got live_refresh=true")
 	}
 }
 

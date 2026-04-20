@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
@@ -31,7 +34,13 @@ var watchCmd = &cobra.Command{
 			return nil
 		}
 
-		result := buildSwarmWatchResult("", true)
+		once, _ := cmd.Flags().GetBool("once")
+		interval, _ := cmd.Flags().GetDuration("interval")
+		if shouldUseLiveWatchRefresh(stdout, once) {
+			return runLiveWatch(interval)
+		}
+
+		result := buildSwarmWatchResult("", true, false)
 		visual := renderSwarmCompatibilityVisual(result)
 		_ = writeWatchArtifacts(result, visual)
 		outputWorkflow(result, visual)
@@ -94,6 +103,9 @@ var runCompatibilityCmd = &cobra.Command{
 }
 
 func init() {
+	watchCmd.Flags().Bool("once", false, "Render a single watch snapshot even in visual TTY mode")
+	watchCmd.Flags().Duration("interval", 2*time.Second, "Refresh interval for live watch output")
+
 	runCompatibilityCmd.Flags().Int("max-phases", 0, "Run at most N phases before pausing")
 	runCompatibilityCmd.Flags().Int("replan-interval", 0, "Pause for replanning every N completed phases")
 	runCompatibilityCmd.Flags().Bool("continue", false, "Ignore the next replan pause and keep running")
@@ -110,15 +122,52 @@ func writeWatchArtifacts(result map[string]interface{}, visual string) error {
 	if store == nil {
 		return nil
 	}
-	statusText := fmt.Sprintf("state=%s active_workers=%d next=%s\n",
+	statusText := fmt.Sprintf("state=%s scope=%s active_workers=%d completed_workers=%d blocked_workers=%d failed_workers=%d live_refresh=%t next=%s\n",
 		stringValue(result["state"]),
+		stringValue(result["scope"]),
 		intValue(result["active_count"]),
+		intValue(result["completed_count"]),
+		intValue(result["blocked_count"]),
+		intValue(result["failed_count"]),
+		boolValue(result["live_refresh"]),
 		stringValue(result["next"]),
 	)
 	if err := store.AtomicWrite("watch-status.txt", []byte(statusText)); err != nil {
 		return err
 	}
 	return store.AtomicWrite("watch-progress.txt", []byte(visual))
+}
+
+func runLiveWatch(interval time.Duration) error {
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		result := buildSwarmWatchResult("", true, true)
+		visual := renderSwarmCompatibilityVisual(result)
+		_ = writeWatchArtifacts(result, visual)
+
+		frame := "\033[H\033[2J" + strings.TrimRight(visual, "\n") + "\n"
+		fmt.Fprint(stdout, frame)
+
+		stateName := strings.TrimSpace(stringValue(result["state"]))
+		if intValue(result["active_count"]) == 0 && stateName != string(colony.StateEXECUTING) && stateName != string(colony.StateBUILT) {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+	}
 }
 
 func runCompatibilityAutopilot(root string, opts runCompatibilityOptions) (map[string]interface{}, error) {
