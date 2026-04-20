@@ -6,6 +6,7 @@ package colony
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -91,6 +92,44 @@ func (m ParallelMode) Valid() bool {
 // ErrInvalidParallelMode is returned when a parallel mode value is not recognized.
 var ErrInvalidParallelMode = fmt.Errorf("invalid parallel mode")
 
+// ColonyScope represents the identity scope of a colony.
+type ColonyScope string
+
+const (
+	ScopeProject ColonyScope = "project"
+	ScopeMeta    ColonyScope = "meta"
+)
+
+// Valid reports whether s is a recognized colony scope.
+func (s ColonyScope) Valid() bool {
+	switch s {
+	case ScopeProject, ScopeMeta:
+		return true
+	}
+	return false
+}
+
+// Effective returns a compatibility-safe scope value.
+// Legacy no-scope colonies are treated as project-scoped.
+func (s ColonyScope) Effective() ColonyScope {
+	if s.Valid() {
+		return s
+	}
+	return ScopeProject
+}
+
+// ErrInvalidColonyScope is returned when a scope value is not recognized.
+var ErrInvalidColonyScope = fmt.Errorf("invalid colony scope")
+
+// ParseColonyScope validates the user-facing raw scope string.
+func ParseColonyScope(raw string) (ColonyScope, error) {
+	scope := ColonyScope(strings.ToLower(strings.TrimSpace(raw)))
+	if !scope.Valid() {
+		return "", ErrInvalidColonyScope
+	}
+	return scope, nil
+}
+
 // WorktreeEntry tracks a single worktree's lifecycle in COLONY_STATE.json.
 type WorktreeEntry struct {
 	ID           string         `json:"id"`
@@ -112,6 +151,7 @@ type WorktreeEntry struct {
 type ColonyState struct {
 	Version            string          `json:"version"`
 	Goal               *string         `json:"goal"`
+	Scope              ColonyScope     `json:"scope,omitempty"`
 	ColonyName         *string         `json:"colony_name"`
 	ColonyVersion      int             `json:"colony_version"`
 	State              State           `json:"state"`
@@ -134,6 +174,11 @@ type ColonyState struct {
 	Paused             bool            `json:"paused,omitempty"`
 	PausedAt           *string         `json:"paused_at,omitempty"`
 	Worktrees          []WorktreeEntry `json:"worktrees,omitempty"`
+}
+
+// EffectiveScope returns the compatibility-safe colony scope.
+func (s ColonyState) EffectiveScope() ColonyScope {
+	return s.Scope.Effective()
 }
 
 // ---------------------------------------------------------------------------

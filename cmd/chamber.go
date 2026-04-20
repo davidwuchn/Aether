@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/storage"
 	"github.com/spf13/cobra"
 )
@@ -129,6 +130,7 @@ var chamberListCmd = &cobra.Command{
 			if os.IsNotExist(err) {
 				outputOK(map[string]interface{}{
 					"chambers": []interface{}{},
+					"by_scope": emptyChamberScopeGroups(),
 					"total":    0,
 				})
 				return nil
@@ -138,6 +140,7 @@ var chamberListCmd = &cobra.Command{
 		}
 
 		chambers := []interface{}{}
+		byScope := emptyChamberScopeGroups()
 		for _, entry := range entries {
 			if !entry.IsDir() {
 				continue
@@ -151,11 +154,15 @@ var chamberListCmd = &cobra.Command{
 			if err := json.Unmarshal(data, &manifest); err != nil {
 				continue // skip invalid manifests
 			}
+			manifest = manifestWithEffectiveScope(manifest)
 			chambers = append(chambers, manifest)
+			scope := string(chamberManifestScope(manifest))
+			byScope[scope] = append(byScope[scope], manifest)
 		}
 
 		outputOK(map[string]interface{}{
 			"chambers": chambers,
+			"by_scope": byScope,
 			"total":    len(chambers),
 		})
 		return nil
@@ -174,4 +181,27 @@ func init() {
 	rootCmd.AddCommand(chamberCreateCmd)
 	rootCmd.AddCommand(chamberVerifyCmd)
 	rootCmd.AddCommand(chamberListCmd)
+}
+
+func chamberManifestScope(manifest map[string]interface{}) colony.ColonyScope {
+	scope, err := colony.ParseColonyScope(stringValue(manifest["scope"]))
+	if err != nil {
+		return colony.ScopeProject
+	}
+	return scope.Effective()
+}
+
+func manifestWithEffectiveScope(manifest map[string]interface{}) map[string]interface{} {
+	if manifest == nil {
+		return nil
+	}
+	manifest["scope"] = string(chamberManifestScope(manifest))
+	return manifest
+}
+
+func emptyChamberScopeGroups() map[string][]interface{} {
+	return map[string][]interface{}{
+		string(colony.ScopeProject): {},
+		string(colony.ScopeMeta):    {},
+	}
 }

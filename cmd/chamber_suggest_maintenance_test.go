@@ -286,6 +286,69 @@ func TestChamberListWithEntries(t *testing.T) {
 	}
 }
 
+func TestChamberListGroupsByEffectiveScope(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStoreWithRoot(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	chambersRoot := filepath.Join(tmpDir, ".aether", "chambers")
+
+	projectDir := filepath.Join(chambersRoot, "legacy-project")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatalf("mkdir project chamber: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "manifest.json"), []byte(`{"name":"legacy-project","milestone":"Crowned Anthill"}`), 0644); err != nil {
+		t.Fatalf("write project manifest: %v", err)
+	}
+
+	metaDir := filepath.Join(chambersRoot, "meta-chamber")
+	if err := os.MkdirAll(metaDir, 0755); err != nil {
+		t.Fatalf("mkdir meta chamber: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(metaDir, "manifest.json"), []byte(`{"name":"meta-chamber","scope":"meta","milestone":"Crowned Anthill"}`), 0644); err != nil {
+		t.Fatalf("write meta manifest: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"chamber-list"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["total"] != float64(2) {
+		t.Fatalf("total = %v, want 2", result["total"])
+	}
+
+	chambers := result["chambers"].([]interface{})
+	scopeByName := map[string]string{}
+	for _, raw := range chambers {
+		entry := raw.(map[string]interface{})
+		scopeByName[entry["name"].(string)] = entry["scope"].(string)
+	}
+	if got := scopeByName["legacy-project"]; got != "project" {
+		t.Fatalf("legacy project chamber scope = %q, want project", got)
+	}
+	if got := scopeByName["meta-chamber"]; got != "meta" {
+		t.Fatalf("meta chamber scope = %q, want meta", got)
+	}
+
+	byScope := result["by_scope"].(map[string]interface{})
+	project := byScope["project"].([]interface{})
+	meta := byScope["meta"].([]interface{})
+	if len(project) != 1 {
+		t.Fatalf("project group length = %d, want 1", len(project))
+	}
+	if len(meta) != 1 {
+		t.Fatalf("meta group length = %d, want 1", len(meta))
+	}
+}
+
 // --- Maintenance Tests ---
 
 func TestDataCleanDryRun(t *testing.T) {

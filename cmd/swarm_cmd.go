@@ -724,10 +724,16 @@ func renderSwarmCompatibilityVisual(result map[string]interface{}) string {
 	target := strings.TrimSpace(stringValue(result["target"]))
 	if mode == "watch" {
 		b.WriteString("Live colony activity view.\n")
+		b.WriteString("This is a one-shot snapshot of active workers.\n")
 		if target != "" {
 			b.WriteString("Target: " + target + "\n")
 		}
 		renderSwarmWorkers(&b, result)
+		b.WriteString(renderArtifactsSection(
+			displayDataPath("spawn-tree.txt"),
+			displayDataPath("watch-status.txt"),
+			displayDataPath("watch-progress.txt"),
+		))
 		next := strings.TrimSpace(stringValue(result["next"]))
 		if next == "" {
 			next = "aether status"

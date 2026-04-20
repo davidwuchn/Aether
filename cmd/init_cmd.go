@@ -29,6 +29,13 @@ var initCmd = &cobra.Command{
 			return nil
 		}
 
+		scopeRaw, _ := cmd.Flags().GetString("scope")
+		scope, err := colony.ParseColonyScope(scopeRaw)
+		if err != nil {
+			outputError(1, fmt.Sprintf("invalid scope %q (must be project or meta)", scopeRaw), nil)
+			return nil
+		}
+
 		goal := strings.TrimSpace(args[0])
 		if goal == "" {
 			outputError(1, "goal must not be empty", nil)
@@ -95,6 +102,7 @@ var initCmd = &cobra.Command{
 		state := colony.ColonyState{
 			Version:       "3.0",
 			Goal:          &goal,
+			Scope:         scope,
 			ColonyVersion: 0,
 			State:         colony.StateREADY,
 			CurrentPhase:  0,
@@ -164,12 +172,13 @@ var initCmd = &cobra.Command{
 		result := map[string]interface{}{
 			"state":    string(colony.StateREADY),
 			"goal":     goal,
+			"scope":    string(scope),
 			"version":  "3.0",
 			"phase":    0,
 			"session":  sessionID,
 			"data_dir": dataDir,
 		}
-		outputWorkflow(result, renderInitVisual(goal, sessionID, dataDir))
+		outputWorkflow(result, renderInitVisual(goal, string(scope), sessionID, dataDir))
 		return nil
 	},
 }
@@ -183,6 +192,7 @@ func ptrStr(s *string) string {
 }
 
 func init() {
+	initCmd.Flags().String("scope", string(colony.ScopeProject), "Colony scope: project or meta")
 	rootCmd.AddCommand(initCmd)
 }
 

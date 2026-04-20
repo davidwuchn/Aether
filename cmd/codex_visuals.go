@@ -14,29 +14,29 @@ import (
 const visualDivider = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
 var casteEmojiMap = map[string]string{
-	"queen":         "👑🐜",
-	"builder":       "🔨🐜",
-	"watcher":       "👁️🐜",
-	"scout":         "🔍🐜",
-	"colonizer":     "🗺️🐜",
-	"surveyor":      "📊🐜",
-	"architect":     "🏛️🐜",
-	"chaos":         "🎲🐜",
-	"archaeologist": "🏺🐜",
-	"oracle":        "🔮🐜",
-	"route_setter":  "📋🐜",
-	"ambassador":    "🔌🐜",
-	"auditor":       "👥🐜",
-	"chronicler":    "📝🐜",
-	"gatekeeper":    "📦🐜",
-	"guardian":      "🛡️🐜",
-	"includer":      "♿🐜",
-	"keeper":        "📚🐜",
-	"measurer":      "⚡🐜",
-	"probe":         "🧪🐜",
-	"tracker":       "🐛🐜",
-	"weaver":        "🔄🐜",
-	"dreamer":       "💭🐜",
+	"queen":         "👑",
+	"builder":       "🔨",
+	"watcher":       "👁️",
+	"scout":         "🔍",
+	"colonizer":     "🗺️",
+	"surveyor":      "📊",
+	"architect":     "🏛️",
+	"chaos":         "🎲",
+	"archaeologist": "🏺",
+	"oracle":        "🔮",
+	"route_setter":  "📋",
+	"ambassador":    "🔌",
+	"auditor":       "👥",
+	"chronicler":    "📝",
+	"gatekeeper":    "📦",
+	"guardian":      "🛡️",
+	"includer":      "♿",
+	"keeper":        "📚",
+	"measurer":      "⚡",
+	"probe":         "🧪",
+	"tracker":       "🐛",
+	"weaver":        "🔄",
+	"dreamer":       "💭",
 }
 
 var casteColorMap = map[string]string{
@@ -63,6 +63,32 @@ var casteColorMap = map[string]string{
 	"tracker":       "31",
 	"weaver":        "95",
 	"dreamer":       "90",
+}
+
+var casteLabelMap = map[string]string{
+	"queen":         "Queen",
+	"builder":       "Builder",
+	"watcher":       "Watcher",
+	"scout":         "Scout",
+	"colonizer":     "Colonizer",
+	"surveyor":      "Surveyor",
+	"architect":     "Architect",
+	"chaos":         "Chaos",
+	"archaeologist": "Archaeologist",
+	"oracle":        "Oracle",
+	"route_setter":  "Route-Setter",
+	"ambassador":    "Ambassador",
+	"auditor":       "Auditor",
+	"chronicler":    "Chronicler",
+	"gatekeeper":    "Gatekeeper",
+	"guardian":      "Guardian",
+	"includer":      "Includer",
+	"keeper":        "Keeper",
+	"measurer":      "Measurer",
+	"probe":         "Probe",
+	"tracker":       "Tracker",
+	"weaver":        "Weaver",
+	"dreamer":       "Dreamer",
 }
 
 func shouldRenderVisualOutput(w io.Writer) bool {
@@ -128,6 +154,36 @@ func spacedTitle(title string) string {
 
 func renderBanner(emoji, title string) string {
 	return fmt.Sprintf("━━ %s %s ━━\n", emoji, spacedTitle(title))
+}
+
+func renderStageMarker(title string) string {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return ""
+	}
+	return "── " + title + " ──\n"
+}
+
+func renderArtifactsSection(paths ...string) string {
+	filtered := make([]string, 0, len(paths))
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		filtered = append(filtered, path)
+	}
+	if len(filtered) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(renderBanner("🗂️", "Artifacts"))
+	b.WriteString(visualDivider)
+	for _, path := range filtered {
+		b.WriteString(path)
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 func renderNextUp(primary string, alternatives ...string) string {
@@ -217,13 +273,16 @@ func workflowSuggestionsForState(state colony.ColonyState) (string, []string) {
 	}
 }
 
-func renderInitVisual(goal, sessionID, dataDir string) string {
+func renderInitVisual(goal, scope, sessionID, dataDir string) string {
 	var b strings.Builder
 	b.WriteString(renderBanner("🥚", "Colony Init"))
 	b.WriteString(visualDivider)
 	b.WriteString("Queen charter accepted.\n")
 	b.WriteString("Goal: ")
 	b.WriteString(goal)
+	b.WriteString("\n")
+	b.WriteString("Scope: ")
+	b.WriteString(emptyFallback(strings.TrimSpace(scope), string(colony.ScopeProject)))
 	b.WriteString("\n")
 	b.WriteString("Session: ")
 	b.WriteString(sessionID)
@@ -288,7 +347,7 @@ func renderColonizeVisual(result map[string]interface{}) string {
 			b.WriteString("\nSurveyors\n")
 			for _, d := range dispatches {
 				b.WriteString("  ")
-				b.WriteString(casteEmoji("surveyor"))
+				b.WriteString(casteIdentity(d.Caste))
 				b.WriteString(" ")
 				b.WriteString(d.Name)
 				b.WriteString("  ")
@@ -301,6 +360,9 @@ func renderColonizeVisual(result map[string]interface{}) string {
 		b.WriteString("\nReports\n")
 		b.WriteString(renderIndentedList(files))
 	}
+	b.WriteString("\nCoordination: ")
+	b.WriteString(displayDataPath("spawn-tree.txt"))
+	b.WriteString("\n")
 	b.WriteString(renderNextUp(`Run ` + "`aether plan`" + ` to turn this scan into a phase plan.`))
 	return b.String()
 }
@@ -315,13 +377,16 @@ func renderColonizeDispatchPreview(root string, dispatches []codexSurveyorDispat
 	b.WriteString("\n\nSurveyors\n")
 	for _, dispatch := range dispatches {
 		b.WriteString("  ")
-		b.WriteString(casteEmoji("surveyor"))
+		b.WriteString(casteIdentity(dispatch.Caste))
 		b.WriteString(" ")
 		b.WriteString(dispatch.Name)
 		b.WriteString("  ")
 		b.WriteString(dispatch.Task)
 		b.WriteString("\n")
 	}
+	b.WriteString("\nCoordination: ")
+	b.WriteString(displayDataPath("spawn-tree.txt"))
+	b.WriteString("\n")
 	return b.String()
 }
 
@@ -371,19 +436,16 @@ func renderSurveyorResults(surveyors []codexSurveyorDispatch) string {
 	completed := 0
 	totalDuration := 0.0
 	for _, s := range surveyors {
-		emoji := casteEmoji("surveyor")
 		statusIcon := "\u2717"
 		if s.Status == "completed" {
 			statusIcon = "\u2713"
 			completed++
 		}
 		b.WriteString("  ")
-		b.WriteString(emoji)
+		b.WriteString(casteIdentity(s.Caste))
 		b.WriteString(" ")
 		b.WriteString(s.Name)
-		b.WriteString(" (")
-		b.WriteString(colorizeCaste(s.Caste, s.Caste))
-		b.WriteString(")  ")
+		b.WriteString("  ")
 		b.WriteString(statusIcon)
 		b.WriteString(" ")
 		b.WriteString(s.Status)
@@ -447,19 +509,16 @@ func renderPlanningWorkerResults(workers []codexPlanningDispatch) string {
 	completed := 0
 	totalDuration := 0.0
 	for _, w := range workers {
-		emoji := casteEmoji(w.Caste)
 		statusIcon := "\u2717"
 		if w.Status == "completed" {
 			statusIcon = "\u2713"
 			completed++
 		}
 		b.WriteString("  ")
-		b.WriteString(emoji)
+		b.WriteString(casteIdentity(w.Caste))
 		b.WriteString(" ")
 		b.WriteString(w.Name)
-		b.WriteString(" (")
-		b.WriteString(colorizeCaste(w.Caste, w.Caste))
-		b.WriteString(")  ")
+		b.WriteString("  ")
 		b.WriteString(statusIcon)
 		b.WriteString(" ")
 		b.WriteString(w.Status)
@@ -528,7 +587,7 @@ func renderPlanVisual(result map[string]interface{}) string {
 		} else {
 			for _, d := range parsed {
 				b.WriteString("  ")
-				b.WriteString(casteEmoji(d.Caste))
+				b.WriteString(casteIdentity(d.Caste))
 				b.WriteString(" ")
 				b.WriteString(d.Name)
 				b.WriteString("  ")
@@ -559,13 +618,61 @@ func renderPlanVisual(result map[string]interface{}) string {
 			b.WriteString(strings.TrimSpace(phase.Description))
 			b.WriteString("\n")
 		}
-		taskLines := make([]string, 0, len(phase.Tasks))
 		for _, task := range phase.Tasks {
-			taskLines = append(taskLines, task.Goal)
+			taskLabel := strings.TrimSpace(ptrStr(task.ID))
+			if taskLabel == "" {
+				taskLabel = task.Goal
+			}
+			b.WriteString(fmt.Sprintf("  Task %s\n", taskLabel))
+			b.WriteString("    Goal: ")
+			b.WriteString(strings.TrimSpace(task.Goal))
+			b.WriteString("\n")
+			if len(task.DependsOn) > 0 {
+				b.WriteString("    Depends on: ")
+				b.WriteString(strings.Join(task.DependsOn, ", "))
+				b.WriteString("\n")
+			}
+			if len(task.Constraints) > 0 {
+				b.WriteString("    Constraints:\n")
+				for _, constraint := range task.Constraints {
+					b.WriteString("      - ")
+					b.WriteString(constraint)
+					b.WriteString("\n")
+				}
+			}
+			if len(task.Hints) > 0 {
+				b.WriteString("    Hints:\n")
+				for _, hint := range task.Hints {
+					b.WriteString("      - ")
+					b.WriteString(hint)
+					b.WriteString("\n")
+				}
+			}
+			if len(task.SuccessCriteria) > 0 {
+				b.WriteString("    Success Criteria:\n")
+				for _, criterion := range task.SuccessCriteria {
+					b.WriteString("      - ")
+					b.WriteString(criterion)
+					b.WriteString("\n")
+				}
+			}
 		}
-		b.WriteString(renderIndentedList(taskLines))
+		if len(phase.Tasks) == 0 {
+			b.WriteString("  - No explicit tasks captured for this phase.\n")
+		}
+		if len(phase.SuccessCriteria) > 0 {
+			b.WriteString("  Phase Success Criteria:\n")
+			for _, criterion := range phase.SuccessCriteria {
+				b.WriteString("    - ")
+				b.WriteString(criterion)
+				b.WriteString("\n")
+			}
+		}
 		b.WriteString("\n")
 	}
+	b.WriteString("Coordination: ")
+	b.WriteString(displayDataPath("spawn-tree.txt"))
+	b.WriteString("\n\n")
 
 	nextBuild := "aether build 1"
 	if nextPhase := firstBuildablePhase(phases); nextPhase > 0 {
@@ -588,13 +695,16 @@ func renderPlanDispatchPreview(goal string, dispatches []codexPlanningDispatch) 
 	b.WriteString("\n\nWorkers\n")
 	for _, dispatch := range dispatches {
 		b.WriteString("  ")
-		b.WriteString(casteEmoji(dispatch.Caste))
+		b.WriteString(casteIdentity(dispatch.Caste))
 		b.WriteString(" ")
 		b.WriteString(dispatch.Name)
 		b.WriteString("  ")
 		b.WriteString(dispatch.Task)
 		b.WriteString("\n")
 	}
+	b.WriteString("\nCoordination: ")
+	b.WriteString(displayDataPath("spawn-tree.txt"))
+	b.WriteString("\n")
 	return b.String()
 }
 
@@ -627,6 +737,11 @@ func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phas
 	}
 	b.WriteString("\n")
 	b.WriteString(renderSpawnPlanForDispatches(dispatches))
+	b.WriteString(renderArtifactsSection(
+		displayDataPath(fmt.Sprintf("build/phase-%d/manifest.json", phase.ID)),
+		displayDataPath("last-build-claims.json"),
+		displayDataPath("spawn-tree.txt"),
+	))
 	b.WriteString(renderNextUp(
 		`Run `+"`aether continue`"+` after the work is implemented and independently verified.`,
 		`Run `+"`aether status`"+` if you want to inspect progress before advancing.`,
@@ -658,13 +773,28 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 	var b strings.Builder
 	b.WriteString(renderBanner("👁️", "Continue"))
 	b.WriteString(visualDivider)
+	b.WriteString(renderStageMarker("Verification"))
 	b.WriteString("Verification pass complete.\n")
-	b.WriteString(fmt.Sprintf("Phase %d sealed: %s\n", phase.ID, phase.Name))
+	b.WriteString(fmt.Sprintf("Phase %d verified and completed: %s\n", phase.ID, phase.Name))
 	renderContinueVerificationSummaryMap(&b, mapValue(result["verification"]))
+	b.WriteString("Workers\n")
+	if closed := stringSliceValue(result["closed_workers"]); len(closed) > 0 {
+		b.WriteString(renderIndentedList(closed))
+	} else {
+		b.WriteString("  - No workers required closing\n")
+	}
+	b.WriteString("Verification passed during continue\n")
+	b.WriteString(renderArtifactsSection(
+		displayDataPath(fmt.Sprintf("build/phase-%d/verification.json", phase.ID)),
+		displayDataPath(fmt.Sprintf("build/phase-%d/gates.json", phase.ID)),
+		displayDataPath(fmt.Sprintf("build/phase-%d/continue.json", phase.ID)),
+		displayDataPath("spawn-tree.txt"),
+	))
 	renderContinueGateSummaryMap(&b, mapValue(result["gates"]))
 	if closed := stringSliceValue(result["closed_workers"]); len(closed) > 0 {
 		b.WriteString(fmt.Sprintf("Workers closed: %d\n", len(closed)))
 	}
+	b.WriteString(renderStageMarker("Housekeeping"))
 	if housekeeping != nil {
 		b.WriteString(fmt.Sprintf("Signals: %d active -> %d active after housekeeping\n", housekeeping.ActiveBefore, housekeeping.ActiveAfter))
 		if housekeeping.Updated > 0 {
@@ -674,6 +804,7 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 	}
 
 	if final {
+		b.WriteString(renderStageMarker("Colony Complete"))
 		b.WriteString("All planned phases are complete. The colony is ready for Crowned Anthill.\n")
 		b.WriteString(renderNextUp(
 			`Run `+"`aether seal`"+` to finalize the colony.`,
@@ -683,6 +814,7 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 	}
 
 	if nextPhase != nil {
+		b.WriteString(renderStageMarker("Next Phase"))
 		b.WriteString(fmt.Sprintf("Next phase ready: %d — %s\n", nextPhase.ID, nextPhase.Name))
 	}
 	nextBuild := phase.ID + 1
@@ -1438,7 +1570,7 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 			lastWave = dispatch.Wave
 		}
 		b.WriteString("  ")
-		b.WriteString(casteEmoji(dispatch.Caste))
+		b.WriteString(casteIdentity(dispatch.Caste))
 		b.WriteString(" ")
 		b.WriteString(dispatch.Name)
 		b.WriteString("  ")
@@ -1455,7 +1587,7 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 		b.WriteString("Strategy\n")
 		for _, dispatch := range strategy {
 			b.WriteString("  ")
-			b.WriteString(casteEmoji(dispatch.Caste))
+			b.WriteString(casteIdentity(dispatch.Caste))
 			b.WriteString(" ")
 			b.WriteString(dispatch.Name)
 			b.WriteString("  ")
@@ -1472,7 +1604,7 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 		b.WriteString("Verification\n")
 		for _, dispatch := range verification {
 			b.WriteString("  ")
-			b.WriteString(casteEmoji(dispatch.Caste))
+			b.WriteString(casteIdentity(dispatch.Caste))
 			b.WriteString(" ")
 			b.WriteString(dispatch.Name)
 			b.WriteString("  ")
@@ -1482,7 +1614,7 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 		}
 		for _, dispatch := range resilience {
 			b.WriteString("  ")
-			b.WriteString(casteEmoji(dispatch.Caste))
+			b.WriteString(casteIdentity(dispatch.Caste))
 			b.WriteString(" ")
 			b.WriteString(dispatch.Name)
 			b.WriteString("  ")
@@ -1623,23 +1755,50 @@ func deterministicAntName(caste, seed string) string {
 	return fmt.Sprintf("%s-%d", prefix, number)
 }
 
-func casteEmoji(caste string) string {
+func normalizeCasteKey(caste string) string {
 	caste = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(caste, "-", "_")))
-	if emoji, ok := casteEmojiMap[caste]; ok {
-		return colorizeCaste(caste, emoji)
+	if caste == "" {
+		return ""
 	}
-	return colorizeCaste(caste, "🐜")
+	if _, ok := casteEmojiMap[caste]; ok {
+		return caste
+	}
+	if strings.HasPrefix(caste, "surveyor") {
+		return "surveyor"
+	}
+	return caste
+}
+
+func casteEmoji(caste string) string {
+	caste = normalizeCasteKey(caste)
+	if emoji, ok := casteEmojiMap[caste]; ok {
+		return emoji
+	}
+	return "🐜"
+}
+
+func casteLabel(caste string) string {
+	caste = normalizeCasteKey(caste)
+	if label, ok := casteLabelMap[caste]; ok {
+		return label
+	}
+	return "Ant"
+}
+
+func casteANSIColor(caste string) string {
+	caste = normalizeCasteKey(caste)
+	return casteColorMap[caste]
+}
+
+func casteIdentity(caste string) string {
+	return casteEmoji(caste) + " " + colorizeCaste(caste, casteLabel(caste))
 }
 
 func colorizeCaste(caste, text string) string {
 	if !shouldUseANSIColors() {
 		return text
 	}
-	caste = strings.ToLower(strings.TrimSpace(strings.ReplaceAll(caste, "-", "_")))
-	color := casteColorMap[caste]
-	if color == "" && strings.HasPrefix(caste, "surveyor") {
-		color = casteColorMap["surveyor"]
-	}
+	color := casteANSIColor(caste)
 	if color == "" {
 		return text
 	}
@@ -1649,6 +1808,9 @@ func colorizeCaste(caste, text string) string {
 func shouldUseANSIColors() bool {
 	if strings.TrimSpace(os.Getenv("NO_COLOR")) != "" {
 		return false
+	}
+	if strings.TrimSpace(os.Getenv("AETHER_FORCE_COLOR")) == "1" || strings.TrimSpace(os.Getenv("CLICOLOR_FORCE")) != "" {
+		return true
 	}
 	mode := strings.ToLower(strings.TrimSpace(os.Getenv("AETHER_OUTPUT_MODE")))
 	if mode == "json" {

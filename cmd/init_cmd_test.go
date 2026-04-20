@@ -405,6 +405,101 @@ func TestInitCmd_OutputFormat(t *testing.T) {
 	if result["version"] != "3.0" {
 		t.Errorf("result.version = %v, want '3.0'", result["version"])
 	}
+	if result["scope"] != "project" {
+		t.Errorf("result.scope = %v, want 'project'", result["scope"])
+	}
+}
+
+func TestInitCmd_DefaultScope(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+
+	origDir := os.Getenv("COLONY_DATA_DIR")
+	os.Setenv("COLONY_DATA_DIR", dataDir)
+	defer os.Setenv("COLONY_DATA_DIR", origDir)
+
+	rootCmd.SetArgs([]string{"init", "Default scope test"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s, _ := storage.NewStore(dataDir)
+	var state colony.ColonyState
+	if err := s.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if state.Scope != colony.ScopeProject {
+		t.Errorf("scope = %q, want %q", state.Scope, colony.ScopeProject)
+	}
+}
+
+func TestInitCmd_MetaScope(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+
+	origDir := os.Getenv("COLONY_DATA_DIR")
+	os.Setenv("COLONY_DATA_DIR", dataDir)
+	defer os.Setenv("COLONY_DATA_DIR", origDir)
+
+	rootCmd.SetArgs([]string{"init", "--scope", "meta", "Meta scope test"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s, _ := storage.NewStore(dataDir)
+	var state colony.ColonyState
+	if err := s.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	if state.Scope != colony.ScopeMeta {
+		t.Errorf("scope = %q, want %q", state.Scope, colony.ScopeMeta)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	result := env["result"].(map[string]interface{})
+	if result["scope"] != "meta" {
+		t.Errorf("result.scope = %v, want meta", result["scope"])
+	}
+}
+
+func TestInitCmd_InvalidScope(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stderr = &buf
+
+	tmpDir := t.TempDir()
+	dataDir := tmpDir + "/.aether/data"
+	os.MkdirAll(dataDir, 0755)
+
+	origDir := os.Getenv("COLONY_DATA_DIR")
+	os.Setenv("COLONY_DATA_DIR", dataDir)
+	defer os.Setenv("COLONY_DATA_DIR", origDir)
+
+	rootCmd.SetArgs([]string{"init", "--scope", "unknown", "Invalid scope test"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("unexpected cobra error: %v", err)
+	}
+
+	env := parseEnvelope(t, buf.String())
+	if env["ok"] != false {
+		t.Fatalf("expected ok:false, got %v", env["ok"])
+	}
+	if !strings.Contains(buf.String(), "invalid scope") {
+		t.Fatalf("expected invalid scope message, got: %s", buf.String())
+	}
 }
 
 func TestInitCmd_SealedColonyAllowsFreshInit(t *testing.T) {

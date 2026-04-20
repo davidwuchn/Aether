@@ -156,6 +156,9 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 	blockers, issues, notes := countFlags(s)
 	fmt.Fprintf(&b, "Flags: %d blockers | %d issues | %d notes\n", blockers, issues, notes)
 
+	// Scope
+	fmt.Fprintf(&b, "Scope: %s\n", state.EffectiveScope())
+
 	// Milestone
 	if state.Milestone != "" {
 		fmt.Fprintf(&b, "Milestone: %s\n", state.Milestone)

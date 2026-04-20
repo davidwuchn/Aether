@@ -51,7 +51,8 @@ var entombCmd = &cobra.Command{
 
 		now := time.Now().UTC()
 		goal := strings.TrimSpace(*state.Goal)
-		chamberName := uniqueChamberName(filepath.Join(aetherRoot, ".aether", "chambers"), goal, now)
+		scope := state.EffectiveScope()
+		chamberName := uniqueChamberName(filepath.Join(aetherRoot, ".aether", "chambers"), scope, goal, now)
 		chamberDir := filepath.Join(aetherRoot, ".aether", "chambers", chamberName)
 
 		if err := os.MkdirAll(chamberDir, 0755); err != nil {
@@ -101,6 +102,7 @@ var entombCmd = &cobra.Command{
 		result := map[string]interface{}{
 			"entombed":         true,
 			"goal":             goal,
+			"scope":            string(scope),
 			"chamber":          chamberName,
 			"chamber_path":     chamberDir,
 			"phases_completed": completedPhaseCount(state),
@@ -138,6 +140,7 @@ var tunnelsCmd = &cobra.Command{
 			outputError(1, fmt.Sprintf("chamber %q has invalid manifest", chamberName), nil)
 			return nil
 		}
+		manifest = manifestWithEffectiveScope(manifest)
 
 		entries, _ := os.ReadDir(chamberDir)
 		files := make([]string, 0, len(entries))
@@ -161,10 +164,11 @@ var tunnelsCmd = &cobra.Command{
 	},
 }
 
-func uniqueChamberName(chambersRoot, goal string, now time.Time) string {
+func uniqueChamberName(chambersRoot string, scope colony.ColonyScope, goal string, now time.Time) string {
 	prefix := now.Format("2006-01-02")
+	scopeSlug := string(scope.Effective())
 	slug := sanitizeChamberGoal(goal)
-	name := prefix + "-" + slug
+	name := prefix + "-" + scopeSlug + "-" + slug
 	candidate := name
 	counter := 1
 	for {
@@ -216,6 +220,7 @@ func writeEntombManifest(chamberDir, chamberName string, state colony.ColonyStat
 	manifest := map[string]interface{}{
 		"name":             chamberName,
 		"goal":             goal,
+		"scope":            string(state.EffectiveScope()),
 		"milestone":        state.Milestone,
 		"phases_completed": completedPhaseCount(state),
 		"total_phases":     len(state.Plan.Phases),
@@ -378,6 +383,7 @@ func verifyEntombedChamber(chamberDir string) error {
 
 func resetColonyStateForEntomb(state colony.ColonyState) colony.ColonyState {
 	state.Goal = nil
+	state.Scope = ""
 	state.ColonyVersion = 0
 	state.State = colony.StateIDLE
 	state.CurrentPhase = 0
@@ -437,6 +443,7 @@ func clearActiveColonyRuntimeFiles(aetherRoot, dataDir string) error {
 func writeEntombRecoveryDocs(chamberName, goal string, state colony.ColonyState, now time.Time) error {
 	completed := completedPhaseCount(state)
 	total := len(state.Plan.Phases)
+	scope := string(state.EffectiveScope())
 
 	handoff := strings.Join([]string{
 		"# Colony Session — " + chamberName,
@@ -450,6 +457,7 @@ func writeEntombRecoveryDocs(chamberName, goal string, state colony.ColonyState,
 		"## Colony Summary",
 		"",
 		"- Goal: \"" + goal + "\"",
+		"- Scope: " + scope,
 		fmt.Sprintf("- Phases: %d completed of %d", completed, total),
 		"- Milestone reached: Crowned Anthill",
 		"- Entombed at: " + now.Format(time.RFC3339),
@@ -470,6 +478,7 @@ func writeEntombRecoveryDocs(chamberName, goal string, state colony.ColonyState,
 		"State: IDLE",
 		"Latest chamber: .aether/chambers/" + chamberName + "/",
 		"Previous goal: " + goal,
+		"Previous scope: " + scope,
 		"Recommended next action: `aether init \"new goal\"`",
 		"",
 	}, "\n")
@@ -490,6 +499,9 @@ func renderEntombVisual(result map[string]interface{}) string {
 	b.WriteString("Colony archived into chambers.\n")
 	b.WriteString("Goal: ")
 	b.WriteString(emptyFallback(stringValue(result["goal"]), "No goal recorded"))
+	b.WriteString("\n")
+	b.WriteString("Scope: ")
+	b.WriteString(emptyFallback(stringValue(result["scope"]), string(colony.ScopeProject)))
 	b.WriteString("\n")
 	b.WriteString("Chamber: ")
 	b.WriteString(emptyFallback(stringValue(result["chamber_path"]), stringValue(result["chamber"])))

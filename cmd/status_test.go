@@ -157,6 +157,67 @@ func TestStatusOutput(t *testing.T) {
 	}
 }
 
+func TestStatusOutput_DefaultScopeDisplay(t *testing.T) {
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	s, tmpDir := setupTestStore(t)
+	defer os.RemoveAll(tmpDir)
+
+	origRoot := os.Getenv("AETHER_ROOT")
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", origRoot)
+
+	store = s
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Scope: project") {
+		t.Fatalf("expected default project scope in output, got:\n%s", output)
+	}
+}
+
+func TestStatusOutput_MetaScopeDisplay(t *testing.T) {
+	var buf bytes.Buffer
+	stdout = &buf
+	defer func() { stdout = os.Stdout }()
+
+	s, tmpDir := setupTestStore(t)
+	defer os.RemoveAll(tmpDir)
+
+	var state colony.ColonyState
+	if err := s.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	state.Scope = colony.ScopeMeta
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	origRoot := os.Getenv("AETHER_ROOT")
+	os.Setenv("AETHER_ROOT", tmpDir)
+	defer os.Setenv("AETHER_ROOT", origRoot)
+
+	store = s
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Scope: meta") {
+		t.Fatalf("expected meta scope in output, got:\n%s", output)
+	}
+}
+
 func TestStatusPheromoneSummary(t *testing.T) {
 	var buf bytes.Buffer
 	stdout = &buf

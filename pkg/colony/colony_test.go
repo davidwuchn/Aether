@@ -128,6 +128,7 @@ func TestRoundTripColonyState(t *testing.T) {
 	input := ColonyState{
 		Version:            "3.0",
 		Goal:               &goal,
+		Scope:              ScopeMeta,
 		ColonyName:         strPtr("Test Colony"),
 		ColonyVersion:      1,
 		State:              StateREADY,
@@ -240,6 +241,9 @@ func assertColonyStateEqual(t *testing.T, a, b ColonyState) {
 	if a.State != b.State {
 		t.Errorf("State mismatch: %q vs %q", a.State, b.State)
 	}
+	if a.Scope != b.Scope {
+		t.Errorf("Scope mismatch: %q vs %q", a.Scope, b.Scope)
+	}
 	if a.CurrentPhase != b.CurrentPhase {
 		t.Errorf("CurrentPhase mismatch: %d vs %d", a.CurrentPhase, b.CurrentPhase)
 	}
@@ -313,6 +317,7 @@ func TestNullableFields_WithValues(t *testing.T) {
 		State:          StateREADY,
 		CurrentPhase:   0,
 		Goal:           &goal,
+		Scope:          ScopeProject,
 		ColonyName:     strPtr("Test Colony"),
 		SessionID:      strPtr("session_123_abc"),
 		InitializedAt:  &now,
@@ -336,6 +341,9 @@ func TestNullableFields_WithValues(t *testing.T) {
 	if decoded.Goal == nil || *decoded.Goal != "Build something" {
 		t.Error("Goal mismatch")
 	}
+	if decoded.Scope != ScopeProject {
+		t.Errorf("Scope mismatch: got %q want %q", decoded.Scope, ScopeProject)
+	}
 	if decoded.Plan.Confidence == nil || *decoded.Plan.Confidence != 0.85 {
 		t.Error("Plan.Confidence mismatch")
 	}
@@ -357,6 +365,48 @@ func TestNullableFields_JSONNull(t *testing.T) {
 	}
 	if state.BuildStartedAt != nil {
 		t.Error("expected nil BuildStartedAt from JSON null")
+	}
+}
+
+func TestColonyScope(t *testing.T) {
+	if !ScopeProject.Valid() {
+		t.Fatal("expected project scope to be valid")
+	}
+	if !ScopeMeta.Valid() {
+		t.Fatal("expected meta scope to be valid")
+	}
+	if ColonyScope("weird").Valid() {
+		t.Fatal("expected arbitrary scope to be invalid")
+	}
+
+	project, err := ParseColonyScope("project")
+	if err != nil {
+		t.Fatalf("parse project: %v", err)
+	}
+	if project != ScopeProject {
+		t.Fatalf("parsed project scope = %q, want %q", project, ScopeProject)
+	}
+
+	meta, err := ParseColonyScope(" META ")
+	if err != nil {
+		t.Fatalf("parse meta: %v", err)
+	}
+	if meta != ScopeMeta {
+		t.Fatalf("parsed meta scope = %q, want %q", meta, ScopeMeta)
+	}
+
+	if _, err := ParseColonyScope("unknown"); err == nil {
+		t.Fatal("expected invalid scope parse to fail")
+	}
+
+	legacy := ColonyState{}
+	if got := legacy.EffectiveScope(); got != ScopeProject {
+		t.Fatalf("legacy effective scope = %q, want %q", got, ScopeProject)
+	}
+
+	explicit := ColonyState{Scope: ScopeMeta}
+	if got := explicit.EffectiveScope(); got != ScopeMeta {
+		t.Fatalf("explicit effective scope = %q, want %q", got, ScopeMeta)
 	}
 }
 

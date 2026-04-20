@@ -46,6 +46,7 @@ func TestEntombArchivesAndResetsSealedColony(t *testing.T) {
 		Version:       "3.0",
 		Goal:          &goal,
 		ColonyVersion: 2,
+		Scope:         colony.ScopeMeta,
 		State:         colony.StateCOMPLETED,
 		CurrentPhase:  1,
 		Milestone:     "Crowned Anthill",
@@ -116,6 +117,9 @@ func TestEntombArchivesAndResetsSealedColony(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("expected 1 chamber, got %d", len(entries))
 	}
+	if !strings.Contains(entries[0].Name(), "-meta-") {
+		t.Fatalf("expected scoped chamber name to include -meta-, got %q", entries[0].Name())
+	}
 	chamberDir := filepath.Join(chambersDir, entries[0].Name())
 	for _, required := range []string{
 		"manifest.json",
@@ -128,6 +132,17 @@ func TestEntombArchivesAndResetsSealedColony(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(chamberDir, required)); err != nil {
 			t.Fatalf("expected archived file %s: %v", required, err)
 		}
+	}
+	var manifest map[string]interface{}
+	manifestData, err := os.ReadFile(filepath.Join(chamberDir, "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("unmarshal manifest: %v", err)
+	}
+	if got := manifest["scope"]; got != "meta" {
+		t.Fatalf("manifest scope = %v, want meta", got)
 	}
 
 	var reset colony.ColonyState
@@ -145,6 +160,9 @@ func TestEntombArchivesAndResetsSealedColony(t *testing.T) {
 	}
 	if len(reset.Plan.Phases) != 0 {
 		t.Fatalf("reset plan phases = %d, want 0", len(reset.Plan.Phases))
+	}
+	if reset.Scope != "" {
+		t.Fatalf("reset scope = %q, want empty", reset.Scope)
 	}
 
 	for _, cleared := range []string{
@@ -165,5 +183,74 @@ func TestEntombArchivesAndResetsSealedColony(t *testing.T) {
 		if !strings.Contains(string(handoff), want) {
 			t.Fatalf("HANDOFF.md missing %q\n%s", want, string(handoff))
 		}
+	}
+}
+
+func TestEntombLegacyScopeDefaultsToProject(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	aetherRoot := os.Getenv("AETHER_ROOT")
+	if aetherRoot == "" {
+		t.Fatal("AETHER_ROOT not set by setupBuildFlowTest")
+	}
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	goal := "Archive legacy colony"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:       "3.0",
+		Goal:          &goal,
+		ColonyVersion: 2,
+		State:         colony.StateCOMPLETED,
+		CurrentPhase:  1,
+		Milestone:     "Crowned Anthill",
+		Plan: colony.Plan{
+			Phases: []colony.Phase{{ID: 1, Name: "Archive", Status: colony.PhaseCompleted}},
+		},
+	})
+
+	for path, content := range map[string]string{
+		filepath.Join(aetherRoot, ".aether", "CROWNED-ANTHILL.md"): "# Crowned Anthill\n",
+		filepath.Join(aetherRoot, ".aether", "HANDOFF.md"):         "# Old handoff\n",
+		filepath.Join(aetherRoot, ".aether", "CONTEXT.md"):         "# Old context\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatalf("create parent for %s: %v", path, err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatalf("write fixture %s: %v", path, err)
+		}
+	}
+
+	rootCmd.SetArgs([]string{"entomb"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("entomb returned error: %v", err)
+	}
+
+	chambersDir := filepath.Join(aetherRoot, ".aether", "chambers")
+	entries, err := os.ReadDir(chambersDir)
+	if err != nil {
+		t.Fatalf("read chambers dir: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 chamber, got %d", len(entries))
+	}
+	if !strings.Contains(entries[0].Name(), "-project-") {
+		t.Fatalf("expected legacy chamber name to include -project-, got %q", entries[0].Name())
+	}
+
+	manifestData, err := os.ReadFile(filepath.Join(chambersDir, entries[0].Name(), "manifest.json"))
+	if err != nil {
+		t.Fatalf("read manifest: %v", err)
+	}
+	var manifest map[string]interface{}
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("unmarshal manifest: %v", err)
+	}
+	if got := manifest["scope"]; got != "project" {
+		t.Fatalf("legacy manifest scope = %v, want project", got)
 	}
 }
