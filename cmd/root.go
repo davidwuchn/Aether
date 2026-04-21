@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/calcosmic/Aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/trace"
 	"github.com/spf13/cobra"
 )
 
@@ -127,6 +128,9 @@ func init() {
 // Commands that need data access should check this variable.
 var store *storage.Store
 
+// tracer is the shared trace logger initialized alongside store.
+var tracer *trace.Tracer
+
 // stdout and stderr are package-level writers that tests can override.
 var stdout io.Writer = os.Stdout
 var stderr io.Writer = os.Stderr
@@ -153,6 +157,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("failed to initialize store: %w", err)
 		}
 		store = s
+		tracer = trace.NewTracer(s)
 		return nil
 	},
 }

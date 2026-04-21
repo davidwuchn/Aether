@@ -178,12 +178,16 @@ func executeFieldMode(cmd *cobra.Command, field string) error {
 	case "goal":
 		state.Goal = &value
 	case "state":
+		oldState := state.State
 		newState := colony.State(value)
 		if err := colony.Transition(state.State, newState); err != nil {
 			outputError(1, fmt.Sprintf("invalid transition %s -> %s: %v", state.State, newState, err), nil)
 			return nil
 		}
 		state.State = newState
+		if tracer != nil && state.RunID != nil {
+			_ = tracer.LogStateTransition(*state.RunID, string(oldState), string(newState), "state-mutate")
+		}
 	case "current_phase":
 		phaseNum := 0
 		if _, err := fmt.Sscanf(value, "%d", &phaseNum); err != nil {

@@ -24,6 +24,7 @@ func TestMain(m *testing.M) {
 	origHistoryLimit := historyLimit
 	origHistoryFilter := historyFilter
 	origPhaseNumber := phaseNumber
+	origTracer := tracer
 
 	code := m.Run()
 
@@ -38,6 +39,7 @@ func TestMain(m *testing.M) {
 	historyLimit = origHistoryLimit
 	historyFilter = origHistoryFilter
 	phaseNumber = origPhaseNumber
+	tracer = origTracer
 
 	os.Exit(code)
 }
@@ -59,6 +61,7 @@ func saveGlobals(t *testing.T) {
 	origHistoryLimit := historyLimit
 	origHistoryFilter := historyFilter
 	origPhaseNumber := phaseNumber
+	origTracer := tracer
 	t.Cleanup(func() {
 		store = origStore
 		stdout = origStdout
@@ -71,6 +74,7 @@ func saveGlobals(t *testing.T) {
 		historyLimit = origHistoryLimit
 		historyFilter = origHistoryFilter
 		phaseNumber = origPhaseNumber
+		tracer = origTracer
 	})
 }
 
