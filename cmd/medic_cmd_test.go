@@ -141,7 +141,7 @@ func TestMedicReportRendering(t *testing.T) {
 	}
 
 	opts := MedicOptions{Fix: false, Force: false, JSON: false, Deep: false}
-	output := renderMedicReport(issues, opts, &colony.ColonyState{})
+	output := renderMedicReport(issues, opts, &colony.ColonyState{}, nil)
 
 	for _, want := range []string{"C O L O N Y   H E A L T H", "Summary", "Critical", "Warnings", "Info", "Colony state corrupted"} {
 		if !strings.Contains(output, want) {
@@ -156,7 +156,7 @@ func TestMedicReportJSONOutput(t *testing.T) {
 	}
 
 	state := &colony.ColonyState{}
-	output := renderMedicJSON(issues, state)
+	output := renderMedicJSON(issues, state, nil)
 
 	var parsed map[string]interface{}
 	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
@@ -220,19 +220,26 @@ func TestMedicReportRepairLogSection(t *testing.T) {
 	}
 
 	opts := MedicOptions{Fix: true, Force: false, JSON: false, Deep: false}
-	output := renderMedicReport(issues, opts, nil)
+	repairResult := &RepairResult{
+		Attempted: 1,
+		Succeeded: 1,
+		Repairs: []RepairRecord{
+			{Category: "pheromone", Action: "deactivate_expired_signals", Success: true},
+		},
+	}
+	output := renderMedicReport(issues, opts, nil, repairResult)
 
 	if !strings.Contains(output, "Repair Log") {
 		t.Errorf("fix mode report missing Repair Log section\n%s", output)
 	}
-	if !strings.Contains(output, "Repaired 1 issue") {
+	if !strings.Contains(output, "1 succeeded") {
 		t.Errorf("fix mode report missing repair count\n%s", output)
 	}
 }
 
 func TestMedicReportEmptyIssues(t *testing.T) {
 	opts := MedicOptions{Fix: false, JSON: false, Deep: false}
-	output := renderMedicReport(nil, opts, nil)
+	output := renderMedicReport(nil, opts, nil, nil)
 
 	if !strings.Contains(output, "healthy") {
 		t.Errorf("empty report missing healthy message\n%s", output)
@@ -245,7 +252,7 @@ func TestMedicReportEmptyIssues(t *testing.T) {
 func TestMedicReportNextStepsCritical(t *testing.T) {
 	issues := []HealthIssue{{Severity: "critical", Message: "broken"}}
 	opts := MedicOptions{Fix: false}
-	output := renderMedicReport(issues, opts, nil)
+	output := renderMedicReport(issues, opts, nil, nil)
 	if !strings.Contains(output, "aether medic --fix") {
 		t.Errorf("critical report missing fix guidance\n%s", output)
 	}
@@ -254,7 +261,7 @@ func TestMedicReportNextStepsCritical(t *testing.T) {
 func TestMedicReportNextStepsWarning(t *testing.T) {
 	issues := []HealthIssue{{Severity: "warning", Message: "stale"}}
 	opts := MedicOptions{Fix: false}
-	output := renderMedicReport(issues, opts, nil)
+	output := renderMedicReport(issues, opts, nil, nil)
 	if !strings.Contains(output, "Review warnings") {
 		t.Errorf("warning report missing review guidance\n%s", output)
 	}

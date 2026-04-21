@@ -56,8 +56,8 @@ func (fc *fileChecker) checkJSONFile(filename, description string) ([]byte, bool
 	}
 
 	if !json.Valid(data) {
-		fc.issues = append(fc.issues, issueCritical("file", filename,
-			fmt.Sprintf("%s is corrupted: invalid JSON", description)))
+		fc.issues = append(fc.issues, fixableIssue(issueCritical("file", filename,
+			fmt.Sprintf("%s is corrupted: invalid JSON", description))))
 		return nil, false
 	}
 
@@ -251,8 +251,8 @@ func scanColonyState(fc *fileChecker) []HealthIssue {
 
 	// Validate state consistency
 	if state.State == colony.StateEXECUTING && state.CurrentPhase == 0 {
-		issues = append(issues, issueWarning("state", filename,
-			"State is EXECUTING but no current phase"))
+		issues = append(issues, fixableIssue(issueWarning("state", filename,
+			"State is EXECUTING but no current phase")))
 	}
 	if state.State == colony.StateIDLE && state.Goal != nil && strings.TrimSpace(*state.Goal) != "" {
 		issues = append(issues, issueInfo("state", filename,
@@ -285,14 +285,14 @@ func scanColonyState(fc *fileChecker) []HealthIssue {
 		}
 	}
 	if orphaned > 0 {
-		issues = append(issues, issueWarning("state", filename,
-			fmt.Sprintf("%d orphaned worktree entries", orphaned)))
+		issues = append(issues, fixableIssue(issueWarning("state", filename,
+			fmt.Sprintf("%d orphaned worktree entries", orphaned))))
 	}
 
 	// Check deprecated signals field
 	if len(state.Signals) > 0 {
-		issues = append(issues, issueWarning("state", filename,
-			fmt.Sprintf("Deprecated 'signals' field has %d entries -- should be migrated to pheromones.json", len(state.Signals))))
+		issues = append(issues, fixableIssue(issueWarning("state", filename,
+			fmt.Sprintf("Deprecated 'signals' field has %d entries -- should be migrated to pheromones.json", len(state.Signals)))))
 	}
 
 	// Validate plan structure
@@ -378,13 +378,13 @@ func scanSession(fc *fileChecker) []HealthIssue {
 		var state colony.ColonyState
 		if err := json.Unmarshal(stateData, &state); err == nil {
 			if session.CurrentPhase != state.CurrentPhase {
-				issues = append(issues, issueWarning("session", filename,
+				issues = append(issues, fixableIssue(issueWarning("session", filename,
 					fmt.Sprintf("session.json current_phase (%d) doesn't match COLONY_STATE (%d)",
-						session.CurrentPhase, state.CurrentPhase)))
+						session.CurrentPhase, state.CurrentPhase))))
 			}
 			if session.ColonyGoal != "" && state.Goal != nil && session.ColonyGoal != *state.Goal {
-				issues = append(issues, issueWarning("session", filename,
-					"session.json goal doesn't match COLONY_STATE goal"))
+				issues = append(issues, fixableIssue(issueWarning("session", filename,
+					"session.json goal doesn't match COLONY_STATE goal")))
 			}
 		}
 	}
@@ -456,12 +456,12 @@ func scanPheromones(fc *fileChecker) []HealthIssue {
 
 	for i, sig := range pheromones.Signals {
 		if sig.ID == "" {
-			issues = append(issues, issueWarning("pheromone", filename,
-				fmt.Sprintf("Signal missing ID at index %d", i)))
+			issues = append(issues, fixableIssue(issueWarning("pheromone", filename,
+				fmt.Sprintf("Signal missing ID at index %d", i))))
 		}
 		if !validTypes[sig.Type] && sig.Type != "" {
-			issues = append(issues, issueWarning("pheromone", filename,
-				fmt.Sprintf("Invalid signal type '%s' at index %d", sig.Type, i)))
+			issues = append(issues, fixableIssue(issueWarning("pheromone", filename,
+				fmt.Sprintf("Invalid signal type '%s' at index %d", sig.Type, i))))
 		}
 		if sig.Content != nil && len(sig.Content) > 0 && !json.Valid(sig.Content) {
 			issues = append(issues, issueCritical("pheromone", filename,
@@ -478,8 +478,8 @@ func scanPheromones(fc *fileChecker) []HealthIssue {
 		if sig.ExpiresAt != nil && *sig.ExpiresAt != "" && sig.Active {
 			expiresAt := parseTimestamp(*sig.ExpiresAt)
 			if !expiresAt.IsZero() && now.After(expiresAt) {
-				issues = append(issues, issueWarning("pheromone", filename,
-					fmt.Sprintf("Signal '%s' has expired but is still active", sig.ID)))
+				issues = append(issues, fixableIssue(issueWarning("pheromone", filename,
+					fmt.Sprintf("Signal '%s' has expired but is still active", sig.ID))))
 			}
 		}
 
@@ -554,8 +554,8 @@ func scanDataFiles(fc *fileChecker) []HealthIssue {
 	if err == nil {
 		trimmed := strings.TrimSpace(string(constraintsData))
 		if trimmed != "{}" && trimmed != "" {
-			issues = append(issues, issueWarning("data", "constraints.json",
-				"constraints.json has content but Go code ignores it (ghost file)"))
+			issues = append(issues, fixableIssue(issueWarning("data", "constraints.json",
+				"constraints.json has content but Go code ignores it (ghost file)")))
 		}
 	}
 

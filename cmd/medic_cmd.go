@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -75,12 +76,38 @@ func runMedic(cmd *cobra.Command, args []string) error {
 	}
 	issues := scanResult.Issues
 
+	var repairResult *RepairResult
+	if opts.Fix {
+		dataPath := filepath.Join(resolveAetherRoot(), ".aether", "data")
+		repairResult, err = performRepairs(scanResult, opts, dataPath)
+		if err != nil {
+			fmt.Fprintf(stdout, "Repair failed: %v\n", err)
+			// Still show the original scan results
+			if opts.JSON {
+				fmt.Fprint(stdout, renderMedicJSON(issues, &state, nil))
+				return nil
+			}
+			output := renderMedicReport(issues, opts, &state, nil)
+			fmt.Fprint(stdout, output)
+			return nil
+		}
+
+		// Re-scan to get post-repair state
+		postResult, err := performHealthScan(opts)
+		if err != nil {
+			fmt.Fprintf(stdout, "Post-repair scan failed: %v\n", err)
+			// Use original issues
+		} else {
+			issues = postResult.Issues
+		}
+	}
+
 	if opts.JSON {
-		fmt.Fprint(stdout, renderMedicJSON(issues, &state))
+		fmt.Fprint(stdout, renderMedicJSON(issues, &state, repairResult))
 		return nil
 	}
 
-	output := renderMedicReport(issues, opts, &state)
+	output := renderMedicReport(issues, opts, &state, repairResult)
 	fmt.Fprint(stdout, output)
 	return nil
 }
@@ -125,7 +152,7 @@ func renderNoColonyMedicVisual() string {
 	return b.String()
 }
 
-func renderMedicReport(results []HealthIssue, opts MedicOptions, state *colony.ColonyState) string {
+func renderMedicReport(results []HealthIssue, opts MedicOptions, state *colony.ColonyState, repairResult *RepairResult) string {
 	var b strings.Builder
 
 	b.WriteString(renderBanner(commandEmoji("medic"), "Colony Health"))
@@ -195,20 +222,26 @@ func renderMedicReport(results []HealthIssue, opts MedicOptions, state *colony.C
 		b.WriteString("Colony is healthy. No issues found.\n\n")
 	}
 
-	// Repair log if fix mode was used
-	if opts.Fix {
+	// Repair log if fix mode was used and repairs were performed
+	if opts.Fix && repairResult != nil {
 		b.WriteString(renderStageMarker("Repair Log"))
-		repaired := 0
-		for _, issue := range results {
-			if issue.Fixable {
-				repaired++
+		for _, rec := range repairResult.Repairs {
+			status := "OK"
+			if !rec.Success {
+				status = "FAILED"
 			}
+			b.WriteString(fmt.Sprintf("  [%s] %s", status, rec.Action))
+			if rec.File != "" {
+				b.WriteString(fmt.Sprintf(" (%s)", rec.File))
+			}
+			if rec.Error != "" {
+				b.WriteString(fmt.Sprintf(": %s", rec.Error))
+			}
+			b.WriteString("\n")
 		}
-		if repaired > 0 {
-			b.WriteString(fmt.Sprintf("Repaired %d issue(s).\n", repaired))
-		} else {
-			b.WriteString("No repairs needed or possible.\n")
-		}
+		b.WriteString(fmt.Sprintf("Summary: %d attempted, %d succeeded, %d failed, %d skipped\n",
+			repairResult.Attempted, repairResult.Succeeded,
+			repairResult.Failed, repairResult.Skipped))
 		b.WriteString("\n")
 	}
 
@@ -244,7 +277,7 @@ func writeIssueLine(b *strings.Builder, issue HealthIssue) {
 	b.WriteString("\n")
 }
 
-func renderMedicJSON(results []HealthIssue, state *colony.ColonyState) string {
+func renderMedicJSON(results []HealthIssue, state *colony.ColonyState, repairResult *RepairResult) string {
 	goal := ""
 	if state != nil && state.Goal != nil {
 		goal = *state.Goal
@@ -260,6 +293,16 @@ func renderMedicJSON(results []HealthIssue, state *colony.ColonyState) string {
 		"phase":     phase,
 		"issues":    results,
 		"exit_code": medicExitCode(results),
+	}
+
+	if repairResult != nil {
+		output["repairs"] = map[string]interface{}{
+			"attempted": repairResult.Attempted,
+			"succeeded": repairResult.Succeeded,
+			"failed":    repairResult.Failed,
+			"skipped":   repairResult.Skipped,
+			"details":   repairResult.Repairs,
+		}
 	}
 
 	data, err := json.MarshalIndent(output, "", "  ")
