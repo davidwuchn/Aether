@@ -91,6 +91,14 @@ var errorAddCmd = &cobra.Command{
 			return nil
 		}
 
+		if tracer != nil && state.RunID != nil {
+			phase := 0
+			if record.Phase != nil {
+				phase = *record.Phase
+			}
+			_ = tracer.LogError(*state.RunID, phase, record.ID, record.Severity, "error-add")
+		}
+
 		outputOK(map[string]interface{}{
 			"id":       id,
 			"category": category,

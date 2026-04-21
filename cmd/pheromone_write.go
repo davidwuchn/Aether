@@ -177,6 +177,14 @@ var pheromoneWriteCmd = &cobra.Command{
 			return nil
 		}
 
+		// Trace pheromone write if colony state has a run_id
+		if tracer != nil {
+			var state colony.ColonyState
+			if loadErr := store.LoadJSON("COLONY_STATE.json", &state); loadErr == nil && state.RunID != nil {
+				_ = tracer.LogPheromone(*state.RunID, sigType, "pheromone-write")
+			}
+		}
+
 		outputOK(map[string]interface{}{
 			"created":  true,
 			"signal":   signal,
