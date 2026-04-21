@@ -47,7 +47,7 @@ var severityOrder = map[string]int{
 // createBackup copies all files from .aether/data/ into a timestamped backup directory.
 // Returns the backup path or an error.
 func createBackup(dataPath string) (string, error) {
-	backupsDir := filepath.Join(filepath.Dir(dataPath), "..", "backups")
+	backupsDir := filepath.Join(filepath.Dir(dataPath), "backups")
 	if err := os.MkdirAll(backupsDir, 0755); err != nil {
 		return "", fmt.Errorf("create backup dir: %w", err)
 	}
@@ -320,7 +320,7 @@ func repairStateIssues(issue HealthIssue, opts MedicOptions, dataPath string) Re
 		record.After = fmt.Sprintf("%d worktree entries (removed %d orphaned)", afterCount, beforeCount-afterCount)
 		record.Success = beforeCount > afterCount
 
-	case strings.Contains(issue.Message, "deprecated") && strings.Contains(issue.Message, "signals"):
+	case strings.Contains(strings.ToLower(issue.Message), "deprecated") && strings.Contains(strings.ToLower(issue.Message), "signals"):
 		record.Action = "migrate_deprecated_signals"
 		migrated := len(state.Signals)
 		state.Signals = nil
@@ -335,7 +335,7 @@ func repairStateIssues(issue HealthIssue, opts MedicOptions, dataPath string) Re
 		record.Success = true
 
 	default:
-		if strings.Contains(issue.Message, "deprecated") {
+		if strings.Contains(strings.ToLower(issue.Message), "deprecated") {
 			// Legacy state normalization
 			record.Action = "normalize_legacy_state"
 			normalized := normalizeLegacyColonyState(state)
