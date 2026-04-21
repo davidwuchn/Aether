@@ -18,6 +18,7 @@ As Medic, you:
 3. Report findings with actionable recommendations
 4. Apply repairs only when explicitly authorized
 5. Verify repairs resolved the issues
+6. Treat missing Claude/OpenCode wrapper surfaces after `aether update` as a hub publish integrity problem first; verify `~/.aether/system/commands/{claude,opencode}` and `~/.aether/system/agents/` before changing downstream repos
 
 ## Diagnostic Workflow
 
@@ -37,6 +38,7 @@ Never mutate colony data without explicit authorization. By default, the Medic o
 - Always read the current state before modifying anything
 - Never repair without understanding the root cause
 - Report what was repaired and what could not be fixed
+- If hub publish integrity is broken, recommend `aether install --package-dir <Aether checkout>` in the Aether repo and `aether update --force` in target repos
 
 ### Severity Levels
 - **critical** - Colony cannot function; immediate attention required

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 )
 
@@ -17,6 +18,7 @@ const (
 	expectedCodexMirror      = 25
 	expectedColonySkills     = 11 // 10 existing + 1 medic
 	expectedDomainSkills     = 18
+	expectedCodexSkills      = expectedColonySkills + expectedDomainSkills
 )
 
 // wrapperSurface represents a surface to check for file count parity.
@@ -90,6 +92,52 @@ func scanWrapperParity(fc *fileChecker) []HealthIssue {
 	if domainSkillCount != expectedDomainSkills {
 		issues = append(issues, issueWarning("wrapper", "domain-skills",
 			fmt.Sprintf("Domain skills has %d files, expected %d", domainSkillCount, expectedDomainSkills)))
+	}
+
+	return issues
+}
+
+// scanHubPublishIntegrity checks that the shared hub contains the published
+// platform surfaces that downstream `aether update` depends on.
+func scanHubPublishIntegrity() []HealthIssue {
+	var issues []HealthIssue
+
+	hubDir := resolveHubPath()
+	if hubDir == "" {
+		return issues
+	}
+
+	hubSystem := filepath.Join(hubDir, "system")
+	info, err := os.Stat(hubSystem)
+	if err != nil || !info.IsDir() {
+		issues = append(issues, issueCritical("publish", hubSystem,
+			fmt.Sprintf("Hub system directory missing at %s; run `aether install --package-dir <Aether checkout>` from the Aether repo", hubSystem)))
+		return issues
+	}
+
+	surfaces := []wrapperSurface{
+		{"Hub Claude commands", filepath.Join(hubSystem, "commands", "claude", "*.md"), expectedClaudeCommands},
+		{"Hub OpenCode commands", filepath.Join(hubSystem, "commands", "opencode", "*.md"), expectedOpenCodeCommands},
+		{"Hub OpenCode agents", filepath.Join(hubSystem, "agents", "*.md"), expectedOpenCodeAgents},
+		{"Hub Codex agents", filepath.Join(hubSystem, "codex", "*.toml"), expectedCodexAgents},
+		{"Hub Codex skills", filepath.Join(hubSystem, "skills-codex", "*", "*", "SKILL.md"), expectedCodexSkills},
+	}
+
+	counts := make(map[string]int, len(surfaces))
+	for _, s := range surfaces {
+		actual := countFilesInDir(s.pattern)
+		counts[s.name] = actual
+		if actual != s.expected {
+			issues = append(issues, issueCritical("publish", filepath.Dir(s.pattern),
+				fmt.Sprintf("%s has %d files, expected %d. Republish from the Aether repo with `aether install --package-dir <Aether checkout>`, then rerun `aether update --force` in target repos.",
+					s.name, actual, s.expected)))
+		}
+	}
+
+	if counts["Hub Claude commands"] != counts["Hub OpenCode commands"] {
+		issues = append(issues, issueCritical("publish", filepath.Join(hubSystem, "commands"),
+			fmt.Sprintf("Hub wrapper command mismatch: Claude=%d, OpenCode=%d. Republish the hub before trusting downstream `aether update` results.",
+				counts["Hub Claude commands"], counts["Hub OpenCode commands"])))
 	}
 
 	return issues

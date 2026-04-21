@@ -162,9 +162,10 @@ func performHealthScan(opts MedicOptions) (*ScannerResult, error) {
 	allIssues = append(allIssues, scanDataFiles(fc)...)
 	allIssues = append(allIssues, scanJSONL(fc)...)
 
-	// Deep scan: wrapper parity and ceremony integrity checks
+	// Deep scan: wrapper parity, hub publish integrity, and ceremony checks.
 	if opts.Deep {
 		allIssues = append(allIssues, scanWrapperParity(fc)...)
+		allIssues = append(allIssues, scanHubPublishIntegrity()...)
 		allIssues = append(allIssues, scanCeremonyIntegrity(fc)...)
 	}
 

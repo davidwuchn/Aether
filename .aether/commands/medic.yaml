@@ -17,7 +17,7 @@ flags:
     type: boolean
     default: false
   - name: deep
-    description: "Include wrapper parity and ceremony checks"
+    description: "Include wrapper parity, hub publish integrity, and ceremony checks"
     type: boolean
     default: false
   - name: trace

@@ -262,6 +262,30 @@ Legal transitions (from `pkg/colony/colony.go:490`):
 - Run `aether install` to regenerate wrappers from YAML sources
 - Check `.aether/commands/*.yaml` as source of truth
 
+## Hub Publish Integrity (Deep Scan)
+
+### Expected Hub Counts
+
+| Surface | Count | Path |
+|---------|-------|------|
+| Hub Claude commands | 50 | `~/.aether/system/commands/claude/*.md` |
+| Hub OpenCode commands | 50 | `~/.aether/system/commands/opencode/*.md` |
+| Hub OpenCode agents | 25 | `~/.aether/system/agents/*.md` |
+| Hub Codex agents | 25 | `~/.aether/system/codex/*.toml` |
+| Hub Codex skills | 29 | `~/.aether/system/skills-codex/*/*/SKILL.md` |
+
+### Failure Signatures
+
+- `aether update --force` reports `Commands (claude) — 0 copied, 0 unchanged`
+- `aether update --force` reports `Commands (opencode) — 0 copied, 0 unchanged`
+- `aether update --force` reports fewer than 25 OpenCode agents
+
+### Remedies
+
+- For unreleased local source changes on this machine: run `aether install --package-dir "$PWD"` from the Aether repo, then `aether update --force` in target repos
+- If the change modified `aether install` itself: bootstrap with `go run ./cmd/aether install --package-dir "$PWD" --binary-dest "$HOME/.local/bin"`
+- For published release runtime updates: run `aether update --force --download-binary`
+
 ## Version Compatibility
 
 - COLONY_STATE.json `version` field is "3.0" (string)

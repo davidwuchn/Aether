@@ -15,7 +15,7 @@ Use the Go `aether` CLI as the source of truth.
 - `--fix` — enable repair mode (read-only by default; `--fix` required for any mutation)
 - `--force` — allow destructive repairs (requires `--fix`)
 - `--json` — output structured JSON report
-- `--deep` — include wrapper parity and ceremony checks
+- `--deep` — include wrapper parity, hub publish integrity, and ceremony checks
 - `--trace <path>` — analyze a trace export JSON file instead of active colony data
 
 **Exit codes:** 0 = healthy, 1 = warnings found, 2 = critical issues found.

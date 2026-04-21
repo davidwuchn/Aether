@@ -208,16 +208,97 @@ func TestScanWrapperParityCrossSurfaceMismatch(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestScanHubPublishIntegrityHealthy
+// ---------------------------------------------------------------------------
+
+func TestScanHubPublishIntegrityHealthy(t *testing.T) {
+	hubDir := t.TempDir()
+	systemDir := filepath.Join(hubDir, "system")
+	t.Setenv("AETHER_HUB_DIR", hubDir)
+
+	for _, dir := range []string{
+		filepath.Join(systemDir, "commands", "claude"),
+		filepath.Join(systemDir, "commands", "opencode"),
+		filepath.Join(systemDir, "agents"),
+		filepath.Join(systemDir, "codex"),
+	} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	for i := 0; i < expectedClaudeCommands; i++ {
+		writeFile(t, systemDir, fmt.Sprintf("commands/claude/cmd%d.md", i), []byte("test"))
+		writeFile(t, systemDir, fmt.Sprintf("commands/opencode/cmd%d.md", i), []byte("test"))
+	}
+	for i := 0; i < expectedOpenCodeAgents; i++ {
+		writeFile(t, systemDir, fmt.Sprintf("agents/agent%d.md", i), []byte("test"))
+	}
+	for i := 0; i < expectedCodexAgents; i++ {
+		writeFile(t, systemDir, fmt.Sprintf("codex/agent%d.toml", i), []byte("test"))
+	}
+
+	for _, name := range []string{"build-discipline", "colony-interaction", "colony-lifecycle", "colony-visuals", "context-management", "error-presentation", "pheromone-protocol", "pheromone-visibility", "state-safety", "worker-priming", "medic"} {
+		skillDir := filepath.Join(systemDir, "skills-codex", "colony", name)
+		if err := os.MkdirAll(skillDir, 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		writeFile(t, systemDir, fmt.Sprintf("skills-codex/colony/%s/SKILL.md", name), []byte("test"))
+	}
+	for _, name := range []string{"django", "docker", "golang", "graphql", "html-css", "nextjs", "nodejs", "postgresql", "prisma", "python", "rails", "react", "rest-api", "svelte", "tailwind", "testing", "typescript", "vue"} {
+		skillDir := filepath.Join(systemDir, "skills-codex", "domain", name)
+		if err := os.MkdirAll(skillDir, 0755); err != nil {
+			t.Fatalf("mkdir: %v", err)
+		}
+		writeFile(t, systemDir, fmt.Sprintf("skills-codex/domain/%s/SKILL.md", name), []byte("test"))
+	}
+
+	issues := scanHubPublishIntegrity()
+	if len(issues) != 0 {
+		t.Errorf("healthy hub publish produced issues: %+v", issues)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestScanHubPublishIntegrityMismatch
+// ---------------------------------------------------------------------------
+
+func TestScanHubPublishIntegrityMismatch(t *testing.T) {
+	hubDir := t.TempDir()
+	systemDir := filepath.Join(hubDir, "system")
+	t.Setenv("AETHER_HUB_DIR", hubDir)
+
+	if err := os.MkdirAll(filepath.Join(systemDir, "commands", "claude"), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeFile(t, systemDir, "commands/claude/only-one.md", []byte("test"))
+
+	issues := scanHubPublishIntegrity()
+
+	found := false
+	for _, issue := range issues {
+		if issue.Category == "publish" && issue.Severity == "critical" && contains(issue.Message, "Hub Claude commands") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected hub publish integrity failure; got %+v", issues)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestDeepScanIncludesWrapperParity
 // ---------------------------------------------------------------------------
 
 func TestDeepScanIncludesWrapperParity(t *testing.T) {
 	dir := t.TempDir()
 	dataDir := filepath.Join(dir, ".aether", "data")
+	hubDir := t.TempDir()
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
 	t.Setenv("AETHER_ROOT", dir)
+	t.Setenv("AETHER_HUB_DIR", hubDir)
 
 	// Minimal healthy colony data
 	goal := "Deep scan test"
@@ -254,6 +335,16 @@ func TestDeepScanIncludesWrapperParity(t *testing.T) {
 		t.Error("deep scan should include wrapper parity issues")
 	}
 
+	foundPublish := false
+	for _, issue := range result.Issues {
+		if issue.Category == "publish" {
+			foundPublish = true
+		}
+	}
+	if !foundPublish {
+		t.Error("deep scan should include hub publish integrity issues")
+	}
+
 	// Run without deep -- should NOT have wrapper parity issues
 	optsNoDeep := MedicOptions{Deep: false}
 	resultNoDeep, err := performHealthScan(optsNoDeep)
@@ -261,8 +352,8 @@ func TestDeepScanIncludesWrapperParity(t *testing.T) {
 		t.Fatalf("performHealthScan without deep failed: %v", err)
 	}
 	for _, issue := range resultNoDeep.Issues {
-		if issue.Category == "wrapper" {
-			t.Error("non-deep scan should NOT include wrapper parity issues")
+		if issue.Category == "wrapper" || issue.Category == "publish" {
+			t.Error("non-deep scan should NOT include wrapper parity or publish integrity issues")
 		}
 	}
 }

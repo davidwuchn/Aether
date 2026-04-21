@@ -43,7 +43,7 @@ func init() {
 	medicCmd.Flags().BoolVar(new(bool), "fix", false, "enable repair mode")
 	medicCmd.Flags().BoolVar(new(bool), "force", false, "allow destructive repairs")
 	medicCmd.Flags().BoolVar(new(bool), "json", false, "output structured JSON")
-	medicCmd.Flags().BoolVar(new(bool), "deep", false, "scan all files including wrappers")
+	medicCmd.Flags().BoolVar(new(bool), "deep", false, "scan all files including wrappers, hub publish surfaces, and ceremony integrity")
 	medicCmd.Flags().String("trace", "", "analyze a trace export JSON file instead of colony data")
 }
 
