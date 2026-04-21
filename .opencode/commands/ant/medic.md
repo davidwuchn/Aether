@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/medic.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:medic
-description: "🏥 Diagnose colony health — scan all colony data for corruption, staleness, and configuration issues"
+description: "🩹 Diagnose colony health — scan all colony data for corruption, staleness, and configuration issues"
 ---
 
 Use the Go `aether` CLI as the source of truth.
