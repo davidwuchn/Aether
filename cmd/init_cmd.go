@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/trace"
 	"github.com/spf13/cobra"
 )
 
@@ -74,6 +75,11 @@ var initCmd = &cobra.Command{
 		}
 
 	createFreshColony:
+		// Rotate trace file if it has grown too large
+		if rotated, rotateErr := trace.RotateTraceFile(store, 50); rotateErr == nil && rotated {
+			fmt.Fprintf(os.Stderr, "warning: rotated trace.jsonl before init\n")
+		}
+
 		now := time.Now()
 		nowStr := now.Format(time.RFC3339)
 

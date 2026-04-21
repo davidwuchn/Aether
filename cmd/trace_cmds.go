@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -434,6 +435,42 @@ func generateInspectSuggestions(timeline []trace.TraceEntry, focus string) []str
 	return suggestions
 }
 
+var traceRotateCmd = &cobra.Command{
+	Use:   "trace-rotate",
+	Short: "Rotate trace.jsonl if it exceeds max size",
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if store == nil {
+			outputErrorMessage("no store initialized")
+			return nil
+		}
+
+		maxSizeMB, _ := cmd.Flags().GetInt("max-size-mb")
+		if maxSizeMB <= 0 {
+			maxSizeMB = 50
+		}
+
+		rotated, err := trace.RotateTraceFile(store, maxSizeMB)
+		if err != nil {
+			outputError(2, fmt.Sprintf("trace rotation failed: %v", err), nil)
+			return nil
+		}
+
+		result := map[string]interface{}{
+			"rotated": rotated,
+			"max_size_mb": maxSizeMB,
+		}
+		if rotated {
+			result["new_trace"] = filepath.Join(store.BasePath(), "trace.jsonl")
+			result["message"] = "trace.jsonl rotated successfully"
+		} else {
+			result["message"] = "trace.jsonl within size limit; no rotation needed"
+		}
+		outputOK(result)
+		return nil
+	},
+}
+
 func init() {
 	traceReplayCmd.Flags().String("run-id", "", "Filter by run ID (required)")
 	traceReplayCmd.Flags().String("level", "", "Filter by level (comma-separated)")
@@ -450,8 +487,11 @@ func init() {
 	traceInspectCmd.Flags().String("run-id", "", "Filter by run ID (required)")
 	traceInspectCmd.Flags().String("focus", "", "Focus on one level: state, phase, error, token, intervention, artifact")
 
+	traceRotateCmd.Flags().Int("max-size-mb", 50, "Max size in MB before rotation")
+
 	rootCmd.AddCommand(traceReplayCmd)
 	rootCmd.AddCommand(traceExportCmd)
 	rootCmd.AddCommand(traceSummaryCmd)
 	rootCmd.AddCommand(traceInspectCmd)
+	rootCmd.AddCommand(traceRotateCmd)
 }

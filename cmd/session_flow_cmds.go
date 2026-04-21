@@ -2,11 +2,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/storage"
+	"github.com/calcosmic/Aether/pkg/trace"
 	"github.com/spf13/cobra"
 )
 
@@ -134,6 +136,11 @@ var resumeColonyCmd = &cobra.Command{
 		handoffPath := handoffDocumentPath()
 		handoffData, _ := readHandoffDocument()
 		handoffText := strings.TrimSpace(string(handoffData))
+
+		// Rotate trace file if it has grown too large
+		if rotated, rotateErr := trace.RotateTraceFile(store, 50); rotateErr == nil && rotated {
+			fmt.Fprintf(os.Stderr, "warning: rotated trace.jsonl before resume\n")
+		}
 
 		// Verify session freshness
 		freshness := sessionVerifyFresh(store)
