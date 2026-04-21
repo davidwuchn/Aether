@@ -159,6 +159,55 @@ func TestScanWrapperParityMismatch(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestScanWrapperParityCrossSurfaceMismatch
+// ---------------------------------------------------------------------------
+
+func TestScanWrapperParityCrossSurfaceMismatch(t *testing.T) {
+	dir := t.TempDir()
+	aetherDir := filepath.Join(dir, ".aether")
+	claudeDir := filepath.Join(dir, ".claude")
+	opencodeDir := filepath.Join(dir, ".opencode")
+
+	// Create directories
+	for _, d := range []string{
+		filepath.Join(aetherDir, "commands"),
+		filepath.Join(claudeDir, "commands", "ant"),
+		filepath.Join(opencodeDir, "commands", "ant"),
+	} {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			t.Fatalf("mkdir %s: %v", d, err)
+		}
+	}
+
+	// Create 50 YAML commands (correct count)
+	for i := 0; i < expectedYAMLCommands; i++ {
+		writeFile(t, aetherDir, fmt.Sprintf("commands/cmd%d.yaml", i), []byte("test"))
+	}
+	// Create only 48 Claude commands (mismatch)
+	for i := 0; i < 48; i++ {
+		writeFile(t, claudeDir, fmt.Sprintf("commands/ant/cmd%d.md", i), []byte("test"))
+	}
+	// Create only 47 OpenCode commands (mismatch)
+	for i := 0; i < 47; i++ {
+		writeFile(t, opencodeDir, fmt.Sprintf("commands/ant/cmd%d.md", i), []byte("test"))
+	}
+
+	fc := newFileChecker(dir)
+	issues := scanWrapperParity(fc)
+
+	// Should have cross-surface command count mismatch warning
+	foundCrossSurface := false
+	for _, issue := range issues {
+		if issue.Severity == "warning" && issue.Category == "wrapper" && contains(issue.Message, "Command count mismatch") {
+			foundCrossSurface = true
+		}
+	}
+	if !foundCrossSurface {
+		t.Errorf("expected cross-surface command mismatch warning; got: %+v", issues)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestDeepScanIncludesWrapperParity
 // ---------------------------------------------------------------------------
 
