@@ -159,6 +159,11 @@ func performHealthScan(opts MedicOptions) (*ScannerResult, error) {
 	allIssues = append(allIssues, scanDataFiles(fc)...)
 	allIssues = append(allIssues, scanJSONL(fc)...)
 
+	// Deep scan: wrapper parity checks
+	if opts.Deep {
+		allIssues = append(allIssues, scanWrapperParity(fc)...)
+	}
+
 	// Merge fileChecker issues (file-level issues from checkJSONFile/checkJSONLFile)
 	allIssues = append(allIssues, fc.allIssues()...)
 
