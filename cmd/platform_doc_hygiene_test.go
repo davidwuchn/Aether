@@ -173,7 +173,7 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 			required: []string{
 				"Use the Go `aether` CLI as the source of truth.",
 				"AETHER_OUTPUT_MODE=visual aether status",
-				"AETHER_OUTPUT_MODE=visual aether build --synthetic $ARGUMENTS",
+				"AETHER_OUTPUT_MODE=visual aether build $ARGUMENTS",
 				"Dispatching workers now...",
 			},
 			forbidden: []string{
@@ -437,7 +437,7 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 			required: []string{
 				"Use the Go `aether` CLI as the source of truth.",
 				"AETHER_OUTPUT_MODE=visual aether status",
-				"AETHER_OUTPUT_MODE=visual aether build --synthetic $ARGUMENTS",
+				"AETHER_OUTPUT_MODE=visual aether build $ARGUMENTS",
 				"Dispatching workers now...",
 			},
 			forbidden: []string{

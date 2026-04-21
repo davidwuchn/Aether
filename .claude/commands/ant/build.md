@@ -51,7 +51,7 @@ Execute the build through the runtime. Use the Go `aether` CLI as the source of 
 Immediately before the runtime call, say: `Dispatching workers now...`
 
 ```
-AETHER_OUTPUT_MODE=visual aether build --synthetic $ARGUMENTS
+AETHER_OUTPUT_MODE=visual aether build $ARGUMENTS
 ```
 
 The runtime owns all state transitions, worker dispatch, verification, and next-step truth. Your role is to frame what happens with colony identity and provide the human layer around the CLI output.
