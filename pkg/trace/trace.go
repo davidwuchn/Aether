@@ -128,6 +128,33 @@ func (t *Tracer) LogIntervention(runID, topic, source string, payload map[string
 	})
 }
 
+// LogTokenUsage logs LLM token usage and calculated cost.
+func (t *Tracer) LogTokenUsage(runID, model string, inputTokens, outputTokens int64, usdCost float64, source string) error {
+	return t.Log(TraceEntry{
+		RunID:  runID,
+		Level:  TraceLevelToken,
+		Topic:  "token.usage",
+		Source: source,
+		Payload: map[string]interface{}{
+			"model":          model,
+			"input_tokens":   inputTokens,
+			"output_tokens":  outputTokens,
+			"usd_cost":       usdCost,
+		},
+	})
+}
+
+// LogArtifact logs a worker artifact (files modified, summary, etc.).
+func (t *Tracer) LogArtifact(runID, topic string, payload map[string]interface{}) error {
+	return t.Log(TraceEntry{
+		RunID:   runID,
+		Level:   TraceLevelArtifact,
+		Topic:   topic,
+		Source:  "worker",
+		Payload: payload,
+	})
+}
+
 // generateTraceID creates a short unique trace entry ID.
 func generateTraceID() string {
 	b := make([]byte, 4)

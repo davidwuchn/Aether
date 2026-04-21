@@ -8,6 +8,7 @@ import (
 
 	"github.com/calcosmic/Aether/pkg/events"
 	"github.com/calcosmic/Aether/pkg/llm"
+	"github.com/calcosmic/Aether/pkg/trace"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -38,6 +39,25 @@ func WithPoolStreaming(streamMgr *StreamManager) PoolOption {
 	}
 }
 
+// WithTokenUsageCallback sets a callback invoked when an agent reports token usage.
+func WithTokenUsageCallback(cb TokenUsageCallback) PoolOption {
+	return func(p *Pool) {
+		p.onTokenUsage = cb
+	}
+}
+
+// WithTracer sets the trace logger and run ID for the pool.
+// When set, token usage from streaming agents is logged to the trace file.
+func WithTracer(tr *trace.Tracer, runID string) PoolOption {
+	return func(p *Pool) {
+		p.tracer = tr
+		p.runID = runID
+	}
+}
+
+// TokenUsageCallback is called when an agent completes with token usage info.
+type TokenUsageCallback func(model string, inputTokens, outputTokens int64)
+
 // Pool dispatches events from the bus to matching agents with bounded concurrency.
 // It subscribes to the event bus, matches incoming events against registered agents,
 // and runs matching agents using an errgroup with a configurable goroutine limit.
@@ -48,14 +68,17 @@ func WithPoolStreaming(streamMgr *StreamManager) PoolOption {
 // subscribes to agent-specific topics (agent.{name}.*). Events flow from agents
 // to the StreamManager without blocking pool goroutines.
 type Pool struct {
-	registry     *Registry
-	bus          *events.Bus
-	maxG         int
-	eventCh      <-chan events.Event
-	cancel       context.CancelFunc
-	streamMgr    *StreamManager
-	enableStream bool
-	mu           sync.Mutex
+	registry         *Registry
+	bus              *events.Bus
+	maxG             int
+	eventCh          <-chan events.Event
+	cancel           context.CancelFunc
+	streamMgr        *StreamManager
+	enableStream     bool
+	onTokenUsage     TokenUsageCallback
+	tracer           *trace.Tracer
+	runID            string
+	mu               sync.Mutex
 }
 
 // NewPool creates a worker pool that dispatches events to agents in the registry.
@@ -86,10 +109,18 @@ func NewPool(registry *Registry, bus *events.Bus, opts ...PoolOption) (*Pool, er
 // createStreamHandler creates a StreamHandler for an agent that publishes
 // events to the bus without blocking the pool goroutine.
 func (p *Pool) createStreamHandler(agent Agent) llm.StreamHandler {
+	p.mu.Lock()
+	onTokenUsage := p.onTokenUsage
+	tr := p.tracer
+	runID := p.runID
+	p.mu.Unlock()
 	return &poolStreamHandler{
-		agentName: agent.Name(),
-		caste:     agent.Caste(),
-		bus:       p.bus,
+		agentName:    agent.Name(),
+		caste:        agent.Caste(),
+		bus:          p.bus,
+		onTokenUsage: onTokenUsage,
+		tracer:       tr,
+		runID:        runID,
 	}
 }
 
@@ -97,9 +128,12 @@ func (p *Pool) createStreamHandler(agent Agent) llm.StreamHandler {
 // This decouples the agent execution from the consumer, preventing slow consumers
 // from blocking pool goroutines.
 type poolStreamHandler struct {
-	agentName string
-	caste     Caste
-	bus       *events.Bus
+	agentName    string
+	caste        Caste
+	bus          *events.Bus
+	onTokenUsage TokenUsageCallback
+	tracer       *trace.Tracer
+	runID        string
 }
 
 func (h *poolStreamHandler) OnToken(token string) {
@@ -151,6 +185,13 @@ func (h *poolStreamHandler) OnComplete(result *llm.StreamResult) {
 		},
 	}
 	h.publishEvent("complete", payload)
+	if h.onTokenUsage != nil {
+		h.onTokenUsage(result.Model, result.Usage.InputTokens, result.Usage.OutputTokens)
+	}
+	if h.tracer != nil && h.runID != "" {
+		cost := trace.CalculateCost(result.Model, result.Usage.InputTokens, result.Usage.OutputTokens)
+		_ = h.tracer.LogTokenUsage(h.runID, result.Model, result.Usage.InputTokens, result.Usage.OutputTokens, cost, "agent-pool")
+	}
 }
 
 func (h *poolStreamHandler) OnError(err error) {
