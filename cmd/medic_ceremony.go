@@ -105,8 +105,8 @@ func checkContextClearGuidance(fc *fileChecker) []HealthIssue {
 
 // emojiPattern matches Unicode emoji characters commonly used in command
 // descriptions and wrapper markdown. Covers emoji in the ranges used by
-// commandEmojiMap and casteEmojiMap.
-var emojiPattern = regexp.MustCompile(`[\x{1F300}-\x{1FAFF}]`)
+// commandEmojiMap and casteEmojiMap, including the variation selector U+FE0F.
+var emojiPattern = regexp.MustCompile(`[\x{1F300}-\x{1FAFF}]\x{FE0F}?`)
 
 // extractEmojisFromMarkdown returns unique emoji characters found in the
 // given markdown content.
