@@ -1,42 +1,14 @@
-# Crowned Anthill — Make Aether work for Codex CLI
+# CROWNED-ANTHILL
 
-**Sealed:** 2026-04-16T15:35:00Z
-**Milestone:** Crowned Anthill
-**Version:** 3.0
+- Goal: Comprehensive Aether colony review across the last three GSD milestones: v1.0, v1.1, and v1.2. Audit whether the full system is actually working properly across Claude Code, OpenCode, and Codex CLI. Review runtime truth, worker dispatch and lifecycle, agent spawning visibility, caste identity, build/plan/colonize/continue/watch/status behavior, recovery and partial-success flows, context proof, skill routing, prompt integrity, wrapper honesty, install/update/versioning, and cross-platform parity. Verify that Claude/OpenCode ceremony is runtime-backed rather than fake, Codex reflects the same truth model, and all major implementations were completed correctly. Findings first: identify bugs, regressions, misleading UX, parity gaps, stale docs, missing tests, or anything not truly working as intended.
+- Sealed at: 2026-04-21T09:35:37Z
+- Completed phases: 6
+- Final phase: 6
 
-## The Achievement
-
-This colony set out to accomplish something real — and it did. Every phase pushed the anthill higher. Now it stands crowned.
-
-## Colony Stats
-- Total Phases: 10
-- Phases Completed: 10 of 10
-- Colony Age: 2 days of focused work
-- Wisdom Promoted: 1 entry carried forward
-
-## Phase Recap
-
-Every phase below is a chapter in the story of this anthill's rise:
-
-- Phase 1: Codex Format Validation — completed
-- Phase 2: Create Codex Agent Definitions — completed
-- Phase 3: Create AGENTS.md Project File — completed
-- Phase 4: Adapt Skills for Codex — completed
-- Phase 5: Create Hub Packaging Mirror — completed
-- Phase 6: Update Go Install Command — completed
-- Phase 7: Update Go Setup and Update Commands — completed
-- Phase 8: E2E Tests and Package Distribution — completed
-- Phase 9: Documentation Updates — completed
-- Phase 10: Full Verification — completed
-
-## Pheromone Legacy
-
-The colony's hard-won wisdom doesn't stop here. 1 validated learning and instinct has been promoted to QUEEN.md — a living record that will guide future colonies before they take their first steps.
-
-What this colony learned, the next colony inherits.
-
-## The Work
-
-Make Aether work for Codex CLI — research Codex's extension format, create command and agent files, update setup flow, and test end-to-end.
-
-The anthill stands crowned. The work endures.
+## Phase Summary
+- Phase 1: Contract and gap mapping [completed]
+- Phase 2: Colonize orchestration [completed]
+- Phase 3: Planning orchestration [completed]
+- Phase 4: Build orchestration [completed]
+- Phase 5: Continue orchestration [completed]
+- Phase 6: End-to-end verification [completed]

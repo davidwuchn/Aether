@@ -45,7 +45,8 @@ var planCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		refresh, _ := cmd.Flags().GetBool("refresh")
 		forceAlias, _ := cmd.Flags().GetBool("force")
-		result, err := runCodexPlan(skillWorkspaceRoot(), refresh || forceAlias)
+		synthetic, _ := cmd.Flags().GetBool("synthetic")
+		result, err := runCodexPlan(skillWorkspaceRoot(), refresh || forceAlias, synthetic)
 		if err != nil {
 			outputError(1, err.Error(), nil)
 			return nil
@@ -67,7 +68,8 @@ var buildCmd = &cobra.Command{
 		}
 
 		selectedTasks := normalizeCLIStringList(mustGetStringArray(cmd, "task"))
-		result, err := runCodexBuild(skillWorkspaceRoot(), phaseNum, selectedTasks)
+		syntheticBuild, _ := cmd.Flags().GetBool("synthetic")
+		result, err := runCodexBuild(skillWorkspaceRoot(), phaseNum, selectedTasks, syntheticBuild)
 		if err != nil {
 			outputError(1, err.Error(), nil)
 			return nil
@@ -544,7 +546,9 @@ func init() {
 	colonizeCmd.Flags().Bool("force", false, "Alias for --force-resurvey")
 	planCmd.Flags().Bool("refresh", false, "Regenerate the plan even when an existing plan is already present")
 	planCmd.Flags().Bool("force", false, "Alias for --refresh")
+	planCmd.Flags().Bool("synthetic", false, "Skip real worker dispatch and use local synthesis only")
 	buildCmd.Flags().StringArray("task", nil, "Redispatch only the specified task ID (repeatable or comma-separated)")
+	buildCmd.Flags().Bool("synthetic", false, "Skip real worker dispatch and use local synthesis only")
 	continueCmd.Flags().StringArray("reconcile-task", nil, "Mark one or more task IDs as manually reconciled before continue gating (repeatable or comma-separated)")
 	preferencesCmd.Flags().Bool("list", false, "List stored preferences")
 

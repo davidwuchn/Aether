@@ -172,6 +172,9 @@ func TestUpdateDryRunWithForce(t *testing.T) {
 	if forceVal, ok := inner["force"]; !ok || forceVal != true {
 		t.Errorf("expected force=true in dry-run output, got: %v", inner["force"])
 	}
+	if mode, _ := inner["binary_refresh_mode"].(string); mode != "unchanged" {
+		t.Errorf("expected binary_refresh_mode=unchanged, got: %v", inner["binary_refresh_mode"])
+	}
 }
 
 // TestUpdateFailsWithoutHub verifies update reports error when no hub exists.
@@ -265,6 +268,13 @@ func TestUpdateRefreshesManagedCodexProjectDocs(t *testing.T) {
 	inner, _ := result["result"].(map[string]interface{})
 	if got, _ := inner["codex_restart_required"].(bool); !got {
 		t.Fatalf("expected codex_restart_required=true, got: %#v", inner["codex_restart_required"])
+	}
+	if mode, _ := inner["binary_refresh_mode"].(string); mode != "unchanged" {
+		t.Fatalf("expected binary_refresh_mode=unchanged, got: %#v", inner["binary_refresh_mode"])
+	}
+	note, _ := inner["binary_refresh_note"].(string)
+	if !strings.Contains(note, "unchanged by a plain `aether update`") {
+		t.Fatalf("expected runtime note in update result, got: %q", note)
 	}
 	message, _ := inner["message"].(string)
 	if !strings.Contains(message, "Close this Codex chat and start a new one in this repo") {

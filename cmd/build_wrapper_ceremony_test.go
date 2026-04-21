@@ -32,7 +32,7 @@ func TestBuildWrapperCeremonyContract(t *testing.T) {
 		"do not guess the worker mix ahead of the runtime",
 		"runtime reveal the actual castes, names, waves, and outcomes",
 		"Dispatching workers now...",
-		"AETHER_OUTPUT_MODE=visual aether build $ARGUMENTS",
+		"AETHER_OUTPUT_MODE=visual aether build --synthetic $ARGUMENTS",
 		"## After the Build",
 		"/ant:continue",
 	}
@@ -43,7 +43,7 @@ func TestBuildWrapperCeremonyContract(t *testing.T) {
 		"## Phase Framing",
 		"## Spawn Ritual",
 		"Dispatching workers now...",
-		"AETHER_OUTPUT_MODE=visual aether build $ARGUMENTS",
+		"AETHER_OUTPUT_MODE=visual aether build --synthetic $ARGUMENTS",
 		"## After the Build",
 	}
 

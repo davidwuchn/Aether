@@ -15,13 +15,14 @@ import (
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update Aether companion files and optionally the binary",
-	Long: `Update Aether by syncing companion files from the distribution hub
-(~/.aether/system/) to the local .aether/ directory.
-
-This updates slash commands, agent definitions, skills, templates, and docs.
-Local user data (COLONY_STATE.json, pheromones, etc.) is never overwritten.
-
-Use --download-binary to also fetch a Go binary from GitHub Releases.`,
+	Long: "Update Aether by syncing companion files from the distribution hub\n" +
+		"(~/.aether/system/) to the local .aether/ directory.\n\n" +
+		"This updates slash commands, agent definitions, skills, templates, and docs.\n" +
+		"Local user data (COLONY_STATE.json, pheromones, etc.) is never overwritten.\n\n" +
+		"By default this does not replace the installed `aether` binary.\n" +
+		"Use `--download-binary` to fetch a published release binary.\n" +
+		"If you need an unreleased local runtime fix from an Aether source checkout,\n" +
+		"run `aether install --package-dir <Aether checkout>` in the Aether repo first.",
 	Args: cobra.NoArgs,
 	RunE: runUpdate,
 }
@@ -61,6 +62,8 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	// Read hub version for comparison
 	hubVersion := readHubVersion(hubVersionFile)
+	downloadBinary, _ := cmd.Flags().GetBool("download-binary")
+	binaryMode := updateBinaryRefreshMode(downloadBinary, dryRun)
 
 	// Get repo directory
 	repoDir, err := os.Getwd()
@@ -75,10 +78,12 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			mode = "force (overwrite changed + remove stale)"
 		}
 		result := map[string]interface{}{
-			"message":       fmt.Sprintf("Dry run — would sync companion files from hub [%s]", mode),
-			"hub_version":   hubVersion,
-			"local_version": resolveVersion(),
-			"force":         force,
+			"message":             fmt.Sprintf("Dry run — would sync companion files from hub [%s]", mode),
+			"hub_version":         hubVersion,
+			"local_version":       resolveVersion(),
+			"force":               force,
+			"binary_refresh_mode": binaryMode,
+			"binary_refresh_note": updateBinaryRefreshNote(binaryMode),
 			"actions": []string{
 				"Sync .aether/ system files (commands, agents, skills, templates, docs)",
 				"Refresh repo-level Codex guidance (AGENTS.md, .codex/CODEX.md) when managed by Aether",
@@ -88,6 +93,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 				"Sync .codex/skills/",
 				"Sync .opencode/commands/ant/",
 				"Sync .opencode/agents/",
+				"Do not change the installed aether binary unless --download-binary is also used",
 			},
 		}
 		outputWorkflow(result, renderUpdateVisual(repoDir, hubVersion, resolveVersion(), force, true, []map[string]interface{}{
@@ -98,15 +104,17 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			{"label": "Skills (codex)", "copied": 0, "skipped": 0},
 			{"label": "Commands (opencode)", "copied": 0, "skipped": 0},
 			{"label": "Agents (opencode)", "copied": 0, "skipped": 0},
-		}, 0, 0, nil))
+		}, 0, 0, nil, binaryMode))
 	} else {
 		syncResult := runUpdateSync(hubDir, repoDir, force)
 		if len(syncResult.errors) > 0 {
 			outputError(2, fmt.Sprintf("update failed with %d sync error(s)", len(syncResult.errors)), map[string]interface{}{
-				"hub_version":   hubVersion,
-				"local_version": resolveVersion(),
-				"force":         force,
-				"details":       syncResult.details,
+				"hub_version":         hubVersion,
+				"local_version":       resolveVersion(),
+				"force":               force,
+				"details":             syncResult.details,
+				"binary_refresh_mode": binaryMode,
+				"binary_refresh_note": updateBinaryRefreshNote(binaryMode),
 			})
 			return nil
 		}
@@ -117,10 +125,12 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		if len(docErrors) > 0 {
 			syncResult.errors = append(syncResult.errors, docErrors...)
 			outputError(2, fmt.Sprintf("update failed with %d sync error(s)", len(syncResult.errors)), map[string]interface{}{
-				"hub_version":   hubVersion,
-				"local_version": resolveVersion(),
-				"force":         force,
-				"details":       syncResult.details,
+				"hub_version":         hubVersion,
+				"local_version":       resolveVersion(),
+				"force":               force,
+				"details":             syncResult.details,
+				"binary_refresh_mode": binaryMode,
+				"binary_refresh_note": updateBinaryRefreshNote(binaryMode),
 			})
 			return nil
 		}
@@ -139,15 +149,16 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			"local_version":           resolveVersion(),
 			"force":                   force,
 			"details":                 syncResult.details,
+			"binary_refresh_mode":     binaryMode,
+			"binary_refresh_note":     updateBinaryRefreshNote(binaryMode),
 			"legacy_session_restored": mirrorRestored,
 			"codex_restart_required":  len(restartTargets) > 0,
 			"codex_restart_targets":   restartTargets,
 		}
-		outputWorkflow(result, renderUpdateVisual(repoDir, hubVersion, resolveVersion(), force, false, syncResult.details, syncResult.copied, syncResult.skipped, restartTargets))
+		outputWorkflow(result, renderUpdateVisual(repoDir, hubVersion, resolveVersion(), force, false, syncResult.details, syncResult.copied, syncResult.skipped, restartTargets, binaryMode))
 	}
 
 	// Download binary if requested
-	downloadBinary, _ := cmd.Flags().GetBool("download-binary")
 	if downloadBinary && !dryRun {
 		versionFlag, _ := cmd.Flags().GetString("binary-version")
 		if normalizeVersion(versionFlag) == "latest" {
@@ -180,6 +191,27 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func updateBinaryRefreshMode(downloadBinary, dryRun bool) string {
+	if !downloadBinary {
+		return "unchanged"
+	}
+	if dryRun {
+		return "release-download-preview"
+	}
+	return "release-download"
+}
+
+func updateBinaryRefreshNote(mode string) string {
+	switch mode {
+	case "release-download-preview":
+		return "Companion files would be synced first, then a published release binary would be downloaded."
+	case "release-download":
+		return "Companion files were synced first; a published release binary will be downloaded next."
+	default:
+		return "The installed aether binary is unchanged by a plain `aether update`; this command only syncs repo companion files."
+	}
 }
 
 // updateSyncResult holds the result of an update sync.

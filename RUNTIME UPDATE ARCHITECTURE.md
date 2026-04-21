@@ -100,7 +100,8 @@ Pushes from the Aether repo to the hub. This is what you run after editing sourc
 1. Syncs slash commands to `~/.claude/commands/ant/` and `~/.opencode/command/`
 2. Syncs agent definitions to `~/.claude/agents/ant/` and `~/.opencode/agent/`
 3. Calls `setupInstallHub()` to create `~/.aether/` with `registry.json` and `version.json`
-4. Optionally downloads the Go binary from GitHub Releases (`--download-binary`)
+4. When run from an Aether source checkout, rebuilds the shared local `aether` binary unless `--skip-build-binary` is used
+5. Optionally downloads the Go binary from GitHub Releases (`--download-binary`)
 
 **Sync pairs (repo → home directory):**
 
@@ -113,6 +114,9 @@ Pushes from the Aether repo to the hub. This is what you run after editing sourc
 
 Note: The hub's `system/` directory (companion files) is populated by copying `.aether/` contents. The `install` command also cleans up stale files in the destination that no longer exist in the source.
 
+Runtime rule:
+- Unreleased Go runtime fixes propagate across repos on the same machine through `aether install --package-dir <Aether checkout>`, because that is the step that refreshes the shared binary.
+
 ### `aether update` (in any repo)
 
 Pulls from the hub to the local repo. This is what you run in other repos to get updates.
@@ -122,6 +126,10 @@ Pulls from the hub to the local repo. This is what you run in other repos to get
 2. Syncs all companion files from `~/.aether/system/` to the local repo
 3. Preserves local data (data/, dreams/ are protected)
 4. Optionally downloads a new binary (`--download-binary`)
+
+Runtime rule:
+- Plain `aether update` does not rebuild or publish the local Go runtime. It only syncs repo companion files.
+- `aether update --download-binary` can fetch a published release binary, but it cannot pull an unreleased local source change.
 
 **Sync pairs (hub system/ → local repo):**
 
@@ -172,10 +180,10 @@ These are never modified by update/setup:
 
 ```bash
 # You changed files in the Aether repo:
-aether install                          # Push to hub (~/.aether/system/)
+aether install                          # Push to hub (~/.aether/system/) and, from source, rebuild the shared binary
 
 # You want updates in another repo:
-aether update                           # Pull from hub (safe — new files only)
+aether update                           # Pull companion files from hub (safe — new files only)
 aether update --force                   # Overwrite modified + remove stale
 aether update --dry-run                 # Preview what would change
 

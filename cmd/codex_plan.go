@@ -97,7 +97,7 @@ type phaseTaskTemplate struct {
 	DependsOn       []string
 }
 
-func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
+func runCodexPlan(root string, refresh bool, synthetic bool) (map[string]interface{}, error) {
 	if store == nil {
 		return nil, fmt.Errorf("no store initialized")
 	}
@@ -177,26 +177,31 @@ func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
 		}
 	}
 
-	invoker := newCodexWorkerInvoker()
-	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
-		return nil, fmt.Errorf("codex CLI is not available in PATH")
-	}
 	emitVisualProgress(renderPlanDispatchPreview(*state.Goal, dispatches))
-	realDispatches, dispatchErr := dispatchRealPlanningWorkers(context.Background(), root, invoker)
-	if dispatchErr != nil {
-		if _, ok := invoker.(*codex.FakeInvoker); !ok {
-			for _, dispatch := range dispatches {
-				_ = spawnTree.UpdateStatus(dispatch.Name, "failed", dispatchErr.Error())
+
+	if !synthetic {
+		invoker := newCodexWorkerInvoker()
+		if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
+			return nil, fmt.Errorf("codex CLI is not available in PATH")
+		}
+		realDispatches, dispatchErr := dispatchRealPlanningWorkers(context.Background(), root, invoker)
+		if dispatchErr != nil {
+			if _, ok := invoker.(*codex.FakeInvoker); !ok {
+				for _, dispatch := range dispatches {
+					_ = spawnTree.UpdateStatus(dispatch.Name, "failed", dispatchErr.Error())
+				}
+				return nil, dispatchErr
 			}
-			return nil, dispatchErr
+		} else if realDispatches != nil {
+			dispatches = realDispatches
+			if _, ok := invoker.(*codex.FakeInvoker); ok {
+				dispatchMode = "simulated"
+			} else {
+				dispatchMode = "real"
+			}
 		}
-	} else if realDispatches != nil {
-		dispatches = realDispatches
-		if _, ok := invoker.(*codex.FakeInvoker); ok {
-			dispatchMode = "simulated"
-		} else {
-			dispatchMode = "real"
-		}
+	} else {
+		dispatchMode = "synthetic"
 	}
 
 	scoutReport := synthesizeScoutPlanningReport(*state.Goal, survey)

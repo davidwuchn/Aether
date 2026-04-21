@@ -568,7 +568,7 @@ func TestInstallVisualOutput(t *testing.T) {
 	if strings.Contains(output, `{"ok":true`) {
 		t.Fatalf("expected visual output, got JSON: %s", output)
 	}
-	for _, want := range []string{"📦", "I N S T A L L", "aether lay-eggs"} {
+	for _, want := range []string{"📦", "I N S T A L L", "aether lay-eggs", "shared `aether` binary"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("install visual output missing %q\n%s", want, output)
 		}
@@ -590,10 +590,14 @@ func TestRenderUpdateVisualNoChangesSaysNoFollowUpRequired(t *testing.T) {
 		0,
 		12,
 		nil,
+		"unchanged",
 	)
 
 	if !strings.Contains(output, "No follow-up is required.") {
 		t.Fatalf("expected no-follow-up guidance, got:\n%s", output)
+	}
+	if !strings.Contains(output, "Binary: unchanged by `aether update`.") {
+		t.Fatalf("expected runtime warning in update visual, got:\n%s", output)
 	}
 	if strings.Contains(output, "Run `aether status` to inspect the colony after the refresh.") {
 		t.Fatalf("expected generic next-step guidance to be suppressed, got:\n%s", output)

@@ -213,9 +213,14 @@ git commit -m "your message"
 # 3. Refresh the installed hub files from this source checkout
 aether install --package-dir "$PWD"
 
-# 4. In other repos, pull updates
+# 4. In other repos, pull companion-file updates
 aether update
 ```
+
+Runtime note:
+- `aether install --package-dir "$PWD"` is the step that publishes unreleased Go runtime fixes on this machine because it refreshes the shared hub and, from a source checkout, rebuilds the shared `aether` binary.
+- `aether update` in other repos only syncs companion files by default. It does not publish an unreleased local runtime change.
+- `aether update --download-binary` can fetch a published release binary, but it cannot pull an unreleased local source change.
 
 ---
 

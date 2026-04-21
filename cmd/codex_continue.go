@@ -809,6 +809,7 @@ func runShellCommand(root, command string, timeout time.Duration) (string, int, 
 		cmd = exec.CommandContext(ctx, "sh", "-c", command)
 	}
 	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "AETHER_OUTPUT_MODE=")
 	output, err := cmd.CombinedOutput()
 	trimmed := trimCommandOutput(string(output))
 

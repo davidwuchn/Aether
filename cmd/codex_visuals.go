@@ -1012,7 +1012,7 @@ func renderNextUpVisual(suggestions []string) string {
 	return renderNextUp(primary, alts...)
 }
 
-func renderInstallVisual(homeDir string, results []map[string]interface{}, totalCopied, totalSkipped int) string {
+func renderInstallVisual(homeDir string, results []map[string]interface{}, totalCopied, totalSkipped int, binaryMode string) string {
 	var b strings.Builder
 	b.WriteString(renderBanner("📦", "Install"))
 	b.WriteString(visualDivider)
@@ -1022,6 +1022,12 @@ func renderInstallVisual(homeDir string, results []map[string]interface{}, total
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("Assets: %d copied, %d unchanged\n\n", totalCopied, totalSkipped))
 	b.WriteString(renderSyncSummary(results))
+	b.WriteString("\nRuntime\n")
+	for _, line := range installRuntimeLines(binaryMode) {
+		b.WriteString("  ")
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
 	b.WriteString(renderNextUp(
 		`Run `+"`aether lay-eggs`"+` inside a repo to set up a local nest.`,
 		`Run `+"`aether update`"+` in existing repos to pull the refreshed companion files.`,
@@ -1058,7 +1064,7 @@ func renderSetupVisual(repoDir string, results []map[string]interface{}, totalCo
 	return b.String()
 }
 
-func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun bool, details []map[string]interface{}, totalCopied, totalSkipped int, restartTargets []string) string {
+func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun bool, details []map[string]interface{}, totalCopied, totalSkipped int, restartTargets []string, binaryMode string) string {
 	var b strings.Builder
 	b.WriteString(renderBanner("🔄", "Update"))
 	b.WriteString(visualDivider)
@@ -1092,14 +1098,22 @@ func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun 
 	}
 	b.WriteString("\n")
 	b.WriteString(renderSyncSummary(details))
+	b.WriteString("\nRuntime\n")
+	for _, line := range updateRuntimeLines(binaryMode) {
+		b.WriteString("  ")
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
 	if dryRun {
 		next := `Run ` + "`aether update`" + ` to apply the previewed changes.`
 		alt := `Run ` + "`aether update --force`" + ` only if you want tracked companion files overwritten and stale files removed.`
+		runtimeAlt := `Run ` + "`aether update --download-binary`" + ` only if you need a published runtime update as well.`
 		if force {
 			next = `Run ` + "`aether update --force`" + ` to apply the forced sync.`
 			alt = `Run ` + "`aether update`" + ` instead for the safer non-force path.`
+			runtimeAlt = `Run ` + "`aether install --package-dir <Aether checkout>`" + ` in the Aether repo first if you need an unreleased local runtime fix on this machine.`
 		}
-		b.WriteString(renderNextUp(next, alt))
+		b.WriteString(renderNextUp(next, alt, runtimeAlt))
 		return b.String()
 	}
 	if restartNote := codexRestartMessage(restartTargets); restartNote != "" {
@@ -1112,11 +1126,13 @@ func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun 
 		b.WriteString(renderNextUp(
 			`No follow-up is required. Run `+"`aether status`"+` only if you want to inspect the colony.`,
 			`Run `+"`aether init \"next goal\"`"+` only if this repo does not have an active colony yet.`,
+			`Run `+"`aether update --download-binary`"+` only if you explicitly need a published runtime refresh as well.`,
 		))
 		return b.String()
 	}
 	primaryNext := `Run ` + "`aether status`" + ` to inspect the colony after the refresh.`
 	secondaryNext := `Run ` + "`aether init \"next goal\"`" + ` if this repo does not have an active colony yet.`
+	runtimeNext := `Run ` + "`aether update --download-binary`" + ` if you also need a published runtime update.`
 	if len(restartTargets) > 0 {
 		primaryNext = `Close this Codex chat, start a new Codex session in this repo, then run ` + "`aether status`" + `.`
 		secondaryNext = `After reopening Codex, run ` + "`aether init \"next goal\"`" + ` if this repo does not have an active colony yet.`
@@ -1124,8 +1140,56 @@ func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun 
 	b.WriteString(renderNextUp(
 		primaryNext,
 		secondaryNext,
+		runtimeNext,
 	))
 	return b.String()
+}
+
+func installRuntimeLines(binaryMode string) []string {
+	lines := []string{
+		"Other repos on this machine use the shared `aether` binary plus their own synced companion files.",
+	}
+	switch strings.TrimSpace(binaryMode) {
+	case "release-download":
+		lines = append([]string{
+			"Shared binary: a published release download was requested and will run next.",
+		}, lines...)
+	case "local-build":
+		lines = append([]string{
+			"Shared binary: this install came from a source checkout, so the local `aether` binary will be rebuilt next unless `--skip-build-binary` was used.",
+		}, lines...)
+	default:
+		lines = append([]string{
+			"Shared binary: unchanged by the file-sync step unless a release download or local rebuild is requested.",
+		}, lines...)
+	}
+	lines = append(lines,
+		"`aether update` in another repo syncs companion files only; it does not publish an unreleased local runtime change.",
+	)
+	return lines
+}
+
+func updateRuntimeLines(binaryMode string) []string {
+	switch strings.TrimSpace(binaryMode) {
+	case "release-download-preview":
+		return []string{
+			"Companion files would be synced first, then a published release binary would be downloaded.",
+			"`aether update --download-binary` only installs released runtime builds, not unreleased local source changes.",
+			"For an unreleased local runtime fix on this machine, run `aether install --package-dir <Aether checkout>` in the Aether repo first.",
+		}
+	case "release-download":
+		return []string{
+			"Companion files were synced first; a published release binary will be downloaded next.",
+			"`aether update --download-binary` only installs released runtime builds, not unreleased local source changes.",
+		}
+	default:
+		return []string{
+			"Binary: unchanged by `aether update`.",
+			"This command syncs repo companion files from the hub; it does not publish or rebuild the shared runtime.",
+			"For a published runtime update, run `aether update --download-binary`.",
+			"For an unreleased local runtime fix on this machine, run `aether install --package-dir <Aether checkout>` in the Aether repo first.",
+		}
+	}
 }
 
 func renderBinaryActionVisual(title, message, version, path string) string {

@@ -33,7 +33,7 @@ Stop here.
 
 Run using the Bash tool with description "Naming scout...":
 ```bash
-aether generate-ant-name --caste "scout"
+aether generate-ant-name scout
 ```
 
 Capture the output as `scout_name`.

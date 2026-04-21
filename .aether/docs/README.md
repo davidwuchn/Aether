@@ -18,6 +18,8 @@ Docs in this directory are explanatory references and should not override runtim
 
 Distribution note:
 - `aether update` does not sync repo-local session files like `.aether/CONTEXT.md` and `.aether/HANDOFF.md`.
+- `aether update` also does not rebuild the local `aether` runtime unless `--download-binary` is explicitly used.
+- Unreleased local runtime fixes propagate on a machine through `aether install --package-dir <Aether checkout>` in the Aether source repo, not through plain `aether update`.
 
 ---
 

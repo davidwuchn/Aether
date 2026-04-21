@@ -208,7 +208,7 @@ func runCompatibilityAutopilot(root string, opts runCompatibilityOptions) (map[s
 				return buildRunExecutionResult(state, opts, steps, phasesCompleted, "completed", "aether seal"), nil
 			}
 
-			buildResult, err := runCodexBuild(root, phase.ID, nil)
+			buildResult, err := runCodexBuild(root, phase.ID, nil, false)
 			if err != nil {
 				_ = syncRunAutopilotState(state, opts, "paused")
 				return nil, err

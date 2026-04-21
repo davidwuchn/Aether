@@ -268,6 +268,91 @@ func TestBuildSupportsTaskScopedRedispatch(t *testing.T) {
 	}
 }
 
+func TestBuildRecoversMissingPlanFromPersistedPlanningArtifact(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("failed to chdir to test root: %v", err)
+	}
+	defer os.Chdir(oldDir)
+
+	goal := "Recover build after the saved plan vanished"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:      "3.0",
+		Goal:         &goal,
+		State:        colony.StateREADY,
+		CurrentPhase: 2,
+		ColonyDepth:  "full",
+		Plan:         colony.Plan{Phases: []colony.Phase{}},
+		Events: []string{
+			"2026-04-21T07:50:00Z phase-1-complete: Audit complete.",
+			"2026-04-21T08:20:00Z phase-2-complete: Standard designed.",
+		},
+	})
+	if err := store.SaveJSON("planning/phase-plan.json", codexWorkerPlanArtifact{
+		Confidence: codexPlanConfidence{Overall: 88},
+		Phases: []codexWorkerPlanPhase{
+			{Name: "Audit", Tasks: []codexWorkerPlanTask{{Goal: "Audit the existing notes"}}},
+			{Name: "Design", Tasks: []codexWorkerPlanTask{{Goal: "Define the frontmatter standard"}}},
+			{
+				Name:        "Standardize core references",
+				Description: "Apply the saved schema to the highest-value notes first.",
+				Tasks: []codexWorkerPlanTask{
+					{Goal: "Standardize pattern notes"},
+					{Goal: "Standardize device specs"},
+				},
+				SuccessCriteria: []string{"Core notes share the same schema"},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("failed to save planning artifact: %v", err)
+	}
+
+	result, err := runCodexBuild(root, 3, nil, false)
+	if err != nil {
+		t.Fatalf("runCodexBuild returned error: %v", err)
+	}
+	if next := result["next"].(string); next != "aether continue" {
+		t.Fatalf("next = %q, want aether continue", next)
+	}
+
+	var state colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("failed to reload colony state: %v", err)
+	}
+	if len(state.Plan.Phases) != 3 {
+		t.Fatalf("phase count = %d, want 3", len(state.Plan.Phases))
+	}
+	if state.CurrentPhase != 3 {
+		t.Fatalf("current_phase = %d, want 3", state.CurrentPhase)
+	}
+	if state.State != colony.StateBUILT {
+		t.Fatalf("state = %s, want BUILT", state.State)
+	}
+	if state.Plan.Phases[0].Status != colony.PhaseCompleted {
+		t.Fatalf("phase 1 status = %s, want completed", state.Plan.Phases[0].Status)
+	}
+	if state.Plan.Phases[1].Status != colony.PhaseCompleted {
+		t.Fatalf("phase 2 status = %s, want completed", state.Plan.Phases[1].Status)
+	}
+	if state.Plan.Phases[2].Status != colony.PhaseInProgress {
+		t.Fatalf("phase 3 status = %s, want in_progress", state.Plan.Phases[2].Status)
+	}
+	if state.Plan.Phases[2].Tasks[0].Status != colony.TaskInProgress {
+		t.Fatalf("phase 3 task 1 status = %s, want in_progress", state.Plan.Phases[2].Tasks[0].Status)
+	}
+	if state.Plan.Phases[2].Tasks[1].Status != colony.TaskInProgress {
+		t.Fatalf("phase 3 task 2 status = %s, want in_progress", state.Plan.Phases[2].Tasks[1].Status)
+	}
+}
+
 func TestBuildRejectsDifferentActivePhase(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -422,7 +507,7 @@ func TestBuildRollsBackStateWhenDispatchFails(t *testing.T) {
 	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &buildFailInvoker{} }
 	defer func() { newCodexWorkerInvoker = originalInvoker }()
 
-	_, err = runCodexBuild(root, 1, nil)
+	_, err = runCodexBuild(root, 1, nil, false)
 	if err == nil {
 		t.Fatal("expected build failure")
 	}
@@ -514,7 +599,7 @@ func TestBuildAllowsRetryWhenBuiltPhaseHasFailedDispatches(t *testing.T) {
 	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &codex.FakeInvoker{} }
 	defer func() { newCodexWorkerInvoker = originalInvoker }()
 
-	if _, err := runCodexBuild(root, 1, nil); err != nil {
+	if _, err := runCodexBuild(root, 1, nil, false); err != nil {
 		t.Fatalf("build retry returned error: %v", err)
 	}
 

@@ -173,7 +173,7 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 			required: []string{
 				"Use the Go `aether` CLI as the source of truth.",
 				"AETHER_OUTPUT_MODE=visual aether status",
-				"AETHER_OUTPUT_MODE=visual aether build $ARGUMENTS",
+				"AETHER_OUTPUT_MODE=visual aether build --synthetic $ARGUMENTS",
 				"Dispatching workers now...",
 			},
 			forbidden: []string{
@@ -312,7 +312,7 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 			path: ".claude/commands/ant/council.md",
 			required: []string{
 				"Use the Go `aether` CLI as the source of truth.",
-				"aether council-deliberate --proposal",
+				"aether council-deliberate --topic",
 			},
 			forbidden: []string{
 				"Write constraints.json",
@@ -437,7 +437,7 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 			required: []string{
 				"Use the Go `aether` CLI as the source of truth.",
 				"AETHER_OUTPUT_MODE=visual aether status",
-				"AETHER_OUTPUT_MODE=visual aether build $ARGUMENTS",
+				"AETHER_OUTPUT_MODE=visual aether build --synthetic $ARGUMENTS",
 				"Dispatching workers now...",
 			},
 			forbidden: []string{
@@ -573,7 +573,7 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 			path: ".opencode/commands/ant/council.md",
 			required: []string{
 				"Use the Go `aether` CLI as the source of truth.",
-				"aether council-deliberate --proposal",
+				"aether council-deliberate --topic",
 			},
 			forbidden: []string{
 				"Write constraints.json",

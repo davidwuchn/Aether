@@ -26,7 +26,12 @@ func loadActiveColonyState() (colony.ColonyState, error) {
 	if state.Goal == nil || strings.TrimSpace(*state.Goal) == "" {
 		return colony.ColonyState{}, errNoColonyInitialized
 	}
-	return normalizeLegacyColonyState(state), nil
+	state = normalizeLegacyColonyState(state)
+	repaired, _, err := repairMissingPlanFromArtifacts(state)
+	if err != nil {
+		return colony.ColonyState{}, err
+	}
+	return repaired, nil
 }
 
 func normalizeLegacyColonyState(state colony.ColonyState) colony.ColonyState {

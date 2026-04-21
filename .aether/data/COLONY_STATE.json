@@ -1,242 +1,316 @@
 {
   "version": "3.0",
-  "goal": "Make Aether work for Codex CLI — research Codex's extension format, create command and agent files, update setup flow, and test end-to-end",
-  "colony_name": "codex-integration",
-  "colony_version": 2,
-  "state": "READY",
-  "current_phase": 10,
-  "session_id": "session_1776180339_codex171",
-  "initialized_at": "2026-04-14T15:25:39Z",
+  "goal": "Comprehensive Aether colony review across the last three GSD milestones: v1.0, v1.1, and v1.2. Audit whether the full system is actually working properly across Claude Code, OpenCode, and Codex CLI. Review runtime truth, worker dispatch and lifecycle, agent spawning visibility, caste identity, build/plan/colonize/continue/watch/status behavior, recovery and partial-success flows, context proof, skill routing, prompt integrity, wrapper honesty, install/update/versioning, and cross-platform parity. Verify that Claude/OpenCode ceremony is runtime-backed rather than fake, Codex reflects the same truth model, and all major implementations were completed correctly. Findings first: identify bugs, regressions, misleading UX, parity gaps, stale docs, missing tests, or anything not truly working as intended.",
+  "scope": "project",
+  "colony_name": null,
+  "colony_version": 0,
+  "state": "COMPLETED",
+  "current_phase": 6,
+  "session_id": "comprehensive_1776755691",
+  "initialized_at": "2026-04-21T09:14:51.136924+02:00",
   "build_started_at": null,
   "plan": {
-    "generated_at": "2026-04-14T16:00:00Z",
-    "confidence": 82,
+    "generated_at": "2026-04-21T08:43:17.180522Z",
+    "confidence": 0.83,
     "phases": [
       {
         "id": 1,
-        "name": "Codex Format Validation",
+        "name": "Contract and gap mapping",
+        "description": "Lock the expected ant-process behavior against the current Go command surface.",
         "status": "completed",
         "tasks": [
           {
-            "goal": "Read Codex source to confirm AGENTS.md schema",
             "id": "1.1",
-            "status": "completed"
+            "goal": "Compare the documented ant workflow with the current Codex command behavior",
+            "status": "completed",
+            "constraints": [
+              "Keep the Go binary as the execution source of truth",
+              "Use Claude/OpenCode command specs as the external contract"
+            ],
+            "hints": [
+              ".claude/commands/ant/colonize.md",
+              ".claude/commands/ant/plan.md",
+              "cmd/codex_workflow_cmds.go"
+            ],
+            "success_criteria": [
+              "The next implementation slices are dependency-ordered",
+              "The parity gaps are explicit"
+            ]
           },
           {
-            "goal": "Document exact tool names per model",
             "id": "1.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Confirm skill discovery paths",
-            "id": "1.3",
-            "status": "completed"
+            "goal": "Decide the observable ant-process outputs Codex must emit during each core command",
+            "status": "completed",
+            "constraints": [
+              "Do not claim capabilities the Go binary does not actually perform"
+            ],
+            "hints": [
+              "Top-level dirs: .github, .planning, Aether_Content, assets, cmd",
+              "cmd/aether/main.go",
+              "cmd/agent_mirror_test.go",
+              "cmd/alias_cmds_test.go",
+              "cmd/assumptions_test.go",
+              "cmd/build_flow_cmds_test.go",
+              "cmd/build_wrapper_ceremony_test.go"
+            ],
+            "success_criteria": [
+              "Each command has a concrete dispatch contract",
+              "Spawn tree and artifacts are part of the contract"
+            ]
           }
+        ],
+        "success_criteria": [
+          "The parity contract is explicit",
+          "The colony has an honest execution target"
         ]
       },
       {
         "id": 2,
-        "name": "Create Codex Agent Definitions",
+        "name": "Colonize orchestration",
+        "description": "Deliver surveyor-driven territory mapping that writes usable survey artifacts and spawn records.",
         "status": "completed",
         "tasks": [
           {
-            "goal": "Create Codex agent template",
             "id": "2.1",
-            "status": "completed"
+            "goal": "Implement the surveyor workflow for Codex colonize",
+            "status": "completed",
+            "constraints": [
+              "Codex workflow docs describe ant-style worker orchestration, but `cmd/codex_workflow_cmds.go` still handles core lifecycle steps inline rather than dispatching specialized workers.",
+              "Follow the repository's existing structure and conventions",
+              "Keep changes scoped to the current goal"
+            ],
+            "hints": [
+              ".aether/data/survey/",
+              "cmd/codex_colonize.go",
+              "spawn-tree.txt"
+            ],
+            "success_criteria": [
+              "Survey artifacts are written",
+              "Surveyor spawns are recorded and completed"
+            ]
           },
           {
-            "goal": "Generate all 24 agent .toml files",
             "id": "2.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Verify zero Claude references",
-            "id": "2.3",
-            "status": "completed"
+            "goal": "Keep survey artifacts stable enough for planning to consume",
+            "status": "completed",
+            "constraints": [
+              "Avoid polluting reports with cache or generated artifacts"
+            ],
+            "hints": [
+              "PATHOGENS.md should only mention real repo concerns"
+            ],
+            "success_criteria": [
+              "Noise from generated/cache files is excluded",
+              "Survey artifacts are reusable inputs for plan"
+            ]
           }
+        ],
+        "success_criteria": [
+          "Territory survey is reliable",
+          "Planning can trust the survey output"
         ]
       },
       {
         "id": 3,
-        "name": "Create AGENTS.md Project File",
+        "name": "Planning orchestration",
+        "description": "Add a scout plus route-setter planning pass that produces artifacts and a grounded phase plan.",
         "status": "completed",
         "tasks": [
           {
-            "goal": "Create AGENTS.md at project root",
             "id": "3.1",
-            "status": "completed"
+            "goal": "Implement a scout planning pass that summarizes survey findings into buildable guidance",
+            "status": "completed",
+            "constraints": [
+              "Planning must still work when survey docs are missing",
+              "Scout output must be persisted as a planning artifact"
+            ],
+            "hints": [
+              "SCOUT.md",
+              "cmd/codex_plan.go",
+              "phase-research/"
+            ],
+            "success_criteria": [
+              "Planning produces a scout artifact",
+              "The route-setter consumes scout output and survey context"
+            ]
           },
           {
-            "goal": "Create .codex/CODEX.md developer guide",
             "id": "3.2",
-            "status": "completed"
+            "goal": "Generate a route-setter plan with task constraints, hints, and success criteria",
+            "status": "completed",
+            "constraints": [
+              "The first phase must become ready",
+              "The saved plan must match the displayed plan"
+            ],
+            "hints": [
+              "COLONY_STATE.json",
+              "renderPlanVisual"
+            ],
+            "success_criteria": [
+              "Plan generation is grounded in repo context",
+              "Spawn records show scout and route-setter activity"
+            ]
           }
+        ],
+        "success_criteria": [
+          "Plan generation is ant-driven",
+          "The colony has a grounded next phase"
         ]
       },
       {
         "id": 4,
-        "name": "Adapt Skills for Codex",
+        "name": "Build orchestration",
+        "description": "Replace visual-only build dispatch with real worker execution slices and artifact handling.",
         "status": "completed",
         "tasks": [
           {
-            "goal": "Create 10 colony skill SKILL.md files",
             "id": "4.1",
-            "status": "completed"
+            "goal": "Define and implement the builder, watcher, and specialist work sequence for build",
+            "status": "completed",
+            "constraints": [
+              "Keep command behavior inside Go",
+              "Recorded spawns must reflect real work performed"
+            ],
+            "hints": [
+              ".claude/commands/ant/build.md",
+              "cmd/codex_visuals.go",
+              "cmd/codex_workflow_cmds.go"
+            ],
+            "success_criteria": [
+              "Build does more than set state",
+              "The spawn plan matches actual command behavior"
+            ]
           },
           {
-            "goal": "Create 18 domain skill SKILL.md files",
             "id": "4.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Verify all 28 SKILL.md files",
-            "id": "4.3",
-            "status": "completed"
+            "goal": "Persist build artifacts and phase context needed by continue",
+            "status": "completed",
+            "constraints": [
+              "Continue must not rely on implied work that never happened"
+            ],
+            "hints": [
+              "Top-level dirs: .github, .planning, Aether_Content, assets, cmd",
+              "cmd/aether/main.go",
+              "cmd/agent_mirror_test.go",
+              "cmd/alias_cmds_test.go",
+              "cmd/assumptions_test.go"
+            ],
+            "success_criteria": [
+              "Continue can verify concrete outputs",
+              "Phase state stays consistent across reruns"
+            ]
           }
+        ],
+        "success_criteria": [
+          "Build behavior matches its visuals",
+          "Continue has real evidence to consume"
         ]
       },
       {
         "id": 5,
-        "name": "Create Hub Packaging Mirror",
+        "name": "Continue orchestration",
+        "description": "Make continue perform the real verification and advancement work instead of only flipping statuses.",
         "status": "completed",
         "tasks": [
           {
-            "goal": "Create .aether/skills-codex/ directory",
             "id": "5.1",
-            "status": "completed"
+            "goal": "Implement watcher-led verification and housekeeping before phase advancement",
+            "status": "completed",
+            "constraints": [
+              "Completed phases must only advance after verification",
+              "Signal housekeeping should stay wired into continue finalize"
+            ],
+            "hints": [
+              ".claude/commands/ant/continue.md",
+              "cmd/signal_housekeeping.go"
+            ],
+            "success_criteria": [
+              "Advance only happens after verification succeeds",
+              "Continue verifies actual artifacts"
+            ]
           },
           {
-            "goal": "Create agent template",
             "id": "5.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Verify packaging mirror matches",
-            "id": "5.3",
-            "status": "completed"
+            "goal": "Record the continue worker flow in state, spawn logs, and user-facing output",
+            "status": "completed",
+            "constraints": [
+              "The Next Up block must stay valid for the resulting state"
+            ],
+            "hints": [
+              "print-next-up",
+              "renderContinueVisual"
+            ],
+            "success_criteria": [
+              "Continue output matches actual work",
+              "The next phase becomes ready when appropriate"
+            ]
           }
+        ],
+        "success_criteria": [
+          "Continue is no longer a pure state flip",
+          "Phase advancement is defensible"
         ]
       },
       {
         "id": 6,
-        "name": "Update Go Install Command",
+        "name": "End-to-end verification",
+        "description": "Run the colony from init through seal and prove the Codex ant process is now honest.",
         "status": "completed",
         "tasks": [
           {
-            "goal": "Add Codex sync pair to install_cmd.go",
             "id": "6.1",
-            "status": "completed"
+            "goal": "Add tests that prove colonize, plan, build, and continue record real worker activity",
+            "status": "completed",
+            "constraints": [
+              "Test the user path, not just helper functions"
+            ],
+            "hints": [
+              "cmd/agent_mirror_test.go",
+              "cmd/alias_cmds_test.go",
+              "cmd/assumptions_test.go",
+              "cmd/build_flow_cmds_test.go",
+              "cmd/build_wrapper_ceremony_test.go",
+              "cmd/cache_cmds_test.go",
+              "cmd/chamber_suggest_maintenance_test.go",
+              "cmd/codex_build_test.go",
+              "cmd/codex_colonize_test.go",
+              "cmd/codex_e2e_test.go",
+              "cmd/codex_plan_test.go",
+              "cmd/codex_test_helpers_test.go"
+            ],
+            "success_criteria": [
+              "Core parity regressions are caught by tests",
+              "Spawn tree entries are asserted in tests"
+            ]
           },
           {
-            "goal": "Add Codex hub sync",
             "id": "6.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Write install test",
-            "id": "6.3",
-            "status": "completed"
+            "goal": "Run a live colony loop and compare its outputs with the documented ant process",
+            "status": "completed",
+            "constraints": [
+              "Call out any remaining parity gap explicitly"
+            ],
+            "hints": [
+              ".aether/data/survey/",
+              "COLONY_STATE.json",
+              "spawn-tree.txt"
+            ],
+            "success_criteria": [
+              "Remaining gaps are small and explicit",
+              "The live loop proves the implemented parity"
+            ]
           }
-        ]
-      },
-      {
-        "id": 7,
-        "name": "Update Go Setup and Update Commands",
-        "status": "completed",
-        "tasks": [
-          {
-            "goal": "Add Codex sync pair to setup_cmd.go",
-            "id": "7.1",
-            "status": "completed"
-          },
-          {
-            "goal": "Add Codex sync pair to update_cmd.go",
-            "id": "7.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Add AGENTS.md template generation",
-            "id": "7.3",
-            "status": "completed"
-          }
-        ]
-      },
-      {
-        "id": 8,
-        "name": "E2E Tests and Package Distribution",
-        "status": "completed",
-        "tasks": [
-          {
-            "goal": "Extend E2E tests for Codex",
-            "id": "8.1",
-            "status": "completed"
-          },
-          {
-            "goal": "Add .codex/ to package.json",
-            "id": "8.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Verify .npmignore",
-            "id": "8.3",
-            "status": "completed"
-          }
-        ]
-      },
-      {
-        "id": 9,
-        "name": "Documentation Updates",
-        "status": "completed",
-        "tasks": [
-          {
-            "goal": "Update CLAUDE.md for Codex",
-            "id": "9.1",
-            "status": "completed"
-          },
-          {
-            "goal": "Update aether-colony.md",
-            "id": "9.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Update source-of-truth-map.md",
-            "id": "9.3",
-            "status": "completed"
-          }
-        ]
-      },
-      {
-        "id": 10,
-        "name": "Full Verification",
-        "status": "completed",
-        "tasks": [
-          {
-            "goal": "Run go test ./... -race",
-            "id": "10.1",
-            "status": "completed"
-          },
-          {
-            "goal": "Verify file parity across 3 platforms",
-            "id": "10.2",
-            "status": "completed"
-          },
-          {
-            "goal": "Run full install-setup-update cycle",
-            "id": "10.3",
-            "status": "completed"
-          },
-          {
-            "goal": "Verify npm pack includes .codex/",
-            "id": "10.4",
-            "status": "completed"
-          }
+        ],
+        "success_criteria": [
+          "The live colony loop is credible",
+          "The remaining parity gap is narrow and testable"
         ]
       }
     ]
   },
   "memory": {
-    "phase_learnings": null,
-    "decisions": null,
+    "phase_learnings": [],
+    "decisions": [],
     "instincts": []
   },
   "errors": {
@@ -246,11 +320,50 @@
   "signals": [],
   "graveyards": [],
   "events": [
-    ""
+    "2026-04-21T08:43:17Z|planning_scout|plan|Scout summarized surveyed repo context",
+    "2026-04-21T08:43:17Z|plan_generated|plan|Generated 6 phases with 83% confidence",
+    "2026-04-21T09:05:34Z|phase_started|build|Phase 1: Contract and gap mapping",
+    "2026-04-21T09:05:34Z|build_dispatched|build|Dispatched 3 workers for phase 1",
+    "2026-04-21T09:23:20Z|phase_started|build|Phase 1: Contract and gap mapping",
+    "2026-04-21T09:23:20Z|build_dispatched|build|Dispatched 3 workers for phase 1",
+    "2026-04-21T09:23:20Z|build_completed|build|Phase 1 build packet prepared (simulated dispatch)",
+    "2026-04-21T09:31:40Z|verification_passed|continue|Build verification passed for phase 1",
+    "2026-04-21T09:31:40Z|gate_passed|continue|Continue gates passed for phase 1",
+    "2026-04-21T09:31:40Z|phase_advanced|continue|Completed phase 1, ready for phase 2",
+    "2026-04-21T09:32:23Z|phase_started|build|Phase 2: Colonize orchestration",
+    "2026-04-21T09:32:23Z|build_dispatched|build|Dispatched 3 workers for phase 2",
+    "2026-04-21T09:32:23Z|build_completed|build|Phase 2 build packet prepared (simulated dispatch)",
+    "2026-04-21T09:32:36Z|verification_passed|continue|Build verification passed for phase 2",
+    "2026-04-21T09:32:36Z|gate_passed|continue|Continue gates passed for phase 2",
+    "2026-04-21T09:32:36Z|phase_advanced|continue|Completed phase 2, ready for phase 3",
+    "2026-04-21T09:33:35Z|phase_started|build|Phase 3: Planning orchestration",
+    "2026-04-21T09:33:35Z|build_dispatched|build|Dispatched 3 workers for phase 3",
+    "2026-04-21T09:33:35Z|build_completed|build|Phase 3 build packet prepared (simulated dispatch)",
+    "2026-04-21T09:33:35Z|verification_passed|continue|Build verification passed for phase 3",
+    "2026-04-21T09:33:35Z|gate_passed|continue|Continue gates passed for phase 3",
+    "2026-04-21T09:33:35Z|phase_advanced|continue|Completed phase 3, ready for phase 4",
+    "2026-04-21T09:34:05Z|phase_started|build|Phase 4: Build orchestration",
+    "2026-04-21T09:34:05Z|build_dispatched|build|Dispatched 3 workers for phase 4",
+    "2026-04-21T09:34:05Z|build_completed|build|Phase 4 build packet prepared (simulated dispatch)",
+    "2026-04-21T09:34:06Z|verification_passed|continue|Build verification passed for phase 4",
+    "2026-04-21T09:34:06Z|gate_passed|continue|Continue gates passed for phase 4",
+    "2026-04-21T09:34:06Z|phase_advanced|continue|Completed phase 4, ready for phase 5",
+    "2026-04-21T09:34:33Z|phase_started|build|Phase 5: Continue orchestration",
+    "2026-04-21T09:34:33Z|build_dispatched|build|Dispatched 3 workers for phase 5",
+    "2026-04-21T09:34:33Z|build_completed|build|Phase 5 build packet prepared (simulated dispatch)",
+    "2026-04-21T09:34:33Z|verification_passed|continue|Build verification passed for phase 5",
+    "2026-04-21T09:34:33Z|gate_passed|continue|Continue gates passed for phase 5",
+    "2026-04-21T09:34:33Z|phase_advanced|continue|Completed phase 5, ready for phase 6",
+    "2026-04-21T09:35:02Z|phase_started|build|Phase 6: End-to-end verification",
+    "2026-04-21T09:35:02Z|build_dispatched|build|Dispatched 3 workers for phase 6",
+    "2026-04-21T09:35:02Z|build_completed|build|Phase 6 build packet prepared (simulated dispatch)",
+    "2026-04-21T09:35:03Z|verification_passed|continue|Build verification passed for final phase 6",
+    "2026-04-21T09:35:03Z|gate_passed|continue|Continue gates passed for final phase 6",
+    "2026-04-21T09:35:03Z|phase_completed|continue|Completed final phase 6",
+    "2026-04-21T09:35:37Z|sealed|seal|Colony sealed at Crowned Anthill"
   ],
-  "plan_granularity": "quarter",
+  "plan_granularity": "milestone",
   "parallel_mode": "in-repo",
   "milestone": "Crowned Anthill",
-  "build_baseline_sha": "",
-  "milestone_updated_at": "2026-04-16T15:35:28Z"
+  "milestone_updated_at": "2026-04-21T09:35:37Z"
 }

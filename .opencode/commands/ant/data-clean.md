@@ -17,7 +17,7 @@ You are the **Queen Ant Colony**. Run the data cleaner to scan for and remove te
 
 Run using the Bash tool with description "Scanning colony data for test artifacts...":
 ```bash
-aether data-clean --dry-run
+aether data-clean --confirm
 ```
 
 Display the output to the user. This shows artifact counts per data file without modifying anything.

@@ -10,7 +10,7 @@ Use the Go `aether` CLI as the source of truth.
 
 - There is no single `aether council` command. Use the dedicated runtime subcommands:
   - `aether council-budget-check`
-  - `aether council-deliberate --proposal "..."`
+  - `aether council-deliberate --topic "..."`
   - `aether council-advocate`
   - `aether council-challenger`
   - `aether council-sage`

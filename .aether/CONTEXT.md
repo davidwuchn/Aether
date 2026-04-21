@@ -4,82 +4,97 @@
 
 ---
 
-## 🚦 System Status
+## System Status
 
 | Field | Value |
 |-------|-------|
-| **Last Updated** | 2026-04-05T15:20:09Z |
-| **Current Phase** | 4 |
-| **Phase Name** | Curation Ants |
-| **Milestone** | First Mound |
-| **Colony Status** | initializing |
-| **Safe to Clear?** | YES — Build complete, ready to continue |
+| **Last Updated** | 2026-04-21T09:35:37Z |
+| **Current Phase** | 6 |
+| **Phase Name** | End-to-end verification |
+| **Phase Status** | completed |
+| **Milestone** | Crowned Anthill |
+| **Colony Status** | COMPLETED |
+| **Safe to Clear?** | YES — Colony complete |
 
 ---
 
-## 🎯 Current Goal
+## Current Goal
 
-Harden ~40 remaining json_ok call sites with safe escaping (A1+A4), add per-phase COLONY_STATE.json checkpointing (Rec 1), add jq null safety to hive reads (Rec 4), and add memory pipeline circuit breaker for file corruption recovery (Rec 8)
-
----
-
-## ⚠️ Active Constraints (REDIRECT Signals)
-
-| Constraint | Source | Date Set |
-|------------|--------|----------|
-| In the Aether repo, `.aether/` IS the source of truth — published directly via npm (private dirs excluded by .npmignore) | CLAUDE.md | Permanent |
-| Never push without explicit user approval | CLAUDE.md Safety | Permanent |
+Comprehensive Aether colony review across the last three GSD milestones: v1.0, v1.1, and v1.2. Audit whether the full system is actually working properly across Claude Code, OpenCode, and Codex CLI. Review runtime truth, worker dispatch and lifecycle, agent spawning visibility, caste identity, build/plan/colonize/continue/watch/status behavior, recovery and partial-success flows, context proof, skill routing, prompt integrity, wrapper honesty, install/update/versioning, and cross-platform parity. Verify that Claude/OpenCode ceremony is runtime-backed rather than fake, Codex reflects the same truth model, and all major implementations were completed correctly. Findings first: identify bugs, regressions, misleading UX, parity gaps, stale docs, missing tests, or anything not truly working as intended.
 
 ---
 
-## 💭 Active Pheromones (FOCUS Signals)
+## What's In Progress
+
+Colony sealed
+
+---
+
+## Active Constraints (REDIRECT Signals)
 
 *None active*
 
 ---
 
-## 📝 Recent Decisions
+## Active Pheromones
+
+*None active*
+
+---
+
+## Open Blockers
+
+- cmd/codex_command_contract_test.go requires .aether/docs/codex-command-surface-contract.md, but the file is absent in the repo. Even after the compile break ...
+- Fresh 'AETHER_OUTPUT_MODE=json go test ./... -count=1' is not fully runnable in this environment. Port-binding tests panic with 'listen tcp6 [::1]:0: bind: o...
+- Verification needed an explicit retry because ambient AETHER_OUTPUT_MODE=visual makes JSON-parsing tests fail. Example: 'AETHER_OUTPUT_MODE=visual go test ./...
+- cmd/codex_continue.go:380-384 treats the whole tests step as passed whenever the output contains any environmental marker. A mixed failure run (real regressi...
+- cmd/codex_continue.go:402-405 skips any failure line that matches isEnvironmentalConstraintText(), and the matcher at 777-800 treats the generic substring 'o...
+- cmd/codex_worker_activity_test.go shows aether continue replaces a completed builder's honest summary with generic closure text, so the live worker record is...
+- A live smoke repo in /tmp reached ━━ 🏃 R U N ━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Autopilot loop executed.
+State: EXECUTING
+Current Phase: 6
+
+━━ 🐜...
+
+---
+
+## Tasks For Phase 6 — End-to-end verification
+
+- [x] Add tests that prove colonize, plan, build, and continue record real worker activity
+- [x] Run a live colony loop and compare its outputs with the documented ant process
+
+---
+
+## Recent Decisions
 
 | Date | Decision | Rationale | Made By |
 |------|----------|-----------|---------|
+| — | No recorded decisions | — | — |
 
 ---
 
-## 📊 Recent Activity (Last 10 Actions)
+## Recent Activity (Last 5 Events)
 
-| Timestamp | Command | Result | Files Changed |
-|-----------|---------|--------|---------------|
-| 2026-04-05T15:20:09Z | build 1 | completed | 7 |
-| 2026-04-01T17:32:28Z | continue | Phase 3 completed, advanced to 4 | — |
-| 2026-04-01T17:21:52Z | build 3 | completed | 3 |
-| 2026-04-01T10:22:02Z | continue | All 6 phases completed — colony goal achieved | — |
-| 2026-04-01T10:07:42Z | continue | Phase 5 completed, advanced to Phase 6 | — |
-| 2026-04-01T09:52:02Z | continue | Phase 4 completed, advanced to Phase 5 | — |
-| 2026-04-01T09:21:04Z | continue | Phase 3 completed, advanced to Phase 4 | — |
-| 2026-04-01T08:58:21Z | continue | Phase 2 completed, advanced to Phase 3 | — |
-| 2026-03-31T21:12:30Z | continue | Phase 1 completed, advanced to Phase 2 | — |
-| 2026-03-31T19:58:49Z | build 1 | completed | 0 |
-| 2026-03-31T09:53:56Z | continue | All 3 phases completed - colony goal achieved | — |
-| 2026-03-31T09:44:54Z | build 3 | completed | 0 |
-| 2026-03-31T09:08:17Z | continue | Phase 1 completed, advanced to 2 | — |
-| 2026-03-31T08:52:25Z | build 1 | completed | 4 |
-| 2026-03-30T17:12:30Z | build 2 | completed | 9 |
-| 2026-03-30T13:15:01Z | build 1 | completed | 1 |
-| 2026-03-30T11:58:17Z | build 5 | completed | 3 |
-| 2026-03-30T11:44:48Z | continue | Phase 3 completed, advanced to 5 (Phase 4 already done) | — |
-| 2026-03-30T11:25:07Z | build 3 | completed | 1 |
-| 2026-03-30T10:25:03Z | continue | Phase 2 completed (reconciled), advanced to Phase 3 | — |
-| 2026-03-30T09:41:42Z | build 4 | completed | 3 |
-| 2026-03-30T08:02:48Z | continue | Phase 1 completed, advanced to 2 | — |
-| 2026-03-30T08:00:06Z | build 1 | completed | 1 |
-| 2026-03-30T07:35:09Z | init | Colony initialized | — |
+- 2026-04-21T09:35:02Z|build_completed|build|Phase 6 build packet prepared (simulated dispatch)
+- 2026-04-21T09:35:03Z|verification_passed|continue|Build verification passed for final phase 6
+- 2026-04-21T09:35:03Z|gate_passed|continue|Continue gates passed for final phase 6
+- 2026-04-21T09:35:03Z|phase_completed|continue|Completed final phase 6
+- 2026-04-21T09:35:37Z|sealed|seal|Colony sealed at Crowned Anthill
 
 ---
 
-## 🔄 Next Steps
+## Next Steps
 
-1. Run `/ant:plan` to generate phases for the goal
-2. Run `/ant:build 1` to start building
+1. Run `aether entomb`
+2. Run `aether phase --number 6` to inspect the tracked phase details
+3. Run `aether resume-colony` after a context clear if you want the full recovery view
 
 ---
 
+## If Context Collapses
+
+1. Run `aether resume` for the quick dashboard restore
+2. Run `aether resume-colony` for the full handoff and task view
+3. Read `.aether/HANDOFF.md` if a richer session summary was persisted

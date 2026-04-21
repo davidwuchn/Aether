@@ -22,20 +22,22 @@ import (
 var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install platform assets and refresh the shared Aether hub",
-	Long: `Install Aether globally by copying platform assets to their respective
-directories and setting up the distribution hub. By default, Aether installs
-the companion files embedded in the Go binary. Use --package-dir only when
-developing from a local source checkout.
-
-Copies:
-  .claude/commands/ant/  -> ~/.claude/commands/ant/
-  .claude/agents/ant/    -> ~/.claude/agents/ant/
-  .opencode/commands/ant/ -> ~/.opencode/command/
-  .opencode/agents/      -> ~/.opencode/agent/
-  .codex/agents/         -> ~/.codex/agents/
-  .aether/skills-codex/  -> ~/.codex/skills/aether/
-
-Also creates the hub directory at ~/.aether/ for cross-repo coordination.`,
+	Long: "Install Aether globally by copying platform assets to their respective\n" +
+		"directories and setting up the distribution hub. By default, Aether installs\n" +
+		"the companion files embedded in the Go binary. Use --package-dir only when\n" +
+		"developing from a local source checkout.\n\n" +
+		"When install runs from an Aether source checkout, it also rebuilds the shared\n" +
+		"`aether` binary unless `--skip-build-binary` is used. Other repos on the same\n" +
+		"machine already share that binary; `aether update` there only syncs companion\n" +
+		"files unless `--download-binary` is explicitly requested.\n\n" +
+		"Copies:\n" +
+		"  .claude/commands/ant/  -> ~/.claude/commands/ant/\n" +
+		"  .claude/agents/ant/    -> ~/.claude/agents/ant/\n" +
+		"  .opencode/commands/ant/ -> ~/.opencode/command/\n" +
+		"  .opencode/agents/      -> ~/.opencode/agent/\n" +
+		"  .codex/agents/         -> ~/.codex/agents/\n" +
+		"  .aether/skills-codex/  -> ~/.codex/skills/aether/\n\n" +
+		"Also creates the hub directory at ~/.aether/ for cross-repo coordination.",
 	Args: cobra.NoArgs,
 	RunE: runInstall,
 }
@@ -146,10 +148,12 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	result := map[string]interface{}{
-		"message": fmt.Sprintf("Install complete: %d files copied, %d unchanged", totalCopied, totalSkipped),
-		"details": results,
+		"message":             fmt.Sprintf("Install complete: %d files copied, %d unchanged", totalCopied, totalSkipped),
+		"details":             results,
+		"binary_refresh_mode": installBinaryRefreshMode(cmd, packageDir),
+		"binary_refresh_note": installBinaryRefreshNote(installBinaryRefreshMode(cmd, packageDir)),
 	}
-	outputWorkflow(result, renderInstallVisual(homeDir, results, totalCopied, totalSkipped))
+	outputWorkflow(result, renderInstallVisual(homeDir, results, totalCopied, totalSkipped, installBinaryRefreshMode(cmd, packageDir)))
 
 	// In a source checkout, install should keep the local binary in sync with
 	// the companion files it just published to the hub. Otherwise fast-moving
@@ -171,6 +175,29 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func installBinaryRefreshMode(cmd *cobra.Command, packageDir string) string {
+	downloadBinary, _ := cmd.Flags().GetBool("download-binary")
+	if downloadBinary {
+		return "release-download"
+	}
+	skipBuildBinary, _ := cmd.Flags().GetBool("skip-build-binary")
+	if !skipBuildBinary && isAetherSourceCheckout(packageDir) {
+		return "local-build"
+	}
+	return "unchanged"
+}
+
+func installBinaryRefreshNote(mode string) string {
+	switch strings.TrimSpace(mode) {
+	case "release-download":
+		return "The hub was refreshed; a published release binary will be downloaded next."
+	case "local-build":
+		return "The hub was refreshed from a source checkout; the shared local aether binary will be rebuilt next."
+	default:
+		return "The file-sync step refreshed the hub only. Shared runtime changes require either a local rebuild from source or an explicit release download."
+	}
 }
 
 func resolveInstallPackageDir(explicit string) (string, func(), error) {

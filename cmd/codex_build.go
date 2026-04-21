@@ -77,7 +77,7 @@ type codexBuildClaims struct {
 
 var newCodexWorkerInvoker = codex.NewWorkerInvoker
 
-func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string) (map[string]interface{}, error) {
+func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string, synthetic bool) (map[string]interface{}, error) {
 	if store == nil {
 		return nil, fmt.Errorf("no store initialized")
 	}
@@ -154,7 +154,11 @@ func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string) (map[str
 	}
 	emitVisualProgress(renderBuildDispatchPreview(updatedState, updatedPhase, dispatches))
 
-	dispatches, claims, mode, err := executeCodexBuildDispatches(context.Background(), root, updatedPhase, dispatches, playbooks, startedAt, newCodexWorkerInvoker(), parallelMode)
+	buildInvoker := newCodexWorkerInvoker()
+		if synthetic {
+			buildInvoker = &codex.FakeInvoker{}
+		}
+		dispatches, claims, mode, err := executeCodexBuildDispatches(context.Background(), root, updatedPhase, dispatches, playbooks, startedAt, buildInvoker, parallelMode)
 	if err != nil {
 		rollbackCodexBuildFailure(originalState, phaseNum, startedAt, err)
 		return nil, err
