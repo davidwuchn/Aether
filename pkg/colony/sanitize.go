@@ -2,35 +2,10 @@ package colony
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 )
 
 const maxSignalContentLength = 500
-
-// xmlTagPattern matches XML/HTML structural tags like <system>, </tag>, <br/>.
-// It detects angle-bracket-enclosed tag names (letters, digits, hyphens, underscores).
-var xmlTagPattern = regexp.MustCompile(`<[a-zA-Z/][a-zA-Z0-9_-]*\s*/?>`)
-
-// promptInjectionPatterns matches common prompt injection phrases (case-insensitive).
-var promptInjectionPatterns = []string{
-	`(?i)ignore\s+previous\s+instructions`,
-	`(?i)ignore\s+all\s+previous`,
-	`(?i)disregard\s+(all\s+)?(rules|prior|previous|instructions)`,
-	`(?i)you\s+are\s+now`,
-	`(?i)new\s+instructions\s*:`,
-}
-
-// shellInjectionPatterns matches shell injection constructs.
-var shellInjectionPatterns = []struct {
-	name    string
-	pattern *regexp.Regexp
-}{
-	{"command substitution", regexp.MustCompile(`\$\([^)]*\)`)},
-	{"backticks", regexp.MustCompile("`[^`]*`")},
-	{"pipe rm", regexp.MustCompile(`\|\s*rm\b`)},
-	{"semicolon rm", regexp.MustCompile(`;\s*rm\b`)},
-}
 
 // SanitizeSignalContent validates and sanitizes pheromone signal content.
 //
@@ -51,22 +26,18 @@ func SanitizeSignalContent(content string) (string, error) {
 		return "", fmt.Errorf("content exceeds maximum length of %d characters (%d)", maxSignalContentLength, len(content))
 	}
 
-	// Rule 2: Reject XML structural tags
-	if xmlTagPattern.MatchString(content) {
-		return "", fmt.Errorf("content contains XML structural tags which are not allowed")
-	}
-
-	// Rule 3: Reject prompt injection patterns
-	for _, pattern := range promptInjectionPatterns {
-		if matched, _ := regexp.MatchString(pattern, content); matched {
+	// Rules 2-4: Reject integrity violations using the shared detector.
+	if findings := DetectPromptIntegrityFindings(content); len(findings) > 0 {
+		first := findings[0]
+		switch first.Kind {
+		case "xml_tag":
+			return "", fmt.Errorf("content contains XML structural tags which are not allowed")
+		case "prompt_injection":
 			return "", fmt.Errorf("content contains prompt injection patterns which are not allowed")
-		}
-	}
-
-	// Rule 4: Reject shell injection patterns
-	for _, shell := range shellInjectionPatterns {
-		if shell.pattern.MatchString(content) {
-			return "", fmt.Errorf("content contains shell injection patterns (%s) which are not allowed", shell.name)
+		case "shell_injection":
+			return "", fmt.Errorf("%s", first.Message)
+		default:
+			return "", fmt.Errorf("%s", first.Message)
 		}
 	}
 

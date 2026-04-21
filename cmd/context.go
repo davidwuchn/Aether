@@ -28,6 +28,8 @@ type ContextCapsuleOutput struct {
 	Phase         int    `json:"phase"`
 	TotalPhases   int    `json:"total_phases"`
 	PhaseName     string `json:"phase_name"`
+	Warnings      []string                    `json:"warnings,omitempty"`
+	Integrity     []colony.PromptIntegrityRecord `json:"integrity,omitempty"`
 }
 
 // resumeDashboardCmd returns a read-only session recovery dashboard.
@@ -308,7 +310,9 @@ var contextCapsuleCmd = &cobra.Command{
 		maxDecisions, _ := cmd.Flags().GetInt("max-decisions")
 		maxRisks, _ := cmd.Flags().GetInt("max-risks")
 		maxWords, _ := cmd.Flags().GetInt("max-words")
-		outputOK(buildContextCapsuleOutput(compact, maxSignals, maxDecisions, maxRisks, maxWords))
+		result := buildContextCapsuleOutput(compact, maxSignals, maxDecisions, maxRisks, maxWords)
+		emitPromptIntegrityEvents("context-capsule", result.Integrity)
+		outputOK(result)
 		return nil
 	},
 }
@@ -319,6 +323,8 @@ func buildContextCapsuleOutput(compact bool, maxSignals, maxDecisions, maxRisks,
 			Exists:        false,
 			WordCount:     0,
 			PromptSection: "",
+			Warnings:      []string{},
+			Integrity:     []colony.PromptIntegrityRecord{},
 		}
 	}
 	if maxSignals < 1 {
@@ -344,6 +350,8 @@ func buildContextCapsuleOutput(compact bool, maxSignals, maxDecisions, maxRisks,
 			Exists:        false,
 			WordCount:     0,
 			PromptSection: "",
+			Warnings:      []string{},
+			Integrity:     []colony.PromptIntegrityRecord{},
 		}
 	}
 
@@ -369,39 +377,95 @@ func buildContextCapsuleOutput(compact bool, maxSignals, maxDecisions, maxRisks,
 	signalTexts := extractSignalTextsFrom(&pf, maxSignals)
 	summaryTexts := extractRollingSummary(3)
 
+	type capsuleSection struct {
+		name    string
+		title   string
+		source  string
+		content string
+	}
+
+	flagsSource := filepath.Join(store.BasePath(), "flags.json")
+	if _, err := os.Stat(flagsSource); err != nil {
+		pendingSource := filepath.Join(store.BasePath(), pendingDecisionsFile)
+		if _, pendingErr := os.Stat(pendingSource); pendingErr == nil {
+			flagsSource = pendingSource
+		}
+	}
+
+	sections := []capsuleSection{
+		{
+			name:   "state",
+			title:  "Context Capsule State",
+			source: statePath,
+			content: fmt.Sprintf("Goal: %s\nState: %s\nPhase: %d/%d - %s\nNext: %s\n",
+				goal, stateStr, phase, totalPhases, phaseName, nextAction),
+		},
+	}
+	if len(signalTexts) > 0 {
+		var sb strings.Builder
+		sb.WriteString("\nActive signals:\n")
+		for _, s := range signalTexts {
+			fmt.Fprintf(&sb, "- %s\n", s)
+		}
+		sections = append(sections, capsuleSection{
+			name:    "signals",
+			title:   "Active Signals",
+			source:  filepath.Join(store.BasePath(), "pheromones.json"),
+			content: sb.String(),
+		})
+	}
+	if len(decisionTexts) > 0 {
+		var sb strings.Builder
+		sb.WriteString("\nRecent decisions:\n")
+		for _, d := range decisionTexts {
+			fmt.Fprintf(&sb, "- %s\n", d)
+		}
+		sections = append(sections, capsuleSection{
+			name:    "decisions",
+			title:   "Recent Decisions",
+			source:  statePath,
+			content: sb.String(),
+		})
+	}
+	if len(riskTexts) > 0 {
+		var sb strings.Builder
+		sb.WriteString("\nOpen risks:\n")
+		for _, r := range riskTexts {
+			fmt.Fprintf(&sb, "- %s\n", r)
+		}
+		sections = append(sections, capsuleSection{
+			name:    "risks",
+			title:   "Open Risks",
+			source:  flagsSource,
+			content: sb.String(),
+		})
+	}
+	if len(summaryTexts) > 0 {
+		var sb strings.Builder
+		sb.WriteString("\nRecent narrative:\n")
+		for _, s := range summaryTexts {
+			fmt.Fprintf(&sb, "- %s\n", s)
+		}
+		sections = append(sections, capsuleSection{
+			name:    "recent_narrative",
+			title:   "Recent Narrative",
+			source:  filepath.Join(store.BasePath(), "rolling-summary.log"),
+			content: sb.String(),
+		})
+	}
+
 	var b strings.Builder
 	b.WriteString("--- CONTEXT CAPSULE ---\n")
-	fmt.Fprintf(&b, "Goal: %s\n", goal)
-	fmt.Fprintf(&b, "State: %s\n", stateStr)
-	fmt.Fprintf(&b, "Phase: %d/%d - %s\n", phase, totalPhases, phaseName)
-	fmt.Fprintf(&b, "Next: %s\n", nextAction)
-
-	if len(signalTexts) > 0 {
-		b.WriteString("\nActive signals:\n")
-		for _, s := range signalTexts {
-			fmt.Fprintf(&b, "- %s\n", s)
+	warnings := make([]string, 0, len(sections))
+	integrity := make([]colony.PromptIntegrityRecord, 0, len(sections))
+	for _, sec := range sections {
+		assessment := colony.AssessPromptSource(sec.source, sec.content)
+		integrity = append(integrity, assessment.Record(sec.name, sec.title, sec.source))
+		if assessment.Action == colony.PromptIntegrityActionBlock {
+			warnings = append(warnings, assessment.Warning(sec.name, sec.source))
+			continue
 		}
-	}
-
-	if len(decisionTexts) > 0 {
-		b.WriteString("\nRecent decisions:\n")
-		for _, d := range decisionTexts {
-			fmt.Fprintf(&b, "- %s\n", d)
-		}
-	}
-
-	if len(riskTexts) > 0 {
-		b.WriteString("\nOpen risks:\n")
-		for _, r := range riskTexts {
-			fmt.Fprintf(&b, "- %s\n", r)
-		}
-	}
-
-	if len(summaryTexts) > 0 {
-		b.WriteString("\nRecent narrative:\n")
-		for _, s := range summaryTexts {
-			fmt.Fprintf(&b, "- %s\n", s)
-		}
+		b.WriteString(sec.content)
 	}
 
 	b.WriteString("--- END CONTEXT CAPSULE ---\n")
@@ -427,6 +491,8 @@ func buildContextCapsuleOutput(compact bool, maxSignals, maxDecisions, maxRisks,
 		Phase:         phase,
 		TotalPhases:   totalPhases,
 		PhaseName:     phaseName,
+		Warnings:      warnings,
+		Integrity:     integrity,
 	}
 }
 

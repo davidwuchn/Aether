@@ -38,6 +38,15 @@ func setupExchangeTest(t *testing.T) (string, *storage.Store) {
 	return tmpDir, s
 }
 
+func exchangeEnvelope(t *testing.T) map[string]interface{} {
+	t.Helper()
+	buf, ok := stdout.(*bytes.Buffer)
+	if !ok {
+		t.Fatalf("stdout is %T, want *bytes.Buffer", stdout)
+	}
+	return parseEnvelopeCmd(t, buf.String())
+}
+
 // TestImportPheromonesSanitizeValidContent verifies that valid signal content
 // passes through sanitization during import.
 func TestImportPheromonesSanitizeValidContent(t *testing.T) {
@@ -222,5 +231,101 @@ func TestImportPheromonesSanitizeEscapesBrackets(t *testing.T) {
 	want := "Keep test count &lt; 100 for speed"
 	if content["text"] != want {
 		t.Errorf("content.text = %q, want %q", content["text"], want)
+	}
+}
+
+func TestImportPheromonesFixtureSurfacesSafeIntegrity(t *testing.T) {
+	_, _ = setupExchangeTest(t)
+
+	xmlFile := filepath.Join("testdata", "prompt-integrity-fixtures", "imported-signals", "safe-pheromones.xml")
+	rootCmd.SetArgs([]string{"import", "pheromones", xmlFile})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("import pheromones failed: %v", err)
+	}
+
+	envelope := exchangeEnvelope(t)
+	result := envelope["result"].(map[string]interface{})
+	if result["imported"] != float64(1) {
+		t.Fatalf("imported = %v, want 1", result["imported"])
+	}
+
+	integrity, ok := result["integrity"].([]interface{})
+	if !ok || len(integrity) != 1 {
+		t.Fatalf("expected 1 integrity record, got %v", result["integrity"])
+	}
+	record := integrity[0].(map[string]interface{})
+	if record["action"] != string(colony.PromptIntegrityActionAllow) {
+		t.Fatalf("action = %v, want %q", record["action"], colony.PromptIntegrityActionAllow)
+	}
+	if record["trust_class"] != string(colony.PromptTrustUnknown) {
+		t.Fatalf("trust_class = %v, want %q", record["trust_class"], colony.PromptTrustUnknown)
+	}
+}
+
+func TestImportPheromonesFixtureBlocksSuspiciousAndLogsEvent(t *testing.T) {
+	_, s := setupExchangeTest(t)
+
+	xmlFile := filepath.Join("testdata", "prompt-integrity-fixtures", "imported-signals", "suspicious-pheromones.xml")
+	rootCmd.SetArgs([]string{"import", "pheromones", xmlFile})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("import pheromones failed: %v", err)
+	}
+
+	envelope := exchangeEnvelope(t)
+	result := envelope["result"].(map[string]interface{})
+	if result["imported"] != float64(0) {
+		t.Fatalf("imported = %v, want 0", result["imported"])
+	}
+
+	warnings, ok := result["warnings"].([]interface{})
+	if !ok || len(warnings) == 0 {
+		t.Fatalf("expected warnings for suspicious import, got %v", result["warnings"])
+	}
+
+	integrity, ok := result["integrity"].([]interface{})
+	if !ok || len(integrity) != 1 {
+		t.Fatalf("expected 1 integrity record, got %v", result["integrity"])
+	}
+	record := integrity[0].(map[string]interface{})
+	if record["action"] != string(colony.PromptIntegrityActionBlock) {
+		t.Fatalf("action = %v, want %q", record["action"], colony.PromptIntegrityActionBlock)
+	}
+	if record["trust_class"] != string(colony.PromptTrustSuspicious) {
+		t.Fatalf("trust_class = %v, want %q", record["trust_class"], colony.PromptTrustSuspicious)
+	}
+
+	var file colony.PheromoneFile
+	if err := store.LoadJSON("pheromones.json", &file); err != nil {
+		t.Fatalf("failed to load pheromones: %v", err)
+	}
+	if len(file.Signals) != 0 {
+		t.Fatalf("expected 0 imported signals after blocking suspicious content, got %d", len(file.Signals))
+	}
+
+	lines, err := s.ReadJSONL("event-bus.jsonl")
+	if err != nil {
+		t.Fatalf("read event-bus.jsonl: %v", err)
+	}
+	foundEvent := false
+	for _, line := range lines {
+		var evt map[string]interface{}
+		if err := json.Unmarshal(line, &evt); err != nil {
+			t.Fatalf("unmarshal event: %v", err)
+		}
+		if evt["topic"] != "prompt.integrity.block" {
+			continue
+		}
+		payload := evt["payload"].(map[string]interface{})
+		if payload["name"] == "sig_suspicious" && payload["action"] == string(colony.PromptIntegrityActionBlock) {
+			foundEvent = true
+			break
+		}
+	}
+	if !foundEvent {
+		t.Fatal("expected prompt.integrity.block event for suspicious imported signal")
 	}
 }

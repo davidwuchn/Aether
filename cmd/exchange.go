@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -378,28 +378,63 @@ func runImportPheromones(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Sanitize signal content — skip invalid signals rather than failing the entire import.
+	sourcePath := filepath.ToSlash(strings.TrimSpace(inputPath))
+	baseTrust := colony.ClassifyPromptSource(sourcePath)
 	var sanitized []colony.PheromoneSignal
+	integrity := make([]colony.PromptIntegrityRecord, 0, len(signals))
+	warnings := make([]string, 0)
+	blockedRecord := func(sigID, message, evidence string) colony.PromptIntegrityRecord {
+		return colony.PromptIntegrityRecord{
+			Name:           sigID,
+			Title:          "Imported pheromone signal",
+			Source:         sourcePath,
+			BaseTrustClass: baseTrust,
+			TrustClass:     colony.PromptTrustSuspicious,
+			Action:         colony.PromptIntegrityActionBlock,
+			Blocked:        true,
+			Findings: []colony.PromptIntegrityFinding{{
+				Kind:     "import_validation",
+				Message:  message,
+				Evidence: evidence,
+			}},
+		}
+	}
+
 	for _, sig := range signals {
 		var contentMap map[string]string
 		if err := json.Unmarshal(sig.Content, &contentMap); err != nil {
-			log.Printf("import pheromones: skipping signal %s: malformed content JSON: %v", sig.ID, err)
+			record := blockedRecord(sig.ID, "imported signal content is malformed JSON and cannot be trusted", err.Error())
+			integrity = append(integrity, record)
+			warnings = append(warnings, fmt.Sprintf("blocked suspicious imported signal %s from %s: %s", sig.ID, sourcePath, record.Findings[0].Message))
 			continue
 		}
 		text, ok := contentMap["text"]
 		if !ok {
-			log.Printf("import pheromones: skipping signal %s: no text field in content", sig.ID)
+			record := blockedRecord(sig.ID, "imported signal content is missing the text field and cannot be trusted", "missing text field")
+			integrity = append(integrity, record)
+			warnings = append(warnings, fmt.Sprintf("blocked suspicious imported signal %s from %s: %s", sig.ID, sourcePath, record.Findings[0].Message))
+			continue
+		}
+		assessment := colony.AssessPromptSource(inputPath, text)
+		record := assessment.Record(sig.ID, "Imported pheromone signal", sourcePath)
+		integrity = append(integrity, record)
+		if assessment.Action == colony.PromptIntegrityActionBlock {
+			warnings = append(warnings, assessment.Warning(fmt.Sprintf("imported signal %s", sig.ID), sourcePath))
 			continue
 		}
 		cleaned, err := colony.SanitizeSignalContent(text)
 		if err != nil {
-			log.Printf("import pheromones: skipping signal %s: %v", sig.ID, err)
+			record := blockedRecord(sig.ID, err.Error(), text)
+			integrity[len(integrity)-1] = record
+			warnings = append(warnings, fmt.Sprintf("blocked suspicious imported signal %s from %s: %s", sig.ID, sourcePath, record.Findings[0].Message))
 			continue
 		}
-		// Rebuild the content JSON with sanitized text.
+
 		newContent, err := json.Marshal(map[string]string{"text": cleaned})
 		if err != nil {
-			log.Printf("import pheromones: skipping signal %s: failed to marshal sanitized content: %v", sig.ID, err)
+			record := blockedRecord(sig.ID, "failed to marshal sanitized imported signal content", err.Error())
+			integrity[len(integrity)-1] = record
+			warnings = append(warnings, fmt.Sprintf("blocked suspicious imported signal %s from %s: %s", sig.ID, sourcePath, record.Findings[0].Message))
 			continue
 		}
 		sig.Content = json.RawMessage(newContent)
@@ -419,7 +454,14 @@ func runImportPheromones(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	outputOK(map[string]interface{}{"imported": len(sanitized), "total": len(file.Signals), "source": inputPath})
+	emitPromptIntegrityEvents("import.pheromones", integrity)
+	outputOK(map[string]interface{}{
+		"imported":  len(sanitized),
+		"total":     len(file.Signals),
+		"source":    inputPath,
+		"warnings":  warnings,
+		"integrity": integrity,
+	})
 	return nil
 }
 

@@ -21,37 +21,53 @@ type colonyPrimeOutput struct {
 	Used          int               `json:"used"`
 	Sections      int               `json:"sections"`
 	Trimmed       []string          `json:"trimmed"`
+	Warnings      []string          `json:"warnings,omitempty"`
 	Ledger        colonyPrimeLedger `json:"ledger"`
 }
 
 type colonyPrimeLedger struct {
 	Included []colonyPrimeLedgerItem `json:"included"`
 	Trimmed  []colonyPrimeLedgerItem `json:"trimmed"`
+	Blocked  []colonyPrimeLedgerItem `json:"blocked,omitempty"`
 }
 
 type colonyPrimeLedgerItem struct {
-	Name     string `json:"name"`
-	Title    string `json:"title"`
-	Source   string `json:"source"`
-	Priority int    `json:"priority"`
-	Chars    int    `json:"chars"`
+	Name           string                         `json:"name"`
+	Title          string                         `json:"title"`
+	Source         string                         `json:"source"`
+	Priority       int                            `json:"priority"`
+	Chars          int                            `json:"chars"`
+	BaseTrustClass colony.PromptTrustClass       `json:"base_trust_class,omitempty"`
+	TrustClass     colony.PromptTrustClass       `json:"trust_class,omitempty"`
+	Action         colony.PromptIntegrityAction  `json:"action,omitempty"`
+	Blocked        bool                           `json:"blocked,omitempty"`
+	Findings       []colony.PromptIntegrityFinding `json:"findings,omitempty"`
 }
 
 type colonyPrimeSection struct {
-	name     string
-	title    string
-	source   string
-	content  string
-	priority int // lower = trimmed first
+	name           string
+	title          string
+	source         string
+	content        string
+	priority       int // lower = trimmed first
+	baseTrustClass colony.PromptTrustClass
+	trustClass     colony.PromptTrustClass
+	action         colony.PromptIntegrityAction
+	findings       []colony.PromptIntegrityFinding
 }
 
 func (s colonyPrimeSection) ledgerItem() colonyPrimeLedgerItem {
 	return colonyPrimeLedgerItem{
-		Name:     s.name,
-		Title:    s.title,
-		Source:   filepath.ToSlash(s.source),
-		Priority: s.priority,
-		Chars:    len(s.content),
+		Name:           s.name,
+		Title:          s.title,
+		Source:         filepath.ToSlash(s.source),
+		Priority:       s.priority,
+		Chars:          len(s.content),
+		BaseTrustClass: s.baseTrustClass,
+		TrustClass:     s.trustClass,
+		Action:         s.action,
+		Blocked:        s.action == colony.PromptIntegrityActionBlock,
+		Findings:       append([]colony.PromptIntegrityFinding(nil), s.findings...),
 	}
 }
 
@@ -63,9 +79,11 @@ func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 	result := colonyPrimeOutput{
 		Budget:  budget,
 		Trimmed: []string{},
+		Warnings: []string{},
 		Ledger: colonyPrimeLedger{
 			Included: []colonyPrimeLedgerItem{},
 			Trimmed:  []colonyPrimeLedgerItem{},
+			Blocked:  []colonyPrimeLedgerItem{},
 		},
 	}
 	if store == nil {
@@ -315,9 +333,24 @@ func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 	})
 
 	result.Sections = len(sections)
+	allowedSections := make([]colonyPrimeSection, 0, len(sections))
+	for _, sec := range sections {
+		assessment := colony.AssessPromptSource(sec.source, sec.content)
+		sec.baseTrustClass = assessment.BaseTrustClass
+		sec.trustClass = assessment.TrustClass
+		sec.action = assessment.Action
+		sec.findings = append([]colony.PromptIntegrityFinding(nil), assessment.Findings...)
+		if sec.action == colony.PromptIntegrityActionBlock {
+			result.Warnings = append(result.Warnings, assessment.Warning(sec.name, sec.source))
+			result.Ledger.Blocked = append(result.Ledger.Blocked, sec.ledgerItem())
+			continue
+		}
+		allowedSections = append(allowedSections, sec)
+	}
+
 	var assembled strings.Builder
 	currentLen := 0
-	for _, sec := range sections {
+	for _, sec := range allowedSections {
 		if currentLen+len(sec.content) > budget {
 			if sec.name == "blockers" {
 				assembled.WriteString(sec.content)

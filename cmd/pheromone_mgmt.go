@@ -115,7 +115,9 @@ var colonyPrimeCmd = &cobra.Command{
 		}
 
 		compact, _ := cmd.Flags().GetBool("compact")
-		outputOK(buildColonyPrimeOutput(compact))
+		result := buildColonyPrimeOutput(compact)
+		emitPromptIntegrityEvents("colony-prime", colonyPrimeIntegrityRecords(result))
+		outputOK(result)
 		return nil
 	},
 }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pheromones version="1.0" count="1">
+  <signal id="sig_safe_fixture" type="FOCUS" priority="normal" source="user" created_at="2026-04-21T00:00:00Z" active="true">
+    <content><text>Focus on the stable release path</text></content>
+  </signal>
+</pheromones>
