@@ -238,7 +238,7 @@ func TestDispatchBatchWithObserver_EmitsLifecycleTransitions(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 
-	wantStatuses := []string{"starting", "active", "completed"}
+	wantStatuses := []string{"starting", "running", "completed"}
 	if len(statuses) != len(wantStatuses) {
 		t.Fatalf("observer event count = %d, want %d (%v)", len(statuses), len(wantStatuses), statuses)
 	}
@@ -248,6 +248,36 @@ func TestDispatchBatchWithObserver_EmitsLifecycleTransitions(t *testing.T) {
 		}
 		if workerNames[i] != "Hammer-1" {
 			t.Errorf("workerNames[%d] = %q, want %q", i, workerNames[i], "Hammer-1")
+		}
+	}
+}
+
+func TestDispatchBatchWithObserver_DoesNotInventRunningWithoutProgressSupport(t *testing.T) {
+	invoker := &capturingInvoker{}
+	dispatches := []WorkerDispatch{
+		{WorkerName: "Hammer-1", Caste: "builder", TaskID: "1.1", Wave: 1},
+	}
+
+	var statuses []string
+	observer := func(event DispatchLifecycleEvent) {
+		statuses = append(statuses, event.Status)
+	}
+
+	results, err := DispatchBatchWithObserver(context.Background(), invoker, dispatches, observer)
+	if err != nil {
+		t.Fatalf("DispatchBatchWithObserver returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	wantStatuses := []string{"starting", "completed"}
+	if len(statuses) != len(wantStatuses) {
+		t.Fatalf("observer event count = %d, want %d (%v)", len(statuses), len(wantStatuses), statuses)
+	}
+	for i, want := range wantStatuses {
+		if statuses[i] != want {
+			t.Errorf("statuses[%d] = %q, want %q", i, statuses[i], want)
 		}
 	}
 }
@@ -360,8 +390,17 @@ type countingInvoker struct {
 }
 
 func (c *countingInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerResult, error) {
+	return c.InvokeWithProgress(ctx, config, nil)
+}
+
+func (c *countingInvoker) InvokeWithProgress(ctx context.Context, config WorkerConfig, observer WorkerProgressObserver) (WorkerResult, error) {
 	c.callOrder = append(c.callOrder, config.WorkerName)
 	c.totalCalls++
+	emitWorkerProgress(observer, WorkerProgressEvent{
+		Status:     "running",
+		Message:    "counting invoker heartbeat observed",
+		OccurredAt: time.Now().UTC(),
+	})
 	return WorkerResult{
 		WorkerName: config.WorkerName,
 		Caste:      config.Caste,
@@ -393,6 +432,13 @@ func (f *failingInvoker) Invoke(ctx context.Context, config WorkerConfig) (Worke
 		}, nil
 	}
 	return f.FakeInvoker.Invoke(ctx, config)
+}
+
+func (f *failingInvoker) InvokeWithProgress(ctx context.Context, config WorkerConfig, observer WorkerProgressObserver) (WorkerResult, error) {
+	if f.failNames[config.WorkerName] {
+		return f.Invoke(ctx, config)
+	}
+	return f.FakeInvoker.InvokeWithProgress(ctx, config, observer)
 }
 
 // alwaysFailInvoker always returns a failed result.

@@ -729,6 +729,70 @@ func TestStatusShowsSpawnSummaryFromSpawnTree(t *testing.T) {
 	}
 }
 
+func TestStatusShowsStartingRunningAndTimeoutWorkersHonestly(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	goal := "Show honest runtime worker states"
+	now := mustParseRFC3339(t, "2026-04-21T10:25:00Z")
+	taskID := "task-1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Live phase",
+					Status: colony.PhaseInProgress,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "Keep the colony moving", Status: colony.TaskInProgress}},
+				},
+			},
+		},
+	})
+
+	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+	if err := spawnTree.RecordSpawn("Queen", "builder", "Hammer-1", "Launch the worker", 1); err != nil {
+		t.Fatalf("record starting spawn: %v", err)
+	}
+	if err := spawnTree.UpdateStatus("Hammer-1", "starting", "Launch the worker"); err != nil {
+		t.Fatalf("mark starting: %v", err)
+	}
+	if err := spawnTree.RecordSpawn("Queen", "watcher", "Keen-2", "Verify the slice", 1); err != nil {
+		t.Fatalf("record running spawn: %v", err)
+	}
+	if err := spawnTree.UpdateStatus("Keen-2", "running", "Wave 1 running: Verify the slice"); err != nil {
+		t.Fatalf("mark running: %v", err)
+	}
+	if err := spawnTree.RecordSpawn("Queen", "scout", "Map-3", "Investigate blocker", 1); err != nil {
+		t.Fatalf("record timeout spawn: %v", err)
+	}
+	if err := spawnTree.UpdateStatus("Map-3", "timeout", "worker timeout after 2m0s"); err != nil {
+		t.Fatalf("mark timeout: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	for _, want := range []string{"Hammer-1", "[starting]", "Keen-2", "[running]", "Map-3", "[timeout]", "Wave 1 running: Verify the slice", "worker timeout after 2m0s"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("status output missing %q\n%s", want, output)
+		}
+	}
+}
+
 func TestStatusPausedColonyIgnoresStaleSpawnTreeWorkers(t *testing.T) {
 	var buf bytes.Buffer
 	stdout = &buf

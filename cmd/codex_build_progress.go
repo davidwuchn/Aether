@@ -61,6 +61,25 @@ func emitCodexDispatchWorkerStarted(dispatch codex.WorkerDispatch, wave int) {
 	emitVisualProgress(b.String())
 }
 
+func emitCodexDispatchWorkerRunning(dispatch codex.WorkerDispatch, wave int, note string) {
+	var b strings.Builder
+	b.WriteString("… ")
+	b.WriteString(casteIdentity(dispatch.Caste))
+	b.WriteString(" ")
+	b.WriteString(dispatch.WorkerName)
+	b.WriteString(fmt.Sprintf("  running wave %d", wave))
+	if summary := strings.TrimSpace(workerDispatchSummary(dispatch)); summary != "" {
+		b.WriteString("  ")
+		b.WriteString(summary)
+	}
+	if note := strings.TrimSpace(note); note != "" {
+		b.WriteString("  [")
+		b.WriteString(note)
+		b.WriteString("]")
+	}
+	emitVisualProgress(b.String())
+}
+
 func emitCodexBuildWorkerFinished(dispatch codex.WorkerDispatch, result codex.DispatchResult) {
 	emitCodexDispatchWorkerFinished(dispatch, result)
 }

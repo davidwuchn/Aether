@@ -35,6 +35,8 @@ func runtimeVisualDispatchObserver(spawnTree *agent.SpawnTree, activePrefix stri
 		switch strings.TrimSpace(event.Status) {
 		case "starting":
 			emitCodexDispatchWorkerStarted(event.Dispatch, wave)
+		case "running", "active":
+			emitCodexDispatchWorkerRunning(event.Dispatch, wave, event.Message)
 		case "completed", "failed", "blocked", "timeout", "superseded", "manually-reconciled":
 			emitCodexDispatchWorkerFinished(event.Dispatch, dispatchLifecycleResult(event))
 		}

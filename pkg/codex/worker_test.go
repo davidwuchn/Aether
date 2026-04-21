@@ -283,6 +283,38 @@ func TestRealInvoker_Invoke_ErrorWhenNotAvailable(t *testing.T) {
 	}
 }
 
+func TestRealInvoker_Invoke_InvalidRootClassifiedAsStartupFailure(t *testing.T) {
+	dir := t.TempDir()
+	tomlPath := filepath.Join(dir, "aether-builder.toml")
+	if err := os.WriteFile(tomlPath, []byte(`name = "aether-builder"
+description = "Builder"
+nickname_candidates = ["builder", "hammer"]
+developer_instructions = '''
+You are the Builder.
+'''
+`), 0644); err != nil {
+		t.Fatalf("failed to write agent TOML: %v", err)
+	}
+
+	invoker := NewRealInvoker()
+	invoker.binaryName = "go"
+
+	_, err := invoker.Invoke(context.Background(), WorkerConfig{
+		AgentName:     "aether-builder",
+		AgentTOMLPath: tomlPath,
+		Caste:         "builder",
+		WorkerName:    "Hammer-23",
+		TaskID:        "2.1",
+		Root:          filepath.Join(dir, "missing-root"),
+	})
+	if err == nil {
+		t.Fatal("expected startup failure for invalid root")
+	}
+	if !strings.Contains(err.Error(), "worker startup failed") {
+		t.Fatalf("expected startup failure wording, got: %v", err)
+	}
+}
+
 func TestRealInvoker_Invoke_UsesAgentPromptAndFinalMessageFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("shell stub uses POSIX sh")
@@ -447,6 +479,142 @@ printf '{"ant_name":"Hammer-23","caste":"builder","task_id":"2.1","status":"comp
 	}
 }
 
+func TestRealInvoker_Invoke_TimeoutReturnsTimeoutStatus(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell stub uses POSIX sh")
+	}
+
+	dir := t.TempDir()
+	tomlPath := filepath.Join(dir, "aether-builder.toml")
+	if err := os.WriteFile(tomlPath, []byte(`name = "aether-builder"
+description = "Builder"
+nickname_candidates = ["builder", "hammer"]
+developer_instructions = '''
+You are the Builder.
+'''
+`), 0644); err != nil {
+		t.Fatalf("failed to write agent TOML: %v", err)
+	}
+
+	scriptPath := filepath.Join(dir, "fake-codex.sh")
+	script := `#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --output-last-message)
+      out="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+cat >/dev/null
+sleep 1
+printf '{"ant_name":"Hammer-23","caste":"builder","task_id":"2.1","status":"completed","summary":"implemented the task","files_created":[],"files_modified":[],"tests_written":[],"tool_count":0,"blockers":[],"spawns":[]}' > "$out"
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		t.Fatalf("failed to write fake codex script: %v", err)
+	}
+
+	invoker := NewRealInvoker()
+	invoker.binaryName = scriptPath
+
+	result, err := invoker.Invoke(context.Background(), WorkerConfig{
+		AgentName:      "aether-builder",
+		AgentTOMLPath:  tomlPath,
+		Caste:          "builder",
+		WorkerName:     "Hammer-23",
+		TaskID:         "2.1",
+		TaskBrief:      "Build the feature.",
+		ContextCapsule: "Goal: test",
+		Root:           dir,
+		Timeout:        100 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("Invoke returned error: %v", err)
+	}
+	if result.Status != "timeout" {
+		t.Fatalf("status = %q, want timeout", result.Status)
+	}
+	if result.Error == nil || !strings.Contains(result.Error.Error(), "timeout") {
+		t.Fatalf("expected timeout error, got: %v", result.Error)
+	}
+}
+
+func TestRealInvoker_InvokeWithProgress_EmitsRunningOnOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell stub uses POSIX sh")
+	}
+
+	dir := t.TempDir()
+	tomlPath := filepath.Join(dir, "aether-builder.toml")
+	if err := os.WriteFile(tomlPath, []byte(`name = "aether-builder"
+description = "Builder"
+nickname_candidates = ["builder", "hammer"]
+developer_instructions = '''
+You are the Builder.
+'''
+`), 0644); err != nil {
+		t.Fatalf("failed to write agent TOML: %v", err)
+	}
+
+	scriptPath := filepath.Join(dir, "fake-codex.sh")
+	script := `#!/bin/sh
+out=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --output-last-message)
+      out="$2"
+      shift 2
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+cat >/dev/null
+printf '{"event":"heartbeat"}\n'
+sleep 0.05
+printf '{"ant_name":"Hammer-23","caste":"builder","task_id":"2.1","status":"completed","summary":"implemented the task","files_created":[],"files_modified":[],"tests_written":[],"tool_count":0,"blockers":[],"spawns":[]}' > "$out"
+`
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		t.Fatalf("failed to write fake codex script: %v", err)
+	}
+
+	invoker := NewRealInvoker()
+	invoker.binaryName = scriptPath
+
+	progressInvoker, ok := interface{}(invoker).(ProgressAwareWorkerInvoker)
+	if !ok {
+		t.Fatal("real invoker does not implement progress interface")
+	}
+
+	var statuses []string
+	result, err := progressInvoker.InvokeWithProgress(context.Background(), WorkerConfig{
+		AgentName:      "aether-builder",
+		AgentTOMLPath:  tomlPath,
+		Caste:          "builder",
+		WorkerName:     "Hammer-23",
+		TaskID:         "2.1",
+		TaskBrief:      "Build the feature.",
+		ContextCapsule: "Goal: test",
+		Root:           dir,
+	}, func(event WorkerProgressEvent) {
+		statuses = append(statuses, event.Status)
+	})
+	if err != nil {
+		t.Fatalf("InvokeWithProgress returned error: %v", err)
+	}
+	if result.Status != "completed" {
+		t.Fatalf("status = %q, want completed", result.Status)
+	}
+	if len(statuses) == 0 || statuses[0] != "running" {
+		t.Fatalf("expected running progress event, got %v", statuses)
+	}
+}
+
 func TestCodexWritableDirs_PrefersEnv(t *testing.T) {
 	t.Setenv("CODEX_HOME", "  /tmp/custom-codex-home  ")
 	t.Setenv("HOME", t.TempDir())
@@ -569,4 +737,12 @@ func TestFakeInvoker_ImplementsInterface(t *testing.T) {
 
 func TestRealInvoker_ImplementsInterface(t *testing.T) {
 	var _ WorkerInvoker = &RealInvoker{}
+}
+
+func TestFakeInvoker_ImplementsProgressInterface(t *testing.T) {
+	var _ ProgressAwareWorkerInvoker = &FakeInvoker{}
+}
+
+func TestRealInvoker_ImplementsProgressInterface(t *testing.T) {
+	var _ ProgressAwareWorkerInvoker = &RealInvoker{}
 }

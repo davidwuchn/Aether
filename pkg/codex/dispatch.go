@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,7 @@ type DispatchResult struct {
 type DispatchLifecycleEvent struct {
 	Dispatch     WorkerDispatch
 	Status       string
+	Message      string
 	WorkerResult *WorkerResult
 	Error        error
 	OccurredAt   time.Time
@@ -92,7 +94,7 @@ func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispa
 		for _, d := range waveDispatches {
 			// Check if context is already cancelled before invoking
 			if ctx.Err() != nil {
-				emitDispatchLifecycle(observer, d, "timeout", nil, ctx.Err())
+				emitDispatchLifecycle(observer, d, "timeout", "", nil, ctx.Err())
 				allResults = append(allResults, DispatchResult{
 					WorkerName: d.WorkerName,
 					Status:     "timeout",
@@ -115,8 +117,36 @@ func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispa
 				PheromoneSection: d.PheromoneSection,
 			}
 
-			emitDispatchLifecycle(observer, d, "starting", nil, nil)
-			emitDispatchLifecycle(observer, d, "active", nil, nil)
+			emitDispatchLifecycle(observer, d, "starting", "", nil, nil)
+			if progressInvoker, ok := invoker.(ProgressAwareWorkerInvoker); ok {
+				result, err := progressInvoker.InvokeWithProgress(ctx, config, func(progress WorkerProgressEvent) {
+					status := normalizeDispatchProgressStatus(progress.Status)
+					if status == "" {
+						return
+					}
+					emitDispatchLifecycle(observer, d, status, progress.Message, nil, nil)
+				})
+				dr := DispatchResult{
+					WorkerName: d.WorkerName,
+				}
+				if err != nil {
+					dr.Status = "failed"
+					dr.Error = err
+				} else if result.Status == "completed" {
+					dr.Status = "completed"
+					dr.WorkerResult = &result
+				} else {
+					dr.Status = result.Status
+					dr.WorkerResult = &result
+					if result.Error != nil {
+						dr.Error = result.Error
+					}
+				}
+
+				emitDispatchLifecycle(observer, d, dr.Status, "", dr.WorkerResult, dr.Error)
+				allResults = append(allResults, dr)
+				continue
+			}
 			result, err := invoker.Invoke(ctx, config)
 
 			dr := DispatchResult{
@@ -138,7 +168,7 @@ func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispa
 				}
 			}
 
-			emitDispatchLifecycle(observer, d, dr.Status, dr.WorkerResult, dr.Error)
+			emitDispatchLifecycle(observer, d, dr.Status, "", dr.WorkerResult, dr.Error)
 			allResults = append(allResults, dr)
 		}
 	}
@@ -186,15 +216,39 @@ func (r DispatchResult) String() string {
 	return fmt.Sprintf("[%s] %s", status, r.WorkerName)
 }
 
-func emitDispatchLifecycle(observer DispatchObserver, dispatch WorkerDispatch, status string, workerResult *WorkerResult, err error) {
+func emitDispatchLifecycle(observer DispatchObserver, dispatch WorkerDispatch, status string, message string, workerResult *WorkerResult, err error) {
 	if observer == nil {
 		return
 	}
 	observer(DispatchLifecycleEvent{
 		Dispatch:     dispatch,
 		Status:       status,
+		Message:      strings.TrimSpace(message),
 		WorkerResult: workerResult,
 		Error:        err,
 		OccurredAt:   time.Now().UTC(),
 	})
+}
+
+func normalizeDispatchProgressStatus(status string) string {
+	switch normalizeDispatchStatus(status) {
+	case "active", "running":
+		return "running"
+	default:
+		return ""
+	}
+}
+
+func normalizeDispatchStatus(status string) string {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "", "error":
+		return "failed"
+	case "timed_out":
+		return "timeout"
+	case "manual", "manually_reconciled":
+		return "manually-reconciled"
+	default:
+		return status
+	}
 }

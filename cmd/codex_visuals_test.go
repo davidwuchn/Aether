@@ -1089,6 +1089,15 @@ func TestCasteIdentityExactMatchPreferred(t *testing.T) {
 	}
 }
 
+func TestDispatchStatusIcon_DistinguishesRunningAndTimeout(t *testing.T) {
+	if got := dispatchStatusIcon("running"); got != "…" {
+		t.Fatalf("dispatchStatusIcon(running) = %q, want ellipsis", got)
+	}
+	if got := dispatchStatusIcon("timeout"); got != "✗" {
+		t.Fatalf("dispatchStatusIcon(timeout) = %q, want failure mark", got)
+	}
+}
+
 func TestRenderPlanVisual_SimulatedDispatch(t *testing.T) {
 	// When all planning workers have "spawned" status, the legacy display should be used.
 	phases := []colony.Phase{

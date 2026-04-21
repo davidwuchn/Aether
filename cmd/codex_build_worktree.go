@@ -14,6 +14,26 @@ import (
 	"github.com/calcosmic/Aether/pkg/colony"
 )
 
+func invokeCodexWorkerWithRuntimeProgress(
+	ctx context.Context,
+	invoker codex.WorkerInvoker,
+	cfg codex.WorkerConfig,
+	dispatch codex.WorkerDispatch,
+	wave int,
+) (codex.WorkerResult, error) {
+	if progressInvoker, ok := invoker.(codex.ProgressAwareWorkerInvoker); ok {
+		return progressInvoker.InvokeWithProgress(ctx, cfg, func(event codex.WorkerProgressEvent) {
+			status := strings.TrimSpace(event.Status)
+			switch status {
+			case "running", "active":
+				_ = updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "running", buildDispatchActiveSummary(dispatch, wave))
+				emitCodexDispatchWorkerRunning(dispatch, wave, event.Message)
+			}
+		})
+	}
+	return invoker.Invoke(ctx, cfg)
+}
+
 type buildWorktreeSession struct {
 	Branch  string
 	RelPath string
@@ -75,9 +95,9 @@ func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Ph
 				return nil, fmt.Errorf("snapshot worktree for %s: %w", dispatch.WorkerName, err)
 			}
 
-			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "active", buildDispatchActiveSummary(dispatch, wave)); err != nil {
+			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "starting", workerDispatchSummary(dispatch)); err != nil {
 				_ = finalizeBuildWorktree(root, session, colony.WorktreeOrphaned)
-				return nil, fmt.Errorf("mark worker active for %s: %w", dispatch.WorkerName, err)
+				return nil, fmt.Errorf("mark worker starting for %s: %w", dispatch.WorkerName, err)
 			}
 			emitCodexBuildWorkerStarted(dispatch, wave)
 
@@ -95,7 +115,7 @@ func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Ph
 				PheromoneSection: dispatch.PheromoneSection,
 			}
 
-			result, invokeErr := invoker.Invoke(ctx, cfg)
+			result, invokeErr := invokeCodexWorkerWithRuntimeProgress(ctx, invoker, cfg, dispatch, wave)
 			dr := codex.DispatchResult{
 				WorkerName: dispatch.WorkerName,
 			}
@@ -177,8 +197,8 @@ func dispatchCodexBuildWorkersInRepo(ctx context.Context, phase colony.Phase, di
 				continue
 			}
 
-			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "active", buildDispatchActiveSummary(dispatch, wave)); err != nil {
-				return nil, fmt.Errorf("mark worker active for %s: %w", dispatch.WorkerName, err)
+			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "starting", workerDispatchSummary(dispatch)); err != nil {
+				return nil, fmt.Errorf("mark worker starting for %s: %w", dispatch.WorkerName, err)
 			}
 			emitCodexBuildWorkerStarted(dispatch, wave)
 
@@ -196,7 +216,7 @@ func dispatchCodexBuildWorkersInRepo(ctx context.Context, phase colony.Phase, di
 				PheromoneSection: dispatch.PheromoneSection,
 			}
 
-			result, err := invoker.Invoke(ctx, cfg)
+			result, err := invokeCodexWorkerWithRuntimeProgress(ctx, invoker, cfg, dispatch, wave)
 			dr := codex.DispatchResult{WorkerName: dispatch.WorkerName}
 			if err != nil {
 				dr.Status = "failed"

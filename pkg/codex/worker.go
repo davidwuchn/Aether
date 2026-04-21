@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -16,6 +17,11 @@ import (
 
 // defaultWorkerTimeout is the default timeout for worker invocations.
 const defaultWorkerTimeout = 10 * time.Minute
+
+const (
+	defaultWorkerHeartbeatInterval = 2 * time.Second
+	minWorkerHeartbeatInterval     = 250 * time.Millisecond
+)
 
 // envRealDispatch is the environment variable that enables real codex CLI invocation.
 const envRealDispatch = "AETHER_CODEX_REAL_DISPATCH"
@@ -52,7 +58,7 @@ type WorkerResult struct {
 	WorkerName    string        // The worker's assigned name
 	Caste         string        // Worker caste
 	TaskID        string        // Task identifier
-	Status        string        // "completed", "failed", or "blocked"
+	Status        string        // "completed", "failed", "blocked", or "timeout"
 	Summary       string        // Worker's self-reported summary
 	FilesCreated  []string      // Files the worker claims to have created
 	FilesModified []string      // Files the worker claims to have modified
@@ -95,6 +101,21 @@ type agentTOML struct {
 	DeveloperInstructions string   `toml:"developer_instructions"`
 }
 
+// WorkerProgressEvent reports non-terminal worker execution progress.
+type WorkerProgressEvent struct {
+	Status     string
+	Message    string
+	OccurredAt time.Time
+}
+
+// WorkerProgressObserver receives worker execution progress events.
+type WorkerProgressObserver func(WorkerProgressEvent)
+
+// ProgressAwareWorkerInvoker extends WorkerInvoker with runtime progress events.
+type ProgressAwareWorkerInvoker interface {
+	InvokeWithProgress(ctx context.Context, config WorkerConfig, observer WorkerProgressObserver) (WorkerResult, error)
+}
+
 // WorkerInvoker defines the contract for invoking a Codex worker.
 type WorkerInvoker interface {
 	// Invoke spawns a codex CLI subprocess for the given worker configuration.
@@ -115,6 +136,12 @@ type FakeInvoker struct{}
 
 // Invoke returns a deterministic WorkerResult for the given config.
 func (f *FakeInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerResult, error) {
+	return f.InvokeWithProgress(ctx, config, nil)
+}
+
+// InvokeWithProgress returns a deterministic WorkerResult for the given config while
+// emitting a synthetic running transition for runtime tests and simulated flows.
+func (f *FakeInvoker) InvokeWithProgress(ctx context.Context, config WorkerConfig, observer WorkerProgressObserver) (WorkerResult, error) {
 	start := time.Now()
 
 	// Simulate brief processing delay
@@ -130,6 +157,12 @@ func (f *FakeInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 			Error:      ctx.Err(),
 		}, nil
 	}
+
+	emitWorkerProgress(observer, WorkerProgressEvent{
+		Status:     "running",
+		Message:    "simulated worker heartbeat observed",
+		OccurredAt: time.Now().UTC(),
+	})
 
 	claims := workerClaims{
 		AntName:       config.WorkerName,
@@ -256,6 +289,12 @@ func (r *RealInvoker) ValidateAgent(path string) error {
 
 // Invoke runs the codex CLI as a subprocess with timeout.
 func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerResult, error) {
+	return r.InvokeWithProgress(ctx, config, nil)
+}
+
+// InvokeWithProgress runs the codex CLI as a subprocess with timeout while
+// emitting proof-backed runtime progress.
+func (r *RealInvoker) InvokeWithProgress(ctx context.Context, config WorkerConfig, observer WorkerProgressObserver) (WorkerResult, error) {
 	start := time.Now()
 
 	if !r.IsAvailable(ctx) {
@@ -265,8 +304,8 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 			TaskID:     config.TaskID,
 			Status:     "failed",
 			Duration:   time.Since(start),
-			Error:      fmt.Errorf("codex binary %q not found", r.binaryName),
-		}, fmt.Errorf("codex binary %q not found in PATH", r.binaryName)
+			Error:      fmt.Errorf("worker startup failed: codex binary %q not found", r.binaryName),
+		}, fmt.Errorf("worker startup failed: codex binary %q not found in PATH", r.binaryName)
 	}
 
 	if strings.TrimSpace(config.AgentTOMLPath) == "" {
@@ -276,8 +315,18 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 			TaskID:     config.TaskID,
 			Status:     "failed",
 			Duration:   time.Since(start),
-			Error:      fmt.Errorf("missing agent TOML path"),
-		}, fmt.Errorf("missing agent TOML path for %s", config.WorkerName)
+			Error:      fmt.Errorf("worker startup failed: missing agent TOML path"),
+		}, fmt.Errorf("worker startup failed: missing agent TOML path for %s", config.WorkerName)
+	}
+	if err := validateWorkerLaunchConfig(config); err != nil {
+		return WorkerResult{
+			WorkerName: config.WorkerName,
+			Caste:      config.Caste,
+			TaskID:     config.TaskID,
+			Status:     "failed",
+			Duration:   time.Since(start),
+			Error:      err,
+		}, err
 	}
 	if err := r.ValidateAgent(config.AgentTOMLPath); err != nil {
 		return WorkerResult{
@@ -287,7 +336,7 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 			Status:     "failed",
 			Duration:   time.Since(start),
 			Error:      err,
-		}, err
+		}, fmt.Errorf("worker startup failed: %w", err)
 	}
 
 	prompt, err := AssemblePrompt(config.AgentTOMLPath, config.ContextCapsule, config.SkillSection, config.PheromoneSection, config.TaskBrief)
@@ -299,7 +348,7 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 			Status:     "failed",
 			Duration:   time.Since(start),
 			Error:      err,
-		}, fmt.Errorf("assemble worker prompt: %w", err)
+		}, fmt.Errorf("worker startup failed: assemble worker prompt: %w", err)
 	}
 	prompt = strings.TrimSpace(prompt + "\n\n" + renderResponseContract(config))
 
@@ -355,33 +404,73 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 	cmd.Stdin = strings.NewReader(prompt)
 
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	running := newWorkerRunningSignal(observer)
+	cmd.Stdout = &workerProgressWriter{
+		buffer:  &stdout,
+		running: running,
+		message: "worker output observed",
+	}
+	cmd.Stderr = &workerProgressWriter{
+		buffer:  &stderr,
+		running: running,
+		message: "worker stderr observed",
+	}
 
-	err = cmd.Run()
+	if err := cmd.Start(); err != nil {
+		startupErr := fmt.Errorf("worker startup failed: codex exec start failed: %w", err)
+		return WorkerResult{
+			WorkerName: config.WorkerName,
+			Caste:      config.Caste,
+			TaskID:     config.TaskID,
+			Status:     "failed",
+			Duration:   time.Since(start),
+			Error:      startupErr,
+		}, startupErr
+	}
+
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+
+	heartbeat := time.NewTicker(workerHeartbeatInterval(timeout))
+	defer heartbeat.Stop()
+
+	var waitErr error
+waitLoop:
+	for {
+		select {
+		case waitErr = <-waitCh:
+			break waitLoop
+		case <-heartbeat.C:
+			running.Report("worker heartbeat observed")
+		}
+	}
+
 	duration := time.Since(start)
+	rawOutput := combinedWorkerOutput(stdout.String(), stderr.String())
 
 	if ctx.Err() == context.DeadlineExceeded {
 		return WorkerResult{
 			WorkerName: config.WorkerName,
 			Caste:      config.Caste,
 			TaskID:     config.TaskID,
-			Status:     "failed",
+			Status:     "timeout",
 			Duration:   duration,
-			RawOutput:  stdout.String(),
+			RawOutput:  rawOutput,
 			Error:      fmt.Errorf("worker timeout after %v", timeout),
 		}, nil
 	}
 
-	if err != nil {
+	if waitErr != nil {
 		return WorkerResult{
 			WorkerName: config.WorkerName,
 			Caste:      config.Caste,
 			TaskID:     config.TaskID,
 			Status:     "failed",
 			Duration:   duration,
-			RawOutput:  stdout.String(),
-			Error:      fmt.Errorf("codex exec failed: %w (stderr: %s)", err, stderr.String()),
+			RawOutput:  rawOutput,
+			Error:      classifyWorkerExecutionError(waitErr, stderr.String(), running.Observed()),
 		}, nil
 	}
 
@@ -393,8 +482,8 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 			TaskID:     config.TaskID,
 			Status:     "failed",
 			Duration:   duration,
-			RawOutput:  stdout.String(),
-			Error:      fmt.Errorf("read final worker message: %w", readErr),
+			RawOutput:  rawOutput,
+			Error:      classifyWorkerFinalMessageError("read final worker message", readErr, running.Observed()),
 		}, nil
 	}
 
@@ -406,8 +495,8 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 			TaskID:     config.TaskID,
 			Status:     "failed",
 			Duration:   duration,
-			RawOutput:  stdout.String() + "\n" + string(lastMessage),
-			Error:      fmt.Errorf("parse worker output: %w", parseErr),
+			RawOutput:  strings.TrimSpace(rawOutput + "\n" + string(lastMessage)),
+			Error:      classifyWorkerFinalMessageError("parse worker output", parseErr, running.Observed()),
 		}, nil
 	}
 	claims = normalizeWorkerClaims(claims, config)
@@ -425,7 +514,7 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 		Blockers:      claims.Blockers,
 		Spawns:        claims.Spawns,
 		Duration:      duration,
-		RawOutput:     strings.TrimSpace(stdout.String() + "\n" + stderr.String()),
+		RawOutput:     rawOutput,
 	}, nil
 }
 
@@ -688,6 +777,115 @@ func compactStrings(values []string) []string {
 		result = append(result, value)
 	}
 	return result
+}
+
+type workerRunningSignal struct {
+	observer WorkerProgressObserver
+	seen     atomic.Bool
+}
+
+func newWorkerRunningSignal(observer WorkerProgressObserver) *workerRunningSignal {
+	return &workerRunningSignal{observer: observer}
+}
+
+func (s *workerRunningSignal) Report(message string) {
+	if s == nil {
+		return
+	}
+	if !s.seen.CompareAndSwap(false, true) {
+		return
+	}
+	emitWorkerProgress(s.observer, WorkerProgressEvent{
+		Status:     "running",
+		Message:    strings.TrimSpace(message),
+		OccurredAt: time.Now().UTC(),
+	})
+}
+
+func (s *workerRunningSignal) Observed() bool {
+	if s == nil {
+		return false
+	}
+	return s.seen.Load()
+}
+
+type workerProgressWriter struct {
+	buffer  *bytes.Buffer
+	running *workerRunningSignal
+	message string
+}
+
+func (w *workerProgressWriter) Write(p []byte) (int, error) {
+	if len(bytes.TrimSpace(p)) > 0 {
+		w.running.Report(w.message)
+	}
+	return w.buffer.Write(p)
+}
+
+func emitWorkerProgress(observer WorkerProgressObserver, event WorkerProgressEvent) {
+	if observer == nil {
+		return
+	}
+	if event.OccurredAt.IsZero() {
+		event.OccurredAt = time.Now().UTC()
+	}
+	observer(event)
+}
+
+func validateWorkerLaunchConfig(config WorkerConfig) error {
+	root := strings.TrimSpace(config.Root)
+	if root == "" {
+		return nil
+	}
+	info, err := os.Stat(root)
+	if err != nil {
+		return fmt.Errorf("worker startup failed: invalid working directory %q: %w", root, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("worker startup failed: working directory %q is not a directory", root)
+	}
+	return nil
+}
+
+func workerHeartbeatInterval(timeout time.Duration) time.Duration {
+	if timeout <= 0 {
+		timeout = defaultWorkerTimeout
+	}
+	interval := timeout / 20
+	if interval < minWorkerHeartbeatInterval {
+		interval = minWorkerHeartbeatInterval
+	}
+	if interval > defaultWorkerHeartbeatInterval {
+		interval = defaultWorkerHeartbeatInterval
+	}
+	return interval
+}
+
+func combinedWorkerOutput(stdout, stderr string) string {
+	return strings.TrimSpace(strings.TrimSpace(stdout) + "\n" + strings.TrimSpace(stderr))
+}
+
+func classifyWorkerExecutionError(err error, stderr string, runningObserved bool) error {
+	detail := strings.TrimSpace(stderr)
+	prefix := "codex exec failed"
+	if !runningObserved {
+		prefix = "worker startup failed"
+	}
+	if detail != "" {
+		return fmt.Errorf("%s: %w (stderr: %s)", prefix, err, detail)
+	}
+	return fmt.Errorf("%s: %w", prefix, err)
+}
+
+func classifyWorkerFinalMessageError(action string, err error, runningObserved bool) error {
+	prefix := strings.TrimSpace(action)
+	if prefix == "" {
+		prefix = "worker final message error"
+	}
+	if !runningObserved {
+		return fmt.Errorf("worker startup failed before proof of life: %s: %w", prefix, err)
+	}
+	return fmt.Errorf("%s: %w", prefix, err)
 }
 
 func runningInGoTest() bool {
