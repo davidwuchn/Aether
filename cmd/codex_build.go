@@ -181,6 +181,9 @@ func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string, syntheti
 	updatedState.Events = append(trimmedEvents(updatedState.Events),
 		fmt.Sprintf("%s|build_completed|build|Phase %d build packet prepared (%s dispatch)", startedAt.Format(time.RFC3339), phaseNum, mode),
 	)
+	if tracer != nil && updatedState.RunID != nil {
+		_ = tracer.LogPhaseChange(*updatedState.RunID, phaseNum, string(colony.PhaseCompleted), "codex-build-complete")
+	}
 	if err := store.SaveJSON("COLONY_STATE.json", updatedState); err != nil {
 		return nil, fmt.Errorf("failed to save built colony state: %w", err)
 	}
@@ -375,6 +378,10 @@ func applyCodexBuildState(state *colony.ColonyState, phaseNum int, startedAt tim
 		fmt.Sprintf("%s|phase_started|build|Phase %d: %s", startedAt.Format(time.RFC3339), phaseNum, phase.Name),
 		fmt.Sprintf("%s|build_dispatched|build|Dispatched %d workers for phase %d", startedAt.Format(time.RFC3339), len(plannedBuildDispatchesForSelection(phase, normalizedBuildDepth(state.ColonyDepth), selectedTaskIDs)), phaseNum),
 	)
+
+	if tracer != nil && state.RunID != nil {
+		_ = tracer.LogPhaseChange(*state.RunID, phaseNum, string(colony.PhaseInProgress), "codex-build-start")
+	}
 }
 
 func applyBuildTaskStatuses(phase *colony.Phase, selectedTaskIDs []string) {
@@ -690,6 +697,10 @@ func rollbackCodexBuildFailure(previous colony.ColonyState, phaseNum int, starte
 		rollback.Events = append(trimmedEvents(rollback.Events),
 			fmt.Sprintf("%s|build_dispatch_failed|build|Phase %d dispatch failed: %s", startedAt.Format(time.RFC3339), phaseNum, summary),
 		)
+	}
+
+	if tracer != nil && rollback.RunID != nil {
+		_ = tracer.LogPhaseChange(*rollback.RunID, phaseNum, "failed", "codex-build-fail")
 	}
 
 	if err := store.SaveJSON("COLONY_STATE.json", rollback); err != nil {

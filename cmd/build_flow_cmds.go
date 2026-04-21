@@ -202,6 +202,10 @@ var updateProgressCmd = &cobra.Command{
 			return nil
 		}
 
+		if tracer != nil && state.RunID != nil {
+			_ = tracer.LogPhaseChange(*state.RunID, phaseNum, status, "update-progress")
+		}
+
 		outputOK(map[string]interface{}{
 			"updated": true,
 			"phase":   phaseNum,

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/spf13/cobra"
 )
 
@@ -128,6 +129,14 @@ var autopilotUpdateCmd = &cobra.Command{
 		if err := store.SaveJSON(autopilotStatePath, state); err != nil {
 			outputError(2, fmt.Sprintf("failed to save: %v", err), nil)
 			return nil
+		}
+
+		// Trace autopilot phase transition if colony state has a run_id
+		if tracer != nil {
+			var cstate colony.ColonyState
+			if loadErr := store.LoadJSON("COLONY_STATE.json", &cstate); loadErr == nil && cstate.RunID != nil {
+				_ = tracer.LogPhaseChange(*cstate.RunID, phase, status, "autopilot-update")
+			}
 		}
 
 		outputOK(map[string]interface{}{
