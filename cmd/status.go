@@ -460,38 +460,15 @@ func granularityLabel(granularity string) string {
 
 // renderMemoryHealthTable writes the memory health table to the builder.
 func renderMemoryHealthTable(b *strings.Builder, s *storage.Store) {
-	// Try loading learning observations
-	var wisdomTotal, pendingTotal int
-	var lastLearning string
-
-	var learnings colony.LearningFile
-	if err := s.LoadJSON("learning-observations.json", &learnings); err == nil {
-		wisdomTotal = len(learnings.Observations)
-		if wisdomTotal > 0 {
-			lastLearning = learnings.Observations[wisdomTotal-1].LastSeen
-		}
-	}
-
-	// Try loading midden for failure count
-	var failureCount int
-	var lastFailure string
-	var midden colony.MiddenFile
-	if err := s.LoadJSON("midden/midden.json", &midden); err == nil {
-		failureCount = len(midden.Entries)
-		if failureCount > 0 {
-			lastFailure = midden.Entries[failureCount-1].Timestamp
-		}
-	}
-
-	// Format timestamps
-	lastLearningFormatted := formatTimestamp(lastLearning)
-	lastFailureFormatted := formatTimestamp(lastFailure)
+	summary := loadMemoryHealthSummary(s)
 
 	t := table.NewWriter()
 	t.AppendHeader(table.Row{"Metric", "Count", "Last Updated"})
-	t.AppendRow(table.Row{"Wisdom Entries", wisdomTotal, lastLearningFormatted})
-	t.AppendRow(table.Row{"Pending Promos", pendingTotal, lastLearningFormatted})
-	t.AppendRow(table.Row{"Recent Failures", failureCount, lastFailureFormatted})
+	t.AppendRow(table.Row{"Wisdom Entries", summary.WisdomTotal, formatTimestamp(summary.LastLearning)})
+	t.AppendRow(table.Row{"Pending Promos", summary.PendingPromotions, formatTimestamp(summary.LastLearning)})
+	t.AppendRow(table.Row{"Applied Instincts", summary.AppliedInstincts, formatTimestamp(summary.LastInstinctTouched)})
+	t.AppendRow(table.Row{"Needs Review", summary.ReviewCandidates + summary.RereadCandidates, formatTimestamp(summary.LastInstinctTouched)})
+	t.AppendRow(table.Row{"Recent Failures", summary.RecentFailures, formatTimestamp(summary.LastFailure)})
 	t.SetStyle(table.StyleRounded)
 	b.WriteString(t.Render() + "\n")
 }

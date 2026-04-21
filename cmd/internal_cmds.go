@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/events"
 	"github.com/calcosmic/Aether/pkg/storage"
 	"github.com/spf13/cobra"
 )
@@ -470,6 +471,13 @@ var instinctApplyCmd = &cobra.Command{
 			outputError(2, fmt.Sprintf("failed to save: %v", err), nil)
 			return nil
 		}
+
+		bus := events.NewBus(store, events.DefaultConfig())
+		payload, _ := json.Marshal(map[string]interface{}{
+			"id":      instinctID,
+			"success": success,
+		})
+		_, _ = bus.Publish(context.Background(), "instinct.apply", payload, "instinct-apply")
 
 		outputOK(map[string]interface{}{
 			"applied": true,

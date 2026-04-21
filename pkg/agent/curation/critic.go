@@ -2,8 +2,10 @@ package curation
 
 import (
 	"context"
+	"strings"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/events"
 	"github.com/calcosmic/Aether/pkg/storage"
 )
@@ -38,8 +40,8 @@ func (c *Critic) Execute(ctx context.Context, event events.Event) error {
 // Run scans instincts for contradictions. Two instincts sharing the same
 // topic with different conclusion fields are flagged.
 func (c *Critic) Run(ctx context.Context, dryRun bool) (StepResult, error) {
-	var instincts []map[string]any
-	if err := c.store.LoadJSON("instincts.json", &instincts); err != nil {
+	var file colony.InstinctsFile
+	if err := c.store.LoadJSON("instincts.json", &file); err != nil {
 		return StepResult{
 			Name:    "critic",
 			Success: true,
@@ -47,24 +49,27 @@ func (c *Critic) Run(ctx context.Context, dryRun bool) (StepResult, error) {
 		}, nil
 	}
 
-	// Group by topic to find contradictions
-	topicConclusions := make(map[string][]string)
-	for _, inst := range instincts {
-		topic, _ := inst["topic"].(string)
-		conclusion, _ := inst["conclusion"].(string)
-		if topic != "" && conclusion != "" {
-			topicConclusions[topic] = append(topicConclusions[topic], conclusion)
+	// Group by normalized trigger to find incompatible actions on the same cue.
+	triggerActions := make(map[string][]string)
+	for _, inst := range file.Instincts {
+		if inst.Archived {
+			continue
+		}
+		trigger := strings.ToLower(strings.TrimSpace(inst.Trigger))
+		action := strings.ToLower(strings.TrimSpace(inst.Action))
+		if trigger != "" && action != "" {
+			triggerActions[trigger] = append(triggerActions[trigger], action)
 		}
 	}
 
 	contradictions := 0
-	for _, conclusions := range topicConclusions {
+	for _, conclusions := range triggerActions {
 		seen := make(map[string]bool)
-		for _, c := range conclusions {
-			if seen[c] {
+		for _, conclusion := range conclusions {
+			if seen[conclusion] {
 				continue
 			}
-			seen[c] = true
+			seen[conclusion] = true
 		}
 		if len(seen) > 1 {
 			contradictions++

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/memory"
 	"github.com/calcosmic/Aether/pkg/storage"
 )
 
@@ -57,6 +58,12 @@ func instinctEntryToLegacy(entry colony.InstinctEntry) colony.Instinct {
 	if applications < entry.Provenance.ApplicationCount {
 		applications = entry.Provenance.ApplicationCount
 	}
+	lastApplied := entry.Provenance.LastApplied
+	if lastApplied == nil {
+		if ts := memory.SummarizeInstinctApplications(entry).LastApplied; ts != "" {
+			lastApplied = &ts
+		}
+	}
 
 	status := "active"
 	if entry.Archived {
@@ -74,7 +81,7 @@ func instinctEntryToLegacy(entry colony.InstinctEntry) colony.Instinct {
 		Evidence:     evidence,
 		Tested:       applications > 0,
 		CreatedAt:    entry.Provenance.CreatedAt,
-		LastApplied:  entry.Provenance.LastApplied,
+		LastApplied:  lastApplied,
 		Applications: applications,
 		Successes:    successes,
 		Failures:     failures,
@@ -82,23 +89,8 @@ func instinctEntryToLegacy(entry colony.InstinctEntry) colony.Instinct {
 }
 
 func instinctApplicationStats(entry colony.InstinctEntry) (applications, successes, failures int) {
-	for _, raw := range entry.ApplicationHistory {
-		item, ok := raw.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		applications++
-		success, ok := item["success"].(bool)
-		if !ok {
-			continue
-		}
-		if success {
-			successes++
-		} else {
-			failures++
-		}
-	}
-	return applications, successes, failures
+	summary := memory.SummarizeInstinctApplications(entry)
+	return summary.Applications, summary.Successes, summary.Failures
 }
 
 func loadInstinctFileOrEmpty(s *storage.Store) colony.InstinctsFile {
@@ -148,9 +140,9 @@ func loadRecentRuntimeInstincts(s *storage.Store, state *colony.ColonyState, lim
 	}
 
 	file := loadInstinctFileOrEmpty(s)
-	if recent := recentInstinctEntries(file, limit); len(recent) > 0 {
-		out := make([]colony.Instinct, 0, len(recent))
-		for _, entry := range recent {
+	if ranked := rankedInstinctEntries(file, time.Now().UTC(), limit); len(ranked) > 0 {
+		out := make([]colony.Instinct, 0, len(ranked))
+		for _, entry := range ranked {
 			out = append(out, instinctEntryToLegacy(entry))
 		}
 		return out
@@ -189,4 +181,39 @@ func recentInstinctEntries(file colony.InstinctsFile, limit int) []colony.Instin
 		recent = append(recent, active[i])
 	}
 	return recent
+}
+
+func rankedInstinctEntries(file colony.InstinctsFile, now time.Time, limit int) []colony.InstinctEntry {
+	active := make([]colony.InstinctEntry, 0, len(file.Instincts))
+	for _, inst := range file.Instincts {
+		if inst.Archived {
+			continue
+		}
+		active = append(active, inst)
+	}
+	sort.Slice(active, func(i, j int) bool {
+		leftScore := memory.InstinctUsefulnessScore(active[i], now)
+		rightScore := memory.InstinctUsefulnessScore(active[j], now)
+		if leftScore != rightScore {
+			return leftScore > rightScore
+		}
+		leftTime := parseInstinctTimestamp(memory.InstinctReferenceTimestamp(active[i]))
+		rightTime := parseInstinctTimestamp(memory.InstinctReferenceTimestamp(active[j]))
+		if !leftTime.Equal(rightTime) {
+			return leftTime.After(rightTime)
+		}
+		return active[i].ID < active[j].ID
+	})
+	if limit > len(active) {
+		limit = len(active)
+	}
+	return active[:limit]
+}
+
+func parseInstinctTimestamp(ts string) time.Time {
+	parsed, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		return time.Time{}
+	}
+	return parsed
 }

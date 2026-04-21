@@ -19,6 +19,8 @@ type ConsolidationResult struct {
 	ObservationsDecayed int
 	PromotionCandidates []string // content hashes of observations eligible for promotion
 	QueenEligible       []string // instinct IDs eligible for QUEEN.md promotion
+	ReviewCandidates    []string // instinct IDs that should be reviewed
+	RereadCandidates    []string // observation or instinct IDs that should be re-read
 	Errors              []error
 }
 
@@ -48,6 +50,8 @@ func (s *ConsolidationService) Run(ctx context.Context) (*ConsolidationResult, e
 	result := &ConsolidationResult{
 		PromotionCandidates: []string{},
 		QueenEligible:       []string{},
+		ReviewCandidates:    []string{},
+		RereadCandidates:    []string{},
 	}
 
 	// STEP 1 - Nurse: Recalculate trust scores using decay for all instincts.
@@ -67,7 +71,7 @@ func (s *ConsolidationService) Run(ctx context.Context) (*ConsolidationResult, e
 
 	// STEP 2 - Janitor: Archive instincts whose raw decayed score < 0.2.
 	if instinctsLoaded {
-		result.InstinctsArchived = s.archiveBelowFloor(&instincts, rawDecayScores)
+		result.InstinctsArchived, result.ReviewCandidates = s.archiveBelowFloor(&instincts, rawDecayScores)
 		if err := s.store.SaveJSON("instincts.json", instincts); err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("save archived instincts: %w", err))
 		}
@@ -87,20 +91,49 @@ func (s *ConsolidationService) Run(ctx context.Context) (*ConsolidationResult, e
 	}
 
 	// STEP 4 - Check promotion candidates from observations
+	promotedSources := map[string]struct{}{}
+	if instinctsLoaded {
+		for _, inst := range instincts.Instincts {
+			if inst.Archived || inst.Provenance.Source == "" {
+				continue
+			}
+			promotedSources[inst.Provenance.Source] = struct{}{}
+		}
+	}
 	if obsLoaded {
 		for _, obs := range obsFile.Observations {
+			if _, exists := promotedSources[obs.ContentHash]; exists {
+				continue
+			}
 			eligible, _ := CheckPromotion(obs)
 			if eligible {
 				result.PromotionCandidates = append(result.PromotionCandidates, obs.ContentHash)
+				if daysSinceTimestamp(obs.LastSeen) >= 30 {
+					result.RereadCandidates = append(result.RereadCandidates, obs.ContentHash)
+				}
 			}
 		}
 	}
 
-	// STEP 5 - Check queen-eligible instincts
+	// STEP 5 - Check queen-eligible instincts and application-aware review pressure.
 	if instinctsLoaded {
+		reviewSet := make(map[string]struct{}, len(result.ReviewCandidates))
+		for _, id := range result.ReviewCandidates {
+			reviewSet[id] = struct{}{}
+		}
 		for _, inst := range instincts.Instincts {
-			if !inst.Archived && inst.Confidence >= 0.75 && inst.Provenance.ApplicationCount >= 3 {
+			if inst.Archived {
+				continue
+			}
+			summary := SummarizeInstinctApplications(inst)
+			if inst.Confidence >= 0.75 && summary.Applications >= 3 {
 				result.QueenEligible = append(result.QueenEligible, inst.ID)
+			}
+			if _, exists := reviewSet[inst.ID]; !exists && InstinctNeedsReview(inst, time.Now().UTC()) {
+				result.ReviewCandidates = append(result.ReviewCandidates, inst.ID)
+			}
+			if InstinctNeedsReread(inst, time.Now().UTC()) {
+				result.RereadCandidates = append(result.RereadCandidates, inst.ID)
 			}
 		}
 	}
@@ -120,13 +153,21 @@ func (s *ConsolidationService) decayInstincts(file *colony.InstinctsFile, rawDec
 		if inst.Archived {
 			continue
 		}
-		days := daysSinceTimestamp(inst.Provenance.CreatedAt)
+		summary := SummarizeInstinctApplications(*inst)
+		days := daysSinceTimestamp(InstinctReferenceTimestamp(*inst))
+		seedScore := clampScore(inst.TrustScore + applicationTrustAdjustment(summary))
 		// Store raw decay (before floor) for archival decision
-		raw := rawDecay(inst.TrustScore, days)
+		raw := rawDecay(seedScore, days)
 		rawDecayScores[i] = raw
 		// Apply floored decay for stored value
-		decayed := Decay(inst.TrustScore, days)
+		decayed := Decay(seedScore, days)
 		inst.TrustScore = decayed
+		inst.Confidence = applicationAwareConfidence(inst.Confidence, summary)
+		if summary.LastApplied != "" {
+			lastApplied := summary.LastApplied
+			inst.Provenance.LastApplied = &lastApplied
+		}
+		inst.Provenance.ApplicationCount = summary.Applications
 		tierName, _ := Tier(decayed)
 		inst.TrustTier = tierName
 		count++
@@ -135,19 +176,24 @@ func (s *ConsolidationService) decayInstincts(file *colony.InstinctsFile, rawDec
 }
 
 // archiveBelowFloor marks instincts with raw decayed score below 0.2 as archived.
-func (s *ConsolidationService) archiveBelowFloor(file *colony.InstinctsFile, rawDecayScores map[int]float64) int {
+func (s *ConsolidationService) archiveBelowFloor(file *colony.InstinctsFile, rawDecayScores map[int]float64) (int, []string) {
 	count := 0
+	review := []string{}
 	for i := range file.Instincts {
 		inst := &file.Instincts[i]
 		if inst.Archived {
 			continue
 		}
 		if raw, ok := rawDecayScores[i]; ok && raw < 0.2 {
+			if summary := SummarizeInstinctApplications(*inst); summary.Applications > 0 && daysSinceTimestamp(InstinctReferenceTimestamp(*inst)) <= 21 {
+				review = append(review, inst.ID)
+				continue
+			}
 			inst.Archived = true
 			count++
 		}
 	}
-	return count
+	return count, review
 }
 
 // rawDecay applies half-life decay without the 0.2 floor.
@@ -179,8 +225,45 @@ func (s *ConsolidationService) publishConsolidationEvent(ctx context.Context, re
 		"observations_decayed": result.ObservationsDecayed,
 		"promotion_candidates": len(result.PromotionCandidates),
 		"queen_eligible":       len(result.QueenEligible),
+		"review_candidates":    len(result.ReviewCandidates),
+		"reread_candidates":    len(result.RereadCandidates),
 	})
 	s.bus.Publish(ctx, "consolidation.phase_end", payload, "consolidation")
+}
+
+func applicationTrustAdjustment(summary InstinctApplicationSummary) float64 {
+	adjustment := 0.0
+	if summary.Applications > 0 {
+		adjustment += math.Min(0.10, float64(summary.Successes)*0.02)
+		adjustment -= math.Min(0.15, float64(summary.Failures)*0.03)
+	}
+	return adjustment
+}
+
+func applicationAwareConfidence(current float64, summary InstinctApplicationSummary) float64 {
+	if summary.Applications == 0 {
+		return clampScore(current)
+	}
+	applications := math.Min(float64(summary.Applications), 5) / 5.0
+	successRate := summary.SuccessRate
+	if successRate == 0 && summary.Failures == 0 {
+		successRate = 1
+	}
+	target := 0.50 + 0.20*applications + 0.20*successRate
+	if summary.Failures > summary.Successes {
+		target -= 0.10
+	}
+	return clampScore((current * 0.70) + (target * 0.30))
+}
+
+func clampScore(value float64) float64 {
+	if value < 0.2 {
+		return 0.2
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
 }
 
 // daysSinceTimestamp calculates days since an ISO-8601 timestamp.

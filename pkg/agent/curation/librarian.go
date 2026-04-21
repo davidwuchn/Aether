@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/memory"
 	"github.com/calcosmic/Aether/pkg/storage"
 )
 
@@ -38,17 +40,45 @@ func (l *Librarian) Execute(ctx context.Context, event events.Event) error {
 
 // Run counts entries across data stores and returns inventory statistics.
 func (l *Librarian) Run(ctx context.Context, dryRun bool) (StepResult, error) {
-	countEntries := func(path string) int {
-		var data []map[string]any
-		if err := l.store.LoadJSON(path, &data); err != nil {
-			return 0
+	observations := 0
+	promotionCandidates := 0
+	var obsFile colony.LearningFile
+	if err := l.store.LoadJSON("learning-observations.json", &obsFile); err == nil {
+		observations = len(obsFile.Observations)
+		for _, obs := range obsFile.Observations {
+			eligible, _ := memory.CheckPromotion(obs)
+			if eligible {
+				promotionCandidates++
+			}
 		}
-		return len(data)
 	}
 
-	observations := countEntries("learning-observations.json")
-	instincts := countEntries("instincts.json")
-	pheromones := countEntries("pheromones.json")
+	instinctsActive := 0
+	instinctsArchived := 0
+	instinctsApplied := 0
+	var instinctFile colony.InstinctsFile
+	if err := l.store.LoadJSON("instincts.json", &instinctFile); err == nil {
+		for _, inst := range instinctFile.Instincts {
+			if inst.Archived {
+				instinctsArchived++
+				continue
+			}
+			instinctsActive++
+			if memory.SummarizeInstinctApplications(inst).Applications > 0 {
+				instinctsApplied++
+			}
+		}
+	}
+
+	pheromones := 0
+	var pheromoneFile colony.PheromoneFile
+	if err := l.store.LoadJSON("pheromones.json", &pheromoneFile); err == nil {
+		for _, sig := range pheromoneFile.Signals {
+			if sig.Active {
+				pheromones++
+			}
+		}
+	}
 
 	// Count events from JSONL
 	events := 0
@@ -60,10 +90,13 @@ func (l *Librarian) Run(ctx context.Context, dryRun bool) (StepResult, error) {
 		Name:    "librarian",
 		Success: true,
 		Summary: map[string]any{
-			"observations": observations,
-			"instincts":    instincts,
-			"events":       events,
-			"pheromones":   pheromones,
+			"observations":         observations,
+			"promotion_candidates": promotionCandidates,
+			"instincts_active":     instinctsActive,
+			"instincts_archived":   instinctsArchived,
+			"instincts_applied":    instinctsApplied,
+			"events":               events,
+			"pheromones":           pheromones,
 		},
 	}, nil
 }

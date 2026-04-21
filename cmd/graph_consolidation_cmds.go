@@ -12,6 +12,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func pipelineConfigForStore() memory.PipelineConfig {
+	colonyName := "unknown"
+	if store != nil {
+		var state struct {
+			ColonyName string `json:"colony_name"`
+		}
+		if err := store.LoadJSON("COLONY_STATE.json", &state); err == nil && state.ColonyName != "" {
+			colonyName = state.ColonyName
+		}
+	}
+	return memory.PipelineConfig{
+		ColonyName: colonyName,
+		QueenPath:  "QUEEN.md",
+	}
+}
+
 var (
 	graphSource         string
 	graphTarget         string
@@ -198,13 +214,21 @@ var consolidationPhaseEndCmd = &cobra.Command{
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
 		bus := events.NewBus(store, events.DefaultConfig())
-		queenPath := store.BasePath() + "/QUEEN.md"
-		service := memory.NewConsolidationService(store, bus, queenPath, "unknown")
+		pipeline := memory.NewPipeline(store, bus, pipelineConfigForStore())
 
 		ctx, cancel := timeoutCtx(cmd)
 		defer cancel()
 
-		result, err := service.Run(ctx)
+		var (
+			result *memory.ConsolidationResult
+			err    error
+		)
+		if dryRun {
+			service := memory.NewConsolidationService(store, bus, "QUEEN.md", pipelineConfigForStore().ColonyName)
+			result, err = service.Run(ctx)
+		} else {
+			result, err = pipeline.RunConsolidation(ctx)
+		}
 		if err != nil {
 			outputError(1, fmt.Sprintf("consolidation failed: %v", err), nil)
 			return nil
@@ -218,6 +242,8 @@ var consolidationPhaseEndCmd = &cobra.Command{
 				"observations_decayed": result.ObservationsDecayed,
 				"promotion_candidates": len(result.PromotionCandidates),
 				"queen_eligible":       len(result.QueenEligible),
+				"review_candidates":    len(result.ReviewCandidates),
+				"reread_candidates":    len(result.RereadCandidates),
 				"dry_run":              true,
 			})
 			return nil
@@ -230,6 +256,8 @@ var consolidationPhaseEndCmd = &cobra.Command{
 			"observations_decayed": result.ObservationsDecayed,
 			"promotion_candidates": len(result.PromotionCandidates),
 			"queen_eligible":       len(result.QueenEligible),
+			"review_candidates":    len(result.ReviewCandidates),
+			"reread_candidates":    len(result.RereadCandidates),
 		})
 		return nil
 	},
@@ -248,7 +276,7 @@ var consolidationSealCmd = &cobra.Command{
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		bus := events.NewBus(store, events.DefaultConfig())
 		ctx, cancel := timeoutCtx(cmd)
-			defer cancel()
+		defer cancel()
 
 		type stepInfo struct {
 			Name    string `json:"name"`
@@ -272,16 +300,15 @@ var consolidationSealCmd = &cobra.Command{
 		}
 
 		// Step 2: Run consolidation (decay + archive)
-		queenPath := store.BasePath() + "/QUEEN.md"
-		consolidationService := memory.NewConsolidationService(store, bus, queenPath, "unknown")
-		consResult, err := consolidationService.Run(ctx)
+		pipeline := memory.NewPipeline(store, bus, pipelineConfigForStore())
+		consResult, err := pipeline.RunConsolidation(ctx)
 		if err != nil {
 			steps = append(steps, stepInfo{Name: "consolidation", Success: false, Summary: err.Error()})
 		} else {
 			steps = append(steps, stepInfo{
 				Name:    "consolidation",
 				Success: true,
-				Summary: fmt.Sprintf("decayed=%d archived=%d", consResult.InstinctsDecayed, consResult.InstinctsArchived),
+				Summary: fmt.Sprintf("decayed=%d archived=%d review=%d reread=%d", consResult.InstinctsDecayed, consResult.InstinctsArchived, len(consResult.ReviewCandidates), len(consResult.RereadCandidates)),
 			})
 		}
 

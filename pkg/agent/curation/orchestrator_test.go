@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/events"
 	"github.com/calcosmic/Aether/pkg/storage"
 )
@@ -321,5 +323,172 @@ func TestJanitorCleanup(t *testing.T) {
 	removed, _ := sr.Summary["removed"].(int)
 	if removed != 1 {
 		t.Errorf("removed = %v, want 1", sr.Summary["removed"])
+	}
+}
+
+func TestNurseReconcilesTypedInstinctMetadata(t *testing.T) {
+	store, _ := setupTestStore(t)
+	now := "2026-04-21T10:00:00Z"
+	file := colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "inst_reconcile",
+				Trigger:    "when routing context",
+				Action:     "prefer trusted context first",
+				TrustScore: 0.82,
+				Confidence: 0.70,
+				Provenance: colony.InstinctProvenance{
+					CreatedAt:        "2026-04-01T10:00:00Z",
+					ApplicationCount: 0,
+				},
+				ApplicationHistory: []interface{}{
+					map[string]interface{}{"timestamp": now, "success": true},
+				},
+			},
+		},
+	}
+	if err := store.SaveJSON("instincts.json", file); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+
+	n := NewNurse(store)
+	sr, err := n.Run(context.Background(), false)
+	if err != nil {
+		t.Fatalf("Nurse.Run() error: %v", err)
+	}
+	if sr.Summary["recalculated"] == 0 {
+		t.Fatalf("expected nurse to reconcile metadata, got %+v", sr.Summary)
+	}
+
+	var updated colony.InstinctsFile
+	if err := store.LoadJSON("instincts.json", &updated); err != nil {
+		t.Fatalf("load instincts: %v", err)
+	}
+	if updated.Instincts[0].Provenance.ApplicationCount != 1 {
+		t.Fatalf("application_count = %d, want 1", updated.Instincts[0].Provenance.ApplicationCount)
+	}
+	if updated.Instincts[0].Provenance.LastApplied == nil || *updated.Instincts[0].Provenance.LastApplied != now {
+		t.Fatalf("last_applied = %v, want %s", updated.Instincts[0].Provenance.LastApplied, now)
+	}
+	if updated.Instincts[0].TrustTier == "" {
+		t.Fatal("expected trust tier to be refreshed")
+	}
+}
+
+func TestHeraldPromotesTypedInstinctsToQueen(t *testing.T) {
+	store, _ := setupTestStore(t)
+	file := colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "inst_queen",
+				Trigger:    "when trust is unknown",
+				Action:     "deprioritize the section",
+				Domain:     "context",
+				TrustScore: 0.88,
+				TrustTier:  "trusted",
+				Confidence: 0.80,
+				Provenance: colony.InstinctProvenance{
+					CreatedAt:        "2026-04-01T10:00:00Z",
+					ApplicationCount: 3,
+				},
+			},
+		},
+	}
+	if err := store.SaveJSON("instincts.json", file); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+
+	h := NewHerald(store)
+	sr, err := h.Run(context.Background(), false)
+	if err != nil {
+		t.Fatalf("Herald.Run() error: %v", err)
+	}
+	if sr.Summary["promoted"] != 1 {
+		t.Fatalf("promoted = %v, want 1", sr.Summary["promoted"])
+	}
+
+	data, err := store.ReadFile("QUEEN.md")
+	if err != nil {
+		t.Fatalf("read QUEEN.md: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "deprioritize the section") {
+		t.Fatalf("QUEEN.md missing promoted instinct: %s", content)
+	}
+}
+
+func TestLibrarianCountsTypedStores(t *testing.T) {
+	store, bus := setupTestStore(t)
+	if err := store.SaveJSON("learning-observations.json", colony.LearningFile{
+		Observations: []colony.Observation{
+			{ContentHash: "obs_1", Content: "one", ObservationCount: 3, FirstSeen: "2026-04-01T10:00:00Z", LastSeen: "2026-04-21T10:00:00Z"},
+			{ContentHash: "obs_2", Content: "two", ObservationCount: 1, FirstSeen: "2026-04-01T10:00:00Z", LastSeen: "2026-04-21T10:00:00Z"},
+		},
+	}); err != nil {
+		t.Fatalf("save observations: %v", err)
+	}
+	if err := store.SaveJSON("instincts.json", colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "active_inst",
+				Trigger:    "active",
+				Action:     "apply",
+				TrustScore: 0.8,
+				Confidence: 0.8,
+				Provenance: colony.InstinctProvenance{CreatedAt: "2026-04-01T10:00:00Z", ApplicationCount: 1},
+			},
+			{
+				ID:         "archived_inst",
+				Trigger:    "archived",
+				Action:     "ignore",
+				TrustScore: 0.2,
+				Confidence: 0.2,
+				Provenance: colony.InstinctProvenance{CreatedAt: "2026-04-01T10:00:00Z"},
+				Archived:   true,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+	if err := store.SaveJSON("pheromones.json", colony.PheromoneFile{
+		Signals: []colony.PheromoneSignal{
+			{ID: "sig_active", Type: "FOCUS", Active: true},
+			{ID: "sig_inactive", Type: "FEEDBACK", Active: false},
+		},
+	}); err != nil {
+		t.Fatalf("save pheromones: %v", err)
+	}
+	if err := store.AppendJSONL("event-bus.jsonl", map[string]any{"id": "evt_1"}); err != nil {
+		t.Fatalf("append event: %v", err)
+	}
+
+	l := NewLibrarian(store, bus)
+	sr, err := l.Run(context.Background(), false)
+	if err != nil {
+		t.Fatalf("Librarian.Run() error: %v", err)
+	}
+	if sr.Summary["observations"] != 2 {
+		t.Fatalf("observations = %v, want 2", sr.Summary["observations"])
+	}
+	if sr.Summary["promotion_candidates"] != 1 {
+		t.Fatalf("promotion_candidates = %v, want 1", sr.Summary["promotion_candidates"])
+	}
+	if sr.Summary["instincts_active"] != 1 {
+		t.Fatalf("instincts_active = %v, want 1", sr.Summary["instincts_active"])
+	}
+	if sr.Summary["instincts_archived"] != 1 {
+		t.Fatalf("instincts_archived = %v, want 1", sr.Summary["instincts_archived"])
+	}
+	if sr.Summary["instincts_applied"] != 1 {
+		t.Fatalf("instincts_applied = %v, want 1", sr.Summary["instincts_applied"])
+	}
+	if sr.Summary["events"] != 1 {
+		t.Fatalf("events = %v, want 1", sr.Summary["events"])
+	}
+	if sr.Summary["pheromones"] != 1 {
+		t.Fatalf("pheromones = %v, want 1", sr.Summary["pheromones"])
 	}
 }

@@ -16,50 +16,33 @@ var memoryMetricsCmd = &cobra.Command{
 			return nil
 		}
 
-		// Load learning observations
-		wisdomTotal := 0
-		var lastLearning, lastCapture string
-		var learnings colony.LearningFile
-		if err := store.LoadJSON("learning-observations.json", &learnings); err == nil {
-			wisdomTotal = len(learnings.Observations)
-			if wisdomTotal > 0 {
-				lastCapture = learnings.Observations[wisdomTotal-1].LastSeen
-			}
-		}
-
-		// Load midden for failure count
-		failureCount := 0
-		var lastFailure string
-		var midden colony.MiddenFile
-		if err := store.LoadJSON("midden/midden.json", &midden); err == nil {
-			failureCount = len(midden.Entries)
-			if failureCount > 0 {
-				lastFailure = midden.Entries[failureCount-1].Timestamp
-			}
-		}
-
-		// Compute pending promotions (observations that haven't been promoted)
-		pendingTotal := 0
-		for _, obs := range learnings.Observations {
-			if obs.TrustScore == nil {
-				pendingTotal++
-			}
-		}
+		summary := loadMemoryHealthSummary(store)
 
 		result := map[string]interface{}{
 			"wisdom": map[string]interface{}{
-				"total": wisdomTotal,
+				"total": summary.WisdomTotal,
 			},
 			"pending": map[string]interface{}{
-				"total": pendingTotal,
+				"total": summary.PendingPromotions,
+			},
+			"instincts": map[string]interface{}{
+				"active":    summary.ActiveInstincts,
+				"archived":  summary.ArchivedInstincts,
+				"applied":   summary.AppliedInstincts,
+				"last_used": summary.LastInstinctTouched,
+			},
+			"curation": map[string]interface{}{
+				"review_candidates": summary.ReviewCandidates,
+				"reread_candidates": summary.RereadCandidates,
 			},
 			"recent_failures": map[string]interface{}{
-				"count": failureCount,
+				"count": summary.RecentFailures,
 			},
 			"last_activity": map[string]interface{}{
-				"queen_md_updated":  lastLearning,
-				"learning_captured": lastCapture,
-				"last_failure":      lastFailure,
+				"queen_md_updated":  "",
+				"learning_captured": summary.LastLearning,
+				"last_failure":      summary.LastFailure,
+				"instinct_used":     summary.LastInstinctTouched,
 			},
 		}
 		outputOK(result)

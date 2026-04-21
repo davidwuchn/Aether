@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var curationArchivistThreshold float64
+
 // curationSentinelCmd runs the sentinel curation ant.
 var curationSentinelCmd = &cobra.Command{
 	Use:   "curation-sentinel",
@@ -181,7 +183,8 @@ var curationArchivistCmd = &cobra.Command{
 		}
 
 		dryRun := mustGetBool(cmd, "dry-run")
-		a := curation.NewArchivist(store)
+		threshold, _ := cmd.Flags().GetFloat64("threshold")
+		a := curation.NewArchivistWithThreshold(store, threshold)
 
 		ctx, cancel := timeoutCtx(cmd)
 		defer cancel()
@@ -297,6 +300,10 @@ var curationRunCmd = &cobra.Command{
 		})
 		return nil
 	},
+}
+
+func init() {
+	curationArchivistCmd.Flags().Float64Var(&curationArchivistThreshold, "threshold", 0.30, "Archive threshold for active instincts")
 }
 
 func init() {

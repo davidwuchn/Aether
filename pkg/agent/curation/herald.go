@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/memory"
 	"github.com/calcosmic/Aether/pkg/storage"
 )
 
@@ -37,44 +39,51 @@ func (h *Herald) Execute(ctx context.Context, event events.Event) error {
 
 // Run promotes instincts with confidence >= 0.80 to QUEEN.md.
 func (h *Herald) Run(ctx context.Context, dryRun bool) (StepResult, error) {
-	var instincts []map[string]any
-	if err := h.store.LoadJSON("instincts.json", &instincts); err != nil {
+	var file colony.InstinctsFile
+	if err := h.store.LoadJSON("instincts.json", &file); err != nil {
 		return StepResult{
 			Name:    "herald",
 			Success: true,
-			Summary: map[string]any{"promoted": 0},
+			Summary: map[string]any{"eligible": 0, "promoted": 0},
 		}, nil
 	}
 
+	eligible := 0
 	promoted := 0
-	var patterns []string
-	for _, inst := range instincts {
-		conf, _ := inst["confidence"].(float64)
-		if conf >= 0.80 {
-			trigger, _ := inst["trigger"].(string)
-			if trigger != "" {
-				patterns = append(patterns, trigger)
-				promoted++
-			}
-		}
+	var queen *memory.QueenService
+	if !dryRun {
+		queen = memory.NewQueenService(h.store, events.NewBus(h.store, events.DefaultConfig()))
 	}
 
-	if !dryRun && len(patterns) > 0 {
-		// Read existing QUEEN.md or create new one
-		content := "# QUEEN.md\n\n## Patterns\n\n"
-		if data, err := h.store.ReadFile("QUEEN.md"); err == nil {
-			content = string(data)
+	for _, inst := range file.Instincts {
+		if inst.Archived || inst.Confidence < 0.75 {
+			continue
 		}
-		// Append promoted patterns
-		for _, p := range patterns {
-			content += "- " + p + "\n"
+		summary := memory.SummarizeInstinctApplications(inst)
+		if summary.Applications < 3 {
+			continue
 		}
-		_ = h.store.AtomicWrite("QUEEN.md", []byte(content))
+		eligible++
+		if dryRun {
+			promoted++
+			continue
+		}
+		result, err := queen.PromoteInstinct(ctx, "QUEEN.md", inst, "curation-herald")
+		if err != nil {
+			return StepResult{
+				Name:    "herald",
+				Success: false,
+				Summary: map[string]any{"eligible": eligible, "promoted": promoted},
+			}, err
+		}
+		if result.EntriesAdded > 0 {
+			promoted++
+		}
 	}
 
 	return StepResult{
 		Name:    "herald",
 		Success: true,
-		Summary: map[string]any{"promoted": promoted},
+		Summary: map[string]any{"eligible": eligible, "promoted": promoted},
 	}, nil
 }

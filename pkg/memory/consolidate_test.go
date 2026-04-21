@@ -68,7 +68,7 @@ func TestConsolidate_TrustDecay(t *testing.T) {
 	if err := store.LoadJSON("instincts.json", &updated); err != nil {
 		t.Fatalf("load updated instincts: %v", err)
 	}
-	decayedScore := Decay(0.85, 120)
+	decayedScore := Decay(clampScore(0.85+applicationTrustAdjustment(SummarizeInstinctApplications(instincts.Instincts[0]))), 120)
 	if math.Abs(updated.Instincts[0].TrustScore-decayedScore) > 1e-6 {
 		t.Errorf("TrustScore = %f, want %f (decayed)", updated.Instincts[0].TrustScore, decayedScore)
 	}
@@ -440,5 +440,136 @@ func TestConsolidate_QueenPathPassed(t *testing.T) {
 	// Verify QUEEN.md dir doesn't need to exist at construction time
 	if _, err := os.Stat(queenPath); !os.IsNotExist(err) {
 		t.Error("QUEEN.md should not exist yet")
+	}
+}
+
+func TestConsolidate_UsesLastAppliedForDecay(t *testing.T) {
+	store, bus, _ := setupConsolidationTest(t)
+	oldCreated := time.Now().UTC().Add(-180 * 24 * time.Hour).Format(time.RFC3339)
+	recentApplied := time.Now().UTC().Add(-2 * 24 * time.Hour).Format(time.RFC3339)
+
+	instincts := colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "inst_recently_used",
+				Trigger:    "recently used",
+				Action:     "keep around",
+				TrustScore: 0.70,
+				Confidence: 0.70,
+				Provenance: colony.InstinctProvenance{
+					CreatedAt:        oldCreated,
+					LastApplied:      &recentApplied,
+					ApplicationCount: 3,
+				},
+				ApplicationHistory: []interface{}{
+					map[string]interface{}{"timestamp": recentApplied, "success": true},
+				},
+			},
+		},
+	}
+	if err := store.SaveJSON("instincts.json", instincts); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+
+	svc := NewConsolidationService(store, bus, "", "test-colony")
+	if _, err := svc.Run(context.Background()); err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+
+	var updated colony.InstinctsFile
+	if err := store.LoadJSON("instincts.json", &updated); err != nil {
+		t.Fatalf("load updated instincts: %v", err)
+	}
+	expected := Decay(clampScore(0.70+applicationTrustAdjustment(SummarizeInstinctApplications(instincts.Instincts[0]))), 2)
+	if math.Abs(updated.Instincts[0].TrustScore-expected) > 1e-6 {
+		t.Fatalf("TrustScore = %f, want %f", updated.Instincts[0].TrustScore, expected)
+	}
+}
+
+func TestConsolidate_SkipsAlreadyPromotedObservations(t *testing.T) {
+	store, bus, _ := setupConsolidationTest(t)
+	now := time.Now().UTC().Format(time.RFC3339)
+	score := 0.70
+
+	if err := store.SaveJSON("learning-observations.json", colony.LearningFile{
+		Observations: []colony.Observation{
+			{
+				ContentHash:      "obs_promoted",
+				Content:          "already promoted",
+				WisdomType:       "pattern",
+				ObservationCount: 3,
+				FirstSeen:        now,
+				LastSeen:         now,
+				Colonies:         []string{"test-colony"},
+				TrustScore:       &score,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save observations: %v", err)
+	}
+	if err := store.SaveJSON("instincts.json", colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "inst_existing",
+				Trigger:    "already promoted",
+				Action:     "existing instinct",
+				TrustScore: 0.8,
+				Confidence: 0.8,
+				Provenance: colony.InstinctProvenance{
+					Source:    "obs_promoted",
+					CreatedAt: now,
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+
+	svc := NewConsolidationService(store, bus, "", "test-colony")
+	result, err := svc.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if len(result.PromotionCandidates) != 0 {
+		t.Fatalf("PromotionCandidates = %v, want empty", result.PromotionCandidates)
+	}
+}
+
+func TestConsolidate_ReviewCandidatesTrackFailingInstincts(t *testing.T) {
+	store, bus, _ := setupConsolidationTest(t)
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := store.SaveJSON("instincts.json", colony.InstinctsFile{
+		Version: "1.0",
+		Instincts: []colony.InstinctEntry{
+			{
+				ID:         "inst_review_me",
+				Trigger:    "failing trigger",
+				Action:     "needs review",
+				TrustScore: 0.45,
+				Confidence: 0.55,
+				Provenance: colony.InstinctProvenance{
+					CreatedAt:        now,
+					LastApplied:      &now,
+					ApplicationCount: 2,
+				},
+				ApplicationHistory: []interface{}{
+					map[string]interface{}{"timestamp": now, "success": false},
+					map[string]interface{}{"timestamp": now, "success": false},
+				},
+			},
+		},
+	}); err != nil {
+		t.Fatalf("save instincts: %v", err)
+	}
+
+	svc := NewConsolidationService(store, bus, "", "test-colony")
+	result, err := svc.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Run returned error: %v", err)
+	}
+	if len(result.ReviewCandidates) != 1 || result.ReviewCandidates[0] != "inst_review_me" {
+		t.Fatalf("ReviewCandidates = %v, want inst_review_me", result.ReviewCandidates)
 	}
 }

@@ -194,3 +194,77 @@ func TestColonyVitalSignsUsesStandaloneInstincts(t *testing.T) {
 		t.Fatalf("instinct_count = %v, want 1", memoryPressure["instinct_count"])
 	}
 }
+
+func TestMemoryMetricsReportsApplicationAwareHealth(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	writeTestJSON(t, s.BasePath(), "learning-observations.json", map[string]interface{}{
+		"observations": []interface{}{
+			map[string]interface{}{
+				"content_hash":      "obs_pending",
+				"content":           "pending promotion",
+				"wisdom_type":       "pattern",
+				"observation_count": 3,
+				"first_seen":        "2026-03-01T10:00:00Z",
+				"last_seen":         "2026-03-10T10:00:00Z",
+				"colonies":          []interface{}{"test-colony"},
+				"trust_score":       0.7,
+			},
+		},
+	})
+	writeTestJSON(t, s.BasePath(), "instincts.json", map[string]interface{}{
+		"version": "1.0",
+		"instincts": []interface{}{
+			map[string]interface{}{
+				"id":          "inst_review",
+				"trigger":     "review trigger",
+				"action":      "review action",
+				"confidence":  0.6,
+				"trust_score": 0.4,
+				"provenance": map[string]interface{}{
+					"created_at":        "2026-01-01T10:00:00Z",
+					"last_applied":      "2026-04-21T10:00:00Z",
+					"application_count": 2,
+				},
+				"application_history": []interface{}{
+					map[string]interface{}{"timestamp": "2026-04-20T10:00:00Z", "success": false},
+					map[string]interface{}{"timestamp": "2026-04-21T10:00:00Z", "success": false},
+				},
+				"related_instincts": []interface{}{},
+				"archived":          false,
+			},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"memory-metrics"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("memory-metrics returned error: %v", err)
+	}
+
+	output := strings.TrimSpace(buf.String())
+	var envelope map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &envelope); err != nil {
+		t.Fatalf("memory-metrics produced invalid JSON: %v", err)
+	}
+	result := envelope["result"].(map[string]interface{})
+	pending := result["pending"].(map[string]interface{})
+	if pending["total"] != float64(1) {
+		t.Fatalf("pending total = %v, want 1", pending["total"])
+	}
+	instincts := result["instincts"].(map[string]interface{})
+	if instincts["applied"] != float64(1) {
+		t.Fatalf("applied instincts = %v, want 1", instincts["applied"])
+	}
+	curation := result["curation"].(map[string]interface{})
+	if curation["review_candidates"] != float64(1) {
+		t.Fatalf("review_candidates = %v, want 1", curation["review_candidates"])
+	}
+}

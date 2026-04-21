@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -407,5 +408,57 @@ func TestCurationDryRunFalse(t *testing.T) {
 	}
 	if strings.Contains(output, `"dry_run":true`) {
 		t.Errorf("expected dry_run:false (default), got: %s", output)
+	}
+}
+
+func TestCurationArchivistThresholdArchivesTypedInstincts(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	writeTestJSON(t, s.BasePath(), "instincts.json", map[string]interface{}{
+		"version": "1.0",
+		"instincts": []interface{}{
+			map[string]interface{}{
+				"id":          "inst_low",
+				"trigger":     "low trust",
+				"action":      "archive me",
+				"confidence":  0.4,
+				"trust_score": 0.25,
+				"provenance": map[string]interface{}{
+					"created_at": "2026-04-01T00:00:00Z",
+				},
+				"application_history": []interface{}{},
+				"related_instincts":   []interface{}{},
+				"archived":            false,
+			},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"curation-archivist", "--threshold", "0.30"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("curation-archivist failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(s.BasePath(), "instincts.json"))
+	if err != nil {
+		t.Fatalf("read instincts.json: %v", err)
+	}
+	var decoded map[string]interface{}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("parse instincts.json: %v", err)
+	}
+	instincts := decoded["instincts"].([]interface{})
+	instinct := instincts[0].(map[string]interface{})
+	if instinct["archived"] != true {
+		t.Fatalf("expected instinct to be archived, got %v", instinct["archived"])
+	}
+	if !strings.Contains(buf.String(), `"threshold":0.3`) {
+		t.Fatalf("expected threshold in output, got %s", buf.String())
 	}
 }
