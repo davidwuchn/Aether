@@ -84,6 +84,32 @@ Then verify:
 npm view aether-colony dist-tags --json
 ```
 
+## Release Workflow Fallback
+
+If you pushed a release tag and GitHub does not create a release run or release assets, do not publish npm yet.
+
+Failure signature:
+- `git push origin vX.Y.Z` succeeds
+- `gh run list --workflow Release` shows no run for the tag
+- `gh release view vX.Y.Z` reports `release not found`
+
+Safe fallback:
+
+```bash
+export GITHUB_TOKEN="$(gh auth token)"
+goreleaser release --clean
+```
+
+Then verify the release exists and has assets before publishing npm:
+
+```bash
+gh release view vX.Y.Z --json tagName,url,assets
+```
+
+Why the order still matters:
+- the npm bootstrap downloads the published GitHub release assets directly
+- if npm moves first, `npx --yes aether-colony@latest` can point users at a version whose release archives do not exist yet
+
 ## Go Binary Change Checklist
 
 Use this checklist any time the change touches `cmd/`, `pkg/`, `.goreleaser.yml`, version resolution, install/update flows, binary download logic, or anything else that can affect the shipped Go runtime.
@@ -195,3 +221,4 @@ Run `aether medic --deep` when you want runtime validation of:
 - ceremony integrity
 
 Medic should flag incomplete hub publishes before you trust downstream `aether update` output.
+Medic should also treat a missing GitHub release after a pushed tag as a release-integrity failure and recommend the manual GoReleaser fallback before npm publish.
