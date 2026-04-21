@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 func TestContinueWrapperCeremonyContract(t *testing.T) {
@@ -35,8 +38,6 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		"/ant:continue",
 		"### If the colony completed",
 		"/ant:seal",
-		"It's safe to clear your context now.",
-		"/ant:resume",
 	}
 
 	inOrder := []string{
@@ -67,9 +68,14 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		assertSubstringsInOrder(t, wrapperPath, text, inOrder)
 
 		advancedSection := sliceBetweenMarkers(t, wrapperPath, text, "### If the phase advanced", "### If continue is blocked")
-		for _, want := range []string{"/ant:build N+1", "signal housekeeping", "It's safe to clear your context now.", "/ant:resume"} {
+		for _, want := range []string{"/ant:build N+1", "signal housekeeping"} {
 			if !strings.Contains(advancedSection, want) {
 				t.Errorf("%s advanced section missing %q", wrapperPath, want)
+			}
+		}
+		for _, forbidden := range []string{"It's safe to clear your context now.", "/ant:resume"} {
+			if strings.Contains(advancedSection, forbidden) {
+				t.Errorf("%s advanced section should not contain %q (runtime owns context-clear)", wrapperPath, forbidden)
 			}
 		}
 
@@ -86,11 +92,40 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		}
 
 		finalSection := sliceBetweenMarkers(t, wrapperPath, text, "### If the colony completed", "## Guardrails")
-		for _, want := range []string{"/ant:seal", "signal housekeeping", "It's safe to clear your context now.", "/ant:resume"} {
+		for _, want := range []string{"/ant:seal", "signal housekeeping"} {
 			if !strings.Contains(finalSection, want) {
 				t.Errorf("%s final section missing %q", wrapperPath, want)
 			}
 		}
+		for _, forbidden := range []string{"It's safe to clear your context now.", "/ant:resume"} {
+			if strings.Contains(finalSection, forbidden) {
+				t.Errorf("%s final section should not contain %q (runtime owns context-clear)", wrapperPath, forbidden)
+			}
+		}
+	}
+
+	// Runtime-level assertion: verify renderContinueVisual() emits context-clear guidance
+	goal := "Runtime contract check"
+	now := time.Now()
+	state := colony.ColonyState{Version: "3.0", Goal: &goal, State: colony.StateBUILT, CurrentPhase: 1, BuildStartedAt: &now}
+	phase := colony.Phase{ID: 1, Name: "Contract check"}
+
+	// Non-final case
+	nonFinalOutput := renderContinueVisual(state, phase, nil, false, &colony.Phase{ID: 2, Name: "Next"}, nil)
+	if !strings.Contains(nonFinalOutput, "It's safe to clear your context now.") {
+		t.Errorf("renderContinueVisual() non-final missing context-clear guidance\n%s", nonFinalOutput)
+	}
+
+	// Final case
+	finalOutput := renderContinueVisual(state, phase, nil, true, nil, nil)
+	if !strings.Contains(finalOutput, "It's safe to clear your context now.") {
+		t.Errorf("renderContinueVisual() final missing context-clear guidance\n%s", finalOutput)
+	}
+
+	// Blocked case must NOT contain guidance
+	blockedOutput := renderContinueBlockedVisual(state, phase, nil)
+	if strings.Contains(blockedOutput, "It's safe to clear your context now.") {
+		t.Errorf("renderContinueBlockedVisual() should not contain context-clear guidance\n%s", blockedOutput)
 	}
 }
 
