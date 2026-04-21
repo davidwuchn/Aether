@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-04-21
+
+Versioning cleanup, cross-platform parity hardening, and restored pheromone visibility.
+
+### Changed
+- Claude/OpenCode build and continue wrappers now expose pheromone strength and remaining-life context more clearly while keeping the Go runtime authoritative
+- `aether pheromones` and `aether status` now share compact lifetime semantics so active steering signals are easier to interpret
+- Maintainer-facing version surfaces are now aligned again across `.aether/version.json`, `README.md`, `AGENTS.md`, `CLAUDE.md`, and the roadmap snapshot doc
+
+### Fixed
+- `ant:pheromones` no longer teaches direct pheromone-file mutation and instead routes back through runtime-owned commands
+- Colony scope separation, restored build/continue ceremony, and living watch/status surfaces are now all included in the shipped `v1.0` baseline together
+- Other repos can consume the latest Aether bundle cleanly after a local install or release update without version-number drift between platform docs
+
 ## [1.0.14] - 2026-04-18
 
 Codex wrapper rollback with visuals and worker spawning preserved.
