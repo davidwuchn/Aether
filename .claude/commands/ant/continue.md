@@ -58,8 +58,9 @@ Branch strictly on the runtime result:
 
 1. Translate the blocker into plain language
 2. Keep the focus on what must be fixed before the colony can advance
-3. Route the user back to `/ant:continue` after remediation
-4. Do not suggest clearing context here
+3. If the runtime surfaced a specific recovery command, route the user to that first
+4. Only fall back to `/ant:continue` when the runtime did not surface a more specific recovery step
+5. Do not suggest clearing context here
 
 ### If the colony completed
 

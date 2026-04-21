@@ -10,6 +10,16 @@ import (
 	"github.com/calcosmic/Aether/pkg/colony"
 )
 
+type activeRecoveryGuidance struct {
+	Summary          string
+	Next             string
+	ReportPath       string
+	GeneratedAt      string
+	PartialSuccess   bool
+	Recovery         codexContinueRecoveryPlan
+	HasTargetedRoute bool
+}
+
 type sessionSyncOptions struct {
 	CommandName    string
 	SuggestedNext  string
@@ -193,6 +203,9 @@ func nextCommandFromState(state colony.ColonyState) string {
 		if state.State == colony.StateEXECUTING && state.BuildStartedAt == nil && state.CurrentPhase > 0 {
 			return fmt.Sprintf("aether build %d", state.CurrentPhase)
 		}
+		if guidance := loadActiveRecoveryGuidance(state); guidance != nil && strings.TrimSpace(guidance.Next) != "" {
+			return guidance.Next
+		}
 		return "aether continue"
 	case colony.StateCOMPLETED:
 		return "aether entomb"
@@ -209,6 +222,48 @@ func nextCommandFromState(state colony.ColonyState) string {
 			return "aether init \"goal\""
 		}
 		return "aether status"
+	}
+}
+
+func loadActiveRecoveryGuidance(state colony.ColonyState) *activeRecoveryGuidance {
+	state = normalizeLegacyColonyState(state)
+	if store == nil || state.CurrentPhase < 1 {
+		return nil
+	}
+	if state.State != colony.StateEXECUTING && state.State != colony.StateBUILT {
+		return nil
+	}
+
+	rel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", state.CurrentPhase), "continue.json"))
+	var report codexContinueReport
+	if err := store.LoadJSON(rel, &report); err != nil {
+		return nil
+	}
+	if report.Phase != state.CurrentPhase || report.Advanced || report.Completed {
+		return nil
+	}
+
+	if state.BuildStartedAt != nil {
+		generatedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(report.GeneratedAt))
+		if err == nil && generatedAt.Before(state.BuildStartedAt.UTC()) {
+			return nil
+		}
+	}
+
+	next := strings.TrimSpace(report.Next)
+	if next == "" {
+		next = continueNextCommandForAssessment(codexContinueAssessment{Recovery: report.Recovery})
+	}
+	summary := strings.TrimSpace(report.Summary)
+	reportPath := displayDataPath(rel)
+	return &activeRecoveryGuidance{
+		Summary:          summary,
+		Next:             next,
+		ReportPath:       reportPath,
+		GeneratedAt:      strings.TrimSpace(report.GeneratedAt),
+		PartialSuccess:   report.PartialSuccess,
+		Recovery:         report.Recovery,
+		HasTargetedRoute: next != "" && next != "aether continue",
 	}
 }
 

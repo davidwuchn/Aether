@@ -118,6 +118,16 @@ func buildSwarmWatchResult(target string, watch, liveRefresh bool) map[string]in
 			next = "aether status"
 		}
 	}
+	recoverySummary := ""
+	recoveryCommand := ""
+	continueReport := ""
+	if state != nil {
+		if guidance := loadActiveRecoveryGuidance(*state); guidance != nil {
+			recoverySummary = guidance.Summary
+			recoveryCommand = guidance.Next
+			continueReport = guidance.ReportPath
+		}
+	}
 
 	workers := spawnEntriesToWatchMaps(active)
 	recentWorkers := spawnEntriesToWatchMaps(recent)
@@ -141,6 +151,9 @@ func buildSwarmWatchResult(target string, watch, liveRefresh bool) map[string]in
 		"failed_count":        spawnSummary.FailedCount,
 		"live_refresh":        liveRefresh,
 		"next":                next,
+		"recovery_summary":    recoverySummary,
+		"recovery_command":    recoveryCommand,
+		"continue_report":     continueReport,
 		"watch":               watch || target == "",
 	}
 }
@@ -784,6 +797,22 @@ func renderSwarmCompatibilityVisual(result map[string]interface{}) string {
 		b.WriteString("\n")
 		renderSwarmWorkerSection(&b, "Active Workers", workerMapsFromResult(result, "active_workers"))
 		renderSwarmWorkerSection(&b, "Recent Outcomes", workerMapsFromResult(result, "recent_workers"))
+		if recoverySummary := strings.TrimSpace(stringValue(result["recovery_summary"])); recoverySummary != "" {
+			b.WriteString("\nRecovery\n")
+			b.WriteString("  ")
+			b.WriteString(recoverySummary)
+			b.WriteString("\n")
+			if recoveryCommand := strings.TrimSpace(stringValue(result["recovery_command"])); recoveryCommand != "" {
+				b.WriteString("  Next: ")
+				b.WriteString(recoveryCommand)
+				b.WriteString("\n")
+			}
+			if continueReport := strings.TrimSpace(stringValue(result["continue_report"])); continueReport != "" {
+				b.WriteString("  Report: ")
+				b.WriteString(continueReport)
+				b.WriteString("\n")
+			}
+		}
 		b.WriteString(renderArtifactsSection(
 			displayDataPath("spawn-tree.txt"),
 			displayDataPath("watch-status.txt"),
@@ -793,8 +822,12 @@ func renderSwarmCompatibilityVisual(result map[string]interface{}) string {
 		if next == "" {
 			next = "aether status"
 		}
+		primary := fmt.Sprintf("Run `%s` to inspect the colony in more detail.", next)
+		if recoveryCommand := strings.TrimSpace(stringValue(result["recovery_command"])); recoveryCommand != "" && recoveryCommand == next {
+			primary = fmt.Sprintf("Run `%s` to recover the blocked work.", next)
+		}
 		b.WriteString(renderNextUp(
-			fmt.Sprintf("Run `%s` to inspect the colony in more detail.", next),
+			primary,
 			`Run `+"`aether swarm \"describe the problem\"`"+` to launch the bug-destroyer flow.`,
 		))
 		return b.String()

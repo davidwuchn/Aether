@@ -352,12 +352,14 @@ func TestPrintNextUpExecuting(t *testing.T) {
 
 	goal := "test goal"
 	name := "test-colony"
+	now := time.Now().UTC()
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:      "2.0",
-		Goal:         &goal,
-		ColonyName:   &name,
-		State:        colony.StateEXECUTING,
-		CurrentPhase: 2,
+		Version:        "2.0",
+		Goal:           &goal,
+		ColonyName:     &name,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   2,
+		BuildStartedAt: &now,
 		Plan: colony.Plan{
 			Phases: []colony.Phase{
 				{ID: 1, Name: "Phase 1", Status: "completed"},
@@ -410,6 +412,47 @@ func TestPrintNextUpCompleted(t *testing.T) {
 	output := stdout.(*bytes.Buffer).String()
 	if !strings.Contains(output, `aether seal`) {
 		t.Errorf("expected aether seal suggestion, got: %s", output)
+	}
+}
+
+func TestPrintNextUpUsesTargetedRecoveryCommand(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	dataDir := setupBuildFlowTest(t)
+
+	goal := "blocked recovery"
+	name := "test-colony"
+	now := time.Now().UTC()
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "2.0",
+		Goal:           &goal,
+		ColonyName:     &name,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Phase 1", Status: "in_progress"},
+			},
+		},
+	})
+	seedBlockedContinueReport(t, dataDir, 1, now.Add(time.Second), "Recover the failed task before re-verifying", "aether build 1 --task 1.1", codexContinueRecoveryPlan{
+		RedispatchTasks:   []string{"1.1"},
+		RedispatchCommand: "aether build 1 --task 1.1",
+	})
+
+	rootCmd.SetArgs([]string{"print-next-up"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("print-next-up returned error: %v", err)
+	}
+
+	output := stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "aether build 1 --task 1.1") {
+		t.Fatalf("expected targeted recovery command, got: %s", output)
+	}
+	if strings.Contains(output, "Run `aether continue` to verify work and advance") {
+		t.Fatalf("expected print-next-up to avoid generic continue when targeted recovery exists, got: %s", output)
 	}
 }
 

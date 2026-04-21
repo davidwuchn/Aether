@@ -239,6 +239,24 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 		b.WriteString("\nRecent Outcomes\n")
 		renderRecentWorkerOutcomes(&b, spawnSummary.RecentOutcomeEntries)
 	}
+	if guidance := loadActiveRecoveryGuidance(state); guidance != nil {
+		b.WriteString("\nRecovery\n")
+		if guidance.Summary != "" {
+			b.WriteString("  ")
+			b.WriteString(guidance.Summary)
+			b.WriteString("\n")
+		}
+		if guidance.Next != "" {
+			b.WriteString("  Next: ")
+			b.WriteString(guidance.Next)
+			b.WriteString("\n")
+		}
+		if guidance.ReportPath != "" {
+			b.WriteString("  Report: ")
+			b.WriteString(guidance.ReportPath)
+			b.WriteString("\n")
+		}
+	}
 
 	if totalInstincts > 0 {
 		recentInstincts := loadRecentRuntimeInstincts(s, &state, 3)

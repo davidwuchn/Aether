@@ -270,6 +270,13 @@ func workflowSuggestionsForState(state colony.ColonyState) (string, []string) {
 			return fmt.Sprintf("Run `aether build %d` to restart the interrupted phase.", state.CurrentPhase),
 				[]string{`Run ` + "`aether status`" + ` if you want to inspect the saved colony first.`}
 		}
+		if guidance := loadActiveRecoveryGuidance(state); guidance != nil && guidance.HasTargetedRoute {
+			alternatives := []string{`Run ` + "`aether status`" + ` to inspect the colony dashboard first.`}
+			if guidance.Recovery.ReconcileCommand != "" && guidance.Recovery.ReconcileCommand != guidance.Next {
+				alternatives = append(alternatives, `Run `+"`"+guidance.Recovery.ReconcileCommand+"`"+` if the code already landed and only needs reconciliation.`)
+			}
+			return fmt.Sprintf("Run `%s` to recover the blocked phase.", guidance.Next), alternatives
+		}
 		return `Run ` + "`aether continue`" + ` to verify the phase and advance.`,
 			[]string{`Run ` + "`aether status`" + ` to inspect the colony dashboard first.`}
 	case colony.StateCOMPLETED:
@@ -1327,7 +1334,10 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 		source := strings.TrimSpace(stringValue(recovery["source"]))
 		contextPath := strings.TrimSpace(stringValue(recovery["context_path"]))
 		handoffPath := strings.TrimSpace(stringValue(recovery["handoff_path"]))
-		if source != "" || contextPath != "" || handoffPath != "" {
+		recoverySummary := strings.TrimSpace(stringValue(recovery["summary"]))
+		recoveryNext := strings.TrimSpace(stringValue(recovery["next"]))
+		continueReport := strings.TrimSpace(stringValue(recovery["continue_report"]))
+		if source != "" || contextPath != "" || handoffPath != "" || recoverySummary != "" || recoveryNext != "" || continueReport != "" {
 			b.WriteString("\nRecovery\n")
 			if source != "" {
 				b.WriteString("  Source: ")
@@ -1342,6 +1352,21 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 			if handoffPath != "" {
 				b.WriteString("  Handoff: ")
 				b.WriteString(handoffPath)
+				b.WriteString("\n")
+			}
+			if recoverySummary != "" {
+				b.WriteString("  Summary: ")
+				b.WriteString(recoverySummary)
+				b.WriteString("\n")
+			}
+			if recoveryNext != "" {
+				b.WriteString("  Next: ")
+				b.WriteString(recoveryNext)
+				b.WriteString("\n")
+			}
+			if continueReport != "" {
+				b.WriteString("  Continue Report: ")
+				b.WriteString(continueReport)
 				b.WriteString("\n")
 			}
 		}

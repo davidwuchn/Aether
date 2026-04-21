@@ -57,6 +57,7 @@ type codexContinueReport struct {
 	Manifest           string                        `json:"manifest,omitempty"`
 	VerificationReport string                        `json:"verification_report"`
 	GateReport         string                        `json:"gate_report"`
+	Summary            string                        `json:"summary,omitempty"`
 	ClosedWorkers      []string                      `json:"closed_workers,omitempty"`
 	PartialSuccess     bool                          `json:"partial_success,omitempty"`
 	OperationalIssues  []string                      `json:"operational_issues,omitempty"`
@@ -184,6 +185,7 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			Manifest:           displayOptionalDataPath(manifest.Path),
 			VerificationReport: displayDataPath(verificationReportRel),
 			GateReport:         displayDataPath(gateReportRel),
+			Summary:            summary,
 			PartialSuccess:     assessment.PartialSuccess,
 			OperationalIssues:  append([]string{}, assessment.OperationalIssues...),
 			Tasks:              append([]codexContinueTaskAssessment{}, assessment.Tasks...),
@@ -192,7 +194,7 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			Completed:          false,
 			Next:               continueNextCommandForAssessment(assessment),
 		})
-		updateSessionSummary("continue", "aether continue", summary)
+		updateSessionSummary("continue", continueNextCommandForAssessment(assessment), summary)
 
 		result := map[string]interface{}{
 			"advanced":            false,
@@ -267,6 +269,11 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		return nil, updated, phase, nextPhase, nil, final, housekeepingErr
 	}
 
+	summary := fmt.Sprintf("Phase %d verified and advanced", phase.ID)
+	if assessment.PartialSuccess {
+		summary = fmt.Sprintf("Phase %d verified and advanced with partial operational success", phase.ID)
+	}
+
 	continueReportRel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase.ID), "continue.json"))
 	if err := store.SaveJSON(continueReportRel, codexContinueReport{
 		Phase:              phase.ID,
@@ -274,6 +281,7 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		Manifest:           displayOptionalDataPath(manifest.Path),
 		VerificationReport: displayDataPath(verificationReportRel),
 		GateReport:         displayDataPath(gateReportRel),
+		Summary:            summary,
 		ClosedWorkers:      closedWorkers,
 		PartialSuccess:     assessment.PartialSuccess,
 		OperationalIssues:  append([]string{}, assessment.OperationalIssues...),
@@ -286,10 +294,6 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		return nil, updated, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to write continue report: %w", err)
 	}
 
-	summary := fmt.Sprintf("Phase %d verified and advanced", phase.ID)
-	if assessment.PartialSuccess {
-		summary = fmt.Sprintf("Phase %d verified and advanced with partial operational success", phase.ID)
-	}
 	updateSessionSummary("continue", nextCommand, summary)
 	result := map[string]interface{}{
 		"advanced":            true,

@@ -438,6 +438,48 @@ func TestWatchCompatibilityWritesArtifacts(t *testing.T) {
 	}
 }
 
+func TestSwarmCompatibilityWatchShowsRecoveryGuidance(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	goal := "Recover blocked phase from watch"
+	now := time.Now().UTC()
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Execution", Status: colony.PhaseInProgress},
+			},
+		},
+	})
+	seedBlockedContinueReport(t, dataDir, 1, now.Add(time.Second), "Recover the blocked task before rerunning verification", "aether build 1 --task 1.1", codexContinueRecoveryPlan{
+		RedispatchTasks:   []string{"1.1"},
+		RedispatchCommand: "aether build 1 --task 1.1",
+	})
+
+	rootCmd.SetArgs([]string{"swarm", "--watch"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("swarm --watch returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if result["next"] != "aether build 1 --task 1.1" {
+		t.Fatalf("next = %v, want targeted recovery command", result["next"])
+	}
+	if result["recovery_summary"] != "Recover the blocked task before rerunning verification" {
+		t.Fatalf("recovery_summary = %v, want blocked recovery summary", result["recovery_summary"])
+	}
+	if result["continue_report"] != ".aether/data/build/phase-1/continue.json" {
+		t.Fatalf("continue_report = %v, want continue report path", result["continue_report"])
+	}
+}
+
 func TestOracleCompatibilityRunsAutonomousLoop(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)

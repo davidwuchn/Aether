@@ -235,9 +235,19 @@ var printNextUpCmd = &cobra.Command{
 			nextPhase := state.CurrentPhase + 1
 			suggestions = append(suggestions, fmt.Sprintf("Run `aether build %d` to start the next phase", nextPhase))
 		case "EXECUTING":
-			suggestions = append(suggestions, "Run `aether continue` to verify work and advance")
+			next := nextCommandFromState(state)
+			if next == "aether continue" {
+				suggestions = append(suggestions, "Run `aether continue` to verify work and advance")
+			} else {
+				suggestions = append(suggestions, fmt.Sprintf("Run `%s` to recover the blocked work", next))
+			}
 		case "BUILT":
-			suggestions = append(suggestions, "Run `aether continue` to verify and advance")
+			next := nextCommandFromState(state)
+			if next == "aether continue" {
+				suggestions = append(suggestions, "Run `aether continue` to verify and advance")
+			} else {
+				suggestions = append(suggestions, fmt.Sprintf("Run `%s` to recover the blocked work", next))
+			}
 		case "COMPLETED":
 			suggestions = append(suggestions, "Colony complete. Run `aether seal` to finalize.")
 		default:

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
 	"github.com/calcosmic/Aether/pkg/colony"
@@ -441,12 +442,14 @@ func TestPrintNextUpVisualOutput(t *testing.T) {
 
 	goal := "Test next-up visuals"
 	name := "test-colony"
+	now := time.Now().UTC()
 	createTestColonyState(t, dataDir, colony.ColonyState{
-		Version:      "3.0",
-		Goal:         &goal,
-		ColonyName:   &name,
-		State:        colony.StateEXECUTING,
-		CurrentPhase: 1,
+		Version:        "3.0",
+		Goal:           &goal,
+		ColonyName:     &name,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
 		Plan: colony.Plan{
 			Phases: []colony.Phase{{ID: 1, Name: "Phase 1", Status: colony.PhaseInProgress}},
 		},

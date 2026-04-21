@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -466,6 +467,30 @@ func TestContinueBlockedResultSuggestsTargetedRedispatch(t *testing.T) {
 	if got := recovery["redispatch_command"].(string); got != "aether build 1 --task 1.1" {
 		t.Fatalf("redispatch command = %q, want %q", got, "aether build 1 --task 1.1")
 	}
+
+	var session colony.SessionFile
+	if err := store.LoadJSON("session.json", &session); err != nil {
+		t.Fatalf("load session.json: %v", err)
+	}
+	if session.SuggestedNext != "aether build 1 --task 1.1" {
+		t.Fatalf("session suggested_next = %q, want %q", session.SuggestedNext, "aether build 1 --task 1.1")
+	}
+
+	contextData, err := os.ReadFile(filepath.Join(root, ".aether", "CONTEXT.md"))
+	if err != nil {
+		t.Fatalf("read CONTEXT.md: %v", err)
+	}
+	if !strings.Contains(string(contextData), "aether build 1 --task 1.1") {
+		t.Fatalf("expected CONTEXT.md to carry targeted recovery command, got:\n%s", string(contextData))
+	}
+
+	handoffData, err := os.ReadFile(filepath.Join(root, ".aether", "HANDOFF.md"))
+	if err != nil {
+		t.Fatalf("read HANDOFF.md: %v", err)
+	}
+	if !strings.Contains(string(handoffData), "aether build 1 --task 1.1") {
+		t.Fatalf("expected HANDOFF.md to carry targeted recovery command, got:\n%s", string(handoffData))
+	}
 }
 
 func TestContinueUsesManifestWhenBuildStartedAtIsMissing(t *testing.T) {
@@ -571,6 +596,31 @@ func seedContinueBuildPacket(t *testing.T, dataDir string, phase int, phaseName,
 		if err := spawnTree.RecordSpawn("Queen", dispatch.Caste, dispatch.Name, dispatch.Task, 1); err != nil {
 			t.Fatalf("failed to seed spawn tree: %v", err)
 		}
+	}
+}
+
+func seedBlockedContinueReport(t *testing.T, dataDir string, phase int, generatedAt time.Time, summary, next string, recovery codexContinueRecoveryPlan) {
+	t.Helper()
+
+	reportPath := filepath.Join(dataDir, "build", fmt.Sprintf("phase-%d", phase), "continue.json")
+	if err := os.MkdirAll(filepath.Dir(reportPath), 0755); err != nil {
+		t.Fatalf("mkdir continue report dir: %v", err)
+	}
+	report := codexContinueReport{
+		Phase:       phase,
+		GeneratedAt: generatedAt.UTC().Format(time.RFC3339),
+		Summary:     summary,
+		Recovery:    recovery,
+		Advanced:    false,
+		Completed:   false,
+		Next:        next,
+	}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal continue report: %v", err)
+	}
+	if err := os.WriteFile(reportPath, data, 0644); err != nil {
+		t.Fatalf("write continue report: %v", err)
 	}
 }
 

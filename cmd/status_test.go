@@ -916,3 +916,49 @@ func TestStatusShowsProofSummaryAndRoute(t *testing.T) {
 		t.Fatalf("status should not dump full proof ledger\n%s", output)
 	}
 }
+
+func TestStatusShowsRecoveryDoorway(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	goal := "Recover blocked work"
+	now := time.Now().UTC()
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   2,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Phase 1", Status: colony.PhaseCompleted},
+				{ID: 2, Name: "Phase 2", Status: colony.PhaseInProgress},
+			},
+		},
+	})
+	seedBlockedContinueReport(t, dataDir, 2, now.Add(time.Second), "Recover the failed builder task before re-verifying", "aether build 2 --task 2.1", codexContinueRecoveryPlan{
+		RedispatchTasks:   []string{"2.1"},
+		RedispatchCommand: "aether build 2 --task 2.1",
+	})
+
+	rootCmd.SetArgs([]string{"status"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	for _, want := range []string{
+		"Recovery",
+		"Recover the failed builder task before re-verifying",
+		"aether build 2 --task 2.1",
+		".aether/data/build/phase-2/continue.json",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected recovery doorway to contain %q, got:\n%s", want, output)
+		}
+	}
+}

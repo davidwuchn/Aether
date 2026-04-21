@@ -31,6 +31,7 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		"### If the phase advanced",
 		"/ant:build N+1",
 		"### If continue is blocked",
+		"specific recovery command",
 		"/ant:continue",
 		"### If the colony completed",
 		"/ant:seal",
@@ -73,7 +74,7 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		}
 
 		blockedSection := sliceBetweenMarkers(t, wrapperPath, text, "### If continue is blocked", "### If the colony completed")
-		for _, want := range []string{"/ant:continue"} {
+		for _, want := range []string{"specific recovery command", "/ant:continue"} {
 			if !strings.Contains(blockedSection, want) {
 				t.Errorf("%s blocked section missing %q", wrapperPath, want)
 			}

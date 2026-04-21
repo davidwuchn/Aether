@@ -454,6 +454,76 @@ func TestResumeDashboardIncludesSignalsBlockersSurveyAndRecoverySource(t *testin
 	}
 }
 
+func TestResumeDashboardPrefersTargetedRecoveryGuidance(t *testing.T) {
+	saveGlobalsCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+	var errBuf bytes.Buffer
+	stderr = &errBuf
+
+	s, tmpDir := newTestStoreCmd(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	goal := "resume blocked recovery"
+	now := time.Now().UTC()
+	state := colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   2,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Phase 1", Status: colony.PhaseCompleted},
+				{ID: 2, Name: "Phase 2", Status: colony.PhaseInProgress},
+			},
+		},
+	}
+	if err := s.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveJSON("session.json", colony.SessionFile{
+		SessionID:      "resume-recovery",
+		StartedAt:      "2026-04-21T08:00:00Z",
+		ColonyGoal:     goal,
+		SuggestedNext:  "aether continue",
+		ContextCleared: true,
+		Summary:        "Paused after blocked continue",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	seedBlockedContinueReport(t, filepath.Join(tmpDir, ".aether", "data"), 2, now.Add(time.Second), "Recover the missing implementation before re-verifying", "aether build 2 --task 2.1", codexContinueRecoveryPlan{
+		RedispatchTasks:   []string{"2.1"},
+		RedispatchCommand: "aether build 2 --task 2.1",
+	})
+
+	rootCmd.SetArgs([]string{"resume-dashboard"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("resume-dashboard returned error: %v", err)
+	}
+
+	envelope := parseEnvelopeCmd(t, buf.String())
+	result := envelope["result"].(map[string]interface{})
+	session := result["session"].(map[string]interface{})
+	if session["suggested_next"] != "aether build 2 --task 2.1" {
+		t.Fatalf("session.suggested_next = %v, want targeted recovery command", session["suggested_next"])
+	}
+
+	recovery := result["recovery"].(map[string]interface{})
+	if recovery["summary"] != "Recover the missing implementation before re-verifying" {
+		t.Fatalf("recovery.summary = %v, want blocked recovery summary", recovery["summary"])
+	}
+	if recovery["next"] != "aether build 2 --task 2.1" {
+		t.Fatalf("recovery.next = %v, want targeted recovery command", recovery["next"])
+	}
+	if recovery["continue_report"] != ".aether/data/build/phase-2/continue.json" {
+		t.Fatalf("recovery.continue_report = %v, want continue report path", recovery["continue_report"])
+	}
+}
+
 // --- context-capsule tests ---
 
 func TestContextCapsule(t *testing.T) {

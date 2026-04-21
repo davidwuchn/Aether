@@ -290,6 +290,12 @@ func buildResumeDashboardResult() map[string]interface{} {
 			"source":         recoverySource,
 		},
 	}
+	if guidance := loadActiveRecoveryGuidance(state); guidance != nil {
+		recoveryBlock := result["recovery"].(map[string]interface{})
+		recoveryBlock["summary"] = guidance.Summary
+		recoveryBlock["next"] = guidance.Next
+		recoveryBlock["continue_report"] = guidance.ReportPath
+	}
 
 	if nextPhaseID > 0 {
 		result["next_phase"] = map[string]interface{}{
@@ -309,6 +315,16 @@ func buildResumeDashboardResult() map[string]interface{} {
 		summary := strings.TrimSpace(session.Summary)
 		if summary == "" {
 			summary = defaultProgressSummary(state, suggestedNext)
+		}
+		if guidance := loadActiveRecoveryGuidance(state); guidance != nil {
+			if suggestedNext == "" || suggestedNext == "aether continue" {
+				suggestedNext = guidance.Next
+			}
+			if summary == "" || summary == defaultProgressSummary(state, suggestedNext) {
+				if guidance.Summary != "" {
+					summary = guidance.Summary
+				}
+			}
 		}
 		result["session"] = map[string]interface{}{
 			"summary":         summary,
