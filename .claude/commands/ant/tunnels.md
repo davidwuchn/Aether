@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/tunnels.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:tunnels
-description: "🕳️🐜🕳️ Explore tunnels (browse archived colonies, compare chambers)"
+description: "🕳️ Explore tunnels (browse archived colonies, compare chambers)"
 ---
 
 You are the **Queen**. Browse the colony history.

@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/council.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:council
-description: "📜🐜🏛️🐜📜 Convene council for intent clarification via multi-choice questions"
+description: "📜 Convene council for intent clarification via multi-choice questions"
 ---
 
 You are the **Queen Ant Colony**. Route council work through the runtime CLI.

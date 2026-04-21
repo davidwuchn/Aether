@@ -91,6 +91,73 @@ var casteLabelMap = map[string]string{
 	"dreamer":       "Dreamer",
 }
 
+var commandEmojiMap = map[string]string{
+	"init":              "🥚",
+	"colonize":          "🗺️",
+	"plan":              "📋",
+	"build":             "🔨",
+	"continue":          "👁️",
+	"continue-blocked":  "⛔",
+	"seal":              "🏺",
+	"install":           "📦",
+	"lay-eggs":          "🥚",
+	"update":            "🔄",
+	"pause":             "💾",
+	"resume":            "💾",
+	"patrol":            "📊",
+	"phase":             "🧱",
+	"history":           "📜",
+	"spawn-plan":        "🐜",
+	"swarm":             "🔥",
+	"run":               "⚡",
+	"oracle":            "🔮",
+	"status":            "📊",
+	"artifacts":         "🗂️",
+	"next-up":           "🐜",
+	"colonize-dispatch": "🗺️",
+	"plan-dispatch":     "📋",
+	"build-dispatch":    "🔨",
+	"entomb":            "⚰️",
+	"tunnels":           "🕳️",
+	"watch":             "👁️",
+	"pheromones":        "🎯",
+	"flags":             "🚩",
+	"focus":             "🔦",
+	"redirect":          "🚫",
+	"feedback":          "💬",
+	"dream":             "💭",
+	"chaos":             "🎲",
+	"archaeology":       "🏺",
+	"organize":          "🧹",
+	"council":           "📜",
+	"interpret":         "🔍",
+	"maturity":          "👑",
+	"memory-details":    "📜",
+	"verify-castes":     "✓",
+	"flag":              "🚩",
+	"help":              "🐜",
+	"preferences":       "🧠",
+	"profile":           "🧠",
+	"assumptions":       "📐",
+	"discuss":           "💬",
+	"migrate-state":     "🚚",
+	"bump-version":      "🚀",
+	"insert-phase":      "➕",
+	"quick":             "⚡",
+	"skill-create":      "🧪",
+	"data-clean":        "🧹",
+	"export-signals":    "📤",
+	"import-signals":    "📥",
+	"swarm-display":     "🔥",
+}
+
+func commandEmoji(command string) string {
+	if emoji, ok := commandEmojiMap[command]; ok {
+		return emoji
+	}
+	return "🐜"
+}
+
 func shouldRenderVisualOutput(w io.Writer) bool {
 	mode := strings.ToLower(strings.TrimSpace(os.Getenv("AETHER_OUTPUT_MODE")))
 	switch mode {
@@ -188,7 +255,7 @@ func renderArtifactsSection(paths ...string) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString(renderBanner("🗂️", "Artifacts"))
+	b.WriteString(renderBanner(commandEmoji("artifacts"), "Artifacts"))
 	b.WriteString(visualDivider)
 	for _, path := range filtered {
 		b.WriteString(path)
@@ -200,7 +267,7 @@ func renderArtifactsSection(paths ...string) string {
 func renderNextUp(primary string, alternatives ...string) string {
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString(renderBanner("🐜", "Next Up"))
+	b.WriteString(renderBanner(commandEmoji("next-up"), "Next Up"))
 	if strings.TrimSpace(primary) != "" {
 		b.WriteString(primary)
 		b.WriteString("\n")
@@ -297,7 +364,7 @@ func workflowSuggestionsForState(state colony.ColonyState) (string, []string) {
 
 func renderInitVisual(goal, scope, sessionID, dataDir string) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🥚", "Colony Init"))
+	b.WriteString(renderBanner(commandEmoji("init"), "Colony Init"))
 	b.WriteString(visualDivider)
 	b.WriteString(renderStageMarker("Colony"))
 	b.WriteString("Queen charter accepted.\n")
@@ -324,7 +391,7 @@ func renderInitVisual(goal, scope, sessionID, dataDir string) string {
 
 func renderColonizeVisual(result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🗺️", "Colonize"))
+	b.WriteString(renderBanner(commandEmoji("colonize"), "Colonize"))
 	b.WriteString(visualDivider)
 	b.WriteString("Territory survey complete.\n")
 	b.WriteString("Root: ")
@@ -393,7 +460,7 @@ func renderColonizeVisual(result map[string]interface{}) string {
 
 func renderColonizeDispatchPreview(root string, dispatches []codexSurveyorDispatch) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🗺️", "Colonize Dispatch"))
+	b.WriteString(renderBanner(commandEmoji("colonize-dispatch"), "Colonize Dispatch"))
 	b.WriteString(visualDivider)
 	b.WriteString("Surveyor wave dispatching.\n")
 	b.WriteString("Root: ")
@@ -575,7 +642,7 @@ func dispatchStatusIcon(status string) string {
 
 func renderPlanVisual(result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("📋", "Plan"))
+	b.WriteString(renderBanner(commandEmoji("plan"), "Plan"))
 	b.WriteString(visualDivider)
 	if existing, _ := result["existing_plan"].(bool); existing {
 		b.WriteString("Existing colony plan loaded.\n")
@@ -724,7 +791,7 @@ func renderPlanVisual(result map[string]interface{}) string {
 
 func renderPlanDispatchPreview(goal string, dispatches []codexPlanningDispatch) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("📋", "Plan Dispatch"))
+	b.WriteString(renderBanner(commandEmoji("plan-dispatch"), "Plan Dispatch"))
 	b.WriteString(visualDivider)
 	b.WriteString("Planning worker wave dispatching.\n")
 	b.WriteString("Goal: ")
@@ -751,7 +818,7 @@ func renderBuildVisual(state colony.ColonyState, phase colony.Phase) string {
 
 func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🔨", fmt.Sprintf("Build Phase %d", phase.ID)))
+	b.WriteString(renderBanner(commandEmoji("build"), fmt.Sprintf("Build Phase %d", phase.ID)))
 	b.WriteString(visualDivider)
 	b.WriteString(renderProgressSummary(phase.ID, len(state.Plan.Phases)))
 	b.WriteString("\n")
@@ -802,7 +869,7 @@ func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phas
 
 func renderBuildDispatchPreview(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🔨", fmt.Sprintf("Build Dispatch %d", phase.ID)))
+	b.WriteString(renderBanner(commandEmoji("build-dispatch"), fmt.Sprintf("Build Dispatch %d", phase.ID)))
 	b.WriteString(visualDivider)
 	b.WriteString("Worker wave dispatching.\n")
 	b.WriteString(renderProgressSummary(phase.ID, len(state.Plan.Phases)))
@@ -822,7 +889,7 @@ func renderBuildDispatchPreview(state colony.ColonyState, phase colony.Phase, di
 
 func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekeeping *signalHousekeepingResult, final bool, nextPhase *colony.Phase, result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("👁️", "Continue"))
+	b.WriteString(renderBanner(commandEmoji("continue"), "Continue"))
 	b.WriteString(visualDivider)
 	b.WriteString(renderStageMarker("Verification"))
 	if partial, _ := result["partial_success"].(bool); partial {
@@ -891,7 +958,7 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 
 func renderContinueBlockedVisual(state colony.ColonyState, phase colony.Phase, result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("⛔", "Continue Blocked"))
+	b.WriteString(renderBanner(commandEmoji("continue-blocked"), "Continue Blocked"))
 	b.WriteString(visualDivider)
 	b.WriteString(fmt.Sprintf("Phase %d remains active: %s\n", phase.ID, phase.Name))
 	renderContinueVerificationSummaryMap(&b, mapValue(result["verification"]))
@@ -970,7 +1037,7 @@ func mapValue(raw interface{}) map[string]interface{} {
 
 func renderSealVisual(state colony.ColonyState, summaryPath string) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🏺", "Seal"))
+	b.WriteString(renderBanner(commandEmoji("seal"), "Seal"))
 	b.WriteString(visualDivider)
 	b.WriteString(renderStageMarker("Summary"))
 	b.WriteString("Colony sealed at Crowned Anthill.\n")
@@ -1038,7 +1105,7 @@ func renderNextUpVisual(suggestions []string) string {
 
 func renderInstallVisual(homeDir string, results []map[string]interface{}, totalCopied, totalSkipped int, binaryMode string) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("📦", "Install"))
+	b.WriteString(renderBanner(commandEmoji("install"), "Install"))
 	b.WriteString(visualDivider)
 	b.WriteString("Aether hub refreshed.\n")
 	b.WriteString("Home: ")
@@ -1061,7 +1128,7 @@ func renderInstallVisual(homeDir string, results []map[string]interface{}, total
 
 func renderSetupVisual(repoDir string, results []map[string]interface{}, totalCopied, totalSkipped int, restartTargets []string) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🥚", "Lay Eggs"))
+	b.WriteString(renderBanner(commandEmoji("lay-eggs"), "Lay Eggs"))
 	b.WriteString(visualDivider)
 	b.WriteString("Nest prepared in this repository.\n")
 	b.WriteString("Repo: ")
@@ -1090,7 +1157,7 @@ func renderSetupVisual(repoDir string, results []map[string]interface{}, totalCo
 
 func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun bool, details []map[string]interface{}, totalCopied, totalSkipped int, restartTargets []string, binaryMode string) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🔄", "Update"))
+	b.WriteString(renderBanner(commandEmoji("update"), "Update"))
 	b.WriteString(visualDivider)
 	if dryRun {
 		b.WriteString("Dry run complete. No files were changed.\n")
@@ -1240,7 +1307,7 @@ func renderBinaryActionVisual(title, message, version, path string) string {
 
 func renderPauseVisual(result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("💾", "Pause Colony"))
+	b.WriteString(renderBanner(commandEmoji("pause"), "Pause Colony"))
 	b.WriteString(visualDivider)
 	b.WriteString(renderStageMarker("Handoff"))
 	b.WriteString("Colony handoff saved for later resumption.\n")
@@ -1278,7 +1345,7 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 	if full {
 		title = "Resume Colony"
 	}
-	b.WriteString(renderBanner("💾", title))
+	b.WriteString(renderBanner(commandEmoji("resume"), title))
 	b.WriteString(visualDivider)
 	b.WriteString(renderStageMarker("Restored"))
 
@@ -1484,7 +1551,7 @@ func renderResumeVisual(result map[string]interface{}, handoffText string, full 
 
 func renderPatrolVisual(result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("📊", "Patrol"))
+	b.WriteString(renderBanner(commandEmoji("patrol"), "Patrol"))
 	b.WriteString(visualDivider)
 	label := strings.TrimSpace(stringValue(result["health_label"]))
 	score := intValue(result["overall_health"])
@@ -1520,7 +1587,7 @@ func renderPhaseVisual(result map[string]interface{}) string {
 	number := intValue(result["number"])
 	total := intValue(result["total_phases"])
 
-	b.WriteString(renderBanner("🧱", fmt.Sprintf("Phase %d", number)))
+	b.WriteString(renderBanner(commandEmoji("phase"), fmt.Sprintf("Phase %d", number)))
 	b.WriteString(visualDivider)
 	if total > 0 {
 		b.WriteString(renderProgressSummary(number, total))
@@ -1600,7 +1667,7 @@ func writePhaseTaskLine(b *strings.Builder, task map[string]interface{}) {
 
 func renderHistoryVisual(result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("📜", "History"))
+	b.WriteString(renderBanner(commandEmoji("history"), "History"))
 	b.WriteString(visualDivider)
 
 	switch events := result["events"].(type) {
@@ -1713,7 +1780,7 @@ func renderSpawnPlan(phase colony.Phase, depth string) string {
 
 func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🐜", "Spawn Plan"))
+	b.WriteString(renderBanner(commandEmoji("spawn-plan"), "Spawn Plan"))
 	b.WriteString(visualDivider)
 
 	lastWave := 0

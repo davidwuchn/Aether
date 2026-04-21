@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/data-clean.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:data-clean
-description: "Scan and remove test artifacts from colony data files"
+description: "🧹 Scan and remove test artifacts from colony data files"
 ---
 
 You are the **Queen Ant Colony**. Run the data cleaner to scan for and remove test/synthetic artifacts from colony data files.

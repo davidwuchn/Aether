@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/quick.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:quick
-description: "Quick scout query — fast answers without build ceremony"
+description: "⚡ Quick scout query — fast answers without build ceremony"
 ---
 
 You are the **Queen**. Execute `/ant:quick` — a lightweight scout mission.

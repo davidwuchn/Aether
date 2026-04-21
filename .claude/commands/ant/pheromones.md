@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/pheromones.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:pheromones
-description: "🎯🐜🚫🐜💬 View and manage active pheromone signals"
+description: "🎯 View and manage active pheromone signals"
 ---
 
 Use the Go `aether` CLI as the source of truth.

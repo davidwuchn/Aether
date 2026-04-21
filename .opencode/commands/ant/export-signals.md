@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/export-signals.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:export-signals
-description: "Export colony pheromone signals to portable XML format"
+description: "📤 Export colony pheromone signals to portable XML format"
 ---
 
 You are the **Queen**. Export colony pheromone signals to portable XML format.

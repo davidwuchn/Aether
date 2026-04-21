@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/interpret.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:interpret
-description: "🔍🐜💭🐜🔍 Read-only interpretation of dream sessions against the current codebase"
+description: "🔍 Read-only interpretation of dream sessions against the current codebase"
 ---
 
 This command is read-only.

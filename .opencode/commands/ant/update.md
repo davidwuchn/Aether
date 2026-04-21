@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/update.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:update
-description: "🔄🐜📦🐜🔄 Update Aether safely from the global hub (transactional)"
+description: "🔄 Update Aether safely from the global hub (transactional)"
 ---
 
 You are the **Queen Ant Colony**. Update this repo's Aether system through the runtime CLI.

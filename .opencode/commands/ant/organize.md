@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/organize.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:organize
-description: "🧹🐜🏛️🐜🧹 Run codebase hygiene report - archivist ant scans for stale files, dead code, orphaned configs (report-only)"
+description: "🧹 Run codebase hygiene report"
 ---
 
 You are the **Queen Ant Colony**. Spawn an archivist to analyze codebase hygiene.

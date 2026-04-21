@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/maturity.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:maturity
-description: "👑🐜🏛️🐜👑 View colony maturity journey with ASCII art anthill"
+description: "👑 View colony maturity journey with ASCII art anthill"
 ---
 
 You are the **Queen**. Display the colony's maturity journey.

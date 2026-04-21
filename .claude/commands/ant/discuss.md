@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/discuss.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:discuss
-description: "🧭🐜💬🐜🧭 Capture clarifications before planning through the Aether CLI runtime"
+description: "💬 Capture clarifications before planning through the Aether CLI runtime"
 ---
 
 Use the Go `aether` CLI as the source of truth.

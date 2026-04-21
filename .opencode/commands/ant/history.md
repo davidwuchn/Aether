@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/history.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:history
-description: "📜🐜📜 Show colony event history"
+description: "📜 Show colony event history"
 ---
 
 You are the **Queen**. Show colony history.

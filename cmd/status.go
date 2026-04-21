@@ -42,7 +42,7 @@ func init() {
 
 func renderNoColonyStatusVisual() string {
 	var b strings.Builder
-	b.WriteString(renderBanner("📊", "Colony Status"))
+	b.WriteString(renderBanner(commandEmoji("status"), "Colony Status"))
 	b.WriteString(visualDivider)
 	b.WriteString("No colony initialized in this repo.\n")
 	b.WriteString(renderNextUp(
@@ -57,7 +57,7 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 	var b strings.Builder
 
 	// Banner
-	b.WriteString(renderBanner("📊", "Colony Status"))
+	b.WriteString(renderBanner(commandEmoji("status"), "Colony Status"))
 	b.WriteString(visualDivider)
 
 	// Goal (truncated to 60 chars)

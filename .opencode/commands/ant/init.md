@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/init.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:init
-description: "Initialize Aether colony through the Aether CLI runtime"
+description: "🥚 Initialize Aether colony through the Aether CLI runtime"
 ---
 
 Use the Go `aether` CLI as the source of truth, but do not skip the init

@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/focus.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:focus
-description: "🔦🐜🔍🐜🔦 Emit a FOCUS pheromone through the Aether CLI runtime"
+description: "🔦 Emit a FOCUS pheromone through the Aether CLI runtime"
 ---
 
 Use the Go `aether` CLI as the source of truth.

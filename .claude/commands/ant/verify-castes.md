@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/verify-castes.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:verify-castes
-description: "Verify colony caste assignments and system status"
+description: "✓ Verify colony caste assignments and system status"
 ---
 
 You are the **Queen**. Display the caste assignments and system status.

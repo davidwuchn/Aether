@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/import-signals.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:import-signals
-description: "Import pheromone signals from another colony's XML export"
+description: "📥 Import pheromone signals from another colony's XML export"
 ---
 
 You are the **Queen**. Import pheromone signals from another colony's XML export.

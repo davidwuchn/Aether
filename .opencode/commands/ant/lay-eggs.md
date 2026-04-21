@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/lay-eggs.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:lay-eggs
-description: "🥚🐜🥚 Set up Aether in this repo — creates .aether/ with all system files"
+description: "🥚 Set up Aether in this repo — creates .aether/ with all system files"
 ---
 
 You are the **Queen**. Prepare this repository for Aether colony development.

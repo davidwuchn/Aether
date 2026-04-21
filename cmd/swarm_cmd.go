@@ -731,7 +731,7 @@ func swarmExecutionsForJSON(runs []swarmWorkerExecution) []map[string]interface{
 
 func renderSwarmDispatchPreview(swarmID, target string, plans []swarmWorkerPlan, title string) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🔥", title))
+	b.WriteString(renderBanner(commandEmoji("swarm-display"), title))
 	b.WriteString(visualDivider)
 	b.WriteString("Swarm ID: " + swarmID + "\n")
 	b.WriteString("Target: " + strings.TrimSpace(target) + "\n\n")
@@ -751,7 +751,7 @@ func renderSwarmDispatchPreview(swarmID, target string, plans []swarmWorkerPlan,
 
 func renderSwarmCompatibilityVisual(result map[string]interface{}) string {
 	var b strings.Builder
-	b.WriteString(renderBanner("🔥", "Swarm"))
+	b.WriteString(renderBanner(commandEmoji("swarm"), "Swarm"))
 	b.WriteString(visualDivider)
 
 	mode := strings.TrimSpace(stringValue(result["mode"]))

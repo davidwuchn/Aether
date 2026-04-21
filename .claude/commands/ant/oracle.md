@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/oracle.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:oracle
-description: "🔮🐜 Run the autonomous Oracle loop through the Aether CLI runtime"
+description: "🔮 Run the autonomous Oracle loop through the Aether CLI runtime"
 ---
 
 Use the Go `aether` CLI as the source of truth.

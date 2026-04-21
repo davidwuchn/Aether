@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/patrol.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:patrol
-description: "🐜🔦 Patrol the colony through the Aether CLI runtime"
+description: "📊 Patrol the colony through the Aether CLI runtime"
 ---
 
 Use the Go `aether` CLI as the source of truth.

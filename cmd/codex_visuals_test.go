@@ -1528,3 +1528,97 @@ func TestInstallJsonModeStillProducesJson(t *testing.T) {
 		t.Fatalf("expected ok:true envelope, got %v", parsed)
 	}
 }
+
+// --- Emoji Consistency Tests (Phase 20) ---
+
+func TestCasteEmojiMapCompleteness(t *testing.T) {
+	for key := range casteLabelMap {
+		if _, ok := casteEmojiMap[key]; !ok {
+			t.Errorf("casteEmojiMap missing key %q (present in casteLabelMap)", key)
+		}
+		if _, ok := casteColorMap[key]; !ok {
+			t.Errorf("casteColorMap missing key %q (present in casteLabelMap)", key)
+		}
+	}
+	for key := range casteEmojiMap {
+		if _, ok := casteLabelMap[key]; !ok {
+			t.Errorf("casteEmojiMap has extra key %q (not in casteLabelMap)", key)
+		}
+	}
+	for key := range casteColorMap {
+		if _, ok := casteLabelMap[key]; !ok {
+			t.Errorf("casteColorMap has extra key %q (not in casteLabelMap)", key)
+		}
+	}
+	for key, emoji := range casteEmojiMap {
+		if emoji == "" {
+			t.Errorf("casteEmojiMap[%q] is empty", key)
+		}
+	}
+	for key, label := range casteLabelMap {
+		if label == "" {
+			t.Errorf("casteLabelMap[%q] is empty", key)
+		}
+	}
+}
+
+func TestCommandEmojiMapNoEmptyValues(t *testing.T) {
+	for key, emoji := range commandEmojiMap {
+		if emoji == "" {
+			t.Errorf("commandEmojiMap[%q] is empty", key)
+		}
+	}
+}
+
+func TestCommandEmojiFallback(t *testing.T) {
+	got := commandEmoji("nonexistent-command-xyz")
+	if got != "🐜" {
+		t.Errorf("commandEmoji fallback: got %q, want 🐜", got)
+	}
+}
+
+func TestWrapperDescriptionEmojiConsistency(t *testing.T) {
+	repoRoot, err := repoRootForCommandSourceTest()
+	if err != nil {
+		t.Fatalf("repo root: %v", err)
+	}
+
+	dirs := []string{
+		filepath.Join(repoRoot, ".claude", "commands", "ant"),
+		filepath.Join(repoRoot, ".opencode", "commands", "ant"),
+	}
+
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatalf("read dir %s: %v", dir, err)
+		}
+		for _, entry := range entries {
+			if !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			fp := filepath.Join(dir, entry.Name())
+			content, err := os.ReadFile(fp)
+			if err != nil {
+				t.Fatalf("read %s: %v", fp, err)
+			}
+			text := string(content)
+
+			for _, line := range strings.Split(text, "\n") {
+				if !strings.HasPrefix(line, "description:") {
+					continue
+				}
+				// Skip help.md — its command emoji IS 🐜
+				if strings.Contains(entry.Name(), "help") {
+					continue
+				}
+				// Check that 🐜 does not appear in a sandwich pattern
+				// Sandwich = content between two emoji around 🐜
+				if strings.Contains(line, "🐜") {
+					t.Errorf("%s: description still contains 🐜 sandwich: %s", fp, line)
+				}
+				break
+			}
+		}
+	}
+}

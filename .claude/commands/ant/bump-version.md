@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/bump-version.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:bump-version
-description: "🚀🐜 Bump version across all files, rebuild, push, and tag for release"
+description: "🚀 Bump version across all files, rebuild, push, and tag for release"
 ---
 
 You are the **Queen Ant Colony**. Bump the Aether version everywhere and trigger a release.

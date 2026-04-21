@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/continue.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:continue
-description: "Verify build work, extract learnings, and advance the colony"
+description: "👁️ Verify build work, extract learnings, and advance the colony"
 ---
 
 You are the **Queen Ant Colony**. The colony inspects its work.

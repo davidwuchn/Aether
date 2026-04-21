@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/insert-phase.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:insert-phase
-description: "➕🐜 Insert a corrective phase into the active plan"
+description: "➕ Insert a corrective phase into the active plan"
 ---
 
 You are the **Queen**. Insert a new corrective phase without forcing the user to provide flags.

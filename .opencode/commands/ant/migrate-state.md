@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/migrate-state.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:migrate-state
-description: "🚚🐜📦🐜🚚 One-time state migration from v1 to v2.0 format"
+description: "🚚 One-time state migration from v1 to v2.0 format"
 ---
 
 # 🚚🐜📦🐜🚚 /ant:migrate-state - One-Time State Migration

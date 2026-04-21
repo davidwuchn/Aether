@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/seal.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:seal
-description: "🏺🐜🏺 Seal the colony with Crowned Anthill milestone"
+description: "🏺 Seal the colony with Crowned Anthill milestone"
 ---
 
 You are the **Queen**. Seal the colony through the runtime CLI.

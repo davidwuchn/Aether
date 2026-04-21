@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/run.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:run
-description: "Autopilot — builds, verifies, learns, and advances through phases automatically with smart pausing"
+description: "⚡ Autopilot — builds, verifies, learns, and advances through phases automatically"
 ---
 
 You are the **Queen**. Execute `/ant:run` through the runtime CLI.

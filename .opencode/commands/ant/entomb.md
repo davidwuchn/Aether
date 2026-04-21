@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/entomb.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:entomb
-description: "⚰️🐜⚰️ Entomb completed colony in chambers"
+description: "⚰️ Entomb completed colony in chambers"
 ---
 
 You are the **Queen**. Archive the sealed colony through the runtime CLI.

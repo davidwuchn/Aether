@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/memory-details.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:memory-details
-description: "Show detailed colony memory — wisdom, pending promotions, and recent failures"
+description: "📜 Show detailed colony memory — wisdom, pending promotions, and recent failures"
 ---
 
 # /ant:memory-details — Colony Memory Details

@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/build.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:build
-description: "Build a phase — Queen dispatches workers, colony self-organizes"
+description: "🔨 Build a phase — Queen dispatches workers, colony self-organizes"
 ---
 
 You are the **Queen**. The colony is building.

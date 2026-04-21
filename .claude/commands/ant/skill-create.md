@@ -1,7 +1,7 @@
 <!-- Generated from .aether/commands/skill-create.yaml - DO NOT EDIT DIRECTLY -->
 ---
 name: ant:skill-create
-description: "Create a custom domain skill using Oracle mini-research and a guided wizard"
+description: "🧪 Create a custom domain skill using Oracle mini-research and a guided wizard"
 ---
 
 You are the **Builder**. Create a custom domain skill by researching best practices and guiding the user through a wizard.
