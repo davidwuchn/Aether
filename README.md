@@ -27,7 +27,7 @@ Aether is an open-source biomimetic AI colony that replaces deterministic agent 
 
 [![agents](https://img.shields.io/badge/agents-25-purple?style=flat-square)](https://github.com/calcosmic/Aether#key-features)
 [![commands](https://img.shields.io/badge/commands-50-orange?style=flat-square)](https://github.com/calcosmic/Aether#command-reference)
-[![colony](https://img.shields.io/badge/colony-v1.0.17-gold?style=flat-square)](https://github.com/calcosmic/Aether/releases)
+[![colony](https://img.shields.io/badge/colony-v1.0.18-gold?style=flat-square)](https://github.com/calcosmic/Aether/releases)
 
 <br>
 
@@ -121,7 +121,7 @@ This is the lowest-friction path for new users. The npm package is a thin
 bootstrap wrapper: it downloads the matching Go release binary for your
 platform, installs it locally, and then runs `aether install` for you. The npm
 package version intentionally matches the published Aether release version, so
-`aether-colony@1.0.17` bootstraps Aether `1.0.17`.
+`aether-colony@1.0.18` bootstraps Aether `1.0.18`.
 
 **Option 1: Go binary**
 
@@ -1074,34 +1074,16 @@ Five commands from zero to deployed. The colony writes code, verifies quality, a
 
 ## 🗺️ Roadmap
 
-### 🎉 v1.0.17 -- Released (Current)
+### 🎉 v1.0.18 -- Released (Current)
 
-- Shared dispatch-truth and recovery milestone now closes cleanly in the shipped runtime: `build`, `plan`, `colonize`, `status`, `watch`, and `continue` all share the same lifecycle and recovery model
-- Blocked `continue` no longer loses the right next step after the command exits: targeted redispatch or reconcile guidance now survives into `status`, `watch`, `print-next-up`, `resume`, `CONTEXT.md`, and `HANDOFF.md`
-- Claude/OpenCode blocked continue ceremony now follows runtime recovery commands honestly instead of always bouncing users back to generic `/ant:continue`
-- Codex keeps the same runtime truth, so other repos can now test the full dispatch/recovery finish work through the native CLI path
-
+- One public Aether version now governs the Go runtime, npm bootstrap package, README badges, changelog, and operator docs: `1.0.18`
+- `npx --yes aether-colony@latest` remains a thin bootstrap, not a second runtime, and now stays explicitly documented as matching the published Go release version
+- The publish/update runbook now treats `aether install --package-dir "$PWD"`, downstream `aether update --force`, `--download-binary`, and npm publishing as one release system instead of disconnected steps
+- Medic now diagnoses release-integrity drift across hub publish completeness, runtime versioning, npm page behavior, and downstream refresh verification before recommending repairs
+- OpenCode, Claude, Codex, and repo-level operator docs now describe the same source-checkout publish path and the same released-user update path
 - 25 specialized worker castes (Builder, Watcher, Scout, Tracker, Oracle, Archaeologist, Medic, and more)
 - 50 slash commands across the full colony lifecycle on the primary Claude/OpenCode surfaces, plus native Codex CLI workflow
-- Codex now keeps literal `aether ...` commands on the direct CLI path again, avoiding fake pre-command repo archaeology while preserving Aether’s visual output and worker-spawning runtime
-- The richer Codex UX now comes from the Aether CLI itself rather than instruction-layer wrapper theater, which keeps colony behavior aligned with the real binary
-- JSON error envelopes now include structured details again, so failed updates expose the real file-level sync problems instead of only a count
-- Codex guidance now tells literal `aether ...` commands to run with near-zero wrapper text, and no-colony `aether status` now still renders with Aether’s own visual style
-- Pheromone signal system (FOCUS, REDIRECT, FEEDBACK) for steering workers without rewriting prompts
-- Colony wisdom pipeline -- observations flow through trust scoring into instincts, QUEEN.md, and the Hive Brain
-- Context continuity across sessions via compact colony-prime context and persisted handoff artifacts
-- Autopilot mode via `/ant:run` on Claude/OpenCode and `aether run` on Codex
-- Live worker visibility via `aether watch` / `aether swarm --watch`, plus Codex oracle workspace support via `aether oracle`
-- Primary support for Claude Code and OpenCode, with secondary Codex CLI support for the native `aether` workflow
-- Paused colonies now recover cleanly back into a runnable state, restoring the simpler Claude-style lifecycle contract in Codex instead of trapping colonies in `PAUSED`
-- `aether swarm` now runs a real investigate/fix/verify worker flow, and `parallel-mode worktree` now changes actual Codex build execution
-- Literal `aether ...` commands now execute directly in Codex guidance, sealed colonies can be archived with `aether entomb`, and upgraded repos restore session recovery mirrors cleanly
-- `aether update` now refreshes managed `AGENTS.md` and `.codex/CODEX.md` so Codex lifecycle commands run with visual CLI output in updated repos
-- `aether setup` and `aether update` now explicitly tell Codex users to reopen the chat whenever refreshed repo instructions, Codex agents, or Codex skills need a new session to load
-- Legacy colonies with object-shaped `plan.confidence` now recover cleanly in the Go CLI, and no-change updates no longer pretend `aether status` is a required next command
-- The Oracle entrypoint now runs as a real autonomous RALF loop with watchdogs, heartbeats, compact question-scoped worker packets, and working stop/process cleanup
-- Claude/OpenCode command docs and OpenCode agent prompts now route through the runtime CLI instead of teaching state-file mutation or legacy helper-shell behavior
-- Go binary distribution across Linux, macOS, and Windows (amd64 + arm64)
+- 29 skills (11 colony + 18 domain), shared through the same hub and release pipeline
 
 ### 📅 Near-Term
 

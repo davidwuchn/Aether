@@ -26,7 +26,7 @@ Version rule:
 │   .aether/             ← SOURCE OF TRUTH (companion files)      │
 │   ├── workers.md       Worker definitions                       │
 │   ├── rules/           Rules files (e.g. aether-colony.md)      │
-│   ├── skills/          colony/ (10) + domain/ (18)              │
+│   ├── skills/          colony/ (11) + domain/ (18)              │
 │   ├── templates/       Colony state, pheromones, etc.           │
 │   ├── docs/            Distributed documentation                │
 │   ├── agents-claude/   Agent definitions (packaging mirror)     │
@@ -49,7 +49,7 @@ Version rule:
 ## The Distribution Flow
 
 ```
-┌──────────────────┐     aether install      ┌──────────────────────┐
+┌──────────────────┐ aether install --package-dir "$PWD" ┌──────────────────────┐
 │   Aether Repo    │ ──────────────────────> │   ~/.aether/ (HUB)   │
 │                  │                          │                      │
 │ .aether/*  ──────┤   copies companion      │ system/              │
@@ -109,28 +109,30 @@ Published bootstrap path:
 Pushes from the Aether repo to the hub. This is what you run after editing source files.
 
 **What it does:**
-1. Syncs slash commands to `~/.claude/commands/ant/` and `~/.opencode/command/`
-2. Syncs agent definitions to `~/.claude/agents/ant/` and `~/.opencode/agent/`
-3. Calls `setupInstallHub()` to create `~/.aether/` with `registry.json` and `version.json`
-4. Syncs Codex agents to `~/.codex/agents/` and Codex skills to `~/.codex/skills/aether/`
-5. When run from an Aether source checkout, rebuilds the shared local `aether` binary unless `--skip-build-binary` is used
-6. Optionally downloads the Go binary from GitHub Releases (`--download-binary`)
+1. Copies the repo's source-of-truth companion files into `~/.aether/system/`
+2. Publishes Claude/OpenCode command wrappers, Claude/OpenCode/Codex agents, rules, and Codex skills into the hub layout used by downstream `aether update`
+3. Refreshes hub metadata such as `registry.json` and `version.json`
+4. When run from an Aether source checkout, rebuilds the shared local `aether` binary unless `--skip-build-binary` is used
+5. Optionally downloads the published Go binary from GitHub Releases (`--download-binary`)
 
-**Sync pairs (repo → home directory):**
+**Sync pairs (repo → hub system):**
 
 | Source | Destination | Label |
 |--------|-------------|-------|
-| `.claude/commands/ant/` | `~/.claude/commands/ant/` | Commands (claude) |
-| `.claude/agents/ant/` | `~/.claude/agents/ant/` | Agents (claude) |
-| `.opencode/commands/ant/` | `~/.opencode/command/` | Commands (opencode) |
-| `.opencode/agents/` | `~/.opencode/agent/` | Agents (opencode) |
-| `.codex/agents/` | `~/.codex/agents/` | Agents (codex) |
-| `.aether/skills-codex/` | `~/.codex/skills/aether/` | Skills (codex) |
+| `.aether/` | `~/.aether/system/` | System files |
+| `.aether/rules/` | `~/.aether/system/rules/` | Rules (claude) |
+| `.claude/commands/ant/` | `~/.aether/system/commands/claude/` | Commands (claude) |
+| `.claude/agents/ant/` | `~/.aether/system/agents-claude/` | Agents (claude) |
+| `.opencode/commands/ant/` | `~/.aether/system/commands/opencode/` | Commands (opencode) |
+| `.opencode/agents/` | `~/.aether/system/agents/` | Agents (opencode) |
+| `.codex/agents/` | `~/.aether/system/codex/` | Agents (codex) |
+| `.aether/skills-codex/` | `~/.aether/system/skills-codex/` | Skills (codex) |
 
-Note: The hub's `system/` directory (companion files) is populated by copying `.aether/` contents. The `install` command also cleans up stale files in the destination that no longer exist in the source.
+The install command also removes stale managed files in the hub when they no longer exist in the source checkout.
 
 Runtime rule:
-- Unreleased Go runtime fixes propagate across repos on the same machine through `aether install --package-dir <Aether checkout>`, because that is the step that refreshes the shared binary.
+- Unreleased Go runtime fixes propagate across repos on the same machine through `aether install --package-dir <Aether checkout>`, because that is the step that refreshes the hub and rebuilds the shared binary.
+- If `install` itself changed, bootstrap once with `go run ./cmd/aether install --package-dir "$PWD" --binary-dest "$HOME/.local/bin"` so the new install logic publishes from source immediately.
 
 ### `aether update` (in any repo)
 
@@ -144,6 +146,7 @@ Pulls from the hub to the local repo. This is what you run in other repos to get
 
 Runtime rule:
 - Plain `aether update` does not rebuild or publish the local Go runtime. It only syncs repo companion files.
+- `aether update --force` should be the default downstream refresh when you need stale Aether-managed files removed.
 - `aether update --download-binary` can fetch a published release binary, but it cannot pull an unreleased local source change.
 
 **Sync pairs (hub system/ → local repo):**
@@ -198,7 +201,7 @@ These are never modified by update/setup:
 npx --yes aether-colony@latest
 
 # You changed files in the Aether repo:
-aether install                          # Push to hub (~/.aether/system/) and, from source, rebuild the shared binary
+aether install --package-dir "$PWD"     # Push to hub (~/.aether/system/) and, from source, rebuild the shared binary
 
 # You want updates in another repo:
 aether update                           # Pull companion files from hub (safe — new files only)
@@ -213,7 +216,7 @@ aether setup                            # Copy from hub, create directories
 
 # Binary management:
 aether install --download-binary        # Install + fetch latest binary
-aether update --download-binary         # Update + fetch latest binary
+aether update --force --download-binary # Refresh companion files + fetch latest published binary
 ```
 
 ## File Counts

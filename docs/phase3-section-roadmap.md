@@ -1,14 +1,15 @@
 ## Roadmap
 
-### v1.0.17 -- Released (Current)
+### v1.0.18 -- Released (Current)
 
-- 24 specialized worker castes (Builder, Watcher, Scout, Tracker, Oracle, Archaeologist, and more)
-- 45 slash commands across the full colony lifecycle
+- 25 specialized worker castes (Builder, Watcher, Scout, Tracker, Oracle, Archaeologist, Medic, and more)
+- 50 slash commands across the full colony lifecycle on the primary Claude/OpenCode surfaces, plus native Codex CLI workflow
 - Pheromone signal system (FOCUS, REDIRECT, FEEDBACK) for steering workers without rewriting prompts
 - Colony wisdom pipeline -- observations flow through trust scoring into instincts, QUEEN.md, and the Hive Brain
-- Context continuity across sessions via compact context capsules
-- Autopilot mode (`/ant:run`) for automated build-verify-advance loops with smart pause
-- Claude Code and OpenCode support
+- Context continuity across sessions via compact colony-prime context and persisted handoff artifacts
+- Autopilot mode via `/ant:run` on Claude/OpenCode and `aether run` on Codex
+- Claude Code, OpenCode, and best-effort Codex CLI support
+- One public release version now spans the Go runtime, npm bootstrap package, and platform docs
 - Go binary distribution across Linux, macOS, and Windows (amd64 + arm64)
 
 ### Near-Term

@@ -11,11 +11,12 @@
 │  In the Aether repo, .aether/ IS the source of truth.          │
 │  Edit system files there and publish directly.                 │
 │                                                                │
-│  .aether/           → SOURCE OF TRUTH (edit this, published)  │
-│  .aether/data/      → LOCAL ONLY (excluded by .npmignore)      │
-│  .aether/dreams/    → LOCAL ONLY (excluded by .npmignore)      │
+│  .aether/           → SOURCE OF TRUTH (edit this, published)   │
+│  .aether/data/      → LOCAL ONLY (never distributed)           │
+│  .aether/dreams/    → LOCAL ONLY (never distributed)           │
 │                                                                │
-│  npm install -g . validates .aether/ and pushes to hub.        │
+│  aether install --package-dir "$PWD" refreshes hub files       │
+│  and rebuilds the shared local binary from this checkout.      │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -30,39 +31,40 @@
 ```bash
 git add .
 git commit -m "your message"
-npm install -g .   # Validates .aether/, then pushes to hub
+aether install --package-dir "$PWD"
 ```
 
 ---
 
 ## Critical Architecture
 
-**`.aether/` + `.opencode/` are the source of truth.** `.aether/` is packaged directly into the npm package; private directories are excluded by `.aether/.npmignore`.
+**`.aether/` + `.opencode/` are the source of truth.** Source-checkout publishes go through `aether install --package-dir "$PWD"` in this repo, which refreshes `~/.aether/system/` and the shared local `aether` binary. Downstream repos then pull those companion files with `aether update` or `/ant:update`.
 
 ```
 Aether Repo (this repo)
-├── .aether/ (SOURCE OF TRUTH — packaged directly into npm)
+├── .aether/ (SOURCE OF TRUTH)
 │   ├── workers.md, utils/, docs/
-│   ├── data/          ← LOCAL ONLY (excluded by .aether/.npmignore)
-│   └── dreams/        ← LOCAL ONLY (excluded by .aether/.npmignore)
+│   ├── data/          ← LOCAL ONLY (never distributed)
+│   └── dreams/        ← LOCAL ONLY (never distributed)
 │
-├── .opencode/ ────────────────────────────────────────┤──→ npm package
-│   ├── agents/                                        │
-│   └── commands/ant/                                  │
-│                                                      ▼
-│                                                ~/.aether/ (THE HUB)
-│                                                ├── system/      ← .aether/
-│                                                ├── commands/    ← slash commands
-│                                                └── agents/      ← .opencode/agents/
-│                                                      │
-│  aether update (in ANY repo)  ◄──────────────────────┘
-│  /ant:update (slash command)
+├── .opencode/
+│   ├── agents/
+│   └── commands/ant/
+│
+├── aether install --package-dir "$PWD"
 │
 ▼
-any-repo/.aether/ (WORKING COPY - gets overwritten)
-├── agents/          ← from hub (.opencode/agents/)
-├── commands/        ← from hub (.opencode/commands/)
-└── data/            ← LOCAL (never touched by updates)
+~/.aether/system/
+├── .aether/*                    ← system files
+├── commands/opencode/           ← OpenCode slash commands
+└── agents/                      ← OpenCode agents
+   │
+   └── aether update or /ant:update
+      ▼
+      any-repo/
+      ├── .aether/
+      ├── .opencode/commands/ant/
+      └── .opencode/agents/
 ```
 
 ---
@@ -71,8 +73,8 @@ any-repo/.aether/ (WORKING COPY - gets overwritten)
 
 | Directory | Purpose | Syncs to Hub |
 |-----------|---------|--------------|
-| `.opencode/agents/` | Agent definitions | → `~/.aether/agents/` |
-| `.opencode/commands/ant/` | OpenCode slash commands | → `~/.aether/commands/opencode/` |
+| `.opencode/agents/` | Agent definitions | → `~/.aether/system/agents/` |
+| `.opencode/commands/ant/` | OpenCode slash commands | → `~/.aether/system/commands/opencode/` |
 | `.aether/` (system files) | Source of truth for workers.md, utils, docs | → `~/.aether/system/` |
 | `.aether/data/` | Colony state | **NEVER touched** |
 
@@ -158,12 +160,17 @@ Slash commands live in `.opencode/commands/ant/`:
 ## Verification Commands
 
 ```bash
-# Update Aether from this repo
-npm install -g .
+# Publish unreleased source-checkout changes from this repo
+aether install --package-dir "$PWD"
 
-# In any repo, pull latest
+# In any repo, pull the refreshed companion files
 /ant:update
+aether update --force
 
-# Verify agent files are in place
-ls ~/.aether/agents/
+# Verify the hub publish actually contains OpenCode surfaces
+find ~/.aether/system/commands/opencode -maxdepth 1 -type f | wc -l
+find ~/.aether/system/agents -maxdepth 1 -type f | wc -l
+
+# If you also need the published release runtime binary
+aether update --force --download-binary
 ```

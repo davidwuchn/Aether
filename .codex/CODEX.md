@@ -443,4 +443,4 @@ Runtime note:
 
 ---
 
-*Updated for Aether v1.0.14 -- 2026-04-18*
+*Updated for Aether v1.0.18 -- 2026-04-22*

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.18] - 2026-04-22
+
+Unified release versioning, npm bootstrap publishing, and operator documentation.
+
+### Changed
+- the public Aether version is now treated as a single release number across `.aether/version.json`, `npm/package.json`, README badges, platform guides, and release runbooks
+- the npm bootstrap package page now tracks the same product framing as the GitHub README, including who Aether is for and how the bootstrap hands off to the Go runtime
+- OpenCode and architecture docs now describe the real source-checkout publish path (`aether install --package-dir "$PWD"`) instead of the old npm-global packaging flow
+
+### Fixed
+- the npm package page can now be updated intentionally through the documented release path instead of drifting behind the repo README with no operator guidance
+- Medic and the platform guides now recognize release-integrity failures as a coordinated Go binary, hub publish, npm publish, and downstream update problem
+- stale version references across README, AGENTS, CLAUDE, CODEX, and roadmap surfaces no longer disagree about the current Aether release
+
 ## [1.0.17] - 2026-04-21
 
 Shared dispatch-truth completion and recovery continuity across runtime surfaces.
