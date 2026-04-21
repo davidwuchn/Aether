@@ -121,6 +121,14 @@ func runMedic(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Persist scan results for colony-prime context injection
+	medicDataPath := filepath.Join(resolveAetherRoot(), ".aether", "data")
+	medicGoal := ""
+	if state.Goal != nil {
+		medicGoal = *state.Goal
+	}
+	_ = saveMedicLastScan(medicDataPath, issues, medicGoal, state.CurrentPhase)
+
 	if opts.JSON {
 		fmt.Fprint(stdout, renderMedicJSON(issues, &state, repairResult))
 		return nil

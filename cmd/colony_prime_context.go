@@ -425,6 +425,41 @@ func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 		}
 	}
 
+	// Medic health section — inject critical issues from last scan
+	if lastScan, err := loadMedicLastScan(store.BasePath()); err == nil {
+		var criticalIssues []HealthIssue
+		for _, issue := range lastScan.Issues {
+			if issue.Severity == "critical" {
+				criticalIssues = append(criticalIssues, issue)
+			}
+		}
+		if len(criticalIssues) > 0 {
+			var healthSB strings.Builder
+			healthSB.WriteString("## Colony Health Issues\n\n")
+			healthSB.WriteString(fmt.Sprintf("Last scan: %s\n\n", lastScan.Timestamp))
+			for _, issue := range criticalIssues {
+				healthSB.WriteString(fmt.Sprintf("- [%s] %s", issue.Severity, issue.Message))
+				if issue.File != "" {
+					healthSB.WriteString(fmt.Sprintf(" (%s)", issue.File))
+				}
+				healthSB.WriteString("\n")
+			}
+			healthProtected, healthPreserveReason := protectedSectionPolicy("medic_health")
+			sections = append(sections, colonyPrimeSection{
+				name:              "medic_health",
+				title:             "Colony Health Issues",
+				source:            filepath.Join(store.BasePath(), medicLastScanFile),
+				content:           healthSB.String(),
+				priority:          9,
+				freshnessScore:    latestFreshnessScore(now, 0.8, lastScan.Timestamp),
+				confirmationScore: 1.0,
+				relevanceScore:    sectionRelevanceScore("medic_health"),
+				protected:         healthProtected,
+				preserveReason:    healthPreserveReason,
+			})
+		}
+	}
+
 	result.Sections = len(sections)
 	allowedCandidates := make([]colony.ContextCandidate, 0, len(sections))
 	for _, sec := range sections {
