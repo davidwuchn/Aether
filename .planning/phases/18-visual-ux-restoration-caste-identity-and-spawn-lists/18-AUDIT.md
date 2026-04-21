@@ -46,3 +46,15 @@ However, the **run** command's summary visual (`renderRunCompatibilityVisual`) d
 | colonize| Yes          | Yes              | Yes                | Yes               | Yes            |
 | plan    | Yes          | Yes              | Yes                | Yes               | Yes            |
 | run     | No (summary only) | No          | No                 | No                | No             |
+
+## Post-Audit Update (Task 1 Complete)
+
+After deeper code inspection:
+
+- `dispatchCodexBuildWorkersInRepo` and `dispatchCodexBuildWorkers` (worktree) both call `emitCodexBuildWaveProgress`, `emitCodexBuildWorkerStarted`, and `emitCodexBuildWorkerFinished` for every wave/worker.
+- `dispatchRealSurveyors` and `dispatchRealPlanningWorkers` both route through `dispatchBatchByWaveWithVisuals` with `runtimeVisualDispatchObserver`, which emits start/running/finish with caste identity.
+- The `renderColonizeDispatchPreview` and `renderPlanDispatchPreview` functions already call `casteIdentity()` for planned workers.
+- `emitCodexDispatchWaveProgress` calls `casteIdentity(dispatch.Caste)` for each dispatch.
+- All per-worker emit functions (`emitCodexDispatchWorkerStarted`, `emitCodexDispatchWorkerRunning`, `emitCodexDispatchWorkerFinished`) call `casteIdentity(dispatch.Caste)`.
+
+**Verdict:** The visual output path is already intact for build, colonize, and plan. The run command inherits build's visual progress during each phase's `runCodexBuild` call. No code changes are required to restore caste identity display — it is already present. The remaining work is verifying wrapper pass-through, adding regression tests, and verifying Codex CLI rendering behavior.
