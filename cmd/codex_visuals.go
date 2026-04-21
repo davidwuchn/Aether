@@ -13,6 +13,15 @@ import (
 
 const visualDivider = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
+const aetherWordmark = `
+      █████╗ ███████╗████████╗██╗  ██╗███████╗██████╗
+     ██╔══██╗██╔════╝╚══██╔══╝██║  ██║██╔════╝██╔══██╗
+     ███████║█████╗     ██║   ███████║█████╗  ██████╔╝
+     ██╔══██║██╔══╝     ██║   ██╔══██║██╔══╝  ██╔══██╗
+     ██║  ██║███████╗   ██║   ██║  ██║███████╗██║  ██║
+     ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+`
+
 var casteEmojiMap = map[string]string{
 	"queen":         "👑",
 	"builder":       "🔨",
@@ -236,6 +245,17 @@ func spacedTitle(title string) string {
 
 func renderBanner(emoji, title string) string {
 	return fmt.Sprintf("━━ %s %s ━━\n", emoji, spacedTitle(title))
+}
+
+func renderAetherWordmark() string {
+	wordmark := strings.Trim(aetherWordmark, "\n")
+	if wordmark == "" {
+		return ""
+	}
+	if shouldUseANSIColors() {
+		return "\x1b[96m" + wordmark + "\x1b[0m\n\n"
+	}
+	return wordmark + "\n\n"
 }
 
 func renderStageMarker(title string) string {
@@ -1111,6 +1131,7 @@ func renderInstallVisual(homeDir string, results []map[string]interface{}, total
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("install"), "Install"))
 	b.WriteString(visualDivider)
+	b.WriteString(renderAetherWordmark())
 	b.WriteString("Aether hub refreshed.\n")
 	b.WriteString("Home: ")
 	b.WriteString(homeDir)
@@ -1123,9 +1144,10 @@ func renderInstallVisual(homeDir string, results []map[string]interface{}, total
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
+	b.WriteString(renderInstallPaths(binaryMode))
 	b.WriteString(renderNextUp(
 		`Run `+"`aether lay-eggs`"+` inside a repo to set up a local nest.`,
-		`Run `+"`aether update`"+` in existing repos to pull the refreshed companion files.`,
+		`Run `+"`aether update --force`"+` in existing repos to pull the refreshed companion files.`,
 	))
 	return b.String()
 }
@@ -1163,6 +1185,7 @@ func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun 
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("update"), "Update"))
 	b.WriteString(visualDivider)
+	b.WriteString(renderAetherWordmark())
 	if dryRun {
 		b.WriteString("Dry run complete. No files were changed.\n")
 	} else {
@@ -1199,6 +1222,7 @@ func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun 
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
+	b.WriteString(renderUpdatePaths(force, binaryMode))
 	if dryRun {
 		next := `Run ` + "`aether update`" + ` to apply the previewed changes.`
 		alt := `Run ` + "`aether update --force`" + ` only if you want tracked companion files overwritten and stale files removed.`
@@ -1264,6 +1288,25 @@ func installRuntimeLines(binaryMode string) []string {
 	return lines
 }
 
+func renderInstallPaths(binaryMode string) string {
+	lines := []string{
+		`Published release repos: use ` + "`aether update --force --download-binary`" + ` when you want companion files and the matching released binary together.`,
+		`Local Aether development: use ` + "`aether install --package-dir \"$PWD\"`" + ` in the Aether repo when testing unreleased changes on this machine.`,
+	}
+	if strings.TrimSpace(binaryMode) == "release-download" {
+		lines[0] = "Published release repos: this install will refresh companion files first and download the published binary next."
+	}
+
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString(renderStageMarker("Paths"))
+	for _, line := range lines {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
 func updateRuntimeLines(binaryMode string) []string {
 	switch strings.TrimSpace(binaryMode) {
 	case "release-download-preview":
@@ -1285,6 +1328,34 @@ func updateRuntimeLines(binaryMode string) []string {
 			"For an unreleased local runtime fix on this machine, run `aether install --package-dir <Aether checkout>` in the Aether repo first.",
 		}
 	}
+}
+
+func renderUpdatePaths(force bool, binaryMode string) string {
+	releaseCmd := "`aether update --download-binary`"
+	if force {
+		releaseCmd = "`aether update --force --download-binary`"
+	}
+
+	lines := []string{
+		`Published release: run ` + releaseCmd + ` to keep companion files and the matching released binary in lockstep.`,
+		`Local source checkout: run ` + "`aether install --package-dir <Aether checkout>`" + ` in the Aether repo, then rerun ` + "`aether update --force`" + ` here.`,
+	}
+
+	switch strings.TrimSpace(binaryMode) {
+	case "release-download-preview":
+		lines[0] = "Published release: this preview includes a matching release binary download after the companion-file sync."
+	case "release-download":
+		lines[0] = "Published release: companion files and the matching released binary are being installed together now."
+	}
+
+	var b strings.Builder
+	b.WriteString("\n")
+	b.WriteString(renderStageMarker("Paths"))
+	for _, line := range lines {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 func renderBinaryActionVisual(title, message, version, path string) string {

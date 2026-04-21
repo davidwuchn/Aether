@@ -575,7 +575,7 @@ func TestInstallVisualOutput(t *testing.T) {
 	if strings.Contains(output, `{"ok":true`) {
 		t.Fatalf("expected visual output, got JSON: %s", output)
 	}
-	for _, want := range []string{"📦", "I N S T A L L", "aether lay-eggs", "shared `aether` binary"} {
+	for _, want := range []string{"📦", "I N S T A L L", "█████╗", "aether lay-eggs", "shared `aether` binary", "Published release repos:", "aether update --force --download-binary", "aether update --force"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("install visual output missing %q\n%s", want, output)
 		}
@@ -743,7 +743,7 @@ func TestUpdateDryRunVisualOutput(t *testing.T) {
 	if strings.Contains(output, `{"ok":true`) {
 		t.Fatalf("expected visual output, got JSON: %s", output)
 	}
-	for _, want := range []string{"🔄", "U P D A T E", "Dry run complete", "aether update"} {
+	for _, want := range []string{"🔄", "U P D A T E", "█████╗", "Dry run complete", "aether update", "Published release:", "Local source checkout:"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("update visual output missing %q\n%s", want, output)
 		}
