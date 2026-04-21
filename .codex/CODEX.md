@@ -291,7 +291,7 @@ aether data-clean        # Clean test artifacts
 
 ## Agent Reference
 
-All 24 agents are defined in `.codex/agents/*.toml`:
+All 25 agents are defined in `.codex/agents/*.toml`:
 
 | Tier | Agent | TOML File | Role |
 |------|-------|-----------|------|
@@ -310,6 +310,7 @@ All 24 agents are defined in `.codex/agents/*.toml`:
 | Specialist | Probe | `aether-probe.toml` | Coverage analysis |
 | Specialist | Weaver | `aether-weaver.toml` | Refactoring specialist |
 | Specialist | Auditor | `aether-auditor.toml` | Quality gate |
+| Specialist | Medic | `aether-medic.toml` | Colony health diagnosis and repair |
 | Niche | Chaos | `aether-chaos.toml` | Resilience testing |
 | Niche | Archaeologist | `aether-archaeologist.toml` | Excavates git history |
 | Niche | Gatekeeper | `aether-gatekeeper.toml` | Security gate |
@@ -369,8 +370,8 @@ for f in .codex/agents/*.toml; do
   # Basic syntax check -- TOML is simple enough for grep validation
 done
 
-# Verify all 24 agents exist
-ls .codex/agents/*.toml | wc -l  # Should be 24
+# Verify all 25 agents exist
+ls .codex/agents/*.toml | wc -l  # Should be 25
 ```
 
 ### Publishing Changes

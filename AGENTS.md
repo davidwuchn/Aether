@@ -21,8 +21,8 @@ OpenCode, and Codex CLI.
 | What | Count/Status |
 |------|--------------|
 | Version | v1.0.17 |
-| Agent definitions | 24 (TOML in `.codex/agents/`) |
-| Skills | 28 (10 colony + 18 domain) |
+| Agent definitions | 25 (TOML in `.codex/agents/`) |
+| Skills | 29 (11 colony + 18 domain) |
 | Go binary | `aether` CLI (Go binary in cmd/) |
 | Verification | `go test ./...` and `go test ./... -race` clean |
 | Architecture doc | `RUNTIME UPDATE ARCHITECTURE.md` |
@@ -333,7 +333,7 @@ aether init "next project goal"
 
 ```
 .codex/
-+-- agents/                # 24 agent definitions (TOML format)
++-- agents/                # 25 agent definitions (TOML format)
 |   +-- aether-builder.toml
 |   +-- aether-watcher.toml
 |   +-- aether-scout.toml
@@ -351,7 +351,7 @@ and developer_instructions. Codex reads these for agent discovery.
 +-- utils/               # Runtime utilities
 |   +-- oracle/oracle.md # Oracle loop instructions
 |   +-- queen-to-md.xsl  # XSL transform for queen wisdom export
-+-- skills/              # colony/ (10) + domain/ (18) skill definitions
++-- skills/              # colony/ (11) + domain/ (18) skill definitions
 +-- templates/           # 12 templates (colony-state, pheromones, etc.)
 +-- docs/                # Distributed documentation
 +-- exchange/            # XML exchange modules (pheromone-xml, wisdom-xml)
@@ -391,7 +391,7 @@ Authority note:
 
 ---
 
-## The 24 Agents
+## The 25 Agents
 
 | Tier | Agent | TOML File | Role |
 |------|-------|-----------|------|
@@ -410,6 +410,7 @@ Authority note:
 | Specialist | Probe | `aether-probe.toml` | Coverage analysis |
 | Specialist | Weaver | `aether-weaver.toml` | Refactoring specialist |
 | Specialist | Auditor | `aether-auditor.toml` | Quality gate |
+| Specialist | Medic | `aether-medic.toml` | Colony health diagnosis and repair |
 | Niche | Chaos | `aether-chaos.toml` | Resilience testing |
 | Niche | Archaeologist | `aether-archaeologist.toml` | Excavates git history |
 | Niche | Gatekeeper | `aether-gatekeeper.toml` | Security gate |

@@ -49,7 +49,7 @@ Scope: v1.3 phases 17-24 and v1.4 phases 25-30
 - File path: `.aether/skills-codex/colony/medic/SKILL.md`
 - What's wrong: The Codex skill mirror is missing the Medic colony skill even though the source skill exists at `.aether/skills/colony/medic/SKILL.md`. That leaves the Codex mirror at 28 skills instead of the expected 29.
 - What the fix would be: Copy the source Medic skill into `.aether/skills-codex/colony/medic/SKILL.md`.
-- Status: reported only
+- Status: fixed
 
 ## Finding 7
 - Category: parity
@@ -57,7 +57,7 @@ Scope: v1.3 phases 17-24 and v1.4 phases 25-30
 - File path: `AGENTS.md`, `.codex/CODEX.md`
 - What's wrong: Codex-facing docs still describe 24 Codex agents and omit Medic from their agent inventories. `AGENTS.md` also still claims 28 skills / 10 colony skills, while the source skill tree contains 29 skills total (11 colony + 18 domain).
 - What the fix would be: Update the counts and agent tables to 25 Codex agents, add Medic to the lists, and update the Codex-facing skill counts to 29 / 11+18.
-- Status: reported only
+- Status: fixed
 
 ## Finding 8
 - Category: medic
