@@ -81,6 +81,9 @@ var initCmd = &cobra.Command{
 		sanitizedGoal := strings.ToLower(strings.Fields(goal)[0])
 		sessionID := fmt.Sprintf("%s_%d", sanitizedGoal, now.Unix())
 
+		// Generate run ID for trace logging
+		runID := fmt.Sprintf("%s_%d_%s", sanitizedGoal, now.Unix(), randomHex(4))
+
 		// Create directory structure
 		if err := os.MkdirAll(filepath.Join(aetherDir, "dreams"), 0755); err != nil {
 			outputError(1, fmt.Sprintf("failed to create directory structure: %v", err), nil)
@@ -114,6 +117,7 @@ var initCmd = &cobra.Command{
 			State:         colony.StateREADY,
 			CurrentPhase:  0,
 			SessionID:     &sessionID,
+			RunID:         &runID,
 			InitializedAt: &now,
 			Plan:          colony.Plan{Phases: []colony.Phase{}},
 			Memory: colony.Memory{

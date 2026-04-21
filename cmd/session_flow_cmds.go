@@ -156,6 +156,9 @@ var resumeColonyCmd = &cobra.Command{
 			// Clear stale spawn state if session is not fresh
 			if !freshness.Fresh {
 				state.BuildStartedAt = nil
+				// Generate new run_id for resumed stale session
+				newRunID := fmt.Sprintf("resume_%d_%s", now.Unix(), randomHex(4))
+				state.RunID = &newRunID
 				if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
 					outputError(2, fmt.Sprintf("failed to clear stale spawn state: %v", err), nil)
 					return nil

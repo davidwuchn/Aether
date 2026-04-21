@@ -174,6 +174,7 @@ type ColonyState struct {
 	Paused             bool            `json:"paused,omitempty"`
 	PausedAt           *string         `json:"paused_at,omitempty"`
 	Worktrees          []WorktreeEntry `json:"worktrees,omitempty"`
+	RunID              *string         `json:"run_id,omitempty"`
 }
 
 // EffectiveScope returns the compatibility-safe colony scope.
