@@ -298,6 +298,7 @@ Legal transitions (from `pkg/colony/colony.go:490`):
 - Updating the npm website README requires a fresh npm publish; editing `npm/README.md` in git is not enough
 - If install/update/version/binary-download logic changed, treat downstream `aether update --force`, local `aether version`, and npm bootstrap verification as part of release integrity
 - If a release tag exists but `gh run list --workflow Release` shows no run and `gh release view vX.Y.Z` shows no release, report that the GitHub release did not materialize and recommend `gh workflow run Release -f tag=vX.Y.Z` first
+- If `gh workflow run Release -f tag=vX.Y.Z` returns `HTTP 422: Actions has been disabled for this user`, report that as a GitHub Actions actor/policy failure and recommend another maintainer or the local GoReleaser fallback
 - If GitHub workflow dispatch is unavailable or still fails, recommend `export GITHUB_TOKEN=\"$(gh auth token)\" && goreleaser release --clean` before npm publish
 - Treat `git push --tags` as a release risk. Push a single annotated release tag instead
 

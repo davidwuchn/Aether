@@ -100,6 +100,8 @@ Then verify:
 gh run list --workflow Release --limit 5
 ```
 
+If GitHub responds with `HTTP 422: Actions has been disabled for this user`, the workflow exists but this actor cannot dispatch it. In that case, use the local GoReleaser fallback below or have another maintainer trigger the workflow.
+
 Second fallback, only if GitHub workflow dispatch is unavailable or broken:
 
 ```bash
