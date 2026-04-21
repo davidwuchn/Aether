@@ -17,6 +17,7 @@ type MedicOptions struct {
 	Force bool
 	JSON  bool
 	Deep  bool
+	Trace string // path to trace export JSON
 }
 
 // HealthIssue represents a single finding from a colony health scan.
@@ -43,9 +44,28 @@ func init() {
 	medicCmd.Flags().BoolVar(new(bool), "force", false, "allow destructive repairs")
 	medicCmd.Flags().BoolVar(new(bool), "json", false, "output structured JSON")
 	medicCmd.Flags().BoolVar(new(bool), "deep", false, "scan all files including wrappers")
+	medicCmd.Flags().String("trace", "", "analyze a trace export JSON file instead of colony data")
 }
 
 func runMedic(cmd *cobra.Command, args []string) error {
+	// Trace diagnostics mode — works without an active colony
+	traceFile, _ := cmd.Flags().GetString("trace")
+	jsonOut, _ := cmd.Flags().GetBool("json")
+	if traceFile != "" {
+		entries, err := loadTraceExport(traceFile)
+		if err != nil {
+			fmt.Fprintf(stdout, "Error: %v\n", err)
+			return nil
+		}
+		diag := analyzeTraceDiagnostics(entries)
+		if jsonOut {
+			fmt.Fprint(stdout, renderTraceDiagnosticJSON(diag))
+		} else {
+			fmt.Fprint(stdout, renderTraceDiagnostic(diag))
+		}
+		return nil
+	}
+
 	state, err := loadActiveColonyState()
 	if err != nil {
 		if shouldRenderVisualOutput(stdout) && strings.Contains(colonyStateLoadMessage(err), "No colony initialized") {
@@ -58,7 +78,6 @@ func runMedic(cmd *cobra.Command, args []string) error {
 
 	fix, _ := cmd.Flags().GetBool("fix")
 	force, _ := cmd.Flags().GetBool("force")
-	jsonOut, _ := cmd.Flags().GetBool("json")
 	deep, _ := cmd.Flags().GetBool("deep")
 
 	opts := MedicOptions{
