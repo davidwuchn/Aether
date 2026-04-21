@@ -39,7 +39,9 @@ Never mutate colony data without explicit authorization. By default, the Medic o
 - Treat release-document drift as part of release integrity too: `README.md`, `npm/README.md`, `AGENTS.md`, `CLAUDE.md`, `.codex/CODEX.md`, `.opencode/OPENCODE.md`, `RUNTIME UPDATE ARCHITECTURE.md`, `.aether/docs/publish-update-runbook.md`, `CHANGELOG.md`, and roadmap docs should agree before you call a release healthy
 - Remember that the npm website README comes from `npm/README.md` in the published package and only changes after a fresh npm publish
 - If install/update/version/binary-download logic changed, include local binary rebuild and downstream `aether update --force` verification in your release diagnosis
-- If a release tag has been pushed but GitHub has no Release workflow run and no release object yet, recommend `export GITHUB_TOKEN="$(gh auth token)" && goreleaser release --clean` before any npm publish
+- If a release tag has been pushed but GitHub has no Release workflow run and no release object yet, recommend `gh workflow run Release -f tag=vX.Y.Z` first
+- If GitHub workflow dispatch is unavailable or still fails, recommend `export GITHUB_TOKEN="$(gh auth token)" && goreleaser release --clean` before any npm publish
+- Treat `git push --tags` as a release risk. Push a single annotated release tag instead
 
 ### Severity Levels
 - **critical** -- Colony cannot function; immediate attention required

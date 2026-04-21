@@ -297,7 +297,9 @@ Legal transitions (from `pkg/colony/colony.go:490`):
 - The npm package page README comes from `npm/README.md` in the published package, not the root repo README
 - Updating the npm website README requires a fresh npm publish; editing `npm/README.md` in git is not enough
 - If install/update/version/binary-download logic changed, treat downstream `aether update --force`, local `aether version`, and npm bootstrap verification as part of release integrity
-- If a release tag exists but `gh run list --workflow Release` shows no run and `gh release view vX.Y.Z` shows no release, report that the GitHub release did not materialize and recommend `export GITHUB_TOKEN=\"$(gh auth token)\" && goreleaser release --clean` before npm publish
+- If a release tag exists but `gh run list --workflow Release` shows no run and `gh release view vX.Y.Z` shows no release, report that the GitHub release did not materialize and recommend `gh workflow run Release -f tag=vX.Y.Z` first
+- If GitHub workflow dispatch is unavailable or still fails, recommend `export GITHUB_TOKEN=\"$(gh auth token)\" && goreleaser release --clean` before npm publish
+- Treat `git push --tags` as a release risk. Push a single annotated release tag instead
 
 ## Version Compatibility
 

@@ -47,8 +47,9 @@ Release order matters:
 2. Set `npm/package.json` `version` to the exact same release version.
 3. Commit the version change.
 4. Push the commit.
-5. Create and push the Git tag `vX.Y.Z`.
-6. Let the release workflow publish the Go release first, then the npm bootstrap if `NPM_TOKEN` is configured.
+5. Create an annotated Git tag: `git tag -a vX.Y.Z -m "vX.Y.Z"`.
+6. Push only that tag: `git push origin vX.Y.Z`.
+7. Let the GitHub `Release` workflow publish the Go release first, then the npm bootstrap if `NPM_TOKEN` is configured.
 
 Recommended verification:
 
@@ -64,6 +65,7 @@ Why the order is strict:
 - The npm package is only a bootstrap wrapper.
 - It downloads the published Go release with the exact same version.
 - If the npm package version and the Aether release version diverge, users will see version drift immediately.
+- Push release tags one at a time. GitHub's workflow docs say push events are not created for tags when more than three tags are pushed at once, so do not use `git push --tags` for release publication.
 
 User-facing rule:
 - `npx --yes aether-colony@latest` should always install the same published runtime as the current `latest` GitHub release.
@@ -71,29 +73,34 @@ User-facing rule:
 - The npm package page README comes from `npm/README.md` in the published tarball, not from the root GitHub `README.md`.
 - Updating the npm website README requires publishing a new npm package version; editing `npm/README.md` in git alone does not change the live npm page.
 
-Manual fallback if npm is not automated in CI yet:
-
-```bash
-cd npm
-npm publish --access public
-```
-
-Then verify:
-
-```bash
-npm view aether-colony dist-tags --json
-```
-
 ## Release Workflow Fallback
 
-If you pushed a release tag and GitHub does not create a release run or release assets, do not publish npm yet.
+If you pushed a release tag and GitHub does not create a `Release` run or release assets, do not publish npm yet.
 
 Failure signature:
 - `git push origin vX.Y.Z` succeeds
 - `gh run list --workflow Release` shows no run for the tag
 - `gh release view vX.Y.Z` reports `release not found`
 
-Safe fallback:
+Preferred fallback:
+
+```bash
+gh workflow run Release -f tag=vX.Y.Z
+```
+
+Optional validation-only check:
+
+```bash
+gh workflow run Release -f tag=vX.Y.Z -f dry_run=true
+```
+
+Then verify:
+
+```bash
+gh run list --workflow Release --limit 5
+```
+
+Second fallback, only if GitHub workflow dispatch is unavailable or broken:
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"
@@ -109,6 +116,19 @@ gh release view vX.Y.Z --json tagName,url,assets
 Why the order still matters:
 - the npm bootstrap downloads the published GitHub release assets directly
 - if npm moves first, `npx --yes aether-colony@latest` can point users at a version whose release archives do not exist yet
+
+Manual npm fallback, only if the release exists but npm automation is unavailable:
+
+```bash
+cd npm
+npm publish --access public
+```
+
+Then verify:
+
+```bash
+npm view aether-colony dist-tags --json
+```
 
 ## Go Binary Change Checklist
 
@@ -221,4 +241,4 @@ Run `aether medic --deep` when you want runtime validation of:
 - ceremony integrity
 
 Medic should flag incomplete hub publishes before you trust downstream `aether update` output.
-Medic should also treat a missing GitHub release after a pushed tag as a release-integrity failure and recommend the manual GoReleaser fallback before npm publish.
+Medic should also treat a missing GitHub release after a pushed tag as a release-integrity failure and recommend `gh workflow run Release -f tag=vX.Y.Z` before falling back to local GoReleaser or manual npm publish.
