@@ -207,6 +207,24 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 			},
 		},
 		{
+			path: ".claude/commands/ant/pheromones.md",
+			required: []string{
+				"Use the Go `aether` CLI as the source of truth.",
+				"AETHER_OUTPUT_MODE=visual aether pheromones",
+				"aether signal-housekeeping",
+				"aether pheromone-expire --id",
+				"aether focus",
+				"aether redirect",
+				"aether feedback",
+			},
+			forbidden: []string{
+				"Read `.aether/data/COLONY_STATE.json`.",
+				".aether/data/pheromones.json",
+				"jq",
+				".aether/aether-utils.sh",
+			},
+		},
+		{
 			path: ".claude/commands/ant/colonize.md",
 			required: []string{
 				"Use the Go `aether` CLI as the source of truth.",
@@ -446,6 +464,24 @@ func TestLifecycleCommandDocsPreferRuntimeCLI(t *testing.T) {
 				"continue-finalize.md",
 				"Read `.aether/data/COLONY_STATE.json`.",
 				"Write COLONY_STATE.json",
+				".aether/aether-utils.sh",
+			},
+		},
+		{
+			path: ".opencode/commands/ant/pheromones.md",
+			required: []string{
+				"Use the Go `aether` CLI as the source of truth.",
+				"AETHER_OUTPUT_MODE=visual aether pheromones",
+				"aether signal-housekeeping",
+				"aether pheromone-expire --id",
+				"aether focus",
+				"aether redirect",
+				"aether feedback",
+			},
+			forbidden: []string{
+				"Read `.aether/data/COLONY_STATE.json`.",
+				".aether/data/pheromones.json",
+				"jq",
 				".aether/aether-utils.sh",
 			},
 		},

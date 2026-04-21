@@ -3,6 +3,16 @@ description: "🎯🐜🚫🐜💬 View and manage active pheromone signals"
 source_of_truth: "Use the Go `aether` CLI as the source of truth."
 runtime:
   command: "AETHER_OUTPUT_MODE=visual aether pheromones $ARGUMENTS"
+wrapper_additions:
+  routing: |
+    Keep pheromone management runtime-first:
+    1. Use `AETHER_OUTPUT_MODE=visual aether pheromones` to inspect active steering signals.
+    2. If the user wants one signal type, route to `AETHER_OUTPUT_MODE=visual aether pheromones --type <FOCUS|REDIRECT|FEEDBACK>`.
+    3. If the user wants cleanup, route to `AETHER_OUTPUT_MODE=json aether signal-housekeeping`.
+    4. If the user wants to expire a single signal, route to `AETHER_OUTPUT_MODE=json aether pheromone-expire --id <signal_id>`.
+    5. Point new steering writes to `aether focus`, `aether redirect`, and `aether feedback`.
 guardrails:
   - "Do not write colony state files, session files, or pheromone files by hand from this command spec."
+  - "Do not read COLONY_STATE.json or pheromones.json directly from the wrapper."
+  - "Do not use jq or shell file surgery to manage signals."
   - "If docs and runtime disagree, runtime wins."

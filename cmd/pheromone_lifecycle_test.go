@@ -162,6 +162,12 @@ func TestPheromoneLifecycle_FocusSignal(t *testing.T) {
 	if displayResult["count"] != float64(1) {
 		t.Errorf("display count = %v, want 1", displayResult["count"])
 	}
+	display := displayResult["display"].(string)
+	for _, want := range []string{"LIFE", "phase-scoped", "30d decay"} {
+		if !strings.Contains(display, want) {
+			t.Errorf("display missing %q, got: %s", want, display)
+		}
+	}
 	displaySignals := displayResult["signals"].([]interface{})
 	if len(displaySignals) != 1 {
 		t.Fatalf("display signals count = %d, want 1", len(displaySignals))
@@ -282,6 +288,12 @@ func TestPheromoneLifecycle_RedirectSignal(t *testing.T) {
 	displaySignals := displayResult["signals"].([]interface{})
 	if len(displaySignals) != 1 {
 		t.Fatalf("display should show 1 signal, got %d", len(displaySignals))
+	}
+	display := displayResult["display"].(string)
+	for _, want := range []string{"LIFE", "ttl", "60d decay"} {
+		if !strings.Contains(display, want) {
+			t.Errorf("display missing %q, got: %s", want, display)
+		}
 	}
 	ds := displaySignals[0].(map[string]interface{})
 	if ds["type"] != "REDIRECT" {
@@ -414,10 +426,10 @@ func TestPheromoneLifecycle_MultipleMixedSignals(t *testing.T) {
 
 	// Write 3 signals of different types
 	types := []struct {
-		sigType   string
-		content   string
-		strength  float64
-		priority  string
+		sigType  string
+		content  string
+		strength float64
+		priority string
 	}{
 		{"FOCUS", "focus on tests", 0.8, "normal"},
 		{"REDIRECT", "avoid magic numbers", 1.0, "high"},

@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -165,20 +166,34 @@ var pheromoneDisplayCmd = &cobra.Command{
 			return nil
 		}
 
+		now := time.Now().UTC()
+		sort.Slice(filtered, func(i, j int) bool {
+			if signalPriority(filtered[i].Type) != signalPriority(filtered[j].Type) {
+				return signalPriority(filtered[i].Type) < signalPriority(filtered[j].Type)
+			}
+			iStrength := computeEffectiveStrength(filtered[i], now)
+			jStrength := computeEffectiveStrength(filtered[j], now)
+			if iStrength != jStrength {
+				return iStrength > jStrength
+			}
+			return extractText(filtered[i].Content) < extractText(filtered[j].Content)
+		})
+
 		// Format as text table
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("%-10s %-10s %-10s %s\n", "TYPE", "PRIORITY", "STRENGTH", "CONTENT"))
-		sb.WriteString(strings.Repeat("-", 80) + "\n")
+		sb.WriteString(fmt.Sprintf("%-10s %-10s %-10s %-24s %s\n", "TYPE", "PRIORITY", "STRENGTH", "LIFE", "CONTENT"))
+		sb.WriteString(strings.Repeat("-", 110) + "\n")
 		for _, sig := range filtered {
-			strength := "1.0"
-			if sig.Strength != nil {
-				strength = fmt.Sprintf("%.1f", *sig.Strength)
-			}
+			strength := fmt.Sprintf("%.2f", computeEffectiveStrength(sig, now))
+			life := signalLifetimeSummary(sig, now)
 			text := extractText(sig.Content)
 			if len(text) > 60 {
 				text = text[:57] + "..."
 			}
-			sb.WriteString(fmt.Sprintf("%-10s %-10s %-10s %s\n", sig.Type, sig.Priority, strength, text))
+			if len(life) > 24 {
+				life = life[:21] + "..."
+			}
+			sb.WriteString(fmt.Sprintf("%-10s %-10s %-10s %-24s %s\n", sig.Type, sig.Priority, strength, life, text))
 		}
 
 		display := sb.String()
@@ -188,10 +203,12 @@ var pheromoneDisplayCmd = &cobra.Command{
 		signals := make([]map[string]interface{}, len(filtered))
 		for i, sig := range filtered {
 			entry := map[string]interface{}{
-				"id":       sig.ID,
-				"type":     sig.Type,
-				"priority": sig.Priority,
-				"active":   sig.Active,
+				"id":                 sig.ID,
+				"type":               sig.Type,
+				"priority":           sig.Priority,
+				"active":             sig.Active,
+				"effective_strength": computeEffectiveStrength(sig, now),
+				"life":               signalLifetimeSummary(sig, now),
 			}
 			if sig.Strength != nil {
 				entry["strength"] = *sig.Strength

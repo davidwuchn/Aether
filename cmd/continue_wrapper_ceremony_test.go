@@ -26,6 +26,8 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		"Probe",
 		"## Learning Extraction",
 		"## After Continue",
+		"signal housekeeping",
+		"what expired, what remained active, and what that means for the next phase",
 		"### If the phase advanced",
 		"/ant:build N+1",
 		"### If continue is blocked",
@@ -64,7 +66,7 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		assertSubstringsInOrder(t, wrapperPath, text, inOrder)
 
 		advancedSection := sliceBetweenMarkers(t, wrapperPath, text, "### If the phase advanced", "### If continue is blocked")
-		for _, want := range []string{"/ant:build N+1", "It's safe to clear your context now.", "/ant:resume"} {
+		for _, want := range []string{"/ant:build N+1", "signal housekeeping", "It's safe to clear your context now.", "/ant:resume"} {
 			if !strings.Contains(advancedSection, want) {
 				t.Errorf("%s advanced section missing %q", wrapperPath, want)
 			}
@@ -83,7 +85,7 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 		}
 
 		finalSection := sliceBetweenMarkers(t, wrapperPath, text, "### If the colony completed", "## Guardrails")
-		for _, want := range []string{"/ant:seal", "It's safe to clear your context now.", "/ant:resume"} {
+		for _, want := range []string{"/ant:seal", "signal housekeeping", "It's safe to clear your context now.", "/ant:resume"} {
 			if !strings.Contains(finalSection, want) {
 				t.Errorf("%s final section missing %q", wrapperPath, want)
 			}

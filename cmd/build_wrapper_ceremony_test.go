@@ -24,6 +24,8 @@ func TestBuildWrapperCeremonyContract(t *testing.T) {
 		"REDIRECT",
 		"FOCUS",
 		"FEEDBACK",
+		"strength or remaining-life context",
+		"why each signal matters right now",
 		"## Phase Framing",
 		"Phase N of M — Name",
 		"## Spawn Ritual",

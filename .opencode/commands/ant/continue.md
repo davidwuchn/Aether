@@ -51,7 +51,7 @@ Branch strictly on the runtime result:
 
 1. Summarize what was verified and what the colony learned
 2. Route the user first to `/ant:build N+1`
-3. If the runtime surfaced signal housekeeping, mention it in one short line
+3. If the runtime surfaced signal housekeeping, explain what expired, what remained active, and what that means for the next phase in one short steering sentence
 4. Say: `It's safe to clear your context now.` and point to `/ant:resume`
 
 ### If continue is blocked
@@ -65,7 +65,8 @@ Branch strictly on the runtime result:
 
 1. Mark the colony's achievement in short Queen language
 2. Route the user first to `/ant:seal`
-3. Say: `It's safe to clear your context now.` and point to `/ant:resume`
+3. If the runtime surfaced signal housekeeping, explain what expired, what remained active, and what that means for the final seal in one short steering sentence
+4. Say: `It's safe to clear your context now.` and point to `/ant:resume`
 
 ## Guardrails
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
 	"github.com/calcosmic/Aether/pkg/colony"
@@ -265,12 +266,14 @@ func TestStatusShowsInlinePheromoneStrength(t *testing.T) {
 	s, tmpDir := setupTestStore(t)
 	defer os.RemoveAll(tmpDir)
 
+	now := time.Now().UTC()
 	redirectStrength := 0.91
 	focusStrength := 0.83
+	redirectExpiresAt := now.Add(48 * time.Hour).Format(time.RFC3339)
 	pf := colony.PheromoneFile{
 		Signals: []colony.PheromoneSignal{
-			{ID: "sig_redirect", Type: "REDIRECT", Priority: "high", Source: "test", CreatedAt: "2026-04-21T09:00:00Z", Active: true, Strength: &redirectStrength, Content: []byte(`{"text":"Avoid global state"}`)},
-			{ID: "sig_focus", Type: "FOCUS", Priority: "normal", Source: "test", CreatedAt: "2026-04-21T09:01:00Z", Active: true, Strength: &focusStrength, Content: []byte(`{"text":"Focus on lifecycle output"}`)},
+			{ID: "sig_redirect", Type: "REDIRECT", Priority: "high", Source: "test", CreatedAt: now.Format(time.RFC3339), ExpiresAt: &redirectExpiresAt, Active: true, Strength: &redirectStrength, Content: []byte(`{"text":"Avoid global state"}`)},
+			{ID: "sig_focus", Type: "FOCUS", Priority: "normal", Source: "test", CreatedAt: now.Format(time.RFC3339), Active: true, Strength: &focusStrength, Content: []byte(`{"text":"Focus on lifecycle output"}`)},
 		},
 	}
 	if err := s.SaveJSON("pheromones.json", pf); err != nil {
@@ -290,7 +293,7 @@ func TestStatusShowsInlinePheromoneStrength(t *testing.T) {
 	}
 
 	output := buf.String()
-	for _, want := range []string{"Active Pheromones", "Strength", "Avoid global state", "Focus on lifecycle output", "0.91", "0.83"} {
+	for _, want := range []string{"Active Pheromones", "Strength", "Life", "Avoid global state", "Focus on lifecycle output", "0.91", "0.83", "phase-scoped", "ttl"} {
 		if !strings.Contains(output, want) {
 			t.Errorf("status output missing %q\n%s", want, output)
 		}

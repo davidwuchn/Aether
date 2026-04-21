@@ -8,9 +8,10 @@ wrapper_additions:
     Ground the build before dispatching:
     1. Run `AETHER_OUTPUT_MODE=visual aether status` to see current colony state, phase progress, and active signals.
     2. Surface active pheromones as a compact steering block with REDIRECT first, then FOCUS, then FEEDBACK.
-    3. Frame the requested work as `Phase N of M — Name` with a one-line purpose.
-    4. Deliver a short spawn ritual naming the likely castes such as Builder, Watcher, Scout, Architect, Oracle, or Chaos, without claiming dispatch truth before the runtime speaks.
-    5. Immediately before the runtime call, say: `Dispatching workers now...`
+    3. Include strength or remaining-life context so the user understands why each signal matters right now.
+    4. Frame the requested work as `Phase N of M — Name` with a one-line purpose.
+    5. Deliver a short spawn ritual naming the likely castes such as Builder, Watcher, Scout, Architect, Oracle, or Chaos, without claiming dispatch truth before the runtime speaks.
+    6. Immediately before the runtime call, say: `Dispatching workers now...`
   post_build: |
     Close with a short colony-language synthesis:
     1. Summarize what moved forward and which workers or castes the runtime actually dispatched.

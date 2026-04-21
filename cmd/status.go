@@ -508,6 +508,7 @@ func renderPheromoneSummary(b *strings.Builder, s *storage.Store) {
 	type pheromoneRow struct {
 		Type     string
 		Strength float64
+		Life     string
 		Signal   string
 	}
 	rows := []pheromoneRow{}
@@ -518,6 +519,7 @@ func renderPheromoneSummary(b *strings.Builder, s *storage.Store) {
 		rows = append(rows, pheromoneRow{
 			Type:     sig.Type,
 			Strength: computeEffectiveStrength(sig, now),
+			Life:     signalLifetimeSummary(sig, now),
 			Signal:   extractContentText(sig.Content),
 		})
 	}
@@ -538,8 +540,9 @@ func renderPheromoneSummary(b *strings.Builder, s *storage.Store) {
 	})
 
 	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Type", "Strength", "Signal"})
+	t.AppendHeader(table.Row{"Type", "Strength", "Life", "Signal"})
 	b.WriteString("   Strength reflects the active decay-adjusted signal weight.\n")
+	b.WriteString("   Life shows remaining expiry or decay context for each signal.\n")
 
 	for _, row := range rows {
 		signal := row.Signal
@@ -549,7 +552,11 @@ func renderPheromoneSummary(b *strings.Builder, s *storage.Store) {
 		if len(signal) > 44 {
 			signal = signal[:41] + "..."
 		}
-		t.AppendRow(table.Row{row.Type, fmt.Sprintf("%.2f", row.Strength), signal})
+		life := row.Life
+		if len(life) > 26 {
+			life = life[:23] + "..."
+		}
+		t.AppendRow(table.Row{row.Type, fmt.Sprintf("%.2f", row.Strength), life, signal})
 	}
 
 	t.SetStyle(table.StyleRounded)

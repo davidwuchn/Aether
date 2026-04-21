@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/exchange"
@@ -128,11 +129,12 @@ func TestPheromoneDisplayWithSignals(t *testing.T) {
 	pf := colony.PheromoneFile{
 		Signals: []colony.PheromoneSignal{
 			{
-				ID:       "sig-1",
-				Type:     "FOCUS",
-				Priority: "normal",
-				Active:   true,
-				Content:  content,
+				ID:        "sig-1",
+				Type:      "FOCUS",
+				Priority:  "normal",
+				CreatedAt: time.Now().UTC().Format(time.RFC3339),
+				Active:    true,
+				Content:   content,
 			},
 			{
 				ID:       "sig-2",
@@ -157,13 +159,16 @@ func TestPheromoneDisplayWithSignals(t *testing.T) {
 	output := buf.String()
 
 	// Should contain the table header
-	if !strings.Contains(output, "TYPE") || !strings.Contains(output, "CONTENT") {
+	if !strings.Contains(output, "TYPE") || !strings.Contains(output, "CONTENT") || !strings.Contains(output, "LIFE") {
 		t.Errorf("expected table header in output, got: %s", output)
 	}
 
 	// Should show the active FOCUS signal
 	if !strings.Contains(output, "FOCUS") {
 		t.Errorf("expected FOCUS signal in output, got: %s", output)
+	}
+	if !strings.Contains(output, "phase-scoped") {
+		t.Errorf("expected lifespan context in output, got: %s", output)
 	}
 
 	// Should NOT show inactive REDIRECT (active-only defaults true)

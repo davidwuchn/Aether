@@ -16,6 +16,7 @@ wrapper_additions:
     3. If the colony completed, mark the achievement briefly and route first to `/ant:seal`.
     4. Only after successful advance or final completion, say it is safe to clear context and point to `/ant:resume`.
     5. Mention signal housekeeping only if the runtime surfaced it, and keep that note to one short line.
+    6. When signal housekeeping appears, explain what expired, what remained active, and what that means for the next phase or final seal without diffing pheromone files directly.
 guardrails:
   - "Do NOT replay verification loops or reimplement gate logic."
   - "Do NOT read or write colony state files by hand."

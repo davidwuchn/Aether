@@ -25,6 +25,7 @@ Before the build call, present active pheromones as a compact steering block:
 - `REDIRECT` first — make hard constraints explicit
 - `FOCUS` second — summarize the main areas that deserve extra attention
 - `FEEDBACK` last — mention only the lightweight adjustments that matter for this phase
+- Include strength or remaining-life context so the user understands why each signal matters right now
 - If there are no active signals, say so plainly and keep the block short
 
 ## Phase Framing
