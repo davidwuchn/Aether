@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -297,11 +298,21 @@ func repairStateIssues(issue HealthIssue, opts MedicOptions, dataPath string) Re
 		record.Action = "remove_orphaned_worktrees"
 		beforeCount := len(state.Worktrees)
 
+		// Get list of actual git worktree paths so we don't remove entries
+		// that still exist on disk (user needs to clean up manually).
+		existingWorktrees := getGitWorktreePaths()
+
 		var remaining []colony.WorktreeEntry
 		for _, wt := range state.Worktrees {
 			if wt.Status != colony.WorktreeOrphaned {
 				remaining = append(remaining, wt)
+				continue
 			}
+			// If the git worktree actually exists, skip removal
+			if existingWorktrees[wt.Path] {
+				continue
+			}
+			// Safe to remove orphaned entry with no backing worktree
 		}
 		state.Worktrees = remaining
 
@@ -774,4 +785,28 @@ func repairTruncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// getGitWorktreePaths returns a set of paths currently registered as git worktrees.
+// Returns an empty map if git is not available or the command fails.
+func getGitWorktreePaths() map[string]bool {
+	result := make(map[string]bool)
+	cmd := exec.Command("git", "worktree", "list", "--porcelain")
+	cmd.Stderr = nil // suppress errors
+	output, err := cmd.Output()
+	if err != nil {
+		return result
+	}
+
+	// Parse porcelain output: "worktree <path>" lines
+	for _, line := range strings.Split(string(output), "\n") {
+		if strings.HasPrefix(line, "worktree ") {
+			path := strings.TrimSpace(strings.TrimPrefix(line, "worktree "))
+			if path != "" {
+				result[path] = true
+			}
+		}
+	}
+
+	return result
 }
