@@ -92,6 +92,15 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 	}
 
 	startedAt := time.Now().UTC()
+	runHandle, err := beginRuntimeSpawnRun("build", startedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize build run: %w", err)
+	}
+	runStatus := "failed"
+	defer func() {
+		finishRuntimeSpawnRun(runHandle, runStatus, time.Now().UTC())
+	}()
+
 	phase := state.Plan.Phases[phaseNum-1]
 	depth := strings.TrimSpace(state.ColonyDepth)
 	if depth == "" {
@@ -208,6 +217,7 @@ func runCodexBuild(root string, phaseNum int) (map[string]interface{}, error) {
 		"worker_briefs":  briefPaths,
 		"claims_path":    displayDataPath(claimsRel),
 	}
+	runStatus = dispatchRunStatus(dispatches)
 	return result, nil
 }
 
@@ -507,29 +517,7 @@ func executeCodexBuildDispatches(ctx context.Context, root string, phase colony.
 	}
 
 	claims := codex.ExtractClaims(results)
-	return dispatches, claims, mode, markCodexBuildDispatchesAwaitingContinue(dispatches)
-}
-
-func markCodexBuildDispatchesAwaitingContinue(dispatches []codexBuildDispatch) error {
-	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
-	for _, dispatch := range dispatches {
-		summary := strings.TrimSpace(dispatch.Summary)
-		if summary == "" && len(dispatch.Blockers) > 0 {
-			summary = strings.Join(dispatch.Blockers, "; ")
-		}
-		if summary == "" {
-			summary = dispatch.Task
-		}
-		status := strings.TrimSpace(dispatch.Status)
-		if status == "" || status == "completed" {
-			status = "active"
-			summary = "Awaiting continue verification"
-		}
-		if err := spawnTree.UpdateStatus(dispatch.Name, status, summary); err != nil {
-			return fmt.Errorf("failed to update build dispatch %s: %w", dispatch.Name, err)
-		}
-	}
-	return nil
+	return dispatches, claims, mode, nil
 }
 
 func writeCodexBuildArtifacts(root string, state colony.ColonyState, phase colony.Phase, buildDirRel, checkpointRel, claimsRel string, playbooks []string, dispatches []codexBuildDispatch, startedAt time.Time, dispatchMode string) ([]string, []codexBuildDispatch, error) {
@@ -816,6 +804,14 @@ func recordCodexBuildDispatches(dispatches []codexBuildDispatch) error {
 		}
 	}
 	return nil
+}
+
+func dispatchRunStatus(dispatches []codexBuildDispatch) string {
+	statuses := make([]string, 0, len(dispatches))
+	for _, dispatch := range dispatches {
+		statuses = append(statuses, dispatch.Status)
+	}
+	return summarizeRunStatus(statuses...)
 }
 
 func ensureUniqueBuildDispatchNames(dispatches []codexBuildDispatch) ([]codexBuildDispatch, error) {

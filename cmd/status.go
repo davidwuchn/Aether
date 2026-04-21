@@ -217,7 +217,7 @@ func renderDashboard(state colony.ColonyState, s *storage.Store) string {
 	b.WriteString("\nActive Pheromones\n")
 	renderPheromoneSummary(&b, s)
 
-	spawnSummary := loadSpawnActivitySummary(s)
+	spawnSummary := loadSpawnActivitySummaryForState(s, &state)
 	liveSpawnView := state.State == colony.StateEXECUTING && !state.Paused && state.BuildStartedAt != nil
 	if !liveSpawnView {
 		spawnSummary = withoutLiveSpawnEntries(spawnSummary)
@@ -282,21 +282,43 @@ type spawnActivitySummary struct {
 	CompletedCount int
 	BlockedCount   int
 	FailedCount    int
+	CurrentRunID   string
+	CurrentCommand string
 }
 
 func loadSpawnActivitySummary(s *storage.Store) spawnActivitySummary {
+	return loadSpawnActivitySummaryForState(s, nil)
+}
+
+func loadSpawnActivitySummaryForState(s *storage.Store, state *colony.ColonyState) spawnActivitySummary {
 	if s == nil {
 		return spawnActivitySummary{}
 	}
 
-	entries, err := agent.NewSpawnTree(s, "spawn-tree.txt").Parse()
+	tree := agent.NewSpawnTree(s, "spawn-tree.txt")
+	entries, err := tree.Parse()
 	if err != nil || len(entries) == 0 {
 		return spawnActivitySummary{}
 	}
 
+	currentRunID := ""
+	currentCommand := ""
+	if run, ok, runErr := tree.CurrentRun(); runErr == nil && ok {
+		if filtered, filterErr := tree.EntriesForRun(run.ID); filterErr == nil && len(filtered) > 0 {
+			entries = filtered
+			currentRunID = run.ID
+			currentCommand = run.Command
+		}
+	}
+	if currentRunID == "" && state != nil && state.BuildStartedAt != nil {
+		entries = filterSpawnEntriesSince(entries, *state.BuildStartedAt)
+	}
+
 	summary := spawnActivitySummary{
-		Entries:    make([]agent.SpawnEntry, len(entries)),
-		TotalCount: len(entries),
+		Entries:        make([]agent.SpawnEntry, len(entries)),
+		TotalCount:     len(entries),
+		CurrentRunID:   currentRunID,
+		CurrentCommand: currentCommand,
 	}
 	copy(summary.Entries, entries)
 	sort.Slice(summary.Entries, func(i, j int) bool {
@@ -304,19 +326,37 @@ func loadSpawnActivitySummary(s *storage.Store) spawnActivitySummary {
 	})
 
 	for _, entry := range summary.Entries {
-		switch entry.Status {
-		case "spawned", "active":
+		switch {
+		case agent.IsLiveSpawnStatus(entry.Status):
 			summary.ActiveCount++
 			summary.ActiveEntries = append(summary.ActiveEntries, entry)
-		case "completed":
+		case entry.Status == "completed":
 			summary.CompletedCount++
-		case "blocked":
+		case entry.Status == "blocked":
 			summary.BlockedCount++
-		case "failed":
+		case entry.Status == "failed" || entry.Status == "timeout":
 			summary.FailedCount++
 		}
 	}
 	return summary
+}
+
+func filterSpawnEntriesSince(entries []agent.SpawnEntry, startedAt time.Time) []agent.SpawnEntry {
+	if startedAt.IsZero() {
+		return entries
+	}
+	filtered := make([]agent.SpawnEntry, 0, len(entries))
+	for _, entry := range entries {
+		ts := spawnEntryTimestamp(entry)
+		if ts.IsZero() || ts.Before(startedAt) {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	if len(filtered) == 0 {
+		return entries
+	}
+	return filtered
 }
 
 func spawnEntryTimestamp(entry agent.SpawnEntry) time.Time {
@@ -341,6 +381,9 @@ func renderActiveWorkers(b *strings.Builder, entries []agent.SpawnEntry) {
 			entry.Task,
 			entry.Status,
 		)
+		if summary := strings.TrimSpace(entry.Summary); summary != "" {
+			fmt.Fprintf(b, "      %s\n", summary)
+		}
 	}
 	if len(entries) > limit {
 		fmt.Fprintf(b, "   ... and %d more active workers\n", len(entries)-limit)
@@ -376,6 +419,9 @@ func renderSpawnActivity(b *strings.Builder, summary spawnActivitySummary) {
 			entry.Task,
 			entry.Status,
 		)
+		if summary := strings.TrimSpace(entry.Summary); summary != "" {
+			fmt.Fprintf(b, "      %s\n", summary)
+		}
 	}
 	if len(summary.Entries) > limit {
 		fmt.Fprintf(b, "   ... and %d more recent workers\n", len(summary.Entries)-limit)
@@ -384,7 +430,9 @@ func renderSpawnActivity(b *strings.Builder, summary spawnActivitySummary) {
 
 func withoutLiveSpawnEntries(summary spawnActivitySummary) spawnActivitySummary {
 	filtered := spawnActivitySummary{
-		Entries: make([]agent.SpawnEntry, 0, len(summary.Entries)),
+		Entries:        make([]agent.SpawnEntry, 0, len(summary.Entries)),
+		CurrentRunID:   summary.CurrentRunID,
+		CurrentCommand: summary.CurrentCommand,
 	}
 	for _, entry := range summary.Entries {
 		switch entry.Status {

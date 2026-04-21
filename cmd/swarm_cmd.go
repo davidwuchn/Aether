@@ -97,7 +97,7 @@ func runSwarmCompatibility(root, target string, watch bool) (map[string]interfac
 
 func buildSwarmWatchResult(target string, watch, liveRefresh bool) map[string]interface{} {
 	state, _ := loadColonyState()
-	spawnSummary := loadSpawnActivitySummary(store)
+	spawnSummary := loadSpawnActivitySummaryForState(store, state)
 	active := spawnSummary.ActiveEntries
 
 	next := `aether init "describe the goal"`
@@ -137,6 +137,8 @@ func buildSwarmWatchResult(target string, watch, liveRefresh bool) map[string]in
 		"scope":               scope,
 		"state":               stateName,
 		"phase_name":          phaseName,
+		"current_run_id":      spawnSummary.CurrentRunID,
+		"current_run_command": spawnSummary.CurrentCommand,
 		"active_workers":      workers,
 		"active_count":        len(workers),
 		"completed_count":     spawnSummary.CompletedCount,

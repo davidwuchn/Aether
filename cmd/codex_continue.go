@@ -484,24 +484,18 @@ func closeCodexContinueWorkers(manifest codexContinueManifest) ([]string, error)
 	closed := make([]string, 0, len(manifest.Data.Dispatches))
 	for _, dispatch := range manifest.Data.Dispatches {
 		status := "completed"
-		summary := "Closed by continue after verification"
+		summary := continueWorkerCloseSummary(dispatch)
 		switch strings.TrimSpace(dispatch.Status) {
 		case "failed", "blocked":
 			status = strings.TrimSpace(dispatch.Status)
 			if status == "" {
 				status = "failed"
 			}
-			if len(dispatch.Blockers) > 0 {
-				summary = strings.Join(dispatch.Blockers, "; ")
-			} else if strings.TrimSpace(dispatch.Summary) != "" {
-				summary = strings.TrimSpace(dispatch.Summary)
-			}
 		case "completed", "":
-			if dispatch.Caste == "watcher" {
-				summary = "Verification passed during continue"
-			}
+			summary = continueWorkerCloseSummary(dispatch)
 		default:
 			status = strings.TrimSpace(dispatch.Status)
+			summary = continueWorkerCloseSummary(dispatch)
 		}
 		if err := spawnTree.UpdateStatus(dispatch.Name, status, summary); err != nil {
 			return closed, fmt.Errorf("failed to close worker %s: %w", dispatch.Name, err)

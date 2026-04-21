@@ -1646,8 +1646,13 @@ func writeDispatchExecutionStatus(b *strings.Builder, dispatch codexBuildDispatc
 		return
 	}
 	icon := "\u2717"
-	if status == "completed" {
+	switch status {
+	case "completed":
 		icon = "\u2713"
+	case "blocked":
+		icon = "!"
+	case "active", "starting", "running":
+		icon = "…"
 	}
 	b.WriteString("  ")
 	b.WriteString(icon)

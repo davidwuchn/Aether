@@ -34,6 +34,18 @@ type DispatchResult struct {
 	Error        error         // Error from invocation (if any)
 }
 
+// DispatchLifecycleEvent reports a runtime transition for a worker dispatch.
+type DispatchLifecycleEvent struct {
+	Dispatch     WorkerDispatch
+	Status       string
+	WorkerResult *WorkerResult
+	Error        error
+	OccurredAt   time.Time
+}
+
+// DispatchObserver receives runtime lifecycle events while dispatches execute.
+type DispatchObserver func(DispatchLifecycleEvent)
+
 // ClaimsSummary aggregates file claims across all successful workers in a batch.
 // It matches the last-build-claims.json schema used by cmd/codex_build.go.
 type ClaimsSummary struct {
@@ -60,6 +72,11 @@ func GroupByWave(dispatches []WorkerDispatch) map[int][]WorkerDispatch {
 // Returns all results when all waves complete. The returned error is always nil
 // (failures are captured per-worker in DispatchResult.Error).
 func DispatchBatch(ctx context.Context, invoker WorkerInvoker, dispatches []WorkerDispatch) ([]DispatchResult, error) {
+	return DispatchBatchWithObserver(ctx, invoker, dispatches, nil)
+}
+
+// DispatchBatchWithObserver executes multiple workers while emitting lifecycle transitions.
+func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispatches []WorkerDispatch, observer DispatchObserver) ([]DispatchResult, error) {
 	if len(dispatches) == 0 {
 		return nil, nil
 	}
@@ -75,6 +92,7 @@ func DispatchBatch(ctx context.Context, invoker WorkerInvoker, dispatches []Work
 		for _, d := range waveDispatches {
 			// Check if context is already cancelled before invoking
 			if ctx.Err() != nil {
+				emitDispatchLifecycle(observer, d, "timeout", nil, ctx.Err())
 				allResults = append(allResults, DispatchResult{
 					WorkerName: d.WorkerName,
 					Status:     "timeout",
@@ -97,6 +115,8 @@ func DispatchBatch(ctx context.Context, invoker WorkerInvoker, dispatches []Work
 				PheromoneSection: d.PheromoneSection,
 			}
 
+			emitDispatchLifecycle(observer, d, "starting", nil, nil)
+			emitDispatchLifecycle(observer, d, "active", nil, nil)
 			result, err := invoker.Invoke(ctx, config)
 
 			dr := DispatchResult{
@@ -118,6 +138,7 @@ func DispatchBatch(ctx context.Context, invoker WorkerInvoker, dispatches []Work
 				}
 			}
 
+			emitDispatchLifecycle(observer, d, dr.Status, dr.WorkerResult, dr.Error)
 			allResults = append(allResults, dr)
 		}
 	}
@@ -163,4 +184,17 @@ func (r DispatchResult) String() string {
 		status = fmt.Sprintf("%s (%v)", status, r.Error)
 	}
 	return fmt.Sprintf("[%s] %s", status, r.WorkerName)
+}
+
+func emitDispatchLifecycle(observer DispatchObserver, dispatch WorkerDispatch, status string, workerResult *WorkerResult, err error) {
+	if observer == nil {
+		return
+	}
+	observer(DispatchLifecycleEvent{
+		Dispatch:     dispatch,
+		Status:       status,
+		WorkerResult: workerResult,
+		Error:        err,
+		OccurredAt:   time.Now().UTC(),
+	})
 }

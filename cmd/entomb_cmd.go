@@ -244,6 +244,7 @@ func copyEntombArtifacts(aetherRoot, dataDir, chamberDir string) error {
 		"flags.json",
 		"constraints.json",
 		"spawn-tree.txt",
+		"spawn-runs.json",
 		"timing.log",
 		"view-state.json",
 	}
@@ -416,6 +417,7 @@ func clearActiveColonyRuntimeFiles(aetherRoot, dataDir string) error {
 		filepath.Join(dataDir, "flags.json"),
 		filepath.Join(dataDir, "constraints.json"),
 		filepath.Join(dataDir, "spawn-tree.txt"),
+		filepath.Join(dataDir, "spawn-runs.json"),
 		filepath.Join(dataDir, "timing.log"),
 		filepath.Join(dataDir, "view-state.json"),
 		filepath.Join(dataDir, ".version-check-cache"),

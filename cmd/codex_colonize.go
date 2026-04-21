@@ -79,6 +79,15 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 	if err := os.MkdirAll(surveyDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create survey directory: %w", err)
 	}
+
+	runHandle, err := beginRuntimeSpawnRun("colonize", time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize colonize run: %w", err)
+	}
+	runStatus := "failed"
+	defer func() {
+		finishRuntimeSpawnRun(runHandle, runStatus, time.Now().UTC())
+	}()
 	surveySnapshots := snapshotRelativeFiles(root, filepath.ToSlash(filepath.Join(".aether", "data", "survey")))
 
 	dispatches := plannedSurveyors(root)
@@ -185,6 +194,11 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 		},
 		"next": "aether plan",
 	}
+	statuses := make([]string, 0, len(dispatches))
+	for _, dispatch := range dispatches {
+		statuses = append(statuses, dispatch.Status)
+	}
+	runStatus = summarizeRunStatus(statuses...)
 	return result, nil
 }
 
@@ -427,7 +441,12 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 		})
 	}
 
-	results, err := codex.DispatchBatch(ctx, invoker, dispatches)
+	results, err := codex.DispatchBatchWithObserver(
+		ctx,
+		invoker,
+		dispatches,
+		spawnTreeDispatchObserver(agent.NewSpawnTree(store, "spawn-tree.txt"), "Survey running"),
+	)
 	if err != nil {
 		return nil, err
 	}

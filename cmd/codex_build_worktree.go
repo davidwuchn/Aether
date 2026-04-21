@@ -29,10 +29,10 @@ func effectiveParallelMode(state colony.ColonyState) colony.ParallelMode {
 
 func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Phase, dispatches []codex.WorkerDispatch, invoker codex.WorkerInvoker, startedAt time.Time, parallelMode colony.ParallelMode) ([]codex.DispatchResult, error) {
 	if parallelMode != colony.ModeWorktree {
-		return codex.DispatchBatch(ctx, invoker, dispatches)
+		return dispatchCodexBuildWorkersInRepo(ctx, phase, dispatches, invoker, parallelMode)
 	}
 	if _, ok := invoker.(*codex.FakeInvoker); ok {
-		return codex.DispatchBatch(ctx, invoker, dispatches)
+		return dispatchCodexBuildWorkersInRepo(ctx, phase, dispatches, invoker, parallelMode)
 	}
 	if err := ensureGitRepository(root); err != nil {
 		return nil, fmt.Errorf("worktree mode requires a git repository: %w", err)
@@ -47,7 +47,9 @@ func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Ph
 
 	var results []codex.DispatchResult
 	for _, wave := range waveNumbers {
-		for _, dispatch := range waves[wave] {
+		waveDispatches := waves[wave]
+		emitCodexBuildWaveProgress(phase, wave, waveDispatches, parallelMode)
+		for _, dispatch := range waveDispatches {
 			if ctx.Err() != nil {
 				results = append(results, codex.DispatchResult{
 					WorkerName: dispatch.WorkerName,
@@ -72,6 +74,12 @@ func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Ph
 				_ = finalizeBuildWorktree(root, session, colony.WorktreeOrphaned)
 				return nil, fmt.Errorf("snapshot worktree for %s: %w", dispatch.WorkerName, err)
 			}
+
+			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "active", buildDispatchActiveSummary(dispatch, wave)); err != nil {
+				_ = finalizeBuildWorktree(root, session, colony.WorktreeOrphaned)
+				return nil, fmt.Errorf("mark worker active for %s: %w", dispatch.WorkerName, err)
+			}
+			emitCodexBuildWorkerStarted(dispatch, wave)
 
 			cfg := codex.WorkerConfig{
 				AgentName:        dispatch.AgentName,
@@ -134,6 +142,82 @@ func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Ph
 				dr.Status = "failed"
 				dr.Error = cleanupErr
 			}
+			if dr.Status == "" {
+				dr.Status = "failed"
+			}
+			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, dr.Status, buildDispatchResultSummary(dispatch, dr)); err != nil {
+				return nil, fmt.Errorf("complete worker %s: %w", dispatch.WorkerName, err)
+			}
+			emitCodexBuildWorkerFinished(dispatch, dr)
+			results = append(results, dr)
+		}
+	}
+	return results, nil
+}
+
+func dispatchCodexBuildWorkersInRepo(ctx context.Context, phase colony.Phase, dispatches []codex.WorkerDispatch, invoker codex.WorkerInvoker, parallelMode colony.ParallelMode) ([]codex.DispatchResult, error) {
+	waves := codex.GroupByWave(dispatches)
+	waveNumbers := make([]int, 0, len(waves))
+	for wave := range waves {
+		waveNumbers = append(waveNumbers, wave)
+	}
+	sort.Ints(waveNumbers)
+
+	var results []codex.DispatchResult
+	for _, wave := range waveNumbers {
+		waveDispatches := waves[wave]
+		emitCodexBuildWaveProgress(phase, wave, waveDispatches, parallelMode)
+		for _, dispatch := range waveDispatches {
+			if ctx.Err() != nil {
+				results = append(results, codex.DispatchResult{
+					WorkerName: dispatch.WorkerName,
+					Status:     "timeout",
+					Error:      ctx.Err(),
+				})
+				continue
+			}
+
+			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "active", buildDispatchActiveSummary(dispatch, wave)); err != nil {
+				return nil, fmt.Errorf("mark worker active for %s: %w", dispatch.WorkerName, err)
+			}
+			emitCodexBuildWorkerStarted(dispatch, wave)
+
+			cfg := codex.WorkerConfig{
+				AgentName:        dispatch.AgentName,
+				AgentTOMLPath:    dispatch.AgentTOMLPath,
+				Caste:            dispatch.Caste,
+				WorkerName:       dispatch.WorkerName,
+				TaskID:           dispatch.TaskID,
+				TaskBrief:        dispatch.TaskBrief,
+				ContextCapsule:   dispatch.ContextCapsule,
+				Root:             dispatch.Root,
+				Timeout:          dispatch.Timeout,
+				SkillSection:     dispatch.SkillSection,
+				PheromoneSection: dispatch.PheromoneSection,
+			}
+
+			result, err := invoker.Invoke(ctx, cfg)
+			dr := codex.DispatchResult{WorkerName: dispatch.WorkerName}
+			if err != nil {
+				dr.Status = "failed"
+				dr.Error = err
+			} else if result.Status == "completed" {
+				dr.Status = "completed"
+				dr.WorkerResult = &result
+			} else {
+				dr.Status = result.Status
+				dr.WorkerResult = &result
+				if result.Error != nil {
+					dr.Error = result.Error
+				}
+			}
+			if dr.Status == "" {
+				dr.Status = "failed"
+			}
+			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, dr.Status, buildDispatchResultSummary(dispatch, dr)); err != nil {
+				return nil, fmt.Errorf("complete worker %s: %w", dispatch.WorkerName, err)
+			}
+			emitCodexBuildWorkerFinished(dispatch, dr)
 			results = append(results, dr)
 		}
 	}

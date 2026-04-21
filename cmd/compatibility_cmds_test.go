@@ -267,6 +267,81 @@ func TestSwarmCompatibilityWatchReportsActiveWorkers(t *testing.T) {
 	}
 }
 
+func TestSwarmCompatibilityWatchPrefersCurrentRunWorkers(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	goal := "Watch current run only"
+	now := time.Now().UTC()
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		Scope:          colony.ScopeMeta,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Execution", Status: colony.PhaseInProgress},
+			},
+		},
+	})
+
+	spawnData := strings.Join([]string{
+		fmt.Sprintf("%s|Queen|builder|Ghost-41|Old worker|1|spawned", now.Add(-110*time.Second).Format(time.RFC3339)),
+		fmt.Sprintf("%s|Ghost-41|active|Old active", now.Add(-100*time.Second).Format(time.RFC3339)),
+		fmt.Sprintf("%s|Queen|builder|Hammer-1|Current worker|1|spawned", now.Add(-10*time.Second).Format(time.RFC3339)),
+		fmt.Sprintf("%s|Hammer-1|active|Current active", now.Add(-5*time.Second).Format(time.RFC3339)),
+	}, "\n") + "\n"
+	if err := store.AtomicWrite("spawn-tree.txt", []byte(spawnData)); err != nil {
+		t.Fatalf("write spawn-tree.txt: %v", err)
+	}
+
+	runState := fmt.Sprintf(`{
+  "current_run_id": "run-current",
+  "runs": [
+    {
+      "id": "run-old",
+      "command": "build",
+      "started_at": %q,
+      "ended_at": %q,
+      "status": "completed"
+    },
+    {
+      "id": "run-current",
+      "command": "build",
+      "started_at": %q,
+      "status": "active"
+    }
+  ]
+}
+`, now.Add(-2*time.Minute).Format(time.RFC3339), now.Add(-90*time.Second).Format(time.RFC3339), now.Add(-30*time.Second).Format(time.RFC3339))
+	if err := store.AtomicWrite("spawn-runs.json", []byte(runState)); err != nil {
+		t.Fatalf("write spawn-runs.json: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"swarm", "--watch"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("swarm --watch returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if result["active_count"] != float64(1) {
+		t.Fatalf("active_count = %v, want 1", result["active_count"])
+	}
+
+	workers := result["active_workers"].([]interface{})
+	if len(workers) != 1 {
+		t.Fatalf("active_workers len = %d, want 1", len(workers))
+	}
+	worker := workers[0].(map[string]interface{})
+	if worker["name"] != "Hammer-1" {
+		t.Fatalf("worker name = %v, want Hammer-1", worker["name"])
+	}
+}
+
 func TestAutopilotSuccessStatusCountsAsCompleted(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)

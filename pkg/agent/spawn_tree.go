@@ -25,6 +25,15 @@ type SpawnEntry struct {
 	Summary    string // Completion summary (set via spawn-complete --summary)
 }
 
+// SpawnRun tracks one logical dispatch or workflow run for current-run filtering.
+type SpawnRun struct {
+	ID        string `json:"id"`
+	Command   string `json:"command"`
+	StartedAt string `json:"started_at"`
+	EndedAt   string `json:"ended_at,omitempty"`
+	Status    string `json:"status"`
+}
+
 // completionLine represents a status update line in the spawn tree file.
 // Format: timestamp|name|status|summary (summary is empty for backward compat)
 type completionLine struct {
@@ -32,6 +41,11 @@ type completionLine struct {
 	Name      string
 	Status    string
 	Summary   string
+}
+
+type spawnRunState struct {
+	CurrentRunID string     `json:"current_run_id,omitempty"`
+	Runs         []SpawnRun `json:"runs,omitempty"`
 }
 
 // SpawnTree tracks running agents in the same pipe-delimited format as the
@@ -44,6 +58,15 @@ type SpawnTree struct {
 	filePath    string
 }
 
+const (
+	defaultSpawnRunFile  = "spawn-runs.json"
+	spawnRunHistoryLimit = 12
+	spawnRunStatusActive = "active"
+	spawnRunStatusDone   = "completed"
+	spawnRunStatusFailed = "failed"
+	spawnRunStatusStale  = "superseded"
+)
+
 // NewSpawnTree creates a spawn tree backed by the given store.
 // filePath defaults to "spawn-tree.txt" if empty.
 // Existing entries are loaded from the file on creation (graceful: empty if missing).
@@ -55,11 +78,121 @@ func NewSpawnTree(store *storage.Store, filePath string) *SpawnTree {
 		store:    store,
 		filePath: filePath,
 	}
+	if store == nil {
+		return st
+	}
 	// Load existing entries (graceful: empty if file missing)
 	entries, completions, _ := st.parseFile()
 	st.entries = entries
 	st.completions = completions
 	return st
+}
+
+// BeginRun records a new logical runtime run and makes it the current run.
+// Older active runs are superseded so stale activity stops poisoning later commands.
+func (st *SpawnTree) BeginRun(command string, startedAt time.Time) (SpawnRun, error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	if startedAt.IsZero() {
+		startedAt = time.Now().UTC()
+	}
+
+	runState, err := st.loadRunStateLocked()
+	if err != nil {
+		return SpawnRun{}, err
+	}
+
+	now := startedAt.UTC().Format(time.RFC3339)
+	for i := range runState.Runs {
+		if runState.Runs[i].Status == spawnRunStatusActive {
+			runState.Runs[i].Status = spawnRunStatusStale
+			if strings.TrimSpace(runState.Runs[i].EndedAt) == "" {
+				runState.Runs[i].EndedAt = now
+			}
+		}
+	}
+
+	run := SpawnRun{
+		ID:        newSpawnRunID(command, startedAt.UTC()),
+		Command:   sanitizeSpawnField(command),
+		StartedAt: now,
+		Status:    spawnRunStatusActive,
+	}
+	runState.CurrentRunID = run.ID
+	runState.Runs = append(runState.Runs, run)
+	runState.Runs = trimSpawnRuns(runState.Runs)
+
+	if err := st.saveRunStateLocked(runState); err != nil {
+		return SpawnRun{}, err
+	}
+	return run, nil
+}
+
+// EndRun marks the specified logical runtime run as finished.
+func (st *SpawnTree) EndRun(runID, status string, endedAt time.Time) error {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	runState, err := st.loadRunStateLocked()
+	if err != nil {
+		return err
+	}
+	status = normalizeSpawnRunStatus(status)
+	if status == "" {
+		status = spawnRunStatusDone
+	}
+	if endedAt.IsZero() {
+		endedAt = time.Now().UTC()
+	}
+
+	for i := range runState.Runs {
+		if runState.Runs[i].ID != runID {
+			continue
+		}
+		runState.Runs[i].Status = status
+		runState.Runs[i].EndedAt = endedAt.UTC().Format(time.RFC3339)
+		return st.saveRunStateLocked(runState)
+	}
+	return fmt.Errorf("spawn_tree: run %q not found", runID)
+}
+
+// CurrentRun returns the current or most recent tracked run.
+func (st *SpawnTree) CurrentRun() (SpawnRun, bool, error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	runState, err := st.loadRunStateLocked()
+	if err != nil {
+		return SpawnRun{}, false, err
+	}
+	if run, ok := findSpawnRun(runState, runState.CurrentRunID); ok {
+		return run, true, nil
+	}
+	if len(runState.Runs) == 0 {
+		return SpawnRun{}, false, nil
+	}
+	return runState.Runs[len(runState.Runs)-1], true, nil
+}
+
+// EntriesForRun returns spawn entries that belong to the given run's time window.
+func (st *SpawnTree) EntriesForRun(runID string) ([]SpawnEntry, error) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	entries, _, err := st.parseFile()
+	if err != nil {
+		return nil, err
+	}
+	runState, err := st.loadRunStateLocked()
+	if err != nil {
+		return nil, err
+	}
+	run, ok := findSpawnRun(runState, runID)
+	if !ok {
+		return nil, nil
+	}
+	return filterEntriesForRun(entries, runState.Runs, run), nil
 }
 
 // RecordSpawn creates a new spawn entry and persists it to the file.
@@ -88,13 +221,14 @@ func (st *SpawnTree) UpdateStatus(name string, status string, summary string) er
 	defer st.mu.Unlock()
 
 	name = sanitizeSpawnField(name)
+	status = normalizeSpawnStatus(status)
 	summary = sanitizeSpawnField(summary)
 
 	// Find and update the most recent matching entry.
 	found := false
 	for i := len(st.entries) - 1; i >= 0; i-- {
 		if st.entries[i].AgentName == name {
-			st.entries[i].Status = sanitizeSpawnField(status)
+			st.entries[i].Status = status
 			st.entries[i].Summary = summary
 			found = true
 			break
@@ -108,7 +242,7 @@ func (st *SpawnTree) UpdateStatus(name string, status string, summary string) er
 	st.completions = append(st.completions, completionLine{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 		Name:      name,
-		Status:    sanitizeSpawnField(status),
+		Status:    status,
 		Summary:   summary,
 	})
 
@@ -124,6 +258,9 @@ func (st *SpawnTree) Persist() error {
 
 // persistLocked writes all entries to file. Caller must hold the mutex.
 func (st *SpawnTree) persistLocked() error {
+	if st.store == nil {
+		return nil
+	}
 	var lines []string
 
 	// Spawned lines: 7 fields timestamp|parent|caste|name|task|depth|status
@@ -147,6 +284,9 @@ func (st *SpawnTree) persistLocked() error {
 // parseFile reads and parses the spawn tree file.
 // Returns spawn entries, completion lines, and any error.
 func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
+	if st.store == nil {
+		return nil, nil, nil
+	}
 	data, err := st.store.ReadFile(st.filePath)
 	if err != nil {
 		// File doesn't exist -- return empty
@@ -182,7 +322,7 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 				AgentName:  fields[3],
 				Task:       fields[4],
 				Depth:      depth,
-				Status:     fields[6],
+				Status:     normalizeSpawnStatus(fields[6]),
 			}
 			nameToIdx[fields[3]] = len(entries)
 			entries = append(entries, entry)
@@ -194,8 +334,8 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 			// Completion line: timestamp|name|status|summary
 			// Old format (no summary): timestamp|name|status|  -> field[3] = ""
 			// New format (with summary): timestamp|name|status|summary -> field[3] = summary
-			status := completionFields[2]
-			if status == "completed" || status == "failed" || status == "blocked" {
+			status := normalizeSpawnStatus(completionFields[2])
+			if status != "" {
 				summary := completionFields[3]
 				completions = append(completions, completionLine{
 					Timestamp: completionFields[0],
@@ -224,6 +364,131 @@ func sanitizeSpawnField(value string) string {
 	return strings.TrimSpace(value)
 }
 
+func normalizeSpawnStatus(status string) string {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "timed_out":
+		return "timeout"
+	case "manual", "manually_reconciled":
+		return "manually-reconciled"
+	}
+	return sanitizeSpawnField(status)
+}
+
+func normalizeSpawnRunStatus(status string) string {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "", "complete", "completed", "done":
+		return spawnRunStatusDone
+	case "failed", "error", "timeout":
+		return spawnRunStatusFailed
+	case "superseded", "stale":
+		return spawnRunStatusStale
+	default:
+		return sanitizeSpawnField(status)
+	}
+}
+
+func newSpawnRunID(command string, startedAt time.Time) string {
+	label := sanitizeSpawnField(strings.ToLower(strings.ReplaceAll(command, " ", "-")))
+	if label == "" {
+		label = "run"
+	}
+	return fmt.Sprintf("%s-%d", label, startedAt.UnixNano())
+}
+
+func trimSpawnRuns(runs []SpawnRun) []SpawnRun {
+	if len(runs) <= spawnRunHistoryLimit {
+		return runs
+	}
+	return append([]SpawnRun{}, runs[len(runs)-spawnRunHistoryLimit:]...)
+}
+
+func findSpawnRun(runState spawnRunState, runID string) (SpawnRun, bool) {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return SpawnRun{}, false
+	}
+	for _, run := range runState.Runs {
+		if run.ID == runID {
+			return run, true
+		}
+	}
+	return SpawnRun{}, false
+}
+
+func parseSpawnRunTime(raw string) time.Time {
+	ts, err := time.Parse(time.RFC3339, strings.TrimSpace(raw))
+	if err != nil {
+		return time.Time{}
+	}
+	return ts
+}
+
+func filterEntriesForRun(entries []SpawnEntry, runs []SpawnRun, run SpawnRun) []SpawnEntry {
+	start := parseSpawnRunTime(run.StartedAt)
+	if start.IsZero() {
+		return entries
+	}
+
+	end := parseSpawnRunTime(run.EndedAt)
+	for _, candidate := range runs {
+		candidateStart := parseSpawnRunTime(candidate.StartedAt)
+		if candidateStart.IsZero() || !candidateStart.After(start) {
+			continue
+		}
+		if end.IsZero() || candidateStart.Before(end) {
+			end = candidateStart
+		}
+	}
+
+	filtered := make([]SpawnEntry, 0, len(entries))
+	for _, entry := range entries {
+		ts := parseSpawnRunTime(entry.Timestamp)
+		if ts.IsZero() {
+			continue
+		}
+		if ts.Before(start) {
+			continue
+		}
+		if !end.IsZero() && ts.After(end) {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
+
+func (st *SpawnTree) loadRunStateLocked() (spawnRunState, error) {
+	if st.store == nil {
+		return spawnRunState{}, nil
+	}
+
+	data, err := st.store.ReadFile(defaultSpawnRunFile)
+	if err != nil || len(strings.TrimSpace(string(data))) == 0 {
+		return spawnRunState{}, nil
+	}
+
+	var state spawnRunState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return spawnRunState{}, err
+	}
+	state.Runs = trimSpawnRuns(state.Runs)
+	return state, nil
+}
+
+func (st *SpawnTree) saveRunStateLocked(state spawnRunState) error {
+	if st.store == nil {
+		return nil
+	}
+	state.Runs = trimSpawnRuns(state.Runs)
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	return st.store.AtomicWrite(defaultSpawnRunFile, append(data, '\n'))
+}
+
 // Parse reads the file and returns all spawn entries with statuses merged
 // from completion lines.
 func (st *SpawnTree) Parse() ([]SpawnEntry, error) {
@@ -239,9 +504,16 @@ func (st *SpawnTree) Active() []SpawnEntry {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
+	entries, _, _ := st.parseFile()
+	if runState, err := st.loadRunStateLocked(); err == nil {
+		if run, ok := findSpawnRun(runState, runState.CurrentRunID); ok {
+			entries = filterEntriesForRun(entries, runState.Runs, run)
+		}
+	}
+
 	var active []SpawnEntry
-	for _, e := range st.entries {
-		if e.Status == "spawned" || e.Status == "active" {
+	for _, e := range entries {
+		if IsLiveSpawnStatus(e.Status) {
 			active = append(active, e)
 		}
 	}
@@ -255,9 +527,10 @@ func (st *SpawnTree) Active() []SpawnEntry {
 type spawnTreeJSON struct {
 	Spawns   []spawnEntryJSON `json:"spawns"`
 	Metadata struct {
-		TotalCount     int `json:"total_count"`
-		ActiveCount    int `json:"active_count"`
-		CompletedCount int `json:"completed_count"`
+		TotalCount     int    `json:"total_count"`
+		ActiveCount    int    `json:"active_count"`
+		CompletedCount int    `json:"completed_count"`
+		CurrentRunID   string `json:"current_run_id,omitempty"`
 	} `json:"metadata"`
 }
 
@@ -303,9 +576,9 @@ func (st *SpawnTree) ToJSON() ([]byte, error) {
 			CompletedAt: completedAt,
 		})
 
-		if e.Status == "spawned" || e.Status == "active" {
+		if IsLiveSpawnStatus(e.Status) {
 			activeCount++
-		} else if e.Status == "completed" || e.Status == "failed" || e.Status == "blocked" {
+		} else if IsTerminalSpawnStatus(e.Status) {
 			completedCount++
 		}
 	}
@@ -316,6 +589,29 @@ func (st *SpawnTree) ToJSON() ([]byte, error) {
 	result.Metadata.TotalCount = len(st.entries)
 	result.Metadata.ActiveCount = activeCount
 	result.Metadata.CompletedCount = completedCount
+	if runState, err := st.loadRunStateLocked(); err == nil {
+		result.Metadata.CurrentRunID = strings.TrimSpace(runState.CurrentRunID)
+	}
 
 	return json.MarshalIndent(result, "", "  ")
+}
+
+// IsLiveSpawnStatus reports whether a worker status should be treated as in-flight.
+func IsLiveSpawnStatus(status string) bool {
+	switch normalizeSpawnStatus(status) {
+	case "spawned", "starting", "active", "running":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsTerminalSpawnStatus reports whether a worker status should be treated as finished.
+func IsTerminalSpawnStatus(status string) bool {
+	switch normalizeSpawnStatus(status) {
+	case "completed", "failed", "blocked", "timeout", "superseded", "manually-reconciled":
+		return true
+	default:
+		return false
+	}
 }

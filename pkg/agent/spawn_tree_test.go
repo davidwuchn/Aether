@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calcosmic/Aether/pkg/storage"
 )
@@ -105,6 +106,109 @@ func TestSpawnTreeUpdateStatusTargetsMostRecentDuplicateName(t *testing.T) {
 	}
 	if st.entries[1].Status != "completed" {
 		t.Fatalf("last duplicate status = %q, want completed", st.entries[1].Status)
+	}
+}
+
+func TestSpawnTreeParseActiveStatusRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	store, err := storage.NewStore(dir)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+
+	st := NewSpawnTree(store, "spawn-tree.txt")
+	if err := st.RecordSpawn("colony-prime", "builder", "worker-1", "build task", 1); err != nil {
+		t.Fatalf("RecordSpawn() error: %v", err)
+	}
+	if err := st.UpdateStatus("worker-1", "active", "Running"); err != nil {
+		t.Fatalf("UpdateStatus() error: %v", err)
+	}
+
+	reloaded := NewSpawnTree(store, "spawn-tree.txt")
+	entries, err := reloaded.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Parse() returned %d entries, want 1", len(entries))
+	}
+	if entries[0].Status != "active" {
+		t.Fatalf("entries[0].Status = %q, want active", entries[0].Status)
+	}
+	if entries[0].Summary != "Running" {
+		t.Fatalf("entries[0].Summary = %q, want %q", entries[0].Summary, "Running")
+	}
+}
+
+func TestSpawnTreeActiveFiltersToCurrentRun(t *testing.T) {
+	dir := t.TempDir()
+	store, err := storage.NewStore(dir)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+
+	st := NewSpawnTree(store, "spawn-tree.txt")
+	now := time.Now().UTC()
+	runOne, err := st.BeginRun("build", now.Add(-2*time.Minute))
+	if err != nil {
+		t.Fatalf("BeginRun() error: %v", err)
+	}
+	if err := st.RecordSpawn("Queen", "builder", "Ghost-41", "Old worker", 1); err != nil {
+		t.Fatalf("RecordSpawn(old) error: %v", err)
+	}
+	st.entries[len(st.entries)-1].Timestamp = now.Add(-110 * time.Second).Format(time.RFC3339)
+	if err := st.UpdateStatus("Ghost-41", "active", "Still looks live"); err != nil {
+		t.Fatalf("UpdateStatus(old) error: %v", err)
+	}
+	st.completions[len(st.completions)-1].Timestamp = now.Add(-100 * time.Second).Format(time.RFC3339)
+	if err := st.Persist(); err != nil {
+		t.Fatalf("Persist(old) error: %v", err)
+	}
+	if err := st.EndRun(runOne.ID, "completed", now.Add(-90*time.Second)); err != nil {
+		t.Fatalf("EndRun(old) error: %v", err)
+	}
+
+	runTwo, err := st.BeginRun("plan", now.Add(-30*time.Second))
+	if err != nil {
+		t.Fatalf("BeginRun(second) error: %v", err)
+	}
+	if err := st.RecordSpawn("Queen", "scout", "Scout-7", "Current worker", 1); err != nil {
+		t.Fatalf("RecordSpawn(current) error: %v", err)
+	}
+	st.entries[len(st.entries)-1].Timestamp = now.Add(-10 * time.Second).Format(time.RFC3339)
+	if err := st.UpdateStatus("Scout-7", "active", "Planning"); err != nil {
+		t.Fatalf("UpdateStatus(current) error: %v", err)
+	}
+	st.completions[len(st.completions)-1].Timestamp = now.Add(-5 * time.Second).Format(time.RFC3339)
+	if err := st.Persist(); err != nil {
+		t.Fatalf("Persist(current) error: %v", err)
+	}
+
+	currentRun, ok, err := st.CurrentRun()
+	if err != nil {
+		t.Fatalf("CurrentRun() error: %v", err)
+	}
+	if !ok {
+		t.Fatal("CurrentRun() returned ok=false, want true")
+	}
+	if currentRun.ID != runTwo.ID {
+		t.Fatalf("current run = %q, want %q", currentRun.ID, runTwo.ID)
+	}
+
+	active := st.Active()
+	if len(active) != 1 {
+		t.Fatalf("Active() returned %d entries, want 1", len(active))
+	}
+	if active[0].AgentName != "Scout-7" {
+		t.Fatalf("Active()[0].AgentName = %q, want %q", active[0].AgentName, "Scout-7")
+	}
+
+	entries, err := st.EntriesForRun(runOne.ID)
+	if err != nil {
+		t.Fatalf("EntriesForRun(old) error: %v", err)
+	}
+	if len(entries) != 1 || entries[0].AgentName != "Ghost-41" {
+		t.Fatalf("EntriesForRun(old) = %#v, want Ghost-41 only", entries)
 	}
 }
 

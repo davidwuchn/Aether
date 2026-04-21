@@ -138,6 +138,15 @@ func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("cannot refresh the plan while phase %d is already active", state.CurrentPhase)
 	}
 
+	runHandle, err := beginRuntimeSpawnRun("plan", time.Now().UTC())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize planning run: %w", err)
+	}
+	runStatus := "failed"
+	defer func() {
+		finishRuntimeSpawnRun(runHandle, runStatus, time.Now().UTC())
+	}()
+
 	survey, err := loadCodexSurveyContext(root)
 	if err != nil {
 		return nil, err
@@ -275,7 +284,7 @@ func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
 		dispatchMaps = append(dispatchMaps, entry)
 	}
 
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"planned":                   true,
 		"existing_plan":             false,
 		"refreshed":                 refresh,
@@ -300,7 +309,13 @@ func runCodexPlan(root string, refresh bool) (map[string]interface{}, error) {
 		"unresolved_clarifications": unresolvedClarifications,
 		"clarification_warning":     clarificationWarning,
 		"next":                      nextCommand,
-	}, nil
+	}
+	statuses := make([]string, 0, len(dispatches))
+	for _, dispatch := range dispatches {
+		statuses = append(statuses, dispatch.Status)
+	}
+	runStatus = summarizeRunStatus(statuses...)
+	return result, nil
 }
 
 func normalizedGranularity(value colony.PlanGranularity) colony.PlanGranularity {
@@ -413,7 +428,12 @@ func dispatchRealPlanningWorkers(ctx context.Context, root string, invoker codex
 		})
 	}
 
-	results, err := codex.DispatchBatch(ctx, invoker, dispatches)
+	results, err := codex.DispatchBatchWithObserver(
+		ctx,
+		invoker,
+		dispatches,
+		spawnTreeDispatchObserver(agent.NewSpawnTree(store, "spawn-tree.txt"), "Planning worker active"),
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -112,8 +112,8 @@ func TestContinueConsumesBuildPacketAndAdvancesPhase(t *testing.T) {
 		t.Fatalf("failed to read spawn tree: %v", err)
 	}
 	for _, want := range []string{
-		"|Forge-11|completed|Closed by continue after verification",
-		"|Ranger-12|completed|Closed by continue after verification",
+		"|Forge-11|completed|Completed before continue verification",
+		"|Ranger-12|completed|Completed before continue verification",
 		"|Keen-13|completed|Verification passed during continue",
 	} {
 		if !strings.Contains(string(spawnTreeData), want) {

@@ -440,7 +440,7 @@ printf '{"ant_name":"Hammer-23","caste":"builder","task_id":"2.1","status":"comp
 		t.Fatalf("failed to read captured args: %v", err)
 	}
 	argsText := string(argsData)
-	for _, want := range []string{"--add-dir", filepath.Join(dir, "codex-home"), "-c", `model_reasoning_effort="medium"`, `model="gpt-5.4"`} {
+	for _, want := range []string{"--skip-git-repo-check", "--add-dir", filepath.Join(dir, "codex-home"), "-c", `model_reasoning_effort="medium"`, `model="gpt-5.4"`} {
 		if !strings.Contains(argsText, want) {
 			t.Fatalf("captured args missing %q\n%s", want, argsText)
 		}

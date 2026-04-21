@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -583,6 +584,84 @@ func TestStatusShowsActiveWorkersFromSpawnTree(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Errorf("status output missing %q\n%s", want, output)
 		}
+	}
+}
+
+func TestStatusPrefersCurrentRunWorkersOverStaleHistory(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	goal := "Show only the current run"
+	now := time.Now().UTC()
+	taskID := "task-1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateEXECUTING,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Live phase",
+					Status: colony.PhaseInProgress,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "Keep the colony moving", Status: colony.TaskInProgress}},
+				},
+			},
+		},
+	})
+
+	spawnData := strings.Join([]string{
+		fmt.Sprintf("%s|Queen|builder|Ghost-41|Old worker|1|spawned", now.Add(-110*time.Second).Format(time.RFC3339)),
+		fmt.Sprintf("%s|Ghost-41|active|Old active", now.Add(-100*time.Second).Format(time.RFC3339)),
+		fmt.Sprintf("%s|Queen|builder|Hammer-1|Current worker|1|spawned", now.Add(-10*time.Second).Format(time.RFC3339)),
+		fmt.Sprintf("%s|Hammer-1|active|Current active", now.Add(-5*time.Second).Format(time.RFC3339)),
+	}, "\n") + "\n"
+	if err := store.AtomicWrite("spawn-tree.txt", []byte(spawnData)); err != nil {
+		t.Fatalf("write spawn-tree.txt: %v", err)
+	}
+
+	runState := fmt.Sprintf(`{
+  "current_run_id": "run-current",
+  "runs": [
+    {
+      "id": "run-old",
+      "command": "build",
+      "started_at": %q,
+      "ended_at": %q,
+      "status": "completed"
+    },
+    {
+      "id": "run-current",
+      "command": "build",
+      "started_at": %q,
+      "status": "active"
+    }
+  ]
+}
+`, now.Add(-2*time.Minute).Format(time.RFC3339), now.Add(-90*time.Second).Format(time.RFC3339), now.Add(-30*time.Second).Format(time.RFC3339))
+	if err := store.AtomicWrite("spawn-runs.json", []byte(runState)); err != nil {
+		t.Fatalf("write spawn-runs.json: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"status"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("status returned error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Hammer-1") {
+		t.Fatalf("expected current run worker in status output, got:\n%s", output)
+	}
+	if strings.Contains(output, "Ghost-41") {
+		t.Fatalf("status should not show stale worker from older run, got:\n%s", output)
 	}
 }
 

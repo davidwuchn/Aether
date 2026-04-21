@@ -492,13 +492,17 @@ func getGitHEAD() string {
 	return strings.TrimSpace(string(out))
 }
 
-// rotateSpawnTree archives spawn-tree.txt if it exists and is non-empty.
-// Keeps only the 5 most recent archive files.
+// rotateSpawnTree archives spawn-tree.txt and its run metadata if they exist.
+// Keeps only the 5 most recent archive files for each artifact.
 func rotateSpawnTree(s *storage.Store) {
 	spawnTreePath := filepath.Join(s.BasePath(), "spawn-tree.txt")
+	spawnRunsPath := filepath.Join(s.BasePath(), "spawn-runs.json")
 
 	data, err := os.ReadFile(spawnTreePath)
 	if err != nil || len(bytes.TrimSpace(data)) == 0 {
+		if err := os.WriteFile(spawnRunsPath, []byte{}, 0644); err != nil && !os.IsNotExist(err) {
+			log.Printf("rotateSpawnTree: failed to truncate spawn runs %s: %v", spawnRunsPath, err)
+		}
 		return
 	}
 
@@ -519,22 +523,40 @@ func rotateSpawnTree(s *storage.Store) {
 	if err := os.WriteFile(spawnTreePath, []byte{}, 0644); err != nil {
 		log.Printf("rotateSpawnTree: failed to truncate spawn-tree %s: %v", spawnTreePath, err)
 	}
+	if runsData, err := os.ReadFile(spawnRunsPath); err == nil && len(bytes.TrimSpace(runsData)) > 0 {
+		runsArchivePath := filepath.Join(archiveDir, "spawn-runs."+timestamp+".json")
+		if err := os.WriteFile(runsArchivePath, runsData, 0644); err != nil {
+			log.Printf("rotateSpawnTree: failed to write archive %s: %v", runsArchivePath, err)
+		}
+	}
+	if err := os.WriteFile(spawnRunsPath, []byte{}, 0644); err != nil && !os.IsNotExist(err) {
+		log.Printf("rotateSpawnTree: failed to truncate spawn runs %s: %v", spawnRunsPath, err)
+	}
 
-	// Keep only 5 most recent archives
+	// Keep only 5 most recent archives for each artifact type.
 	entries, err := os.ReadDir(archiveDir)
 	if err != nil {
 		return
 	}
-	var archives []string
+	var treeArchives []string
+	var runArchives []string
 	for _, e := range entries {
-		if !e.IsDir() && strings.HasPrefix(e.Name(), "spawn-tree.") {
-			archives = append(archives, e.Name())
+		if e.IsDir() {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(e.Name(), "spawn-tree."):
+			treeArchives = append(treeArchives, e.Name())
+		case strings.HasPrefix(e.Name(), "spawn-runs."):
+			runArchives = append(runArchives, e.Name())
 		}
 	}
-	sort.Sort(sort.Reverse(sort.StringSlice(archives)))
-	for i := 5; i < len(archives); i++ {
-		if err := os.Remove(filepath.Join(archiveDir, archives[i])); err != nil {
-			log.Printf("rotateSpawnTree: failed to remove old archive %s: %v", archives[i], err)
+	for _, archives := range [][]string{treeArchives, runArchives} {
+		sort.Sort(sort.Reverse(sort.StringSlice(archives)))
+		for i := 5; i < len(archives); i++ {
+			if err := os.Remove(filepath.Join(archiveDir, archives[i])); err != nil {
+				log.Printf("rotateSpawnTree: failed to remove old archive %s: %v", archives[i], err)
+			}
 		}
 	}
 }

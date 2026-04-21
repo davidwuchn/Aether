@@ -338,6 +338,7 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 		"--full-auto",
 		"--json",
 		"--ephemeral",
+		"--skip-git-repo-check",
 		"--output-last-message", lastMessagePath,
 		"--output-schema", schemaPath,
 	}

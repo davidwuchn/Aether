@@ -189,11 +189,11 @@ func TestDispatchBatch_PropagatesSkillAndPheromoneSections(t *testing.T) {
 	invoker := &capturingInvoker{}
 	dispatches := []WorkerDispatch{
 		{
-			WorkerName:      "Hammer-1",
-			Caste:           "builder",
-			TaskID:          "1.1",
-			Wave:            1,
-			SkillSection:    "TDD discipline",
+			WorkerName:       "Hammer-1",
+			Caste:            "builder",
+			TaskID:           "1.1",
+			Wave:             1,
+			SkillSection:     "TDD discipline",
 			PheromoneSection: "FOCUS: security\nREDIRECT: no globals",
 		},
 	}
@@ -214,6 +214,41 @@ func TestDispatchBatch_PropagatesSkillAndPheromoneSections(t *testing.T) {
 	}
 	if invoker.lastConfig.PheromoneSection != "FOCUS: security\nREDIRECT: no globals" {
 		t.Errorf("PheromoneSection = %q, want %q", invoker.lastConfig.PheromoneSection, "FOCUS: security\nREDIRECT: no globals")
+	}
+}
+
+func TestDispatchBatchWithObserver_EmitsLifecycleTransitions(t *testing.T) {
+	invoker := &countingInvoker{}
+	dispatches := []WorkerDispatch{
+		{WorkerName: "Hammer-1", Caste: "builder", TaskID: "1.1", Wave: 1},
+	}
+
+	var statuses []string
+	var workerNames []string
+	observer := func(event DispatchLifecycleEvent) {
+		statuses = append(statuses, event.Status)
+		workerNames = append(workerNames, event.Dispatch.WorkerName)
+	}
+
+	results, err := DispatchBatchWithObserver(context.Background(), invoker, dispatches, observer)
+	if err != nil {
+		t.Fatalf("DispatchBatchWithObserver returned error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+
+	wantStatuses := []string{"starting", "active", "completed"}
+	if len(statuses) != len(wantStatuses) {
+		t.Fatalf("observer event count = %d, want %d (%v)", len(statuses), len(wantStatuses), statuses)
+	}
+	for i, want := range wantStatuses {
+		if statuses[i] != want {
+			t.Errorf("statuses[%d] = %q, want %q", i, statuses[i], want)
+		}
+		if workerNames[i] != "Hammer-1" {
+			t.Errorf("workerNames[%d] = %q, want %q", i, workerNames[i], "Hammer-1")
+		}
 	}
 }
 
@@ -316,7 +351,7 @@ func (c *capturingInvoker) Invoke(ctx context.Context, config WorkerConfig) (Wor
 }
 
 func (c *capturingInvoker) IsAvailable(ctx context.Context) bool { return true }
-func (c *capturingInvoker) ValidateAgent(path string) error       { return nil }
+func (c *capturingInvoker) ValidateAgent(path string) error      { return nil }
 
 // countingInvoker records the order of calls.
 type countingInvoker struct {
@@ -338,7 +373,7 @@ func (c *countingInvoker) Invoke(ctx context.Context, config WorkerConfig) (Work
 }
 
 func (c *countingInvoker) IsAvailable(ctx context.Context) bool { return true }
-func (c *countingInvoker) ValidateAgent(path string) error       { return nil }
+func (c *countingInvoker) ValidateAgent(path string) error      { return nil }
 
 // failingInvoker fails for specific worker names.
 type failingInvoker struct {
@@ -375,7 +410,7 @@ func (a *alwaysFailInvoker) Invoke(ctx context.Context, config WorkerConfig) (Wo
 }
 
 func (a *alwaysFailInvoker) IsAvailable(ctx context.Context) bool { return true }
-func (a *alwaysFailInvoker) ValidateAgent(path string) error       { return nil }
+func (a *alwaysFailInvoker) ValidateAgent(path string) error      { return nil }
 
 // slowInvoker simulates a worker that takes a long time.
 type slowInvoker struct {
@@ -405,4 +440,4 @@ func (s *slowInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 }
 
 func (s *slowInvoker) IsAvailable(ctx context.Context) bool { return true }
-func (s *slowInvoker) ValidateAgent(path string) error       { return nil }
+func (s *slowInvoker) ValidateAgent(path string) error      { return nil }
