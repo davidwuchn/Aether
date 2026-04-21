@@ -202,6 +202,8 @@ native CLI workflow, rather than strict mirrors of Claude/OpenCode slash-command
 
 ### Publishing Changes
 
+Authoritative runbook: `.aether/docs/publish-update-runbook.md`
+
 ```bash
 # 1. Edit files in .aether/ or .codex/agents/
 vim .aether/workers.md
@@ -214,13 +216,15 @@ git commit -m "your message"
 aether install --package-dir "$PWD"
 
 # 4. In other repos, pull companion-file updates
-aether update
+aether update --force
 ```
 
 Runtime note:
 - `aether install --package-dir "$PWD"` is the step that publishes unreleased Go runtime fixes on this machine because it refreshes the shared hub and, from a source checkout, rebuilds the shared `aether` binary.
-- `aether update` in other repos only syncs companion files by default. It does not publish an unreleased local runtime change.
-- `aether update --download-binary` can fetch a published release binary, but it cannot pull an unreleased local source change.
+- `aether update` in other repos only syncs companion files by default. It does not publish an unreleased local runtime change, and without `--force` it can leave stale Aether-managed files behind.
+- `aether update --force --download-binary` is the published-release path when you also need the release runtime binary.
+- If `aether update --force` shows `Commands (claude)` or `Commands (opencode)` as `0 copied, 0 unchanged`, the hub publish is incomplete. Republish from the Aether repo first, then rerun `aether update --force` in the target repo.
+- If the change you made modifies `aether install` itself, bootstrap once with `go run ./cmd/aether install --package-dir "$PWD" --binary-dest "$HOME/.local/bin"` so the new install logic publishes the hub and rebuilds the shared binary from source.
 
 ---
 

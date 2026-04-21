@@ -376,6 +376,8 @@ ls .codex/agents/*.toml | wc -l  # Should be 25
 
 ### Publishing Changes
 
+Authoritative runbook: `.aether/docs/publish-update-runbook.md`
+
 ```bash
 # 1. Edit files in .codex/ or .aether/
 # 2. Commit
@@ -386,8 +388,15 @@ git commit -m "update codex agent definitions"
 aether install --package-dir "$PWD"
 
 # 4. In other repos, pull updates
-aether update
+aether update --force
 ```
+
+Runtime note:
+- `aether install --package-dir "$PWD"` publishes unreleased companion-file and runtime changes on this machine from the current Aether checkout.
+- `aether update` in other repos only syncs from the shared hub. It does not publish local source changes, and without `--force` it can leave stale Aether-managed files behind.
+- `aether update --force --download-binary` is the published-release path when you also need the release runtime binary.
+- If `aether update --force` shows `Commands (claude)` or `Commands (opencode)` as `0 copied, 0 unchanged`, the hub publish is incomplete. Republish from the Aether repo first, then rerun `aether update --force` in the target repo.
+- If the change modifies `aether install` itself, bootstrap once with `go run ./cmd/aether install --package-dir "$PWD" --binary-dest "$HOME/.local/bin"`.
 
 ---
 
@@ -400,7 +409,7 @@ aether update
 | System prompt file | `CLAUDE.md` | `.opencode/OPENCODE.md` | `AGENTS.md` |
 | Agent format | Markdown `.md` | Markdown `.md` | TOML `.toml` |
 | Agent location | `.claude/agents/ant/` | `.opencode/agents/` | `.codex/agents/` |
-| Slash commands | Yes (46 commands) | Yes (46 commands) | **No** -- use `aether` CLI |
+| Slash commands | Yes (50 commands) | Yes (50 commands) | **No** -- use `aether` CLI |
 | Command location | `.claude/commands/ant/` | `.opencode/commands/ant/` | N/A |
 | Agent metadata | In markdown header | In markdown header | TOML keys |
 | Hub sync path | `~/.aether/agents/` | `~/.aether/agents/` | `~/.aether/system/codex/` + `~/.aether/system/skills-codex/` |

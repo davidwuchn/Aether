@@ -57,6 +57,7 @@ Distributed developer references:
 | File | Purpose |
 |------|---------|
 | `known-issues.md` | Active known issues and workarounds |
+| `publish-update-runbook.md` | Authoritative workflow for publishing hub/runtime updates and verifying downstream refreshes |
 
 ---
 
