@@ -67,9 +67,13 @@ func runMedic(cmd *cobra.Command, args []string) error {
 		Deep:  deep,
 	}
 
-	// Stub: scanner will be implemented in Plan 02.
-	// For now, perform a basic scan to populate results.
-	issues := performBasicHealthScan(state, opts)
+	// Run the full health scanner.
+	scanResult, err := performHealthScan(opts)
+	if err != nil {
+		fmt.Fprintf(stdout, "Health scan failed: %v\n", err)
+		return nil
+	}
+	issues := scanResult.Issues
 
 	if opts.JSON {
 		fmt.Fprint(stdout, renderMedicJSON(issues, &state))
