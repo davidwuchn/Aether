@@ -98,10 +98,10 @@
 **Plans:** 2 plans
 
 Plans:
-- [ ] 32-01-PLAN.md -- Abandoned build detection and recovery (TDD)
-- [ ] 32-02-PLAN.md -- Stale report cleanup and E2E pipeline recovery (TDD)
+- [x] 32-01-PLAN.md -- Abandoned build detection and recovery (TDD) (completed 2026-04-22)
+- [x] 32-02-PLAN.md -- Stale report cleanup and E2E pipeline recovery (TDD) (completed 2026-04-22)
 
-**Status:** Planned
+**Status:** Complete (2026-04-22) -- 2 plans, 5 commits, 5 new tests green
 
 ### Phase 33: Dispatch Fixes
 **Goal:** Address P1 dispatch robustness issues from the oracle audit.

@@ -4,13 +4,13 @@ milestone: v1.5
 milestone_name: Runtime Truth Recovery, Colony Unblock, and Release Readiness
 status: phase-complete
 last_updated: "2026-04-22T23:30:00.000Z"
-last_activity: 2026-04-22 -- Phase 31 complete: all 7 P0 requirements verified
+last_activity: 2026-04-22 -- Phase 32 complete: continue unblock, abandoned detection + stale cleanup
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  completed_phases: 2
+  total_plans: 6
+  completed_plans: 6
+  percent: 33
 ---
 
 # Project State
@@ -24,11 +24,11 @@ See: [.planning/PROJECT.md](/Users/callumcowie-repos-Aether/.planning/PROJECT.md
 
 ## Current Position
 
-Phase: 31 of 36 (P0 Runtime Truth Fixes) — COMPLETE
-Status: All 4 plans executed, all 12 validation tests green
-Last activity: 2026-04-22 -- Phase 31 verified and closed
+Phase: 32 of 36 (Continue Unblock) — COMPLETE
+Status: All 2 plans executed, 5 new tests green
+Last activity: 2026-04-22 -- Phase 32 verified and closed
 
-Progress: `[██████████] 100%` (Phase 31)
+Progress: `[██████░░░░] 33%` (Milestone v1.5: 2/6 phases complete)
 
 ## Performance Metrics
 
@@ -63,6 +63,9 @@ Progress: `[██████████] 100%` (Phase 31)
 - DispatchBatch error propagation ensures dispatch errors surface to callers.
 - Colony state advancement is atomic via UpdateJSONAtomically; state saved before side effects and reports (R051 resolved).
 - Side-effect failures after state commit do not roll back; state remains valid and consistent.
+- Continue detects abandoned builds (all dispatches stuck at "spawned" >10 min) and returns blocked=true with recovery commands.
+- Stale report files (verification.json, gates.json, continue.json, review.json) are cleared before continue verification runs.
+- Full E2E recovery pipeline proven: abandoned detection -> re-dispatch -> verify -> advance.
 
 ### Blockers / Concerns
 
