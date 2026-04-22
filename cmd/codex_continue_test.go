@@ -2742,3 +2742,169 @@ func withWorkingDir(t *testing.T, root string) {
 	}
 	t.Cleanup(func() { _ = os.Chdir(oldDir) })
 }
+
+// TestContinue_StateSavedBeforeSideEffects verifies that COLONY_STATE.json is
+// written to disk before the continue.json report, proving the ordering
+// guarantee: no external observer can see a report claiming advancement
+// without the state already being durable.
+func TestContinue_StateSavedBeforeSideEffects(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
+
+	goal := "State saved before side effects"
+	now := time.Now().UTC()
+	taskID := "1.1"
+	nextTaskID := "2.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateBUILT,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "State ordering phase",
+					Status: colony.PhaseInProgress,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "State before report", Status: colony.TaskInProgress}},
+				},
+				{
+					ID:     2,
+					Name:   "Next phase",
+					Status: colony.PhasePending,
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Awaiting advancement", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	seedContinueBuildPacket(t, dataDir, 1, "State ordering phase", goal, []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-601", Task: "State before report", Status: "completed", TaskID: taskID},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-602", Task: "Verify the phase", Status: "completed"},
+	})
+
+	rootCmd.SetArgs([]string{"continue"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("continue returned error: %v", err)
+	}
+
+	stateInfo, err := os.Stat(filepath.Join(dataDir, "COLONY_STATE.json"))
+	if err != nil {
+		t.Fatalf("failed to stat COLONY_STATE.json: %v", err)
+	}
+	reportInfo, err := os.Stat(filepath.Join(dataDir, "build", "phase-1", "continue.json"))
+	if err != nil {
+		t.Fatalf("failed to stat continue.json: %v", err)
+	}
+
+	if stateInfo.ModTime().After(reportInfo.ModTime()) {
+		t.Fatalf("COLONY_STATE.json (%s) was modified AFTER continue.json (%s) -- state should be saved first",
+			stateInfo.ModTime().Format(time.RFC3339Nano), reportInfo.ModTime().Format(time.RFC3339Nano))
+	}
+}
+
+// TestContinue_StateNotModifiedOnReportSaveFailure proves that when the
+// continue report save fails, the colony state is already committed and
+// remains valid on disk. State is saved atomically before report writes.
+func TestContinue_StateNotModifiedOnReportSaveFailure(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
+
+	goal := "State persists when report save fails"
+	now := time.Now().UTC()
+	taskID := "1.1"
+	nextTaskID := "2.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateBUILT,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Report failure phase",
+					Status: colony.PhaseInProgress,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "State survives report failure", Status: colony.TaskInProgress}},
+				},
+				{
+					ID:     2,
+					Name:   "Next phase",
+					Status: colony.PhasePending,
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Remains ready", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	seedContinueBuildPacket(t, dataDir, 1, "Report failure phase", goal, []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-701", Task: "State survives report failure", Status: "completed", TaskID: taskID},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-702", Task: "Verify the phase", Status: "completed"},
+	})
+
+	// Make the report directory read-only during housekeeping (which runs after
+	// state is saved but before the continue report). This causes the report
+	// save to fail while the state is already committed.
+	reportDir := filepath.Join(dataDir, "build", "phase-1")
+	origHousekeeper := continueSignalHousekeeper
+	continueSignalHousekeeper = func(now time.Time, state colony.ColonyState) (signalHousekeepingResult, error) {
+		// Make the report directory read-only so the continue report save fails.
+		if err := os.Chmod(reportDir, 0555); err != nil {
+			t.Fatalf("failed to chmod report dir: %v", err)
+		}
+		return origHousekeeper(now, state)
+	}
+	t.Cleanup(func() {
+		continueSignalHousekeeper = origHousekeeper
+		_ = os.Chmod(reportDir, 0755)
+	})
+
+	rootCmd.SetArgs([]string{"continue"})
+	err := rootCmd.Execute()
+
+	// Restore permissions for cleanup
+	_ = os.Chmod(reportDir, 0755)
+
+	if err != nil {
+		t.Fatalf("continue returned unexpected cobra error: %v", err)
+	}
+
+	// The continue command outputs errors via outputError (not as return values),
+	// so check stderr for the report write failure.
+	stderrOutput := stderr.(*bytes.Buffer).String()
+	if !strings.Contains(stderrOutput, "continue report") && !strings.Contains(stderrOutput, "write") {
+		t.Fatalf("expected report write error in stderr, got: %s", stderrOutput)
+	}
+
+	// Verify state IS committed despite the report save failure
+	var state colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("reload state: %v", err)
+	}
+	if state.State != colony.StateREADY {
+		t.Fatalf("state = %s, want READY (committed before report save)", state.State)
+	}
+	if state.CurrentPhase != 2 {
+		t.Fatalf("current phase = %d, want 2 (committed before report save)", state.CurrentPhase)
+	}
+	if state.Plan.Phases[0].Status != colony.PhaseCompleted {
+		t.Fatalf("phase 1 status = %s, want completed", state.Plan.Phases[0].Status)
+	}
+	if state.Plan.Phases[1].Status != colony.PhaseReady {
+		t.Fatalf("phase 2 status = %s, want ready", state.Plan.Phases[1].Status)
+	}
+}
