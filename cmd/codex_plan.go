@@ -97,8 +97,6 @@ type phaseTaskTemplate struct {
 	DependsOn       []string
 }
 
-var planningDispatchTimeout = 60 * time.Second
-
 func runCodexPlan(root string, refresh bool, synthetic bool) (map[string]interface{}, error) {
 	if store == nil {
 		return nil, fmt.Errorf("no store initialized")
@@ -131,6 +129,7 @@ func runCodexPlan(root string, refresh bool, synthetic bool) (map[string]interfa
 			"phases":                    state.Plan.Phases,
 			"count":                     len(state.Plan.Phases),
 			"granularity":               string(granularity),
+			"dispatch_contract":         planningDispatchContract(),
 			"unresolved_clarifications": unresolvedClarifications,
 			"clarification_warning":     clarificationWarning,
 			"next":                      nextCommand,
@@ -245,8 +244,11 @@ func runCodexPlan(root string, refresh bool, synthetic bool) (map[string]interfa
 		if strings.TrimSpace(status) == "" || status == "spawned" {
 			status = "completed"
 		}
-		summary := strings.Join(dispatches[i].Outputs, ", ")
-		if dispatchMode != "real" {
+		summary := strings.TrimSpace(dispatches[i].Summary)
+		if summary == "" {
+			summary = strings.Join(dispatches[i].Outputs, ", ")
+		}
+		if summary == "" && dispatchMode != "real" {
 			summary = "Local planning synthesis fallback"
 		}
 		if err := spawnTree.UpdateStatus(dispatches[i].Name, status, summary); err != nil {
@@ -316,6 +318,7 @@ func runCodexPlan(root string, refresh bool, synthetic bool) (map[string]interfa
 		"phase_research_files":      phaseResearchFiles,
 		"dispatches":                dispatchMaps,
 		"dispatch_mode":             dispatchMode,
+		"dispatch_contract":         planningDispatchContract(),
 		"artifact_source":           artifactSource,
 		"plan_source":               planSource,
 		"gaps":                      unresolvedGaps,
@@ -413,55 +416,55 @@ func dispatchRealPlanningWorkers(ctx context.Context, root string, invoker codex
 	if invoker == nil || !invoker.IsAvailable(ctx) {
 		return nil, nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, planningDispatchTimeout)
-	defer cancel()
-
 	codexAgentsDir := filepath.Join(root, ".codex", "agents")
-
-	dispatches := make([]codex.WorkerDispatch, 0, len(planningWorkerSpecs))
+	planned := plannedPlanningWorkers(root)
 	capsule := resolveCodexWorkerContext()
 	pheromoneSection := resolvePheromoneSection()
+	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+	results := make([]codex.DispatchResult, 0, len(planningWorkerSpecs))
 	for i, spec := range planningWorkerSpecs {
-		tomlPath := filepath.Join(codexAgentsDir, spec.AgentFile)
-
-		planned := plannedPlanningWorkers(root)
-		workerName := planned[i].Name
-
-		taskBrief := renderPlanningWorkerBrief(root, spec)
-
-		dispatches = append(dispatches, codex.WorkerDispatch{
+		dispatch := codex.WorkerDispatch{
 			ID:               fmt.Sprintf("planning-%d", i),
-			WorkerName:       workerName,
+			WorkerName:       planned[i].Name,
 			AgentName:        strings.TrimSuffix(spec.AgentFile, ".toml"),
-			AgentTOMLPath:    tomlPath,
+			AgentTOMLPath:    filepath.Join(codexAgentsDir, spec.AgentFile),
 			Caste:            spec.Caste,
 			TaskID:           fmt.Sprintf("plan-%d", i),
-			TaskBrief:        taskBrief,
+			TaskBrief:        renderPlanningWorkerBrief(root, spec),
 			ContextCapsule:   capsule,
 			SkillSection:     resolveSkillSection(spec.Caste, spec.Task),
 			PheromoneSection: pheromoneSection,
 			Root:             root,
-			Wave:             1,
-		})
-	}
+			Wave:             i + 1,
+		}
+		if i == 0 {
+			dispatch.Timeout = planningScoutTimeout
+		} else {
+			dispatch.Timeout = planningRouteSetterTimeout
+		}
 
-	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
-	results, err := dispatchBatchByWaveWithVisuals(
-		ctx,
-		invoker,
-		dispatches,
-		colony.ModeInRepo,
-		"Planning Wave",
-		func(wave int) codex.DispatchObserver {
-			return runtimeVisualDispatchObserver(spawnTree, "Planning worker active", wave)
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	for _, result := range results {
-		if result.Status != "completed" {
-			return convertPlanningDispatchResults(results, root), fmt.Errorf("planning worker %s did not complete: %s", result.WorkerName, result.Status)
+		stageResults, err := dispatchBatchByWaveWithVisuals(
+			ctx,
+			invoker,
+			[]codex.WorkerDispatch{dispatch},
+			colony.ModeInRepo,
+			"Planning Wave",
+			false,
+			func(wave int) codex.DispatchObserver {
+				return runtimeVisualDispatchObserver(spawnTree, "Planning worker active", wave)
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, stageResults...)
+		if stageResults[0].Status != "completed" {
+			dispatches := convertPlanningDispatchResults(results, root)
+			if i+1 < len(planningWorkerSpecs) {
+				dispatches[i+1].Status = "dependency_blocked"
+				dispatches[i+1].Summary = fmt.Sprintf("%s did not complete, so downstream planning stayed blocked.", dispatch.WorkerName)
+			}
+			return dispatches, fmt.Errorf("planning worker %s did not complete: %s", dispatch.WorkerName, stageResults[0].Status)
 		}
 	}
 
@@ -1062,6 +1065,164 @@ func planningTemplates(goal string, survey codexSurveyContext, report codexScout
 				SuccessCriteria: []string{"The live colony loop is credible", "The remaining parity gap is narrow and testable"},
 			},
 		}
+	case isLanguageDesignGoal(goalLower):
+		return []phaseTemplate{
+			{
+				Name:        "Research charter and communication target",
+				Description: "Define what the language or protocol is for, who writes it, and what efficiency or expressiveness problem it must solve.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Define the communication problem, target agents, and success criteria for the language",
+						Constraints:     []string{"Keep the first charter narrow enough to prototype quickly", "State what efficiency or context-saving win should be measurable"},
+						Hints:           append([]string{"README.md", "SCOUT.md"}, report.StudyFiles...),
+						SuccessCriteria: []string{"The language has a bounded first mission", "Non-goals and evaluation criteria are explicit"},
+					},
+					{
+						Goal:            "Capture the core semantic primitives the language needs to express",
+						Constraints:     []string{"Separate semantics from syntax", "Avoid inventing syntax before the information model is clear"},
+						Hints:           []string{"Grammar sketch", "Message categories", "Information density targets"},
+						SuccessCriteria: []string{"Core message categories are named", "The minimum expressive set is explicit"},
+					},
+				},
+				SuccessCriteria: []string{"The language charter is explicit", "The research target is narrow enough to explore concretely"},
+			},
+			{
+				Name:        "Representation and grammar design",
+				Description: "Design the structural representation, encoding rules, and grammar needed to carry the chosen semantic primitives.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Choose the first representation model for messages and state transitions",
+						Constraints:     []string{"Prefer one reference representation first", "Document how the representation optimizes context or token use"},
+						Hints:           []string{"Abstract syntax tree", "Schema sketch", "Field density trade-offs"},
+						SuccessCriteria: []string{"A first representation model exists", "Trade-offs are recorded"},
+					},
+					{
+						Goal:            "Draft the first grammar, syntax, or encoding rules for that representation",
+						Constraints:     []string{"Keep the first grammar intentionally small", "Show at least one end-to-end example message"},
+						Hints:           []string{"Parser/lexer sketch", "Serialization rules", "Example transcripts"},
+						SuccessCriteria: []string{"The first grammar can encode representative examples", "Syntax and semantics stay aligned"},
+					},
+				},
+				SuccessCriteria: []string{"The representation is concrete", "The grammar is specific enough to prototype"},
+			},
+			{
+				Name:        "Reference prototype and translation path",
+				Description: "Build the smallest reference implementation that can read, write, or validate the first slice of the language.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Create a minimal reference prototype for parsing, validating, or emitting the first message slice",
+						Constraints:     []string{"Prototype only the first useful slice", "Prefer a small reference tool over a full compiler/runtime"},
+						Hints:           append(commonHints(survey), "Parser", "Validator", "Encoder"),
+						SuccessCriteria: []string{"A concrete prototype exists", "Examples can flow through the prototype"},
+					},
+					{
+						Goal:            "Create worked examples that demonstrate the language's communication advantage",
+						Constraints:     []string{"Examples must compare the new format with a plain-language baseline"},
+						Hints:           []string{"Before/after transcripts", "Compression examples", "Agent-to-agent exchange"},
+						SuccessCriteria: []string{"Representative examples exist", "The examples expose strengths and weaknesses honestly"},
+					},
+				},
+				SuccessCriteria: []string{"The language is no longer only conceptual", "There is a concrete translation path for examples"},
+			},
+			{
+				Name:        "Evaluation and next design loop",
+				Description: "Evaluate the first prototype, capture what worked, and turn the findings into the next research or implementation slice.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Evaluate the prototype against the original communication and efficiency criteria",
+						Constraints:     []string{"Do not hide unresolved ambiguities or poor trade-offs"},
+						Hints:           []string{"Token count comparison", "Ambiguity review", "Error cases"},
+						SuccessCriteria: []string{"The prototype is assessed against explicit criteria", "Weak points are visible"},
+					},
+					{
+						Goal:            "Record design decisions, open questions, and the next experimental slice",
+						Constraints:     []string{"Keep follow-ups framed as concrete experiments"},
+						Hints:           survey.Issues,
+						SuccessCriteria: []string{"The next iteration path is explicit", "The colony can continue from a grounded base"},
+					},
+				},
+				SuccessCriteria: []string{"The first design loop is evaluated", "The next iteration is specific and evidence-driven"},
+			},
+		}
+	case isGreenfieldResearchGoal(goalLower, survey):
+		return []phaseTemplate{
+			{
+				Name:        "Problem framing and boundaries",
+				Description: "Define the research target, the first hard constraints, and what a meaningful outcome would look like.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Turn the raw goal into a bounded research charter with explicit outcomes",
+						Constraints:     []string{"Do not jump into implementation before the research target is concrete"},
+						Hints:           append([]string{"README.md", "SCOUT.md"}, report.StudyFiles...),
+						SuccessCriteria: []string{"The goal is narrowed into a research charter", "The first outcome is testable"},
+					},
+					{
+						Goal:            "Identify the hardest unknowns and the assumptions most likely to invalidate the project",
+						Constraints:     []string{"Surface the unknowns before structure ossifies"},
+						Hints:           survey.Issues,
+						SuccessCriteria: []string{"High-risk unknowns are explicit", "The next phase is shaped by the hardest questions"},
+					},
+				},
+				SuccessCriteria: []string{"The problem is bounded", "The riskiest unknowns are visible"},
+			},
+			{
+				Name:        "Research model and architecture groundwork",
+				Description: "Design the first information model, architecture boundary, or experimental structure required to explore the goal.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Choose the first architecture or information model to explore the goal",
+						Constraints:     []string{"Prefer a minimal model that exposes the core trade-offs"},
+						Hints:           []string{"System boundaries", "Core entities", "Flow diagram"},
+						SuccessCriteria: []string{"The core architecture is sketched", "Dependencies and interfaces are explicit"},
+					},
+					{
+						Goal:            "Document the exploration structure and the artifacts the prototype will need",
+						Constraints:     []string{"Keep the first artifact set lean"},
+						Hints:           []string{"Spec doc", "Reference implementation", "Examples"},
+						SuccessCriteria: []string{"The groundwork is concrete enough to build from", "The prototype path is explicit"},
+					},
+				},
+				SuccessCriteria: []string{"The research has a concrete structure", "The first build slice is grounded"},
+			},
+			{
+				Name:        "Prototype the first end-to-end slice",
+				Description: "Build the smallest possible slice that exercises the core idea end to end.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Implement a minimal prototype for the first meaningful slice",
+						Constraints:     []string{"Keep scope tight", "Demonstrate the core idea, not every edge case"},
+						Hints:           commonHints(survey),
+						SuccessCriteria: []string{"A first end-to-end slice exists", "The prototype exposes the real trade-offs"},
+					},
+					{
+						Goal:            "Capture examples, inputs, and outputs that explain what the prototype is proving",
+						Constraints:     []string{"Examples must be understandable without hidden context"},
+						Hints:           []string{"Example inputs", "Example outputs", "Reference walkthrough"},
+						SuccessCriteria: []string{"The prototype is explainable", "The experiment can be repeated"},
+					},
+				},
+				SuccessCriteria: []string{"There is a real prototype", "The prototype demonstrates the core claim"},
+			},
+			{
+				Name:        "Evaluate, document, and re-scope",
+				Description: "Evaluate the first results, capture decisions, and choose the next slice based on evidence.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Evaluate what the first prototype proved and where it failed",
+						Constraints:     []string{"Do not overstate the result"},
+						Hints:           []string{"Limitations", "Unexpected findings", "Operational risks"},
+						SuccessCriteria: []string{"The result is judged honestly", "Evidence and limitations are both visible"},
+					},
+					{
+						Goal:            "Record the next iteration path, including what to deepen, abandon, or test next",
+						Constraints:     []string{"Next steps should be concrete experiments or build slices"},
+						Hints:           survey.Issues,
+						SuccessCriteria: []string{"The next loop is explicit", "The colony can continue from a stronger foundation"},
+					},
+				},
+				SuccessCriteria: []string{"The first research loop is closed honestly", "The next loop is evidence-driven"},
+			},
+		}
 	default:
 		return []phaseTemplate{
 			{
@@ -1082,6 +1243,25 @@ func planningTemplates(goal string, survey codexSurveyContext, report codexScout
 					},
 				},
 				SuccessCriteria: []string{"The colony has a bounded target", "Implementation risks are known"},
+			},
+			{
+				Name:        "Architecture and interfaces",
+				Description: "Lock the first architecture boundary, ownership surface, and integration path before deeper coding.",
+				Tasks: []phaseTaskTemplate{
+					{
+						Goal:            "Define the primary architecture boundary or module surface for the change",
+						Constraints:     []string{"Prefer a narrow first ownership surface", "Keep the design anchored to the existing repo shape"},
+						Hints:           append(commonHints(survey), report.StudyFiles...),
+						SuccessCriteria: []string{"The implementation surface is chosen", "The integration path is explicit"},
+					},
+					{
+						Goal:            "Identify the interfaces, contracts, or data boundaries that the implementation must respect",
+						Constraints:     []string{"Document the boundaries before broad code changes begin"},
+						Hints:           survey.Dependencies,
+						SuccessCriteria: []string{"Key interfaces are explicit", "The build phase has a stable target"},
+					},
+				},
+				SuccessCriteria: []string{"The architecture surface is explicit", "The implementation can proceed without guessing boundaries"},
 			},
 			{
 				Name:        "Implementation",
@@ -1123,6 +1303,21 @@ func planningTemplates(goal string, survey codexSurveyContext, report codexScout
 			},
 		}
 	}
+}
+
+func isLanguageDesignGoal(goalLower string) bool {
+	return containsAny(goalLower, []string{
+		"language", "grammar", "syntax", "parser", "lexer", "compiler", "transpil", "dsl",
+		"protocol", "serialization", "encode", "decode", "format", "schema", "spec",
+		"communication", "token efficien", "context efficien", "ai-to-ai",
+	})
+}
+
+func isGreenfieldResearchGoal(goalLower string, survey codexSurveyContext) bool {
+	if !containsAny(goalLower, []string{"research", "discover", "invent", "foundation", "groundwork", "architecture", "explore", "investigat", "design"}) {
+		return false
+	}
+	return len(survey.EntryPoints) == 0 && len(survey.Dependencies) == 0 && len(survey.TestFiles) == 0 && len(survey.Frameworks) == 0
 }
 
 func containsAny(text string, needles []string) bool {

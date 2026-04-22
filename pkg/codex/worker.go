@@ -15,8 +15,10 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// defaultWorkerTimeout is the default timeout for worker invocations.
-const defaultWorkerTimeout = 10 * time.Minute
+// DefaultWorkerTimeout is the default timeout for worker invocations.
+const DefaultWorkerTimeout = 10 * time.Minute
+
+const defaultWorkerTimeout = DefaultWorkerTimeout
 
 const (
 	defaultWorkerHeartbeatInterval = 2 * time.Second
@@ -592,7 +594,11 @@ func NewWorkerInvoker() WorkerInvoker {
 	if runningInGoTest() {
 		return &FakeInvoker{}
 	}
-	return NewRealInvoker()
+	real := NewRealInvoker()
+	if real.IsAvailable(context.Background()) {
+		return real
+	}
+	return &FakeInvoker{}
 }
 
 func stripCodeFence(text string) string {

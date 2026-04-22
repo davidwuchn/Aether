@@ -15,14 +15,15 @@ import (
 // spawn-tree.txt format with exactly 7 pipe-delimited fields plus an
 // optional summary from completion lines.
 type SpawnEntry struct {
-	Timestamp  string // Field 1: ISO 8601 UTC (2006-01-02T15:04:05Z)
-	ParentName string // Field 2: parent agent name
-	Caste      string // Field 3: caste name (builder, watcher, etc.)
-	AgentName  string // Field 4: agent name
-	Task       string // Field 5: task description
-	Depth      int    // Field 6: spawn depth
-	Status     string // Field 7: "spawned", "active", "completed", "failed", "blocked"
-	Summary    string // Completion summary (set via spawn-complete --summary)
+	Timestamp         string // Field 1: ISO 8601 UTC (2006-01-02T15:04:05Z)
+	ActivityTimestamp string // Latest activity timestamp (spawn or completion) for run filtering.
+	ParentName        string // Field 2: parent agent name
+	Caste             string // Field 3: caste name (builder, watcher, etc.)
+	AgentName         string // Field 4: agent name
+	Task              string // Field 5: task description
+	Depth             int    // Field 6: spawn depth
+	Status            string // Field 7: "spawned", "active", "completed", "failed", "blocked"
+	Summary           string // Completion summary (set via spawn-complete --summary)
 }
 
 // SpawnRun tracks one logical dispatch or workflow run for current-run filtering.
@@ -199,54 +200,99 @@ func (st *SpawnTree) EntriesForRun(runID string) ([]SpawnEntry, error) {
 func (st *SpawnTree) RecordSpawn(parent, caste, name, task string, depth int) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
-
-	entry := SpawnEntry{
-		Timestamp:  time.Now().UTC().Format(time.RFC3339),
-		ParentName: sanitizeSpawnField(parent),
-		Caste:      sanitizeSpawnField(caste),
-		AgentName:  sanitizeSpawnField(name),
-		Task:       sanitizeSpawnField(task),
-		Depth:      depth,
-		Status:     "spawned",
+	if st.store == nil {
+		return nil
 	}
-	st.entries = append(st.entries, entry)
-	return st.persistLocked()
+
+	if err := st.store.UpdateFile(st.filePath, func(existing []byte) ([]byte, error) {
+		entries, completions := parseSpawnTreeBytes(existing)
+		entry := SpawnEntry{
+			Timestamp:  time.Now().UTC().Format(time.RFC3339),
+			ParentName: sanitizeSpawnField(parent),
+			Caste:      sanitizeSpawnField(caste),
+			AgentName:  sanitizeSpawnField(name),
+			Task:       sanitizeSpawnField(task),
+			Depth:      depth,
+			Status:     "spawned",
+		}
+		entries = append(entries, entry)
+		st.entries = entries
+		st.completions = completions
+		return formatSpawnTreeLines(entries, completions), nil
+	}); err != nil {
+		return err
+	}
+	return st.reloadLocked()
 }
 
 // UpdateStatus finds an entry by agent name and updates its status.
 // It adds a completion line to the file matching the shell's second awk rule.
 // The summary is an optional description stored alongside the completion.
 func (st *SpawnTree) UpdateStatus(name string, status string, summary string) error {
+	return st.updateStatus(name, status, summary, false)
+}
+
+// UpdateStatusPreserveActivity updates status without re-attributing the entry
+// to the current run window. This is useful when a later command reconciles an
+// older worker record but should not make that worker appear as fresh activity.
+func (st *SpawnTree) UpdateStatusPreserveActivity(name string, status string, summary string) error {
+	return st.updateStatus(name, status, summary, true)
+}
+
+func (st *SpawnTree) updateStatus(name string, status string, summary string, preserveActivity bool) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
 	name = sanitizeSpawnField(name)
 	status = normalizeSpawnStatus(status)
 	summary = sanitizeSpawnField(summary)
+	updatedAt := time.Now().UTC().Format(time.RFC3339)
+	if st.store == nil {
+		return nil
+	}
 
-	// Find and update the most recent matching entry.
-	found := false
-	for i := len(st.entries) - 1; i >= 0; i-- {
-		if st.entries[i].AgentName == name {
-			st.entries[i].Status = status
-			st.entries[i].Summary = summary
-			found = true
-			break
+	if err := st.store.UpdateFile(st.filePath, func(existing []byte) ([]byte, error) {
+		entries, completions := parseSpawnTreeBytes(existing)
+
+		found := false
+		completionTimestamp := updatedAt
+		for i := len(entries) - 1; i >= 0; i-- {
+			if entries[i].AgentName == name {
+				entries[i].Status = status
+				entries[i].Summary = summary
+				if preserveActivity {
+					completionTimestamp = strings.TrimSpace(entries[i].ActivityTimestamp)
+					if completionTimestamp == "" {
+						completionTimestamp = strings.TrimSpace(entries[i].Timestamp)
+					}
+				} else {
+					entries[i].ActivityTimestamp = updatedAt
+				}
+				found = true
+				break
+			}
 		}
-	}
-	if !found {
-		return fmt.Errorf("spawn_tree: agent %q not found", name)
-	}
+		if !found {
+			return nil, fmt.Errorf("spawn_tree: agent %q not found", name)
+		}
+		if strings.TrimSpace(completionTimestamp) == "" {
+			completionTimestamp = updatedAt
+		}
 
-	// Add completion line
-	st.completions = append(st.completions, completionLine{
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Name:      name,
-		Status:    status,
-		Summary:   summary,
-	})
+		completions = append(completions, completionLine{
+			Timestamp: completionTimestamp,
+			Name:      name,
+			Status:    status,
+			Summary:   summary,
+		})
 
-	return st.persistLocked()
+		st.entries = entries
+		st.completions = completions
+		return formatSpawnTreeLines(entries, completions), nil
+	}); err != nil {
+		return err
+	}
+	return st.reloadLocked()
 }
 
 // Persist writes all entries to the file via store.AtomicWrite.
@@ -261,24 +307,7 @@ func (st *SpawnTree) persistLocked() error {
 	if st.store == nil {
 		return nil
 	}
-	var lines []string
-
-	// Spawned lines: 7 fields timestamp|parent|caste|name|task|depth|status
-	for _, e := range st.entries {
-		line := fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s",
-			e.Timestamp, e.ParentName, e.Caste, e.AgentName, e.Task, e.Depth, e.Status)
-		lines = append(lines, line)
-	}
-
-	// Completion lines: timestamp|name|status|summary
-	// When summary is empty, format is timestamp|name|status| (backward compat)
-	for _, c := range st.completions {
-		line := fmt.Sprintf("%s|%s|%s|%s", c.Timestamp, c.Name, c.Status, c.Summary)
-		lines = append(lines, line)
-	}
-
-	data := []byte(strings.Join(lines, "\n") + "\n")
-	return st.store.AtomicWrite(st.filePath, data)
+	return st.store.AtomicWrite(st.filePath, formatSpawnTreeLines(st.entries, st.completions))
 }
 
 // parseFile reads and parses the spawn tree file.
@@ -292,7 +321,11 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 		// File doesn't exist -- return empty
 		return nil, nil, nil
 	}
+	entries, completions := parseSpawnTreeBytes(data)
+	return entries, completions, nil
+}
 
+func parseSpawnTreeBytes(data []byte) ([]SpawnEntry, []completionLine) {
 	var entries []SpawnEntry
 	var completions []completionLine
 
@@ -316,13 +349,14 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 				continue // skip malformed
 			}
 			entry := SpawnEntry{
-				Timestamp:  fields[0],
-				ParentName: fields[1],
-				Caste:      fields[2],
-				AgentName:  fields[3],
-				Task:       fields[4],
-				Depth:      depth,
-				Status:     normalizeSpawnStatus(fields[6]),
+				Timestamp:         fields[0],
+				ActivityTimestamp: fields[0],
+				ParentName:        fields[1],
+				Caste:             fields[2],
+				AgentName:         fields[3],
+				Task:              fields[4],
+				Depth:             depth,
+				Status:            normalizeSpawnStatus(fields[6]),
 			}
 			nameToIdx[fields[3]] = len(entries)
 			entries = append(entries, entry)
@@ -346,6 +380,7 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 				// Merge status and summary into the matching spawn entry
 				if idx, ok := nameToIdx[completionFields[1]]; ok {
 					entries[idx].Status = status
+					entries[idx].ActivityTimestamp = completionFields[0]
 					if summary != "" {
 						entries[idx].Summary = summary
 					}
@@ -354,7 +389,34 @@ func (st *SpawnTree) parseFile() ([]SpawnEntry, []completionLine, error) {
 		}
 	}
 
-	return entries, completions, nil
+	return entries, completions
+}
+
+func formatSpawnTreeLines(entries []SpawnEntry, completions []completionLine) []byte {
+	var lines []string
+
+	for _, e := range entries {
+		line := fmt.Sprintf("%s|%s|%s|%s|%s|%d|%s",
+			e.Timestamp, e.ParentName, e.Caste, e.AgentName, e.Task, e.Depth, e.Status)
+		lines = append(lines, line)
+	}
+
+	for _, c := range completions {
+		line := fmt.Sprintf("%s|%s|%s|%s", c.Timestamp, c.Name, c.Status, c.Summary)
+		lines = append(lines, line)
+	}
+
+	return []byte(strings.Join(lines, "\n") + "\n")
+}
+
+func (st *SpawnTree) reloadLocked() error {
+	entries, completions, err := st.parseFile()
+	if err != nil {
+		return err
+	}
+	st.entries = entries
+	st.completions = completions
+	return nil
 }
 
 func sanitizeSpawnField(value string) string {
@@ -444,7 +506,7 @@ func filterEntriesForRun(entries []SpawnEntry, runs []SpawnRun, run SpawnRun) []
 
 	filtered := make([]SpawnEntry, 0, len(entries))
 	for _, entry := range entries {
-		ts := parseSpawnRunTime(entry.Timestamp)
+		ts := spawnEntryActivityTime(entry)
 		if ts.IsZero() {
 			continue
 		}
@@ -457,6 +519,13 @@ func filterEntriesForRun(entries []SpawnEntry, runs []SpawnRun, run SpawnRun) []
 		filtered = append(filtered, entry)
 	}
 	return filtered
+}
+
+func spawnEntryActivityTime(entry SpawnEntry) time.Time {
+	if ts := parseSpawnRunTime(entry.ActivityTimestamp); !ts.IsZero() {
+		return ts
+	}
+	return parseSpawnRunTime(entry.Timestamp)
 }
 
 func (st *SpawnTree) loadRunStateLocked() (spawnRunState, error) {

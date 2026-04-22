@@ -24,6 +24,7 @@ func writeTestPheromones(t *testing.T, dataDir string, pf colony.PheromoneFile) 
 }
 
 func TestSignalHousekeepingExpiresSignalsAndShrinksPrompt(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
 	saveGlobals(t)
 	resetRootCmd(t)
 
@@ -185,6 +186,7 @@ func TestSignalHousekeepingExpiresSignalsAndShrinksPrompt(t *testing.T) {
 }
 
 func TestContinueRunsSignalHousekeeping(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
 	saveGlobals(t)
 	resetRootCmd(t)
 

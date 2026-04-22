@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/agent"
+	"github.com/calcosmic/Aether/pkg/codex"
 	"github.com/calcosmic/Aether/pkg/colony"
 )
 
@@ -34,13 +35,22 @@ type codexClaimVerification struct {
 }
 
 type codexContinueVerificationReport struct {
-	Phase          int                     `json:"phase"`
-	GeneratedAt    string                  `json:"generated_at"`
-	Steps          []codexVerificationStep `json:"steps"`
-	Claims         codexClaimVerification  `json:"claims"`
-	ChecksPassed   bool                    `json:"checks_passed"`
-	Passed         bool                    `json:"passed"`
-	BlockingIssues []string                `json:"blocking_issues,omitempty"`
+	Phase          int                      `json:"phase"`
+	GeneratedAt    string                   `json:"generated_at"`
+	Steps          []codexVerificationStep  `json:"steps"`
+	Claims         codexClaimVerification   `json:"claims"`
+	Watcher        codexWatcherVerification `json:"watcher"`
+	ChecksPassed   bool                     `json:"checks_passed"`
+	Passed         bool                     `json:"passed"`
+	BlockingIssues []string                 `json:"blocking_issues,omitempty"`
+}
+
+type codexWatcherVerification struct {
+	Present bool   `json:"present"`
+	Passed  bool   `json:"passed"`
+	Status  string `json:"status,omitempty"`
+	Worker  string `json:"worker,omitempty"`
+	Summary string `json:"summary,omitempty"`
 }
 
 type codexContinueGateReport struct {
@@ -57,8 +67,10 @@ type codexContinueReport struct {
 	Manifest           string                        `json:"manifest,omitempty"`
 	VerificationReport string                        `json:"verification_report"`
 	GateReport         string                        `json:"gate_report"`
+	ReviewReport       string                        `json:"review_report,omitempty"`
 	Summary            string                        `json:"summary,omitempty"`
 	ClosedWorkers      []string                      `json:"closed_workers,omitempty"`
+	WorkerFlow         []codexContinueWorkerFlowStep `json:"worker_flow,omitempty"`
 	PartialSuccess     bool                          `json:"partial_success,omitempty"`
 	OperationalIssues  []string                      `json:"operational_issues,omitempty"`
 	Tasks              []codexContinueTaskAssessment `json:"tasks,omitempty"`
@@ -121,9 +133,35 @@ type codexContinueAssessment struct {
 }
 
 type codexContinueClosedWorker struct {
+	Stage   string `json:"stage,omitempty"`
+	Caste   string `json:"caste,omitempty"`
 	Name    string `json:"name"`
+	Task    string `json:"task,omitempty"`
 	Status  string `json:"status"`
 	Summary string `json:"summary,omitempty"`
+}
+
+type codexContinueWorkerFlowStep struct {
+	Stage   string `json:"stage,omitempty"`
+	Caste   string `json:"caste,omitempty"`
+	Name    string `json:"name"`
+	Task    string `json:"task,omitempty"`
+	Status  string `json:"status"`
+	Summary string `json:"summary,omitempty"`
+}
+
+type codexContinueReviewReport struct {
+	Phase          int                           `json:"phase"`
+	GeneratedAt    string                        `json:"generated_at"`
+	Workers        []codexContinueWorkerFlowStep `json:"workers"`
+	Passed         bool                          `json:"passed"`
+	BlockingIssues []string                      `json:"blocking_issues,omitempty"`
+}
+
+var continueContextUpdater = updateCodexContinueContext
+
+var continueSignalHousekeeper = func(now time.Time, state colony.ColonyState) (signalHousekeepingResult, error) {
+	return runSignalHousekeepingWithState(now, false, &state)
 }
 
 func runCodexContinue(root string, options codexContinueOptions) (map[string]interface{}, colony.ColonyState, colony.Phase, *colony.Phase, *signalHousekeepingResult, bool, error) {
@@ -165,30 +203,39 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		return nil, state, colony.Phase{}, nil, nil, false, fmt.Errorf("No active build packet found. Run `aether build <phase>` first.")
 	}
 	now := time.Now().UTC()
+	runHandle, err := beginRuntimeSpawnRun("continue", now)
+	if err != nil {
+		return nil, state, colony.Phase{}, nil, nil, false, fmt.Errorf("failed to initialize continue run: %w", err)
+	}
+	runStatus := "failed"
+	defer func() {
+		finishRuntimeSpawnRun(runHandle, runStatus, time.Now().UTC())
+	}()
 
-	verification := runCodexContinueVerification(root, phase.ID, manifest)
+	verification, watcherFlow := runCodexContinueVerification(root, phase, manifest)
 	assessment := assessCodexContinue(phase, manifest, verification, options, now)
+	verification = attachContinueClaimVerification(verification, assessment)
 	gates := runCodexContinueGates(phase, manifest, verification, assessment, now)
 
 	if tracer != nil && state.RunID != nil {
 		_ = tracer.LogArtifact(*state.RunID, "continue.verification", map[string]interface{}{
-			"phase":           phase.ID,
-			"checks_passed":   verification.ChecksPassed,
-			"steps_count":     len(verification.Steps),
-			"claims_present":  verification.Claims.Present,
-			"claims_passed":   verification.Claims.Passed,
+			"phase":          phase.ID,
+			"checks_passed":  verification.ChecksPassed,
+			"steps_count":    len(verification.Steps),
+			"claims_present": verification.Claims.Present,
+			"claims_passed":  verification.Claims.Passed,
 		})
 		_ = tracer.LogArtifact(*state.RunID, "continue.assessment", map[string]interface{}{
-			"phase":            phase.ID,
-			"passed":           assessment.Passed,
-			"partial_success":  assessment.PartialSuccess,
-			"tasks_count":      len(assessment.Tasks),
+			"phase":              phase.ID,
+			"passed":             assessment.Passed,
+			"partial_success":    assessment.PartialSuccess,
+			"tasks_count":        len(assessment.Tasks),
 			"operational_issues": len(assessment.OperationalIssues),
 		})
 		_ = tracer.LogArtifact(*state.RunID, "continue.gates", map[string]interface{}{
-			"phase":   phase.ID,
-			"passed":  gates.Passed,
-			"checks":  len(gates.Checks),
+			"phase":    phase.ID,
+			"passed":   gates.Passed,
+			"checks":   len(gates.Checks),
 			"blockers": len(gates.BlockingIssues),
 		})
 	}
@@ -209,6 +256,8 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			summary = blockers[0]
 		}
 		continueReportRel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase.ID), "continue.json"))
+		workerFlow := continueWorkerFlowWithWatcher(nil, watcherFlow)
+		nextCommand := continueNextCommandForAssessment(assessment)
 		_ = store.SaveJSON(continueReportRel, codexContinueReport{
 			Phase:              phase.ID,
 			GeneratedAt:        now.Format(time.RFC3339),
@@ -216,24 +265,29 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			VerificationReport: displayDataPath(verificationReportRel),
 			GateReport:         displayDataPath(gateReportRel),
 			Summary:            summary,
+			WorkerFlow:         workerFlow,
 			PartialSuccess:     assessment.PartialSuccess,
 			OperationalIssues:  append([]string{}, assessment.OperationalIssues...),
 			Tasks:              append([]codexContinueTaskAssessment{}, assessment.Tasks...),
 			Recovery:           assessment.Recovery,
 			Advanced:           false,
 			Completed:          false,
-			Next:               continueNextCommandForAssessment(assessment),
+			Next:               nextCommand,
 		})
-		updateSessionSummary("continue", continueNextCommandForAssessment(assessment), summary)
+		blockedState, flowErr := recordBlockedContinueWorkerFlow(state, now, workerFlow)
+		if flowErr != nil {
+			return nil, state, phase, nil, nil, false, flowErr
+		}
+		updateSessionSummary("continue", nextCommand, summary)
 
 		result := map[string]interface{}{
 			"advanced":            false,
 			"blocked":             true,
 			"partial_success":     assessment.PartialSuccess,
-			"current_phase":       state.CurrentPhase,
+			"current_phase":       blockedState.CurrentPhase,
 			"phase_name":          phase.Name,
-			"state":               state.State,
-			"next":                continueNextCommandForAssessment(assessment),
+			"state":               blockedState.State,
+			"next":                nextCommand,
 			"verification":        verification,
 			"assessment":          assessment,
 			"task_evidence":       assessment.Tasks,
@@ -241,20 +295,86 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			"verification_report": displayDataPath(verificationReportRel),
 			"gate_report":         displayDataPath(gateReportRel),
 			"continue_report":     displayDataPath(continueReportRel),
+			"worker_flow":         workerFlow,
 			"operational_issues":  assessment.OperationalIssues,
 			"recovery":            assessment.Recovery,
 			"reconciled_tasks":    assessment.ReconciledTasks,
 			"blocking_issues":     blockers,
 		}
-		return result, state, phase, nil, nil, false, nil
+		runStatus = "blocked"
+		return result, blockedState, phase, nil, nil, false, nil
 	}
 
-	closedWorkerDetails, err := closeCodexContinueWorkers(manifest, assessment)
-	if err != nil {
-		return nil, state, phase, nil, nil, false, err
+	review := runCodexContinueReview(root, phase, manifest, verification, assessment)
+	reviewReportRel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase.ID), "review.json"))
+	if err := store.SaveJSON(reviewReportRel, review); err != nil {
+		return nil, state, phase, nil, nil, false, fmt.Errorf("failed to write review report: %w", err)
 	}
+	if !review.Passed {
+		summary := "Continue blocked because the review wave did not clear"
+		if len(review.BlockingIssues) > 0 {
+			summary = review.BlockingIssues[0]
+		}
+		continueReportRel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase.ID), "continue.json"))
+		workerFlow := continueWorkerFlowWithWatcher(review.Workers, watcherFlow)
+		nextCommand := continueNextCommandForAssessment(assessment)
+		_ = store.SaveJSON(continueReportRel, codexContinueReport{
+			Phase:              phase.ID,
+			GeneratedAt:        now.Format(time.RFC3339),
+			Manifest:           displayOptionalDataPath(manifest.Path),
+			VerificationReport: displayDataPath(verificationReportRel),
+			GateReport:         displayDataPath(gateReportRel),
+			ReviewReport:       displayDataPath(reviewReportRel),
+			Summary:            summary,
+			WorkerFlow:         workerFlow,
+			PartialSuccess:     assessment.PartialSuccess,
+			OperationalIssues:  append(append([]string{}, assessment.OperationalIssues...), review.BlockingIssues...),
+			Tasks:              append([]codexContinueTaskAssessment{}, assessment.Tasks...),
+			Recovery:           assessment.Recovery,
+			Advanced:           false,
+			Completed:          false,
+			Next:               nextCommand,
+		})
+		blockedState, flowErr := recordBlockedContinueWorkerFlow(state, now, workerFlow)
+		if flowErr != nil {
+			return nil, state, phase, nil, nil, false, flowErr
+		}
+		updateSessionSummary("continue", nextCommand, summary)
+		result := map[string]interface{}{
+			"advanced":            false,
+			"blocked":             true,
+			"partial_success":     assessment.PartialSuccess,
+			"current_phase":       blockedState.CurrentPhase,
+			"phase_name":          phase.Name,
+			"state":               blockedState.State,
+			"next":                nextCommand,
+			"verification":        verification,
+			"assessment":          assessment,
+			"task_evidence":       assessment.Tasks,
+			"gates":               gates,
+			"review":              review,
+			"verification_report": displayDataPath(verificationReportRel),
+			"gate_report":         displayDataPath(gateReportRel),
+			"review_report":       displayDataPath(reviewReportRel),
+			"continue_report":     displayDataPath(continueReportRel),
+			"worker_flow":         workerFlow,
+			"operational_issues":  append(append([]string{}, assessment.OperationalIssues...), review.BlockingIssues...),
+			"recovery":            assessment.Recovery,
+			"reconciled_tasks":    assessment.ReconciledTasks,
+			"blocking_issues":     append([]string{}, review.BlockingIssues...),
+		}
+		runStatus = "blocked"
+		return result, blockedState, phase, nil, nil, false, nil
+	}
+
+	closedWorkerDetails := plannedCodexContinueClosedWorkers(manifest, assessment)
 	closedWorkers := closedWorkerNames(closedWorkerDetails)
+
 	updated := state
+	updated.Events = append(trimmedEvents(updated.Events),
+		fmt.Sprintf("%s|verification_passed|continue|Build verification passed for phase %d", now.Format(time.RFC3339), phase.ID),
+		fmt.Sprintf("%s|gate_passed|continue|Continue gates passed for phase %d", now.Format(time.RFC3339), phase.ID),
+	)
 	updated.Plan.Phases[currentIdx].Status = colony.PhaseCompleted
 	for i := range updated.Plan.Phases[currentIdx].Tasks {
 		updated.Plan.Phases[currentIdx].Tasks[i].Status = colony.TaskCompleted
@@ -267,9 +387,7 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 	if final {
 		updated.State = colony.StateCOMPLETED
 		updated.CurrentPhase = phase.ID
-		updated.Events = append(trimmedEvents(updated.Events),
-			fmt.Sprintf("%s|verification_passed|continue|Build verification passed for final phase %d", now.Format(time.RFC3339), phase.ID),
-			fmt.Sprintf("%s|gate_passed|continue|Continue gates passed for final phase %d", now.Format(time.RFC3339), phase.ID),
+		updated.Events = append(updated.Events,
 			fmt.Sprintf("%s|phase_completed|continue|Completed final phase %d", now.Format(time.RFC3339), updated.CurrentPhase),
 		)
 	} else {
@@ -281,23 +399,27 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		nextPhase = &updated.Plan.Phases[nextIdx]
 		updated.State = colony.StateREADY
 		nextCommand = fmt.Sprintf("aether build %d", nextIdx+1)
-		updated.Events = append(trimmedEvents(updated.Events),
-			fmt.Sprintf("%s|verification_passed|continue|Build verification passed for phase %d", now.Format(time.RFC3339), phase.ID),
-			fmt.Sprintf("%s|gate_passed|continue|Continue gates passed for phase %d", now.Format(time.RFC3339), phase.ID),
+		updated.Events = append(updated.Events,
 			fmt.Sprintf("%s|phase_advanced|continue|Completed phase %d, ready for phase %d", now.Format(time.RFC3339), phase.ID, nextIdx+1),
 		)
 	}
 
-	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
-		return nil, state, phase, nextPhase, nil, final, fmt.Errorf("failed to save colony state: %w", err)
-	}
-	if err := updateCodexContinueContext(phase, manifest, closedWorkerDetails, now); err != nil {
-		return nil, updated, phase, nextPhase, nil, final, err
-	}
-	housekeeping, housekeepingErr := runSignalHousekeeping(now, false)
+	housekeeping, housekeepingErr := continueSignalHousekeeper(now, updated)
 	if housekeepingErr != nil {
-		return nil, updated, phase, nextPhase, nil, final, housekeepingErr
+		return nil, state, phase, nil, nil, false, housekeepingErr
 	}
+	if err := continueContextUpdater(phase, manifest, closedWorkerDetails, now); err != nil {
+		return nil, state, phase, nil, nil, false, err
+	}
+	workerFlow := continueWorkerFlowWithWatcher(review.Workers, watcherFlow)
+	workerFlow = append(workerFlow, continueHousekeepingFlowStep(housekeeping))
+	if err := recordContinueWorkerFlow(workerFlow); err != nil {
+		return nil, state, phase, nil, &housekeeping, false, err
+	}
+	if err := applyCodexContinueWorkerClosures(closedWorkerDetails); err != nil {
+		return nil, state, phase, nil, &housekeeping, false, err
+	}
+	updated.Events = append(updated.Events, continueWorkerFlowEvents(now, workerFlow)...)
 
 	summary := fmt.Sprintf("Phase %d verified and advanced", phase.ID)
 	if assessment.PartialSuccess {
@@ -311,8 +433,10 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		Manifest:           displayOptionalDataPath(manifest.Path),
 		VerificationReport: displayDataPath(verificationReportRel),
 		GateReport:         displayDataPath(gateReportRel),
+		ReviewReport:       displayDataPath(reviewReportRel),
 		Summary:            summary,
 		ClosedWorkers:      closedWorkers,
+		WorkerFlow:         workerFlow,
 		PartialSuccess:     assessment.PartialSuccess,
 		OperationalIssues:  append([]string{}, assessment.OperationalIssues...),
 		Tasks:              append([]codexContinueTaskAssessment{}, assessment.Tasks...),
@@ -321,7 +445,11 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		Completed:          final,
 		Next:               nextCommand,
 	}); err != nil {
-		return nil, updated, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to write continue report: %w", err)
+		return nil, state, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to write continue report: %w", err)
+	}
+
+	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
+		return nil, state, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to save colony state: %w", err)
 	}
 
 	updateSessionSummary("continue", nextCommand, summary)
@@ -336,10 +464,13 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		"assessment":          assessment,
 		"task_evidence":       assessment.Tasks,
 		"gates":               gates,
+		"review":              review,
 		"verification_report": displayDataPath(verificationReportRel),
 		"gate_report":         displayDataPath(gateReportRel),
+		"review_report":       displayDataPath(reviewReportRel),
 		"continue_report":     displayDataPath(continueReportRel),
 		"closed_workers":      closedWorkers,
+		"worker_flow":         workerFlow,
 		"operational_issues":  assessment.OperationalIssues,
 		"recovery":            assessment.Recovery,
 		"reconciled_tasks":    assessment.ReconciledTasks,
@@ -349,6 +480,7 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		result["next_phase"] = nextPhase.ID
 		result["next_phase_name"] = nextPhase.Name
 	}
+	runStatus = "completed"
 	return result, updated, updated.Plan.Phases[currentIdx], nextPhase, &housekeeping, final, nil
 }
 
@@ -365,7 +497,174 @@ func loadCodexContinueManifest(phaseID int) codexContinueManifest {
 	}
 }
 
-func runCodexContinueVerification(root string, phaseID int, manifest codexContinueManifest) codexContinueVerificationReport {
+type codexContinueReviewSpec struct {
+	Caste string
+	Task  string
+}
+
+var codexContinueReviewSpecs = []codexContinueReviewSpec{
+	{Caste: "gatekeeper", Task: "Review the phase for security, release, and integrity blockers before advancement. Return blocked if it is unsafe to advance."},
+	{Caste: "auditor", Task: "Audit whether the completed work actually satisfies the phase tasks rather than just producing superficial artifacts. Return blocked if the evidence looks partial, generic, or docs-only."},
+	{Caste: "probe", Task: "Probe the verification evidence for missing edge cases, weak tests, or unexercised behavior. Return blocked if test evidence is too weak to trust advancement."},
+}
+
+func runCodexContinueReview(root string, phase colony.Phase, manifest codexContinueManifest, verification codexContinueVerificationReport, assessment codexContinueAssessment) codexContinueReviewReport {
+	report := codexContinueReviewReport{
+		Phase:       phase.ID,
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Workers:     []codexContinueWorkerFlowStep{},
+		Passed:      false,
+	}
+
+	invoker := newCodexWorkerInvoker()
+	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
+		report.BlockingIssues = []string{"continue review wave could not start because the codex CLI was unavailable"}
+		return report
+	}
+
+	dispatches := plannedContinueReviewDispatches(root, phase, manifest, verification, assessment)
+	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+	results, err := dispatchBatchByWaveWithVisuals(
+		context.Background(),
+		invoker,
+		dispatches,
+		colony.ModeInRepo,
+		"Continue Review",
+		true,
+		func(wave int) codex.DispatchObserver {
+			return runtimeVisualDispatchObserver(spawnTree, "Continue review active", wave)
+		},
+	)
+	if err != nil {
+		report.BlockingIssues = []string{err.Error()}
+	}
+
+	flow := make([]codexContinueWorkerFlowStep, 0, len(dispatches))
+	blockers := append([]string{}, report.BlockingIssues...)
+	for i, dispatch := range dispatches {
+		step := codexContinueWorkerFlowStep{
+			Stage:  "review",
+			Caste:  dispatch.Caste,
+			Name:   dispatch.WorkerName,
+			Task:   continueReviewTaskForCaste(dispatch.Caste),
+			Status: "failed",
+		}
+		if i < len(results) {
+			result := results[i]
+			step.Name = result.WorkerName
+			step.Status = normalizeRuntimeDispatchStatus(result.Status)
+			if result.WorkerResult != nil {
+				if len(result.WorkerResult.Blockers) > 0 {
+					step.Summary = strings.Join(result.WorkerResult.Blockers, "; ")
+				} else if summary := strings.TrimSpace(result.WorkerResult.Summary); summary != "" && !strings.HasPrefix(summary, "FakeInvoker completed task") {
+					step.Summary = summary
+				}
+				if len(result.WorkerResult.Blockers) > 0 {
+					for _, blocker := range result.WorkerResult.Blockers {
+						if strings.TrimSpace(blocker) != "" {
+							blockers = append(blockers, fmt.Sprintf("%s reported blocker: %s", result.WorkerName, blocker))
+						}
+					}
+				}
+			}
+			if step.Summary == "" && result.Error != nil {
+				step.Summary = strings.TrimSpace(result.Error.Error())
+			}
+			if step.Summary == "" {
+				step.Summary = continueReviewFlowSummary(step)
+			}
+			if step.Status != "completed" {
+				blockers = append(blockers, fmt.Sprintf("%s review did not complete cleanly: %s", result.WorkerName, step.Status))
+			}
+		}
+		flow = append(flow, step)
+	}
+
+	report.Workers = flow
+	report.BlockingIssues = uniqueSortedStrings(blockers)
+	report.Passed = len(report.BlockingIssues) == 0
+	return report
+}
+
+func plannedContinueReviewDispatches(root string, phase colony.Phase, manifest codexContinueManifest, verification codexContinueVerificationReport, assessment codexContinueAssessment) []codex.WorkerDispatch {
+	capsule := resolveCodexWorkerContext()
+	pheromoneSection := resolvePheromoneSection()
+	dispatches := make([]codex.WorkerDispatch, 0, len(codexContinueReviewSpecs))
+	for idx, spec := range codexContinueReviewSpecs {
+		dispatches = append(dispatches, codex.WorkerDispatch{
+			ID:               fmt.Sprintf("continue-review-%d", idx),
+			WorkerName:       deterministicAntName(spec.Caste, fmt.Sprintf("phase:%d:continue:%s", phase.ID, spec.Caste)),
+			AgentName:        codexAgentNameForCaste(spec.Caste),
+			AgentTOMLPath:    filepath.Join(root, ".codex", "agents", codexAgentFileForCaste(spec.Caste)),
+			Caste:            spec.Caste,
+			TaskID:           fmt.Sprintf("continue-review-%s", spec.Caste),
+			TaskBrief:        renderCodexContinueReviewBrief(root, phase, manifest, verification, assessment, spec),
+			ContextCapsule:   capsule,
+			SkillSection:     resolveSkillSection(spec.Caste, spec.Task),
+			PheromoneSection: pheromoneSection,
+			Root:             root,
+			Timeout:          continueReviewTimeout,
+			Wave:             1,
+		})
+	}
+	return dispatches
+}
+
+func renderCodexContinueReviewBrief(root string, phase colony.Phase, manifest codexContinueManifest, verification codexContinueVerificationReport, assessment codexContinueAssessment, spec codexContinueReviewSpec) string {
+	var b strings.Builder
+	b.WriteString("# Continue Review\n\n")
+	b.WriteString("- Phase: ")
+	b.WriteString(fmt.Sprintf("%d — %s\n", phase.ID, phase.Name))
+	b.WriteString("- Repo: ")
+	b.WriteString(root)
+	b.WriteString("\n- Role: ")
+	b.WriteString(spec.Caste)
+	b.WriteString("\n\n")
+	b.WriteString(spec.Task)
+	b.WriteString("\n\n")
+	b.WriteString("This is a read-only review. Do not modify repo files. Return status `blocked` if advancement is unsafe.\n\n")
+	b.WriteString("Evidence to inspect:\n")
+	if manifest.Present {
+		b.WriteString("- Build manifest: ")
+		b.WriteString(displayDataPath(manifest.Path))
+		b.WriteString("\n")
+	}
+	if claimsPath := strings.TrimSpace(manifest.Data.ClaimsPath); claimsPath != "" {
+		b.WriteString("- Build claims: ")
+		b.WriteString(claimsPath)
+		b.WriteString("\n")
+	}
+	b.WriteString("- Verification checks passed: ")
+	b.WriteString(fmt.Sprintf("%t\n", verification.ChecksPassed))
+	if len(verification.BlockingIssues) > 0 {
+		b.WriteString("- Verification blockers: ")
+		b.WriteString(strings.Join(verification.BlockingIssues, "; "))
+		b.WriteString("\n")
+	}
+	if len(assessment.Tasks) > 0 {
+		b.WriteString("\nTask evidence summary:\n")
+		for _, task := range assessment.Tasks {
+			b.WriteString("- ")
+			b.WriteString(task.TaskID)
+			b.WriteString(": ")
+			b.WriteString(task.Outcome)
+			b.WriteString(" — ")
+			b.WriteString(task.Summary)
+			b.WriteString("\n")
+		}
+	}
+	if len(assessment.OperationalIssues) > 0 {
+		b.WriteString("\nOperational issues already observed:\n")
+		for _, issue := range assessment.OperationalIssues {
+			b.WriteString("- ")
+			b.WriteString(issue)
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+func runCodexContinueVerification(root string, phase colony.Phase, manifest codexContinueManifest) (codexContinueVerificationReport, *codexContinueWorkerFlowStep) {
 	now := time.Now().UTC()
 	commands := resolveCodexVerificationCommands(root)
 	steps := []codexVerificationStep{
@@ -375,6 +674,12 @@ func runCodexContinueVerification(root string, phaseID int, manifest codexContin
 		runVerificationStep(root, "tests", commands.Test),
 	}
 	claims := verifyCodexBuildClaims(root, manifest)
+	buildWatcher := evaluateContinueWatcherVerification(manifest)
+	continueWatcher, watcherFlow := runCodexContinueWatcherVerification(root, phase, manifest, steps, claims, buildWatcher)
+	watcher := continueWatcher
+	if !watcher.Present {
+		watcher = buildWatcher
+	}
 
 	checksPassed := true
 	blockers := []string{}
@@ -384,16 +689,268 @@ func runCodexContinueVerification(root string, phaseID int, manifest codexContin
 			blockers = append(blockers, fmt.Sprintf("%s failed: %s", step.Name, step.Summary))
 		}
 	}
+	if watcher.Present && !watcher.Passed {
+		// Watcher timeout is an environmental issue (Codex CLI hang), not a code
+		// failure. When all build/test steps already passed, don't let a watcher
+		// timeout block phase advancement. Real verification failures still do.
+		if watcher.Status == "timeout" {
+			// Leave checksPassed true; the actual verification steps passed.
+		} else {
+			checksPassed = false
+			summary := strings.TrimSpace(watcher.Summary)
+			if summary == "" {
+				summary = "watcher verification did not complete cleanly"
+			}
+			blockers = append(blockers, summary)
+		}
+	}
 
 	return codexContinueVerificationReport{
-		Phase:          phaseID,
+		Phase:          phase.ID,
 		GeneratedAt:    now.Format(time.RFC3339),
 		Steps:          steps,
 		Claims:         claims,
+		Watcher:        watcher,
 		ChecksPassed:   checksPassed,
 		Passed:         checksPassed,
 		BlockingIssues: blockers,
+	}, watcherFlow
+}
+
+func runCodexContinueWatcherVerification(root string, phase colony.Phase, manifest codexContinueManifest, steps []codexVerificationStep, claims codexClaimVerification, buildWatcher codexWatcherVerification) (codexWatcherVerification, *codexContinueWorkerFlowStep) {
+	dispatch := plannedContinueWatcherDispatch(root, phase, manifest, steps, claims, buildWatcher)
+	invoker := newCodexWorkerInvoker()
+	if _, ok := invoker.(*codex.FakeInvoker); ok {
+		summary := "continue watcher verification blocked because codex CLI is not available (FakeInvoker in use)"
+		return codexWatcherVerification{
+				Present: true,
+				Passed:  false,
+				Status:  "blocked",
+				Worker:  dispatch.WorkerName,
+				Summary: summary,
+			}, &codexContinueWorkerFlowStep{
+				Stage:   "verification",
+				Caste:   "watcher",
+				Name:    dispatch.WorkerName,
+				Task:    "Independent verification before advancement",
+				Status:  "blocked",
+				Summary: continueWatcherFlowSummary(dispatch.WorkerName, "blocked", summary),
+			}
 	}
+	if !invoker.IsAvailable(context.Background()) {
+		summary := "continue watcher verification could not start because the codex CLI was unavailable"
+		return codexWatcherVerification{
+				Present: true,
+				Passed:  false,
+				Status:  "failed",
+				Worker:  dispatch.WorkerName,
+				Summary: summary,
+			}, &codexContinueWorkerFlowStep{
+				Stage:   "verification",
+				Caste:   "watcher",
+				Name:    dispatch.WorkerName,
+				Task:    "Independent verification before advancement",
+				Status:  "failed",
+				Summary: continueWatcherFlowSummary(dispatch.WorkerName, "failed", summary),
+			}
+	}
+
+	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+	results, err := dispatchBatchByWaveWithVisuals(
+		context.Background(),
+		invoker,
+		[]codex.WorkerDispatch{dispatch},
+		colony.ModeInRepo,
+		"Continue Verification",
+		true,
+		func(wave int) codex.DispatchObserver {
+			return runtimeVisualDispatchObserver(spawnTree, "Continue verification active", wave)
+		},
+	)
+	if err != nil {
+		summary := strings.TrimSpace(err.Error())
+		if summary == "" {
+			summary = "continue watcher verification dispatch failed"
+		}
+		return codexWatcherVerification{
+				Present: true,
+				Passed:  false,
+				Status:  "failed",
+				Worker:  dispatch.WorkerName,
+				Summary: summary,
+			}, &codexContinueWorkerFlowStep{
+				Stage:   "verification",
+				Caste:   "watcher",
+				Name:    dispatch.WorkerName,
+				Task:    "Independent verification before advancement",
+				Status:  "failed",
+				Summary: continueWatcherFlowSummary(dispatch.WorkerName, "failed", summary),
+			}
+	}
+
+	if len(results) == 0 {
+		summary := "continue watcher verification produced no result"
+		return codexWatcherVerification{
+				Present: true,
+				Passed:  false,
+				Status:  "failed",
+				Worker:  dispatch.WorkerName,
+				Summary: summary,
+			}, &codexContinueWorkerFlowStep{
+				Stage:   "verification",
+				Caste:   "watcher",
+				Name:    dispatch.WorkerName,
+				Task:    "Independent verification before advancement",
+				Status:  "failed",
+				Summary: continueWatcherFlowSummary(dispatch.WorkerName, "failed", summary),
+			}
+	}
+
+	result := results[0]
+	status := normalizeRuntimeDispatchStatus(result.Status)
+	if status == "" {
+		status = "failed"
+	}
+	workerName := strings.TrimSpace(result.WorkerName)
+	if workerName == "" {
+		workerName = dispatch.WorkerName
+	}
+	summary := strings.TrimSpace(continueWatcherResultSummary(result))
+	if summary == "" {
+		summary = continueWatcherDefaultSummary(status)
+	}
+
+	return codexWatcherVerification{
+			Present: true,
+			Passed:  status == "completed" || status == "manually-reconciled",
+			Status:  status,
+			Worker:  workerName,
+			Summary: summary,
+		}, &codexContinueWorkerFlowStep{
+			Stage:   "verification",
+			Caste:   "watcher",
+			Name:    workerName,
+			Task:    "Independent verification before advancement",
+			Status:  status,
+			Summary: continueWatcherFlowSummary(workerName, status, summary),
+		}
+}
+
+func plannedContinueWatcherDispatch(root string, phase colony.Phase, manifest codexContinueManifest, steps []codexVerificationStep, claims codexClaimVerification, buildWatcher codexWatcherVerification) codex.WorkerDispatch {
+	return codex.WorkerDispatch{
+		ID:               fmt.Sprintf("continue-verification-%d", phase.ID),
+		WorkerName:       deterministicAntName("watcher", fmt.Sprintf("phase:%d:continue:watcher", phase.ID)),
+		AgentName:        codexAgentNameForCaste("watcher"),
+		AgentTOMLPath:    filepath.Join(root, ".codex", "agents", codexAgentFileForCaste("watcher")),
+		Caste:            "watcher",
+		TaskID:           fmt.Sprintf("continue-verification-%d", phase.ID),
+		TaskBrief:        renderCodexContinueWatcherBrief(root, phase, manifest, steps, claims, buildWatcher),
+		ContextCapsule:   resolveCodexWorkerContext(),
+		SkillSection:     resolveSkillSection("watcher", "Independent verification before advancement"),
+		PheromoneSection: resolvePheromoneSection(),
+		Root:             root,
+		Timeout:          continueReviewTimeout,
+		Wave:             1,
+	}
+}
+
+func renderCodexContinueWatcherBrief(root string, phase colony.Phase, manifest codexContinueManifest, steps []codexVerificationStep, claims codexClaimVerification, buildWatcher codexWatcherVerification) string {
+	var b strings.Builder
+	b.WriteString("# Continue Verification\n\n")
+	b.WriteString("- Phase: ")
+	b.WriteString(fmt.Sprintf("%d — %s\n", phase.ID, phase.Name))
+	b.WriteString("- Repo: ")
+	b.WriteString(root)
+	b.WriteString("\n\n")
+	b.WriteString("Confirm whether this phase is safe to advance right now.\n")
+	b.WriteString("This is a read-only verification pass. Do not modify repo files. Return status `completed` only if the current workspace and recorded artifacts justify advancement. Return status `blocked` if anything is missing, stale, or misleading.\n\n")
+	b.WriteString("Evidence to inspect:\n")
+	if manifest.Present {
+		b.WriteString("- Build manifest: ")
+		b.WriteString(displayDataPath(manifest.Path))
+		b.WriteString("\n")
+	}
+	if claimsPath := strings.TrimSpace(manifest.Data.ClaimsPath); claimsPath != "" {
+		b.WriteString("- Build claims: ")
+		b.WriteString(claimsPath)
+		b.WriteString("\n")
+	}
+	if claimsSummary := strings.TrimSpace(claims.Summary); claimsSummary != "" {
+		b.WriteString("- Claims summary: ")
+		b.WriteString(claimsSummary)
+		b.WriteString("\n")
+	}
+	if buildWatcher.Present {
+		b.WriteString("- Build-time watcher: ")
+		b.WriteString(strings.TrimSpace(buildWatcher.Status))
+		if summary := strings.TrimSpace(buildWatcher.Summary); summary != "" {
+			b.WriteString(" — ")
+			b.WriteString(summary)
+		}
+		b.WriteString("\n")
+	}
+	if len(steps) > 0 {
+		b.WriteString("\nVerification commands:\n")
+		for _, step := range steps {
+			b.WriteString("- ")
+			b.WriteString(step.Name)
+			b.WriteString(": ")
+			if step.Skipped {
+				b.WriteString("skipped")
+			} else if step.Passed {
+				b.WriteString("passed")
+			} else {
+				b.WriteString("failed")
+			}
+			if summary := strings.TrimSpace(step.Summary); summary != "" {
+				b.WriteString(" — ")
+				b.WriteString(summary)
+			}
+			b.WriteString("\n")
+		}
+	}
+	if len(phase.Tasks) > 0 {
+		b.WriteString("\nPhase tasks:\n")
+		for idx, task := range phase.Tasks {
+			b.WriteString("- ")
+			b.WriteString(buildTaskID(task, idx))
+			b.WriteString(": ")
+			b.WriteString(strings.TrimSpace(task.Goal))
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+func evaluateContinueWatcherVerification(manifest codexContinueManifest) codexWatcherVerification {
+	if !manifest.Present {
+		return codexWatcherVerification{}
+	}
+	for _, dispatch := range manifest.Data.Dispatches {
+		stage := strings.ToLower(strings.TrimSpace(dispatch.Stage))
+		caste := strings.ToLower(strings.TrimSpace(dispatch.Caste))
+		if stage != "verification" && caste != "watcher" {
+			continue
+		}
+		status := continueWorkerFlowStatus(dispatch.Status)
+		summary := strings.TrimSpace(dispatch.Summary)
+		if summary == "" {
+			switch status {
+			case "completed", "manually-reconciled":
+				summary = "watcher verification completed before advancement"
+			default:
+				summary = fmt.Sprintf("watcher verification did not complete cleanly: %s", status)
+			}
+		}
+		return codexWatcherVerification{
+			Present: true,
+			Passed:  status == "completed" || status == "manually-reconciled",
+			Status:  status,
+			Worker:  strings.TrimSpace(dispatch.Name),
+			Summary: summary,
+		}
+	}
+	return codexWatcherVerification{}
 }
 
 func validateContinueReconcileTasks(phase colony.Phase, reconcileTaskIDs []string) error {
@@ -423,15 +980,11 @@ func assessCodexContinue(phase colony.Phase, manifest codexContinueManifest, ver
 	}
 
 	dispatchStatuses := make(map[string][]string, len(phase.Tasks))
-	completedTaskIDs := make(map[string]bool, len(phase.Tasks))
 	operationalIssues := []string{}
 	for _, dispatch := range manifest.Data.Dispatches {
 		status := strings.TrimSpace(dispatch.Status)
 		if dispatch.TaskID != "" {
 			dispatchStatuses[dispatch.TaskID] = append(dispatchStatuses[dispatch.TaskID], status)
-		}
-		if status == "completed" && dispatch.TaskID != "" {
-			completedTaskIDs[dispatch.TaskID] = true
 		}
 		if status != "" && status != "completed" {
 			operationalIssues = append(operationalIssues, fmt.Sprintf("%s (%s)", dispatch.Name, status))
@@ -439,8 +992,9 @@ func assessCodexContinue(phase colony.Phase, manifest codexContinueManifest, ver
 	}
 	operationalIssues = uniqueSortedStrings(operationalIssues)
 
+	requiresBuilderClaims := manifestRequiresBuilderClaims(manifest)
 	dispatchEvidenceTrusted := !manifestUsesSyntheticDispatch(manifest)
-	positiveEvidence := verification.Claims.Passed || verification.Claims.Skipped || (dispatchEvidenceTrusted && len(completedTaskIDs) > 0) || len(reconciled) > 0
+	claimsSatisfied := verification.Claims.Passed || verification.Claims.Skipped
 	tasks := make([]codexContinueTaskAssessment, 0, len(phase.Tasks))
 	redispatchTasks := make([]string, 0, len(phase.Tasks))
 
@@ -448,7 +1002,8 @@ func assessCodexContinue(phase colony.Phase, manifest codexContinueManifest, ver
 		taskID := buildTaskID(task, idx)
 		statuses := uniqueSortedStrings(dispatchStatuses[taskID])
 		_, reconciledTask := reconciled[taskID]
-		outcome, summary, recovery := classifyContinueTaskAssessment(taskID, statuses, verification.ChecksPassed, positiveEvidence, reconciledTask, dispatchEvidenceTrusted)
+		taskArtifactEvidenceTrusted := !requiresBuilderClaims || claimsSatisfied || reconciledTask
+		outcome, summary, recovery := classifyContinueTaskAssessment(taskID, statuses, verification.ChecksPassed, reconciledTask, dispatchEvidenceTrusted, taskArtifactEvidenceTrusted)
 		taskAssessment := codexContinueTaskAssessment{
 			TaskID:           taskID,
 			Goal:             strings.TrimSpace(task.Goal),
@@ -464,13 +1019,25 @@ func assessCodexContinue(phase colony.Phase, manifest codexContinueManifest, ver
 			redispatchTasks = append(redispatchTasks, taskID)
 		}
 	}
+	positiveEvidence := continueTasksSupportAdvancement(tasks, claimsSatisfied)
 
 	blockingIssues := []string{}
 	if !verification.ChecksPassed {
 		blockingIssues = append(blockingIssues, verification.BlockingIssues...)
 	}
 	if verification.ChecksPassed && !positiveEvidence {
-		blockingIssues = append(blockingIssues, "verification passed but no implementation evidence was recorded; reconcile completed tasks or redispatch missing work")
+		if requiresBuilderClaims && !claimsSatisfied {
+			if len(reconciled) == 0 {
+				blockingIssues = append(blockingIssues, verification.Claims.Summary)
+				blockingIssues = append(blockingIssues, verification.Claims.Mismatches...)
+			} else {
+				blockingIssues = append(blockingIssues, "verification passed, but unreconciled tasks still failed builder-claim verification")
+				blockingIssues = append(blockingIssues, verification.Claims.Summary)
+				blockingIssues = append(blockingIssues, verification.Claims.Mismatches...)
+			}
+		} else {
+			blockingIssues = append(blockingIssues, "verification passed but no implementation evidence was recorded; reconcile completed tasks or redispatch missing work")
+		}
 	}
 
 	recovery := codexContinueRecoveryPlan{
@@ -496,6 +1063,8 @@ func assessCodexContinue(phase colony.Phase, manifest codexContinueManifest, ver
 		summary = "Verification passed with partial operational success"
 	} else if !verification.ChecksPassed {
 		summary = "Continue blocked by verification failures"
+	} else if requiresBuilderClaims && !claimsSatisfied && len(reconciled) == 0 {
+		summary = "Continue blocked by builder claim verification"
 	} else if !positiveEvidence {
 		summary = "Continue blocked because task evidence is missing"
 	}
@@ -517,7 +1086,20 @@ func assessCodexContinue(phase colony.Phase, manifest codexContinueManifest, ver
 	}
 }
 
-func classifyContinueTaskAssessment(taskID string, statuses []string, verificationPassed, positiveEvidence, reconciled, dispatchEvidenceTrusted bool) (string, string, string) {
+func continueTasksSupportAdvancement(tasks []codexContinueTaskAssessment, claimsSatisfied bool) bool {
+	if len(tasks) == 0 {
+		return claimsSatisfied
+	}
+	for _, task := range tasks {
+		switch task.Outcome {
+		case "missing", "needs_redispatch", "implemented_unverified", "simulated":
+			return false
+		}
+	}
+	return true
+}
+
+func classifyContinueTaskAssessment(taskID string, statuses []string, verificationPassed, reconciled, dispatchEvidenceTrusted, artifactEvidenceTrusted bool) (string, string, string) {
 	if reconciled {
 		if verificationPassed {
 			return "manually_reconciled", "Task was manually reconciled and the phase verification passed.", "reverify"
@@ -530,13 +1112,19 @@ func classifyContinueTaskAssessment(taskID string, statuses []string, verificati
 			if !dispatchEvidenceTrusted {
 				return "simulated", "Workers only reported completion in simulated mode; rerun this phase without --synthetic or reconcile real manual work.", "redispatch"
 			}
+			if !artifactEvidenceTrusted {
+				return "implemented_unverified", "A worker reported completion for this task, but artifact verification is missing or failed.", "redispatch"
+			}
 			return "verified", "Task has completed worker evidence and the phase verification passed.", ""
 		}
 		if len(statuses) == 0 {
-			if positiveEvidence {
-				return "verified_partial", "Phase verification passed and overall code evidence supports this task even without a direct task dispatch record.", ""
-			}
 			return "missing", "No dispatch or reconciliation evidence was recorded for this task.", "redispatch"
+		}
+		if !dispatchEvidenceTrusted {
+			return "simulated", fmt.Sprintf("Worker evidence is simulated and cannot satisfy continue advancement: %s.", strings.Join(statuses, ", ")), "redispatch"
+		}
+		if !artifactEvidenceTrusted {
+			return "implemented_unverified", fmt.Sprintf("Workers reported activity for this task, but artifact verification is missing or failed: %s.", strings.Join(statuses, ", ")), "redispatch"
 		}
 		return "verified_partial", fmt.Sprintf("Phase verification passed despite operational worker issues: %s.", strings.Join(statuses, ", ")), ""
 	}
@@ -594,6 +1182,9 @@ func continueNextCommandForAssessment(assessment codexContinueAssessment) string
 	if strings.TrimSpace(assessment.Recovery.RedispatchCommand) != "" {
 		return assessment.Recovery.RedispatchCommand
 	}
+	if continueAssessmentPrefersReverify(assessment) && strings.TrimSpace(assessment.Recovery.ReverifyCommand) != "" {
+		return assessment.Recovery.ReverifyCommand
+	}
 	if strings.TrimSpace(assessment.Recovery.ReconcileCommand) != "" {
 		return assessment.Recovery.ReconcileCommand
 	}
@@ -603,33 +1194,366 @@ func continueNextCommandForAssessment(assessment codexContinueAssessment) string
 	return "aether continue"
 }
 
+func continueAssessmentPrefersReverify(assessment codexContinueAssessment) bool {
+	sawReverify := false
+	for _, task := range assessment.Tasks {
+		action := strings.TrimSpace(task.RecoveryAction)
+		if action == "" {
+			continue
+		}
+		if action != "reverify" {
+			return false
+		}
+		sawReverify = true
+	}
+	return sawReverify
+}
+
 func resolveCodexVerificationCommands(root string) codexVerificationCommands {
 	commands := codexVerificationCommands{}
+	mergeCodexVerificationCommands(&commands, loadVerificationCommandsFromMarkdown(filepath.Join(root, "AGENTS.md"), "## Verification Commands"))
+	mergeCodexVerificationCommands(&commands, loadVerificationCommandsFromMarkdown(filepath.Join(root, ".codex", "CODEX.md"), "### Verification Commands"))
+	mergeCodexVerificationCommands(&commands, loadVerificationCommandsFromMarkdown(filepath.Join(root, "CLAUDE.md"), "## Verification Commands"))
+	mergeCodexVerificationCommands(&commands, loadVerificationCommandsFromMarkdown(filepath.Join(root, ".opencode", "OPENCODE.md"), "## Verification Commands"))
+	mergeCodexVerificationCommands(&commands, loadVerificationCommandsFromMarkdown(filepath.Join(root, ".aether", "data", "codebase.md"), "## Commands"))
 	switch {
 	case fileExists(filepath.Join(root, "go.mod")):
-		commands.Build = "go build ./..."
-		commands.Type = "go vet ./..."
-		commands.Test = "go test ./..."
+		if commands.Build == "" {
+			commands.Build = "go build ./..."
+		}
+		if commands.Type == "" {
+			commands.Type = "go vet ./..."
+		}
+		if commands.Test == "" {
+			commands.Test = "go test ./..."
+		}
 	case fileExists(filepath.Join(root, "package.json")):
-		commands.Build = "npm run build"
-		commands.Type = "npx tsc --noEmit"
-		commands.Lint = "npm run lint"
-		commands.Test = "npm test"
+		if commands.Build == "" {
+			commands.Build = "npm run build"
+		}
+		if commands.Type == "" {
+			commands.Type = "npx tsc --noEmit"
+		}
+		if commands.Lint == "" {
+			commands.Lint = "npm run lint"
+		}
+		if commands.Test == "" {
+			commands.Test = "npm test"
+		}
 	case fileExists(filepath.Join(root, "Cargo.toml")):
-		commands.Build = "cargo build"
-		commands.Lint = "cargo clippy"
-		commands.Test = "cargo test"
+		if commands.Build == "" {
+			commands.Build = "cargo build"
+		}
+		if commands.Lint == "" {
+			commands.Lint = "cargo clippy"
+		}
+		if commands.Test == "" {
+			commands.Test = "cargo test"
+		}
 	case fileExists(filepath.Join(root, "pyproject.toml")):
-		commands.Build = "python -m build"
-		commands.Type = "pyright ."
-		commands.Lint = "ruff check ."
-		commands.Test = "pytest"
+		if commands.Build == "" {
+			commands.Build = "python -m build"
+		}
+		if commands.Type == "" {
+			commands.Type = "pyright ."
+		}
+		if commands.Lint == "" {
+			commands.Lint = "ruff check ."
+		}
+		if commands.Test == "" {
+			commands.Test = "pytest"
+		}
 	case fileExists(filepath.Join(root, "Makefile")):
-		commands.Build = "make build"
-		commands.Lint = "make lint"
-		commands.Test = "make test"
+		if commands.Build == "" {
+			commands.Build = "make build"
+		}
+		if commands.Lint == "" {
+			commands.Lint = "make lint"
+		}
+		if commands.Test == "" {
+			commands.Test = "make test"
+		}
 	}
 	return commands
+}
+
+func mergeCodexVerificationCommands(dst *codexVerificationCommands, src codexVerificationCommands) {
+	if dst.Build == "" {
+		dst.Build = strings.TrimSpace(src.Build)
+	}
+	if dst.Type == "" {
+		dst.Type = strings.TrimSpace(src.Type)
+	}
+	if dst.Lint == "" {
+		dst.Lint = strings.TrimSpace(src.Lint)
+	}
+	if dst.Test == "" {
+		dst.Test = strings.TrimSpace(src.Test)
+	}
+}
+
+func loadVerificationCommandsFromMarkdown(path, heading string) codexVerificationCommands {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return codexVerificationCommands{}
+	}
+
+	content := string(data)
+	if section := extractMarkdownSection(content, heading); section != "" {
+		content = section
+	}
+	return extractVerificationCommands(content)
+}
+
+func extractMarkdownSection(content, heading string) string {
+	lines := strings.Split(content, "\n")
+	normalizedHeading := strings.ToLower(strings.TrimSpace(heading))
+	targetLevel := markdownHeadingLevel(heading)
+	capturing := false
+	inFence := false
+	var section []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !capturing && strings.ToLower(trimmed) == normalizedHeading {
+			capturing = true
+			continue
+		}
+		if capturing {
+			if strings.HasPrefix(trimmed, "```") {
+				inFence = !inFence
+				section = append(section, line)
+				continue
+			}
+			if !inFence {
+				level := markdownHeadingLevel(trimmed)
+				if level > 0 && targetLevel > 0 && level <= targetLevel {
+					break
+				}
+			}
+			section = append(section, line)
+		}
+	}
+
+	return strings.TrimSpace(strings.Join(section, "\n"))
+}
+
+func markdownHeadingLevel(line string) int {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "#") {
+		return 0
+	}
+	level := 0
+	for level < len(trimmed) && trimmed[level] == '#' {
+		level++
+	}
+	if level == 0 || level >= len(trimmed) || trimmed[level] != ' ' {
+		return 0
+	}
+	return level
+}
+
+func extractVerificationCommands(content string) codexVerificationCommands {
+	commands := codexVerificationCommands{}
+	pendingKind := ""
+
+	for _, rawLine := range strings.Split(content, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "```") {
+			continue
+		}
+		if kind, command, ok := parseVerificationCommandTableLine(line); ok {
+			setVerificationCommand(&commands, kind, command)
+			pendingKind = ""
+			continue
+		}
+		if kind, command, ok := parseLabeledVerificationCommand(line); ok {
+			setVerificationCommand(&commands, kind, command)
+			pendingKind = ""
+			continue
+		}
+		if kind := parseVerificationCommandComment(line); kind != "" {
+			pendingKind = kind
+			continue
+		}
+		if command := extractVerificationCommandValue(line); command != "" {
+			if pendingKind != "" {
+				setVerificationCommand(&commands, pendingKind, command)
+				pendingKind = ""
+				continue
+			}
+			if kind := detectVerificationCommandKind(command); kind != "" {
+				setVerificationCommand(&commands, kind, command)
+			}
+		}
+	}
+
+	return commands
+}
+
+func parseVerificationCommandTableLine(line string) (string, string, bool) {
+	if !strings.HasPrefix(strings.TrimSpace(line), "|") {
+		return "", "", false
+	}
+	parts := strings.Split(line, "|")
+	if len(parts) < 4 {
+		return "", "", false
+	}
+	label := strings.TrimSpace(parts[1])
+	kind := normalizeVerificationCommandKind(label)
+	if kind == "" {
+		return "", "", false
+	}
+	command := extractVerificationCommandValue(strings.TrimSpace(parts[2]))
+	if command == "" {
+		return "", "", false
+	}
+	return kind, command, true
+}
+
+func parseLabeledVerificationCommand(line string) (string, string, bool) {
+	line = strings.TrimSpace(strings.TrimLeft(line, "-* "))
+	idx := strings.Index(line, ":")
+	if idx <= 0 {
+		return "", "", false
+	}
+	kind := normalizeVerificationCommandKind(line[:idx])
+	if kind == "" {
+		return "", "", false
+	}
+	command := extractVerificationCommandValue(line[idx+1:])
+	if command == "" {
+		return "", "", false
+	}
+	return kind, command, true
+}
+
+func parseVerificationCommandComment(line string) string {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "#") {
+		return normalizeVerificationCommandKind(strings.TrimSpace(strings.TrimLeft(trimmed, "#")))
+	}
+	if strings.HasPrefix(trimmed, "//") {
+		return normalizeVerificationCommandKind(strings.TrimSpace(strings.TrimPrefix(trimmed, "//")))
+	}
+	return ""
+}
+
+func extractVerificationCommandValue(text string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return ""
+	}
+	if strings.Count(text, "`") >= 2 {
+		start := strings.Index(text, "`")
+		end := strings.Index(text[start+1:], "`")
+		if start >= 0 && end >= 0 {
+			return strings.TrimSpace(text[start+1 : start+1+end])
+		}
+	}
+
+	text = strings.TrimSpace(strings.TrimLeft(text, "-* "))
+	if text == "" || strings.HasPrefix(text, "#") || strings.HasPrefix(text, "|") {
+		return ""
+	}
+	if looksLikeVerificationCommand(text) {
+		return text
+	}
+	return ""
+}
+
+func looksLikeVerificationCommand(text string) bool {
+	if detectVerificationCommandKind(text) != "" {
+		return true
+	}
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return false
+	}
+	switch fields[0] {
+	case "printf", "echo", "true", "false", "make", "sh", "bash":
+		return true
+	default:
+		return false
+	}
+}
+
+func detectVerificationCommandKind(command string) string {
+	lower := strings.ToLower(strings.TrimSpace(command))
+	switch {
+	case strings.HasPrefix(lower, "go build"),
+		strings.HasPrefix(lower, "npm run build"),
+		strings.HasPrefix(lower, "pnpm build"),
+		strings.HasPrefix(lower, "yarn build"),
+		strings.HasPrefix(lower, "cargo build"),
+		strings.HasPrefix(lower, "python -m build"),
+		strings.HasPrefix(lower, "make build"):
+		return "build"
+	case strings.HasPrefix(lower, "go test"),
+		strings.HasPrefix(lower, "npm test"),
+		strings.HasPrefix(lower, "pnpm test"),
+		strings.HasPrefix(lower, "yarn test"),
+		strings.HasPrefix(lower, "cargo test"),
+		strings.HasPrefix(lower, "pytest"),
+		strings.HasPrefix(lower, "make test"):
+		return "tests"
+	case strings.HasPrefix(lower, "go vet"),
+		strings.Contains(lower, "tsc --noemit"),
+		strings.HasPrefix(lower, "pyright"),
+		strings.HasPrefix(lower, "mypy"):
+		return "types"
+	case strings.HasPrefix(lower, "golangci-lint"),
+		strings.HasPrefix(lower, "npm run lint"),
+		strings.HasPrefix(lower, "pnpm lint"),
+		strings.HasPrefix(lower, "yarn lint"),
+		strings.HasPrefix(lower, "cargo clippy"),
+		strings.HasPrefix(lower, "ruff check"),
+		strings.HasPrefix(lower, "make lint"):
+		return "lint"
+	default:
+		return ""
+	}
+}
+
+func normalizeVerificationCommandKind(label string) string {
+	lower := strings.ToLower(strings.TrimSpace(strings.Trim(label, "*`")))
+	switch {
+	case strings.Contains(lower, "build"):
+		return "build"
+	case strings.Contains(lower, "type"), strings.Contains(lower, "vet"):
+		return "types"
+	case strings.Contains(lower, "lint"):
+		return "lint"
+	case strings.Contains(lower, "test"):
+		return "tests"
+	default:
+		return ""
+	}
+}
+
+func setVerificationCommand(commands *codexVerificationCommands, kind, command string) {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return
+	}
+	switch kind {
+	case "build":
+		if commands.Build == "" {
+			commands.Build = command
+		}
+	case "types":
+		if commands.Type == "" {
+			commands.Type = command
+		}
+	case "lint":
+		if commands.Lint == "" {
+			commands.Lint = command
+		}
+	case "tests":
+		if commands.Test == "" {
+			commands.Test = command
+		}
+	}
 }
 
 func runVerificationStep(root, name, command string) codexVerificationStep {
@@ -782,11 +1706,31 @@ func continueVerificationDetail(verification codexContinueVerificationReport) st
 	return strings.Join(verification.BlockingIssues, "; ")
 }
 
-func closeCodexContinueWorkers(manifest codexContinueManifest, assessment codexContinueAssessment) ([]codexContinueClosedWorker, error) {
-	if !manifest.Present || len(manifest.Data.Dispatches) == 0 {
-		return nil, nil
+func attachContinueClaimVerification(verification codexContinueVerificationReport, assessment codexContinueAssessment) codexContinueVerificationReport {
+	if verification.Claims.Passed || verification.Claims.Skipped || assessment.Passed {
+		return verification
 	}
-	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+
+	blockers := append([]string{}, verification.BlockingIssues...)
+	if summary := strings.TrimSpace(verification.Claims.Summary); summary != "" {
+		blockers = append(blockers, summary)
+	}
+	for _, mismatch := range verification.Claims.Mismatches {
+		if mismatch = strings.TrimSpace(mismatch); mismatch != "" {
+			blockers = append(blockers, mismatch)
+		}
+	}
+
+	verification.ChecksPassed = false
+	verification.Passed = false
+	verification.BlockingIssues = uniqueSortedStrings(blockers)
+	return verification
+}
+
+func plannedCodexContinueClosedWorkers(manifest codexContinueManifest, assessment codexContinueAssessment) []codexContinueClosedWorker {
+	if !manifest.Present || len(manifest.Data.Dispatches) == 0 {
+		return nil
+	}
 	closed := make([]codexContinueClosedWorker, 0, len(manifest.Data.Dispatches))
 	reconciled := make(map[string]struct{}, len(assessment.ReconciledTasks))
 	for _, taskID := range assessment.ReconciledTasks {
@@ -804,12 +1748,30 @@ func closeCodexContinueWorkers(manifest codexContinueManifest, assessment codexC
 		} else if assessment.PartialSuccess && status != "completed" {
 			summary = fmt.Sprintf("%s Phase verification passed independently during continue.", continueWorkerCloseSummary(dispatch))
 		}
-		if err := spawnTree.UpdateStatus(dispatch.Name, status, summary); err != nil {
-			return closed, fmt.Errorf("failed to close worker %s: %w", dispatch.Name, err)
-		}
-		closed = append(closed, codexContinueClosedWorker{Name: dispatch.Name, Status: status, Summary: summary})
+		closed = append(closed, codexContinueClosedWorker{
+			Stage:   strings.TrimSpace(dispatch.Stage),
+			Caste:   strings.TrimSpace(dispatch.Caste),
+			Name:    dispatch.Name,
+			Task:    strings.TrimSpace(dispatch.Task),
+			Status:  status,
+			Summary: summary,
+		})
 	}
-	return closed, nil
+	return closed
+}
+
+func applyCodexContinueWorkerClosures(closed []codexContinueClosedWorker) error {
+	if len(closed) == 0 {
+		return nil
+	}
+
+	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+	for _, detail := range closed {
+		if err := spawnTree.UpdateStatusPreserveActivity(detail.Name, detail.Status, detail.Summary); err != nil {
+			return fmt.Errorf("failed to close worker %s: %w", detail.Name, err)
+		}
+	}
+	return nil
 }
 
 func closedWorkerNames(details []codexContinueClosedWorker) []string {
@@ -818,6 +1780,236 @@ func closedWorkerNames(details []codexContinueClosedWorker) []string {
 		names = append(names, detail.Name)
 	}
 	return names
+}
+
+func continueWorkerFlowWithWatcher(flow []codexContinueWorkerFlowStep, watcherFlow *codexContinueWorkerFlowStep) []codexContinueWorkerFlowStep {
+	combined := make([]codexContinueWorkerFlowStep, 0, len(flow)+1)
+	if watcherFlow != nil && strings.TrimSpace(watcherFlow.Name) != "" {
+		combined = append(combined, *watcherFlow)
+	}
+	return append(combined, flow...)
+}
+
+func continueHousekeepingFlowStep(housekeeping signalHousekeepingResult) codexContinueWorkerFlowStep {
+	return codexContinueWorkerFlowStep{
+		Stage:   "housekeeping",
+		Caste:   "system",
+		Name:    "Signal housekeeping",
+		Status:  "completed",
+		Summary: continueHousekeepingSummary(housekeeping),
+	}
+}
+
+func continueWorkerFlowStatus(status string) string {
+	status = strings.TrimSpace(status)
+	if status == "" {
+		return "completed"
+	}
+	return status
+}
+
+func continueWatcherDefaultSummary(status string) string {
+	switch continueWorkerFlowStatus(status) {
+	case "completed", "manually-reconciled":
+		return "Continue watcher completed independent verification"
+	default:
+		return fmt.Sprintf("continue watcher finished with status %s", continueWorkerFlowStatus(status))
+	}
+}
+
+func continueWatcherFlowSummary(name, status, summary string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "watcher"
+	}
+	status = continueWorkerFlowStatus(status)
+	switch status {
+	case "completed", "manually-reconciled":
+		return fmt.Sprintf("Watcher %s completed independent verification before advancement", name)
+	default:
+		summary = strings.TrimSpace(summary)
+		if summary == "" {
+			return fmt.Sprintf("Watcher %s closed independent verification with status %s", name, status)
+		}
+		return fmt.Sprintf("Watcher %s closed independent verification with status %s: %s", name, status, summary)
+	}
+}
+
+func continueWatcherResultSummary(result codex.DispatchResult) string {
+	if result.WorkerResult != nil {
+		if len(result.WorkerResult.Blockers) > 0 {
+			return strings.Join(result.WorkerResult.Blockers, "; ")
+		}
+		if summary := strings.TrimSpace(result.WorkerResult.Summary); summary != "" && !strings.HasPrefix(summary, "FakeInvoker completed task") {
+			return summary
+		}
+	}
+	if result.Error != nil {
+		return strings.TrimSpace(result.Error.Error())
+	}
+	return ""
+}
+
+func continueWorkerFlowEvents(now time.Time, workerFlow []codexContinueWorkerFlowStep) []string {
+	if len(workerFlow) == 0 {
+		return nil
+	}
+
+	events := make([]string, 0, len(workerFlow))
+	for _, step := range workerFlow {
+		switch strings.TrimSpace(step.Stage) {
+		case "review":
+			summary := strings.TrimSpace(step.Summary)
+			if summary == "" {
+				summary = continueReviewFlowSummary(step)
+			}
+			events = append(events, fmt.Sprintf("%s|continue_review|continue|%s", now.Format(time.RFC3339), summary))
+		case "verification":
+			summary := strings.TrimSpace(step.Summary)
+			if summary == "" {
+				summary = "Watcher verification completed"
+			}
+			events = append(events, fmt.Sprintf("%s|watcher_verification|continue|%s", now.Format(time.RFC3339), summary))
+		case "housekeeping":
+			summary := strings.TrimSpace(step.Summary)
+			if summary == "" {
+				summary = "signal housekeeping completed"
+			}
+			events = append(events, fmt.Sprintf("%s|signal_housekeeping|continue|Signal housekeeping completed: %s", now.Format(time.RFC3339), summary))
+		}
+	}
+	return events
+}
+
+func recordBlockedContinueWorkerFlow(state colony.ColonyState, now time.Time, workerFlow []codexContinueWorkerFlowStep) (colony.ColonyState, error) {
+	if len(workerFlow) == 0 {
+		return state, nil
+	}
+	if err := recordContinueWorkerFlow(workerFlow); err != nil {
+		return state, err
+	}
+
+	updated := state
+	updated.Events = append(trimmedEvents(updated.Events), continueWorkerFlowEvents(now, workerFlow)...)
+	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
+		return state, fmt.Errorf("failed to save colony state: %w", err)
+	}
+	return updated, nil
+}
+
+func recordContinueWorkerFlow(workerFlow []codexContinueWorkerFlowStep) error {
+	if len(workerFlow) == 0 || store == nil {
+		return nil
+	}
+
+	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
+	for _, step := range workerFlow {
+		name := strings.TrimSpace(step.Name)
+		if name == "" {
+			continue
+		}
+		task := continueWorkerFlowTask(step)
+		if err := spawnTree.RecordSpawn("Continue", strings.TrimSpace(step.Caste), name, task, 1); err != nil {
+			return fmt.Errorf("failed to record continue flow %s: %w", name, err)
+		}
+		if err := spawnTree.UpdateStatus(name, continueWorkerFlowStatus(step.Status), continueWorkerFlowLogSummary(step)); err != nil {
+			return fmt.Errorf("failed to finalize continue flow %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func continueWorkerFlowTask(step codexContinueWorkerFlowStep) string {
+	if task := strings.TrimSpace(step.Task); task != "" {
+		return task
+	}
+	switch strings.TrimSpace(step.Stage) {
+	case "review":
+		if summary := strings.TrimSpace(step.Summary); summary != "" {
+			return summary
+		}
+		return continueReviewFlowTask(step)
+	case "verification":
+		return "Independent verification before advancement"
+	case "housekeeping":
+		return "Expire stale and low-value pheromone signals"
+	default:
+		if summary := strings.TrimSpace(step.Summary); summary != "" {
+			return summary
+		}
+		return strings.TrimSpace(step.Name)
+	}
+}
+
+func continueWorkerFlowLogSummary(step codexContinueWorkerFlowStep) string {
+	switch strings.TrimSpace(step.Stage) {
+	case "review":
+		if summary := strings.TrimSpace(step.Summary); summary != "" {
+			return summary
+		}
+		return continueReviewFlowSummary(step)
+	case "verification":
+		if summary := strings.TrimSpace(step.Summary); summary != "" {
+			return summary
+		}
+		return continueWatcherFlowSummary(step.Name, step.Status, "")
+	case "housekeeping":
+		if summary := strings.TrimSpace(step.Summary); summary != "" {
+			return summary
+		}
+		return "Signal housekeeping completed"
+	default:
+		if summary := strings.TrimSpace(step.Summary); summary != "" {
+			return summary
+		}
+		return strings.TrimSpace(step.Task)
+	}
+}
+
+func continueReviewFlowTask(step codexContinueWorkerFlowStep) string {
+	return continueReviewTaskForCaste(step.Caste)
+}
+
+func continueReviewTaskForCaste(caste string) string {
+	switch strings.TrimSpace(caste) {
+	case "gatekeeper":
+		return "Gatekeeper continue review"
+	case "auditor":
+		return "Auditor continue review"
+	case "probe":
+		return "Probe continue review"
+	default:
+		return "Continue review"
+	}
+}
+
+func continueReviewFlowSummary(step codexContinueWorkerFlowStep) string {
+	name := strings.TrimSpace(step.Name)
+	if name == "" {
+		name = "review worker"
+	}
+	status := continueWorkerFlowStatus(step.Status)
+	role := strings.TrimSpace(step.Caste)
+	if role != "" {
+		role = strings.ToUpper(role[:1]) + role[1:]
+	}
+	if role == "" {
+		role = "Review"
+	}
+	switch status {
+	case "completed", "manually-reconciled":
+		return fmt.Sprintf("%s %s completed continue review before advancement", role, name)
+	default:
+		return fmt.Sprintf("%s %s closed continue review with status %s", role, name, status)
+	}
+}
+
+func continueHousekeepingSummary(housekeeping signalHousekeepingResult) string {
+	summary := fmt.Sprintf("%d active -> %d active", housekeeping.ActiveBefore, housekeeping.ActiveAfter)
+	if housekeeping.Updated == 0 {
+		return summary
+	}
+	return fmt.Sprintf("%s (%d expired, %d low-strength, %d stale continue)", summary, housekeeping.ExpiredByTime, housekeeping.DeactivatedByStrength, housekeeping.ExpiredWorkerContinue)
 }
 
 func updateCodexContinueContext(phase colony.Phase, manifest codexContinueManifest, closedWorkers []codexContinueClosedWorker, now time.Time) error {

@@ -283,6 +283,7 @@ Legal transitions (from `pkg/colony/colony.go:490`):
 ### Remedies
 
 - For unreleased local source changes on this machine: run `aether install --package-dir "$PWD"` from the Aether repo, then `aether update --force` in target repos
+- For isolated source-development on the same machine: run `go run ./cmd/aether install --channel dev --package-dir "$PWD" --binary-dest "$HOME/.local/bin"` from the Aether repo, then `aether-dev update --force` in target repos
 - If the change modified `aether install` itself: bootstrap with `go run ./cmd/aether install --package-dir "$PWD" --binary-dest "$HOME/.local/bin"`
 - For published release runtime updates: run `aether update --force --download-binary`
 - For first-time published installs on a machine with no hub yet: run `npx --yes aether-colony@latest`
@@ -297,6 +298,8 @@ Legal transitions (from `pkg/colony/colony.go:490`):
 - The npm package page README comes from `npm/README.md` in the published package, not the root repo README
 - Updating the npm website README requires a fresh npm publish; editing `npm/README.md` in git is not enough
 - If install/update/version/binary-download logic changed, treat downstream `aether update --force`, local `aether version`, and npm bootstrap verification as part of release integrity
+- Stable/public runtime uses `aether` + `~/.aether/`; dev/maintainer runtime uses `aether-dev` + `~/.aether-dev/`
+- Dev installs intentionally skip global Claude/OpenCode/Codex home sync by default so source-development does not overwrite the stable command surface on the same machine
 - If a release tag exists but `gh run list --workflow Release` shows no run and `gh release view vX.Y.Z` shows no release, report that the GitHub release did not materialize and recommend `gh workflow run Release -f tag=vX.Y.Z` first
 - If `gh workflow run Release -f tag=vX.Y.Z` returns `HTTP 422: Actions has been disabled for this user`, report that as a GitHub Actions actor/policy failure and recommend another maintainer or the local GoReleaser fallback
 - If GitHub workflow dispatch is unavailable or still fails, recommend `export GITHUB_TOKEN=\"$(gh auth token)\" && goreleaser release --clean` before npm publish

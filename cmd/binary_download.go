@@ -19,7 +19,7 @@ var binaryDownloadCmd = &cobra.Command{
 
 Detects your OS and architecture, downloads the correct archive from
 https://github.com/calcosmic/Aether/releases, verifies the SHA-256
-checksum, and installs the binary atomically to ~/.aether/bin/aether.
+checksum, and installs the binary atomically into the selected channel bin.
 
 Use this to update the binary without reinstalling everything.`,
 	Args: cobra.NoArgs,
@@ -27,12 +27,15 @@ Use this to update the binary without reinstalling everything.`,
 }
 
 func init() {
+	binaryDownloadCmd.Flags().String("channel", "", "Runtime channel to download for (stable or dev; default: infer from binary/env)")
 	binaryDownloadCmd.Flags().String("version", "", "Version to download (default: current aether version)")
-	binaryDownloadCmd.Flags().String("dest", "", "Destination directory (default: ~/.aether/bin)")
+	binaryDownloadCmd.Flags().String("dest", "", "Destination directory (default: channel-specific hub bin)")
 	rootCmd.AddCommand(binaryDownloadCmd)
 }
 
 func runBinaryDownload(cmd *cobra.Command, args []string) error {
+	channel := runtimeChannelFromFlag(cmd.Flags())
+
 	versionFlag, _ := cmd.Flags().GetString("version")
 	version, err := resolveReleaseVersion(versionFlag)
 	if err != nil {
@@ -45,11 +48,11 @@ func runBinaryDownload(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("cannot determine home directory: %w", err)
 		}
-		destDir = filepath.Join(home, downloader.DefaultDestSubdir())
+		destDir = filepath.Join(home, defaultBinaryDestSubdirForChannel(channel))
 	}
 
 	outputOK(map[string]interface{}{
-		"message": fmt.Sprintf("Downloading aether v%s binary for %s/%s...", version, getGOOS(), getGOArch()),
+		"message": fmt.Sprintf("Downloading %s v%s binary for %s/%s...", defaultBinaryName(channel), version, getGOOS(), getGOArch()),
 		"version": version,
 		"dest":    destDir,
 	})
@@ -60,6 +63,10 @@ func runBinaryDownload(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("version v%s not found. Run 'aether version' to check the latest version: %w", version, err)
 		}
 		return fmt.Errorf("download failed: %w", err)
+	}
+	result, err = alignDownloadedBinaryToChannel(result, destDir, channel)
+	if err != nil {
+		return fmt.Errorf("download succeeded but channel binary rename failed: %w", err)
 	}
 
 	outputOK(map[string]interface{}{

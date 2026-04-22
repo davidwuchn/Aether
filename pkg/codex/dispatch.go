@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -98,90 +99,118 @@ func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispa
 
 	for _, waveNum := range sortedWaves {
 		waveDispatches := waves[waveNum]
-
-		for _, d := range waveDispatches {
-			// Check if context is already cancelled before invoking
-			if ctx.Err() != nil {
-				emitDispatchLifecycle(observer, d, "timeout", "", nil, ctx.Err())
-				allResults = append(allResults, DispatchResult{
-					WorkerName: d.WorkerName,
-					Status:     "timeout",
-					Error:      ctx.Err(),
-				})
-				continue
-			}
-
-			config := WorkerConfig{
-				AgentName:        d.AgentName,
-				AgentTOMLPath:    d.AgentTOMLPath,
-				Caste:            d.Caste,
-				WorkerName:       d.WorkerName,
-				TaskID:           d.TaskID,
-				TaskBrief:        d.TaskBrief,
-				ContextCapsule:   d.ContextCapsule,
-				Root:             d.Root,
-				Timeout:          d.Timeout,
-				SkillSection:     d.SkillSection,
-				PheromoneSection: d.PheromoneSection,
-			}
-
-			emitDispatchLifecycle(observer, d, "starting", "", nil, nil)
-			if progressInvoker, ok := invoker.(ProgressAwareWorkerInvoker); ok {
-				result, err := progressInvoker.InvokeWithProgress(ctx, config, func(progress WorkerProgressEvent) {
-					status := normalizeDispatchProgressStatus(progress.Status)
-					if status == "" {
-						return
-					}
-					emitDispatchLifecycle(observer, d, status, progress.Message, nil, nil)
-				})
-				dr := DispatchResult{
-					WorkerName: d.WorkerName,
-				}
-				if err != nil {
-					dr.Status = "failed"
-					dr.Error = err
-				} else if result.Status == "completed" {
-					dr.Status = "completed"
-					dr.WorkerResult = &result
-				} else {
-					dr.Status = result.Status
-					dr.WorkerResult = &result
-					if result.Error != nil {
-						dr.Error = result.Error
-					}
-				}
-
-				emitDispatchLifecycle(observer, d, dr.Status, "", dr.WorkerResult, dr.Error)
-				allResults = append(allResults, dr)
-				continue
-			}
-			result, err := invoker.Invoke(ctx, config)
-
-			dr := DispatchResult{
-				WorkerName: d.WorkerName,
-			}
-
-			if err != nil {
-				dr.Status = "failed"
-				dr.Error = err
-			} else if result.Status == "completed" {
-				dr.Status = "completed"
-				dr.WorkerResult = &result
-			} else {
-				// Map worker result status to dispatch result status
-				dr.Status = result.Status
-				dr.WorkerResult = &result
-				if result.Error != nil {
-					dr.Error = result.Error
-				}
-			}
-
-			emitDispatchLifecycle(observer, d, dr.Status, "", dr.WorkerResult, dr.Error)
-			allResults = append(allResults, dr)
+		waveResults, err := DispatchWaveWithObserver(ctx, invoker, waveDispatches, observer, false)
+		if err != nil {
+			return nil, err
 		}
+		allResults = append(allResults, waveResults...)
 	}
 
 	return allResults, nil
+}
+
+// DispatchWaveWithObserver executes all dispatches in a single wave.
+// When parallel is false, workers execute sequentially in input order.
+// When parallel is true, workers execute concurrently and results preserve input order.
+func DispatchWaveWithObserver(ctx context.Context, invoker WorkerInvoker, dispatches []WorkerDispatch, observer DispatchObserver, parallel bool) ([]DispatchResult, error) {
+	if len(dispatches) == 0 {
+		return nil, nil
+	}
+	if !parallel || len(dispatches) == 1 {
+		results := make([]DispatchResult, 0, len(dispatches))
+		for _, d := range dispatches {
+			results = append(results, invokeDispatch(ctx, invoker, d, observer))
+		}
+		return results, nil
+	}
+
+	results := make([]DispatchResult, len(dispatches))
+	var wg sync.WaitGroup
+	for idx, dispatch := range dispatches {
+		wg.Add(1)
+		go func(i int, d WorkerDispatch) {
+			defer wg.Done()
+			results[i] = invokeDispatch(ctx, invoker, d, observer)
+		}(idx, dispatch)
+	}
+	wg.Wait()
+	return results, nil
+}
+
+func invokeDispatch(ctx context.Context, invoker WorkerInvoker, d WorkerDispatch, observer DispatchObserver) DispatchResult {
+	if ctx.Err() != nil {
+		emitDispatchLifecycle(observer, d, "timeout", "", nil, ctx.Err())
+		return DispatchResult{
+			WorkerName: d.WorkerName,
+			Status:     "timeout",
+			Error:      ctx.Err(),
+		}
+	}
+
+	config := WorkerConfig{
+		AgentName:        d.AgentName,
+		AgentTOMLPath:    d.AgentTOMLPath,
+		Caste:            d.Caste,
+		WorkerName:       d.WorkerName,
+		TaskID:           d.TaskID,
+		TaskBrief:        d.TaskBrief,
+		ContextCapsule:   d.ContextCapsule,
+		Root:             d.Root,
+		Timeout:          d.Timeout,
+		SkillSection:     d.SkillSection,
+		PheromoneSection: d.PheromoneSection,
+	}
+
+	emitDispatchLifecycle(observer, d, "starting", "", nil, nil)
+	if progressInvoker, ok := invoker.(ProgressAwareWorkerInvoker); ok {
+		result, err := progressInvoker.InvokeWithProgress(ctx, config, func(progress WorkerProgressEvent) {
+			status := normalizeDispatchProgressStatus(progress.Status)
+			if status == "" {
+				return
+			}
+			emitDispatchLifecycle(observer, d, status, progress.Message, nil, nil)
+		})
+		dr := DispatchResult{
+			WorkerName: d.WorkerName,
+		}
+		if err != nil {
+			dr.Status = "failed"
+			dr.Error = err
+		} else if result.Status == "completed" {
+			dr.Status = "completed"
+			dr.WorkerResult = &result
+		} else {
+			dr.Status = result.Status
+			dr.WorkerResult = &result
+			if result.Error != nil {
+				dr.Error = result.Error
+			}
+		}
+
+		emitDispatchLifecycle(observer, d, dr.Status, "", dr.WorkerResult, dr.Error)
+		return dr
+	}
+
+	result, err := invoker.Invoke(ctx, config)
+	dr := DispatchResult{
+		WorkerName: d.WorkerName,
+	}
+	if err != nil {
+		dr.Status = "failed"
+		dr.Error = err
+	} else if result.Status == "completed" {
+		dr.Status = "completed"
+		dr.WorkerResult = &result
+	} else {
+		dr.Status = result.Status
+		dr.WorkerResult = &result
+		if result.Error != nil {
+			dr.Error = result.Error
+		}
+	}
+
+	emitDispatchLifecycle(observer, d, dr.Status, "", dr.WorkerResult, dr.Error)
+	return dr
 }
 
 // ExtractClaims aggregates files_created, files_modified, and tests_written

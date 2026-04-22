@@ -105,7 +105,7 @@ var hookStopCmd = &cobra.Command{
 		if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
 			return nil
 		}
-		if state.State != colony.StateEXECUTING && state.State != colony.StateBUILT {
+		if (state.State != colony.StateEXECUTING && state.State != colony.StateBUILT) || state.Paused {
 			return nil
 		}
 

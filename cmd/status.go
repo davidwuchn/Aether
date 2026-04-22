@@ -328,6 +328,11 @@ func loadSpawnActivitySummaryForState(s *storage.Store, state *colony.ColonyStat
 	currentCommand := ""
 	if run, ok, runErr := tree.CurrentRun(); runErr == nil && ok {
 		if filtered, filterErr := tree.EntriesForRun(run.ID); filterErr == nil && len(filtered) > 0 {
+			if strings.TrimSpace(run.Command) == "continue" {
+				if continueFlow := filterSpawnEntriesByParent(filtered, "Continue"); len(continueFlow) > 0 {
+					filtered = continueFlow
+				}
+			}
 			entries = filtered
 			currentRunID = run.ID
 			currentCommand = run.Command
@@ -386,8 +391,27 @@ func filterSpawnEntriesSince(entries []agent.SpawnEntry, startedAt time.Time) []
 	return filtered
 }
 
+func filterSpawnEntriesByParent(entries []agent.SpawnEntry, parent string) []agent.SpawnEntry {
+	parent = strings.TrimSpace(parent)
+	if parent == "" {
+		return entries
+	}
+	filtered := make([]agent.SpawnEntry, 0, len(entries))
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.ParentName) != parent {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
+}
+
 func spawnEntryTimestamp(entry agent.SpawnEntry) time.Time {
-	ts, err := time.Parse(time.RFC3339, entry.Timestamp)
+	raw := entry.ActivityTimestamp
+	if strings.TrimSpace(raw) == "" {
+		raw = entry.Timestamp
+	}
+	ts, err := time.Parse(time.RFC3339, raw)
 	if err != nil {
 		return time.Time{}
 	}

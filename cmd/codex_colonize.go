@@ -146,8 +146,11 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 		if strings.TrimSpace(status) == "" || status == "spawned" {
 			status = "completed"
 		}
-		summary := strings.Join(dispatches[i].Outputs, ", ")
-		if dispatchMode != "real" {
+		summary := strings.TrimSpace(dispatches[i].Summary)
+		if summary == "" {
+			summary = strings.Join(dispatches[i].Outputs, ", ")
+		}
+		if summary == "" && dispatchMode != "real" {
 			summary = "Local survey synthesis fallback"
 		}
 		if err := spawnTree.UpdateStatus(dispatches[i].Name, status, summary); err != nil {
@@ -194,6 +197,7 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 		"force_resurvey":     force,
 		"territory_surveyed": surveyedAt,
 		"dispatch_mode":      dispatchMode,
+		"dispatch_contract":  surveyDispatchContract(),
 		"artifact_source":    artifactSource,
 		"survey_warning":     surveyWarning,
 		"stats": map[string]interface{}{
@@ -414,8 +418,6 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 	if invoker == nil || !invoker.IsAvailable(ctx) {
 		return plannedSurveyors(root), nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, planningDispatchTimeout)
-	defer cancel()
 
 	codexAgentsDir := filepath.Join(root, ".codex", "agents")
 
@@ -447,6 +449,7 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 			SkillSection:     resolveSkillSection(spec.Caste, spec.Task),
 			PheromoneSection: pheromoneSection,
 			Root:             root,
+			Timeout:          surveyorDispatchTimeout,
 			Wave:             1,
 		})
 	}
@@ -458,6 +461,7 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 		dispatches,
 		colony.ModeInRepo,
 		"Survey Wave",
+		true,
 		func(wave int) codex.DispatchObserver {
 			return runtimeVisualDispatchObserver(spawnTree, "Survey running", wave)
 		},

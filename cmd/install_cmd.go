@@ -37,7 +37,7 @@ var installCmd = &cobra.Command{
 		"  .opencode/agents/      -> ~/.opencode/agent/\n" +
 		"  .codex/agents/         -> ~/.codex/agents/\n" +
 		"  .aether/skills-codex/  -> ~/.codex/skills/aether/\n\n" +
-		"Also creates the hub directory at ~/.aether/ for cross-repo coordination.",
+		"Also creates the selected hub directory (~/.aether/ for stable, ~/.aether-dev/ for dev) for cross-repo coordination.",
 	Args: cobra.NoArgs,
 	RunE: runInstall,
 }
@@ -50,13 +50,15 @@ var (
 	installBinaryDest      string
 	installBinaryVersion   string
 	installSkipBuildBinary bool
+	installChannel         string
 )
 
 func init() {
 	installCmd.Flags().String("package-dir", "", "Override the embedded install assets with a local Aether checkout or package directory")
 	installCmd.Flags().String("home-dir", "", "User home directory (default: $HOME)")
+	installCmd.Flags().String("channel", "", "Runtime channel to install (stable or dev; default: infer from binary/env)")
 	installCmd.Flags().Bool("download-binary", false, "Also download the Go binary from GitHub Releases")
-	installCmd.Flags().String("binary-dest", "", "Destination directory for binary (default: ~/.aether/bin)")
+	installCmd.Flags().String("binary-dest", "", "Destination directory for binary (default: channel-specific hub bin, or current/local bin when rebuilding from source)")
 	installCmd.Flags().String("binary-version", "", "Binary version to download (default: current version)")
 	installCmd.Flags().Bool("skip-build-binary", false, "Skip auto-building the Go binary when installing from an Aether source checkout")
 
@@ -65,6 +67,8 @@ func init() {
 
 // runInstall executes the install logic.
 func runInstall(cmd *cobra.Command, args []string) error {
+	channel := runtimeChannelFromFlag(cmd.Flags())
+
 	packageDir, err := cmd.Flags().GetString("package-dir")
 	if err != nil {
 		return fmt.Errorf("failed to read --package-dir: %w", err)
@@ -98,33 +102,44 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	results := []map[string]interface{}{}
 	var syncErrors []string
 
-	for _, pair := range installSyncPairs() {
-		srcDir := filepath.Join(packageDir, filepath.FromSlash(pair.srcRel))
-		destDir := filepath.Join(homeDir, filepath.FromSlash(pair.destRel))
+	if shouldSyncPlatformHomes(channel) {
+		for _, pair := range installSyncPairs() {
+			srcDir := filepath.Join(packageDir, filepath.FromSlash(pair.srcRel))
+			destDir := filepath.Join(homeDir, filepath.FromSlash(pair.destRel))
 
-		result := syncDir(srcDir, destDir, syncOptions{
-			cleanup:              pair.cleanup,
-			preserveLocalChanges: pair.preserveLocalChanges,
-			validate:             pair.validate,
-			include:              pair.include,
+			result := syncDir(srcDir, destDir, syncOptions{
+				cleanup:              pair.cleanup,
+				preserveLocalChanges: pair.preserveLocalChanges,
+				validate:             pair.validate,
+				include:              pair.include,
+			})
+			entry := map[string]interface{}{
+				"label":   pair.label,
+				"src":     pair.srcRel,
+				"dest":    pair.destRel,
+				"copied":  result.copied,
+				"skipped": result.skipped,
+				"removed": len(result.removed),
+			}
+			if len(result.errors) > 0 {
+				entry["errors"] = result.errors
+				syncErrors = append(syncErrors, result.errors...)
+			}
+			results = append(results, entry)
+		}
+	} else {
+		results = append(results, map[string]interface{}{
+			"label":   "Platform homes",
+			"src":     ".claude/.opencode/.codex",
+			"dest":    "skipped",
+			"copied":  0,
+			"skipped": 0,
+			"note":    "Dev channel leaves global Claude/OpenCode/Codex home assets untouched by default.",
 		})
-		entry := map[string]interface{}{
-			"label":   pair.label,
-			"src":     pair.srcRel,
-			"dest":    pair.destRel,
-			"copied":  result.copied,
-			"skipped": result.skipped,
-			"removed": len(result.removed),
-		}
-		if len(result.errors) > 0 {
-			entry["errors"] = result.errors
-			syncErrors = append(syncErrors, result.errors...)
-		}
-		results = append(results, entry)
 	}
 
 	// Set up hub directory
-	hubDir := filepath.Join(homeDir, ".aether")
+	hubDir := resolveHubPathForHome(homeDir, channel)
 	hubResult := setupInstallHub(hubDir, packageDir)
 	results = append(results, hubResult)
 	if errVal, ok := hubResult["error"].(string); ok && errVal != "" {
@@ -150,8 +165,9 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	result := map[string]interface{}{
 		"message":             fmt.Sprintf("Install complete: %d files copied, %d unchanged", totalCopied, totalSkipped),
 		"details":             results,
+		"channel":             string(channel),
 		"binary_refresh_mode": installBinaryRefreshMode(cmd, packageDir),
-		"binary_refresh_note": installBinaryRefreshNote(installBinaryRefreshMode(cmd, packageDir)),
+		"binary_refresh_note": installBinaryRefreshNote(installBinaryRefreshMode(cmd, packageDir), channel),
 	}
 	outputWorkflow(result, renderInstallVisual(homeDir, results, totalCopied, totalSkipped, installBinaryRefreshMode(cmd, packageDir)))
 
@@ -161,7 +177,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	downloadBinary, _ := cmd.Flags().GetBool("download-binary")
 	skipBuildBinary, _ := cmd.Flags().GetBool("skip-build-binary")
 	if !downloadBinary && !skipBuildBinary && isAetherSourceCheckout(packageDir) {
-		if err := runLocalBinaryBuildFromInstall(cmd, homeDir, packageDir); err != nil {
+		if err := runLocalBinaryBuildFromInstall(cmd, homeDir, packageDir, channel); err != nil {
 			return fmt.Errorf("install succeeded but local binary build failed: %w", err)
 		}
 	}
@@ -169,7 +185,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	// Download Go binary if requested. This remains opt-in because release
 	// downloads require network access and should not replace local source builds.
 	if downloadBinary {
-		if err := runBinaryDownloadFromInstall(cmd, homeDir); err != nil {
+		if err := runBinaryDownloadFromInstall(cmd, homeDir, channel); err != nil {
 			return fmt.Errorf("install succeeded but binary download failed: %w", err)
 		}
 	}
@@ -189,14 +205,15 @@ func installBinaryRefreshMode(cmd *cobra.Command, packageDir string) string {
 	return "unchanged"
 }
 
-func installBinaryRefreshNote(mode string) string {
+func installBinaryRefreshNote(mode string, channel runtimeChannel) string {
+	binaryLabel := defaultBinaryName(channel)
 	switch strings.TrimSpace(mode) {
 	case "release-download":
-		return "The hub was refreshed; a published release binary will be downloaded next."
+		return fmt.Sprintf("The hub was refreshed; a published %s release binary will be downloaded next.", binaryLabel)
 	case "local-build":
-		return "The hub was refreshed from a source checkout; the shared local aether binary will be rebuilt next."
+		return fmt.Sprintf("The hub was refreshed from a source checkout; the shared local %s binary will be rebuilt next.", binaryLabel)
 	default:
-		return "The file-sync step refreshed the hub only. Shared runtime changes require either a local rebuild from source or an explicit release download."
+		return fmt.Sprintf("The file-sync step refreshed the hub only. Shared %s runtime changes require either a local rebuild from source or an explicit release download.", binaryLabel)
 	}
 }
 
@@ -767,7 +784,7 @@ func listFilesRecursiveWithExclusion(baseDir string, exclude map[string]bool) []
 }
 
 // runBinaryDownloadFromInstall handles the --download-binary flag on the install command.
-func runBinaryDownloadFromInstall(cmd *cobra.Command, homeDir string) error {
+func runBinaryDownloadFromInstall(cmd *cobra.Command, homeDir string, channel runtimeChannel) error {
 	versionFlag, _ := cmd.Flags().GetString("binary-version")
 	version, err := resolveReleaseVersion(versionFlag)
 	if err != nil {
@@ -776,14 +793,14 @@ func runBinaryDownloadFromInstall(cmd *cobra.Command, homeDir string) error {
 
 	destDir, _ := cmd.Flags().GetString("binary-dest")
 	if destDir == "" {
-		destDir = filepath.Join(homeDir, downloader.DefaultDestSubdir())
+		destDir = filepath.Join(homeDir, defaultBinaryDestSubdirForChannel(channel))
 	}
 
 	outputWorkflow(map[string]interface{}{
-		"message": fmt.Sprintf("Downloading aether v%s binary...", version),
+		"message": fmt.Sprintf("Downloading %s v%s binary...", defaultBinaryName(channel), version),
 		"version": version,
 		"dest":    destDir,
-	}, renderBinaryActionVisual("Binary Download", fmt.Sprintf("Downloading aether v%s binary...", version), version, destDir))
+	}, renderBinaryActionVisual("Binary Download", fmt.Sprintf("Downloading %s v%s binary...", defaultBinaryName(channel), version), version, destDir))
 
 	result, err := downloader.DownloadBinary(version, destDir)
 	if err != nil {
@@ -791,6 +808,10 @@ func runBinaryDownloadFromInstall(cmd *cobra.Command, homeDir string) error {
 			return fmt.Errorf("version v%s not found: %w", version, err)
 		}
 		return err
+	}
+	result, err = alignDownloadedBinaryToChannel(result, destDir, channel)
+	if err != nil {
+		return fmt.Errorf("rename downloaded binary for %s channel: %w", channel, err)
 	}
 
 	outputWorkflow(map[string]interface{}{
@@ -813,7 +834,7 @@ func isAetherSourceCheckout(packageDir string) bool {
 	return true
 }
 
-func runLocalBinaryBuildFromInstall(cmd *cobra.Command, homeDir, packageDir string) error {
+func runLocalBinaryBuildFromInstall(cmd *cobra.Command, homeDir, packageDir string, channel runtimeChannel) error {
 	sourceRoot := findAetherModuleRoot(packageDir)
 	if sourceRoot == "" {
 		return fmt.Errorf("cannot locate Aether go.mod from %s", packageDir)
@@ -821,7 +842,7 @@ func runLocalBinaryBuildFromInstall(cmd *cobra.Command, homeDir, packageDir stri
 
 	destDir, _ := cmd.Flags().GetString("binary-dest")
 	if destDir == "" {
-		destDir = defaultLocalBinaryDest(homeDir)
+		destDir = defaultLocalBinaryDest(homeDir, channel)
 	}
 
 	version := resolveVersion(sourceRoot)
@@ -829,7 +850,7 @@ func runLocalBinaryBuildFromInstall(cmd *cobra.Command, homeDir, packageDir stri
 		version = "0.0.0-dev"
 	}
 
-	result, err := buildLocalBinary(sourceRoot, destDir, version)
+	result, err := buildLocalBinary(sourceRoot, destDir, version, channel)
 	if err != nil {
 		return err
 	}
@@ -838,14 +859,14 @@ func runLocalBinaryBuildFromInstall(cmd *cobra.Command, homeDir, packageDir stri
 		"message": fmt.Sprintf("Built local aether binary to %s", result.Path),
 		"path":    result.Path,
 		"version": result.Version,
-	}, renderBinaryActionVisual("Binary Build", fmt.Sprintf("Built local aether binary to %s", result.Path), result.Version, result.Path))
+	}, renderBinaryActionVisual("Binary Build", fmt.Sprintf("Built local %s binary to %s", defaultBinaryName(channel), result.Path), result.Version, result.Path))
 	return nil
 }
 
-func defaultLocalBinaryDest(homeDir string) string {
+func defaultLocalBinaryDest(homeDir string, channel runtimeChannel) string {
 	if exe, err := os.Executable(); err == nil {
 		base := filepath.Base(exe)
-		if base == "aether" || base == "aether.exe" {
+		if base == defaultBinaryName(channel) || base == defaultBinaryName(channel)+".exe" {
 			return filepath.Dir(exe)
 		}
 	}
@@ -853,17 +874,17 @@ func defaultLocalBinaryDest(homeDir string) string {
 	if info, err := os.Stat(localBin); err == nil && info.IsDir() {
 		return localBin
 	}
-	return filepath.Join(homeDir, downloader.DefaultDestSubdir())
+	return filepath.Join(homeDir, defaultBinaryDestSubdirForChannel(channel))
 }
 
-func buildLocalBinary(sourceRoot, destDir, version string) (*downloader.DownloadResult, error) {
+func buildLocalBinary(sourceRoot, destDir, version string, channel runtimeChannel) (*downloader.DownloadResult, error) {
 	if err := os.MkdirAll(destDir, 0755); err != nil {
 		return nil, fmt.Errorf("create binary destination %q: %w", destDir, err)
 	}
 
-	binaryName := "aether"
+	binaryName := defaultBinaryName(channel)
 	if strings.EqualFold(filepath.Ext(os.Args[0]), ".exe") {
-		binaryName = "aether.exe"
+		binaryName += ".exe"
 	}
 	destPath := filepath.Join(destDir, binaryName)
 	tmpPath := filepath.Join(destDir, fmt.Sprintf(".aether-build-%d", os.Getpid()))

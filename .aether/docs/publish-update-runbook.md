@@ -10,6 +10,13 @@ This runbook is the authoritative workflow for publishing Aether changes and ver
 - `aether update --download-binary` downloads a published release binary. Use it when you need the released runtime, not an unreleased local source change.
 - `.aether/version.json` is the source-checkout release version file. `npm/package.json` must use the exact same version.
 
+## Channel Policy
+
+- Stable/public runtime: `aether` + `~/.aether/`
+- Dev/maintainer runtime: `aether-dev` + `~/.aether-dev/`
+- npm bootstrap publishes only the stable/public runtime
+- Dev installs intentionally skip global Claude/OpenCode/Codex home sync by default so source-development does not overwrite the public command surface on the same machine
+
 ## Standard Local Source Workflow
 
 Use this when you changed files in the Aether repo and want other repos on the same machine to pick them up.
@@ -26,6 +33,23 @@ Why this works:
 - `install` refreshes `~/.aether/system/` from the current checkout.
 - In a source checkout, `install` also rebuilds the shared local `aether` binary unless `--skip-build-binary` is used.
 - `update --force` refreshes tracked companion files from the hub and removes stale managed files.
+
+## Isolated Dev Workflow
+
+Use this when you are actively developing Aether itself and do not want unreleased runtime changes to overwrite the public/stable install on the same machine.
+
+```bash
+# In the Aether repo
+go run ./cmd/aether install --channel dev --package-dir "$PWD" --binary-dest "$HOME/.local/bin"
+
+# In each target repo you want to test against the dev channel
+aether-dev update --force
+```
+
+Why this works:
+- the dev channel uses `~/.aether-dev/system/` instead of `~/.aether/system/`
+- the dev binary installs as `aether-dev`
+- stable `aether` and npm installs remain untouched
 
 ## Published Release Workflow
 

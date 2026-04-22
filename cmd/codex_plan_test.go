@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/calcosmic/Aether/pkg/codex"
 	"github.com/calcosmic/Aether/pkg/colony"
@@ -182,6 +183,93 @@ func TestPlanReturnsExistingPlanWithoutRefresh(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dataDir, "spawn-tree.txt")); err == nil {
 		t.Fatal("expected no new planning spawns when reusing existing plan")
+	}
+}
+
+func TestPlanIncludesDispatchContract(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/aether-plan-contract-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "cmd"), 0755); err != nil {
+		t.Fatalf("mkdir cmd: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+
+	goal := "Map plan dispatch contracts honestly"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan:    colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	rootCmd.SetArgs([]string{"plan"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("plan returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	contract, ok := result["dispatch_contract"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("dispatch_contract missing or wrong type: %T", result["dispatch_contract"])
+	}
+
+	if got := stringValue(contract["execution_model"]); got != "2 staged workers, scout then route-setter" {
+		t.Fatalf("execution_model = %q, want staged planning dispatch", got)
+	}
+	if got := int(contract["wave_count"].(float64)); got != 2 {
+		t.Fatalf("wave_count = %d, want 2", got)
+	}
+	if got := int(contract["worker_count"].(float64)); got != 2 {
+		t.Fatalf("worker_count = %d, want 2", got)
+	}
+	if got := int(contract["shared_timeout_seconds"].(float64)); got != 0 {
+		t.Fatalf("shared_timeout_seconds = %d, want 0", got)
+	}
+	if got := int(contract["worker_timeout_seconds"].(float64)); got != int(maxDuration(planningScoutTimeout, planningRouteSetterTimeout)/time.Second) {
+		t.Fatalf("worker_timeout_seconds = %d, want %d", got, int(maxDuration(planningScoutTimeout, planningRouteSetterTimeout)/time.Second))
+	}
+	if got := stringValue(contract["deadline_policy"]); !strings.Contains(got, "own timeout") || !strings.Contains(got, "dependency_blocked") {
+		t.Fatalf("deadline_policy = %q, want per-worker timeout and dependency block language", got)
+	}
+	if got := stringValue(contract["dependency_behavior"]); !strings.Contains(got, "Route-setter execution depends on the scout completing first") {
+		t.Fatalf("dependency_behavior = %q, want scout dependency guidance", got)
+	}
+	if got := stringValue(contract["fallback_behavior"]); !strings.Contains(got, "dispatch_mode=fallback") {
+		t.Fatalf("fallback_behavior = %q, want fallback visibility guidance", got)
+	}
+	if got := stringValue(contract["coordination_path"]); got != filepath.ToSlash(filepath.Join(".aether", "data", "spawn-tree.txt")) {
+		t.Fatalf("coordination_path = %q", got)
+	}
+
+	visibility := stringSliceValue(contract["fallback_visibility"])
+	for _, want := range []string{"dispatch_mode", "planning_warning", "artifact_source", "plan_source"} {
+		if !containsString(visibility, want) {
+			t.Fatalf("fallback_visibility missing %q: %v", want, visibility)
+		}
+	}
+
+	artifacts := stringSliceValue(contract["artifact_paths"])
+	for _, want := range []string{
+		filepath.ToSlash(filepath.Join(".aether", "data", "planning", "SCOUT.md")),
+		filepath.ToSlash(filepath.Join(".aether", "data", "planning", "ROUTE-SETTER.md")),
+		filepath.ToSlash(filepath.Join(".aether", "data", "planning", "phase-plan.json")),
+		filepath.ToSlash(filepath.Join(".aether", "data", "phase-research")),
+	} {
+		if !containsString(artifacts, want) {
+			t.Fatalf("artifact_paths missing %q: %v", want, artifacts)
+		}
 	}
 }
 
@@ -404,6 +492,127 @@ func TestPlanFallsBackWhenRealPlanningDispatchFails(t *testing.T) {
 	}
 	if count := int(result["count"].(float64)); count == 0 {
 		t.Fatal("expected fallback plan to still contain phases")
+	}
+}
+
+func TestPlanFallbackForLanguageDesignGoalIsGoalAware(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	goal := "Create Soliditas, a language for AI-to-AI communication with better token and context efficiency"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:         "3.0",
+		Goal:            &goal,
+		State:           colony.StateREADY,
+		PlanGranularity: colony.GranularityMilestone,
+		Plan:            colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	originalInvoker := newCodexWorkerInvoker
+	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &failingPlanningInvoker{} }
+	defer func() { newCodexWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"plan"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("plan returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if got := result["dispatch_mode"]; got != "fallback" {
+		t.Fatalf("dispatch_mode = %v, want fallback", got)
+	}
+	if got := int(result["count"].(float64)); got < 4 {
+		t.Fatalf("fallback count = %d, want at least 4 phases for milestone granularity", got)
+	}
+
+	phases := result["phases"].([]interface{})
+	names := make([]string, 0, len(phases))
+	blob := ""
+	for _, raw := range phases {
+		phase := raw.(map[string]interface{})
+		name := phase["name"].(string)
+		names = append(names, name)
+		blob += name + "\n"
+		tasks := phase["tasks"].([]interface{})
+		for _, taskRaw := range tasks {
+			task := taskRaw.(map[string]interface{})
+			blob += task["goal"].(string) + "\n"
+		}
+	}
+
+	for _, want := range []string{
+		"Research charter and communication target",
+		"Representation and grammar design",
+		"Reference prototype and translation path",
+		"Evaluation and next design loop",
+		"communication problem",
+		"grammar",
+		"prototype",
+	} {
+		if !strings.Contains(blob, want) {
+			t.Fatalf("goal-aware fallback missing %q\nphase names: %v\n%s", want, names, blob)
+		}
+	}
+
+	for _, unwanted := range []string{"Discovery and boundaries", "Implementation", "Verification and polish"} {
+		if strings.Contains(blob, unwanted) {
+			t.Fatalf("goal-aware fallback should not collapse to generic template %q\nphase names: %v\n%s", unwanted, names, blob)
+		}
+	}
+}
+
+func TestPlanFallbackDefaultMilestoneUsesArchitecturePhase(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/feature-fallback-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	goal := "Ship a safer project update flow"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:         "3.0",
+		Goal:            &goal,
+		State:           colony.StateREADY,
+		PlanGranularity: colony.GranularityMilestone,
+		Plan:            colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	originalInvoker := newCodexWorkerInvoker
+	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &failingPlanningInvoker{} }
+	defer func() { newCodexWorkerInvoker = originalInvoker }()
+
+	rootCmd.SetArgs([]string{"plan"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("plan returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if got := int(result["count"].(float64)); got < 4 {
+		t.Fatalf("fallback count = %d, want at least 4 phases for milestone granularity", got)
+	}
+
+	phases := result["phases"].([]interface{})
+	names := make([]string, 0, len(phases))
+	for _, raw := range phases {
+		phase := raw.(map[string]interface{})
+		names = append(names, phase["name"].(string))
+	}
+
+	for _, want := range []string{"Discovery and boundaries", "Architecture and interfaces", "Implementation", "Verification and polish"} {
+		if !containsString(names, want) {
+			t.Fatalf("fallback phase list missing %q: %v", want, names)
+		}
 	}
 }
 

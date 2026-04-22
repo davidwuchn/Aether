@@ -15,7 +15,7 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Set up Aether in the current directory from hub",
 	Long: `Set up Aether in the current directory by copying system files
-from the distribution hub (~/.aether/system/) to the local .aether/ directory.
+from the selected distribution hub (~/.aether/system/ for stable, ~/.aether-dev/system/ for dev) to the local .aether/ directory.
 
 Creates required directories (data/, checkpoints/, locks/) and a .gitignore.
 Does NOT create COLONY_STATE.json (use "aether init" for that).
@@ -32,12 +32,15 @@ var (
 func init() {
 	setupCmd.Flags().String("repo-dir", "", "Path to the repository (default: $CWD)")
 	setupCmd.Flags().String("home-dir", "", "User home directory (default: $HOME)")
+	setupCmd.Flags().String("channel", "", "Runtime channel to set up from (stable or dev; default: infer from binary/env)")
 
 	rootCmd.AddCommand(setupCmd)
 }
 
 // runSetup executes the setup logic.
 func runSetup(cmd *cobra.Command, args []string) error {
+	channel := runtimeChannelFromFlag(cmd.Flags())
+
 	repoDir, err := cmd.Flags().GetString("repo-dir")
 	if err != nil {
 		return fmt.Errorf("failed to read --repo-dir: %w", err)
@@ -68,7 +71,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check hub exists
-	hubDir := filepath.Join(homeDir, ".aether")
+	hubDir := resolveHubPathForHome(homeDir, channel)
 	hubVersionFile := filepath.Join(hubDir, "version.json")
 	if _, err := os.Stat(hubVersionFile); os.IsNotExist(err) {
 		outputErrorMessage("Aether hub not installed. Run \"aether install\" first.")

@@ -40,23 +40,31 @@ type codexBuildTaskPlan struct {
 }
 
 type codexBuildManifest struct {
-	Phase           int                  `json:"phase"`
-	PhaseName       string               `json:"phase_name"`
-	Goal            string               `json:"goal,omitempty"`
-	Root            string               `json:"root"`
-	ParallelMode    string               `json:"parallel_mode,omitempty"`
-	ColonyDepth     string               `json:"colony_depth"`
-	DispatchMode    string               `json:"dispatch_mode,omitempty"`
-	GeneratedAt     string               `json:"generated_at"`
-	State           string               `json:"state"`
-	Checkpoint      string               `json:"checkpoint"`
-	ClaimsPath      string               `json:"claims_path"`
-	Playbooks       []string             `json:"playbooks"`
-	WorkerBriefs    []string             `json:"worker_briefs"`
-	Dispatches      []codexBuildDispatch `json:"dispatches"`
-	SelectedTasks   []string             `json:"selected_tasks,omitempty"`
-	Tasks           []codexBuildTaskPlan `json:"tasks"`
-	SuccessCriteria []string             `json:"success_criteria"`
+	Phase           int                      `json:"phase"`
+	PhaseName       string                   `json:"phase_name"`
+	Goal            string                   `json:"goal,omitempty"`
+	Root            string                   `json:"root"`
+	ParallelMode    string                   `json:"parallel_mode,omitempty"`
+	WaveExecution   []codexWaveExecutionPlan `json:"wave_execution,omitempty"`
+	ColonyDepth     string                   `json:"colony_depth"`
+	DispatchMode    string                   `json:"dispatch_mode,omitempty"`
+	GeneratedAt     string                   `json:"generated_at"`
+	State           string                   `json:"state"`
+	Checkpoint      string                   `json:"checkpoint"`
+	ClaimsPath      string                   `json:"claims_path"`
+	Playbooks       []string                 `json:"playbooks"`
+	WorkerBriefs    []string                 `json:"worker_briefs"`
+	Dispatches      []codexBuildDispatch     `json:"dispatches"`
+	SelectedTasks   []string                 `json:"selected_tasks,omitempty"`
+	Tasks           []codexBuildTaskPlan     `json:"tasks"`
+	SuccessCriteria []string                 `json:"success_criteria"`
+}
+
+type codexWaveExecutionPlan struct {
+	Wave        int    `json:"wave"`
+	Strategy    string `json:"strategy"`
+	WorkerCount int    `json:"worker_count"`
+	Reason      string `json:"reason"`
 }
 
 type codexBuildTaskClaim struct {
@@ -130,7 +138,9 @@ func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string, syntheti
 		return nil, err
 	}
 	parallelMode := effectiveParallelMode(state)
-	parallelWaves := buildParallelWaves(dispatches)
+	waveExecution := buildWaveExecutionPlans(dispatches, parallelMode)
+	waveCount := len(waveExecution)
+	parallelWaves := countParallelWaveExecutionPlans(waveExecution)
 	checkpointRel := filepath.ToSlash(filepath.Join("checkpoints", fmt.Sprintf("pre-build-phase-%d.json", phaseNum)))
 	buildDirRel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phaseNum)))
 	manifestRel := filepath.ToSlash(filepath.Join(buildDirRel, "manifest.json"))
@@ -159,10 +169,10 @@ func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string, syntheti
 	emitVisualProgress(renderBuildDispatchPreview(updatedState, updatedPhase, dispatches))
 
 	buildInvoker := newCodexWorkerInvoker()
-		if synthetic {
-			buildInvoker = &codex.FakeInvoker{}
-		}
-		dispatches, claims, mode, err := executeCodexBuildDispatches(context.Background(), root, updatedPhase, dispatches, playbooks, startedAt, buildInvoker, parallelMode)
+	if synthetic {
+		buildInvoker = &codex.FakeInvoker{}
+	}
+	dispatches, claims, mode, err := executeCodexBuildDispatches(context.Background(), root, updatedPhase, dispatches, playbooks, startedAt, buildInvoker, parallelMode)
 	if err != nil {
 		rollbackCodexBuildFailure(originalState, phaseNum, startedAt, err)
 		return nil, err
@@ -205,7 +215,7 @@ func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string, syntheti
 		return nil, fmt.Errorf("failed to save built colony state: %w", err)
 	}
 
-	updateSessionSummary("build", "aether continue", fmt.Sprintf("Phase %d dispatched to %d workers across %d waves", phaseNum, len(dispatches), max(parallelWaves, 1)))
+	updateSessionSummary("build", "aether continue", fmt.Sprintf("Phase %d dispatched to %d workers across %d waves", phaseNum, len(dispatches), max(waveCount, 1)))
 
 	dispatchMaps := make([]map[string]interface{}, 0, len(dispatches))
 	for _, dispatch := range dispatches {
@@ -249,8 +259,10 @@ func runCodexBuild(root string, phaseNum int, selectedTaskIDs []string, syntheti
 		"currentTask":    updatedPhase.Tasks,
 		"dispatches":     dispatchMaps,
 		"dispatch_count": len(dispatches),
+		"wave_count":     waveCount,
 		"parallel_waves": parallelWaves,
 		"parallel_mode":  string(parallelMode),
+		"wave_execution": waveExecution,
 		"dispatch_mode":  mode,
 		"selected_tasks": selectedTaskIDs,
 		"checkpoint":     displayDataPath(checkpointRel),
@@ -542,14 +554,57 @@ func plannedBuildDispatchesForSelection(phase colony.Phase, depth string, select
 	return dispatches
 }
 
-func buildParallelWaves(dispatches []codexBuildDispatch) int {
-	maxWave := 0
+func buildWaveExecutionPlans(dispatches []codexBuildDispatch, parallelMode colony.ParallelMode) []codexWaveExecutionPlan {
+	waveCounts := make(map[int]int)
 	for _, dispatch := range dispatches {
-		if dispatch.Wave > maxWave {
-			maxWave = dispatch.Wave
+		if dispatch.Stage != "wave" || dispatch.Wave <= 0 {
+			continue
+		}
+		waveCounts[dispatch.Wave]++
+	}
+	if len(waveCounts) == 0 {
+		return nil
+	}
+
+	waves := make([]int, 0, len(waveCounts))
+	for wave := range waveCounts {
+		waves = append(waves, wave)
+	}
+	sort.Ints(waves)
+
+	plans := make([]codexWaveExecutionPlan, 0, len(waves))
+	for _, wave := range waves {
+		plans = append(plans, buildWaveExecutionPlan(wave, waveCounts[wave], parallelMode))
+	}
+	return plans
+}
+
+func buildWaveExecutionPlan(wave, workerCount int, parallelMode colony.ParallelMode) codexWaveExecutionPlan {
+	plan := codexWaveExecutionPlan{
+		Wave:        wave,
+		WorkerCount: workerCount,
+		Strategy:    "serial",
+	}
+	switch {
+	case workerCount <= 1:
+		plan.Reason = "single task in this wave"
+	case parallelMode == colony.ModeWorktree:
+		plan.Strategy = "parallel"
+		plan.Reason = "dependency-independent tasks run in isolated worktrees"
+	default:
+		plan.Reason = "dependency-independent tasks share the main working tree in in-repo mode"
+	}
+	return plan
+}
+
+func countParallelWaveExecutionPlans(plans []codexWaveExecutionPlan) int {
+	total := 0
+	for _, plan := range plans {
+		if plan.Strategy == "parallel" {
+			total++
 		}
 	}
-	return maxWave
+	return total
 }
 
 func normalizedBuildDepth(depth string) string {
@@ -684,6 +739,7 @@ func writeCodexBuildArtifacts(root string, state colony.ColonyState, phase colon
 		Goal:            goal,
 		Root:            root,
 		ParallelMode:    string(effectiveParallelMode(state)),
+		WaveExecution:   buildWaveExecutionPlans(dispatches, effectiveParallelMode(state)),
 		ColonyDepth:     normalizedBuildDepth(state.ColonyDepth),
 		DispatchMode:    strings.TrimSpace(dispatchMode),
 		GeneratedAt:     startedAt.Format(time.RFC3339),

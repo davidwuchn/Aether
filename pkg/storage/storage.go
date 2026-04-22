@@ -51,6 +51,33 @@ func (s *Store) AtomicWrite(path string, data []byte) error {
 	}
 	defer s.locker.Unlock(path)
 
+	return s.atomicWriteLocked(path, data)
+}
+
+// UpdateFile performs a read-modify-write cycle under a single exclusive lock.
+// It is intended for callers that need cross-process safe updates based on the
+// current file contents.
+func (s *Store) UpdateFile(path string, mutate func(existing []byte) ([]byte, error)) error {
+	if err := s.locker.Lock(path); err != nil {
+		return fmt.Errorf("storage: acquire lock for %q: %w", path, err)
+	}
+	defer s.locker.Unlock(path)
+
+	fullPath := s.resolvePath(path)
+	existing, err := os.ReadFile(fullPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("storage: read %q: %w", fullPath, err)
+	}
+
+	updated, err := mutate(existing)
+	if err != nil {
+		return err
+	}
+	return s.atomicWriteLocked(path, updated)
+}
+
+func (s *Store) atomicWriteLocked(path string, data []byte) error {
+
 	fullPath := s.resolvePath(path)
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {

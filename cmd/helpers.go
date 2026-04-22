@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/calcosmic/Aether/pkg/storage"
@@ -146,17 +145,14 @@ func mustGetFloat64(cmd *cobra.Command, flag string) float64 {
 	return val
 }
 
-// resolveHubPath returns the hub directory path (~/.aether/).
+// resolveHubPath returns the active hub directory path.
 func resolveHubPath() string {
-	if dir := os.Getenv("AETHER_HUB_DIR"); dir != "" {
-		return dir
-	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		outputError(1, fmt.Sprintf("cannot determine home directory: %v", err), nil)
 		return ""
 	}
-	return filepath.Join(home, ".aether")
+	return resolveHubPathForHome(home, resolveRuntimeChannel())
 }
 
 // hubStore returns a new Store rooted at the hub directory.

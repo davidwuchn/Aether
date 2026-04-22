@@ -16,7 +16,7 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update Aether companion files and optionally the binary",
 	Long: "Update Aether by syncing companion files from the distribution hub\n" +
-		"(~/.aether/system/) to the local .aether/ directory.\n\n" +
+		"(~/.aether/system/ for stable, ~/.aether-dev/system/ for dev) to the local .aether/ directory.\n\n" +
 		"This updates slash commands, agent definitions, skills, templates, and docs.\n" +
 		"Local user data (COLONY_STATE.json, pheromones, etc.) is never overwritten.\n\n" +
 		"By default this does not replace the installed `aether` binary.\n" +
@@ -35,6 +35,7 @@ var (
 )
 
 func init() {
+	updateCmd.Flags().String("channel", "", "Runtime channel to update from (stable or dev; default: infer from binary/env)")
 	updateCmd.Flags().Bool("download-binary", false, "Also download a binary from GitHub Releases")
 	updateCmd.Flags().String("binary-version", "", "Binary version to download (default: resolved installed version)")
 	updateCmd.Flags().Bool("dry-run", false, "Show what would be updated without making changes")
@@ -44,6 +45,8 @@ func init() {
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
+	channel := runtimeChannelFromFlag(cmd.Flags())
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("cannot determine home directory: %w", err)
@@ -53,7 +56,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 
 	// Check hub exists
-	hubDir := filepath.Join(homeDir, ".aether")
+	hubDir := resolveHubPathForHome(homeDir, channel)
 	hubVersionFile := filepath.Join(hubDir, "version.json")
 	if _, err := os.Stat(hubVersionFile); os.IsNotExist(err) {
 		outputErrorMessage("Aether hub not installed. Run \"aether install\" first.")
@@ -83,7 +86,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			"local_version":       resolveVersion(),
 			"force":               force,
 			"binary_refresh_mode": binaryMode,
-			"binary_refresh_note": updateBinaryRefreshNote(binaryMode),
+			"binary_refresh_note": updateBinaryRefreshNote(binaryMode, channel),
 			"actions": []string{
 				"Sync .aether/ system files (commands, agents, skills, templates, docs)",
 				"Refresh repo-level Codex guidance (AGENTS.md, .codex/CODEX.md) when managed by Aether",
@@ -93,7 +96,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 				"Sync .codex/skills/",
 				"Sync .opencode/commands/ant/",
 				"Sync .opencode/agents/",
-				"Do not change the installed aether binary unless --download-binary is also used",
+				fmt.Sprintf("Do not change the installed %s binary unless --download-binary is also used", defaultBinaryName(channel)),
 			},
 		}
 		outputWorkflow(result, renderUpdateVisual(repoDir, hubVersion, resolveVersion(), force, true, []map[string]interface{}{
@@ -114,7 +117,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 				"force":               force,
 				"details":             syncResult.details,
 				"binary_refresh_mode": binaryMode,
-				"binary_refresh_note": updateBinaryRefreshNote(binaryMode),
+				"binary_refresh_note": updateBinaryRefreshNote(binaryMode, channel),
 			})
 			return nil
 		}
@@ -130,7 +133,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 				"force":               force,
 				"details":             syncResult.details,
 				"binary_refresh_mode": binaryMode,
-				"binary_refresh_note": updateBinaryRefreshNote(binaryMode),
+				"binary_refresh_note": updateBinaryRefreshNote(binaryMode, channel),
 			})
 			return nil
 		}
@@ -150,7 +153,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			"force":                   force,
 			"details":                 syncResult.details,
 			"binary_refresh_mode":     binaryMode,
-			"binary_refresh_note":     updateBinaryRefreshNote(binaryMode),
+			"binary_refresh_note":     updateBinaryRefreshNote(binaryMode, channel),
 			"legacy_session_restored": mirrorRestored,
 			"codex_restart_required":  len(restartTargets) > 0,
 			"codex_restart_targets":   restartTargets,
@@ -169,7 +172,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		destDir := filepath.Join(homeDir, downloader.DefaultDestSubdir())
+		destDir := filepath.Join(homeDir, defaultBinaryDestSubdirForChannel(channel))
 		outputWorkflow(map[string]interface{}{
 			"message": fmt.Sprintf("Downloading aether %s binary...", version),
 		}, renderBinaryActionVisual("Binary Download", fmt.Sprintf("Downloading aether %s binary...", version), version, destDir))
@@ -177,6 +180,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		result, err := downloader.DownloadBinary(version, destDir)
 		if err != nil {
 			return fmt.Errorf("file sync succeeded but binary download failed: %w", err)
+		}
+		result, err = alignDownloadedBinaryToChannel(result, destDir, channel)
+		if err != nil {
+			return fmt.Errorf("file sync succeeded but channel binary rename failed: %w", err)
 		}
 
 		outputWorkflow(map[string]interface{}{
@@ -203,14 +210,15 @@ func updateBinaryRefreshMode(downloadBinary, dryRun bool) string {
 	return "release-download"
 }
 
-func updateBinaryRefreshNote(mode string) string {
+func updateBinaryRefreshNote(mode string, channel runtimeChannel) string {
+	binaryLabel := defaultBinaryName(channel)
 	switch mode {
 	case "release-download-preview":
-		return "Companion files would be synced first, then a published release binary would be downloaded."
+		return fmt.Sprintf("Companion files would be synced first, then a published %s release binary would be downloaded.", binaryLabel)
 	case "release-download":
-		return "Companion files were synced first; a published release binary will be downloaded next."
+		return fmt.Sprintf("Companion files were synced first; a published %s release binary will be downloaded next.", binaryLabel)
 	default:
-		return "The installed aether binary is unchanged by a plain `aether update`; this command only syncs repo companion files."
+		return fmt.Sprintf("The installed %s binary is unchanged by a plain `%s update`; this command only syncs repo companion files.", binaryLabel, binaryLabel)
 	}
 }
 

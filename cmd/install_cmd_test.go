@@ -35,7 +35,7 @@ func TestInstallCommandFlags(t *testing.T) {
 		t.Fatalf("install command not found: %v", err)
 	}
 
-	expectedFlags := []string{"package-dir", "home-dir", "download-binary", "binary-dest", "binary-version", "skip-build-binary"}
+	expectedFlags := []string{"package-dir", "home-dir", "channel", "download-binary", "binary-dest", "binary-version", "skip-build-binary"}
 	for _, name := range expectedFlags {
 		if f := cmd.Flags().Lookup(name); f == nil {
 			t.Errorf("install command missing flag --%s", name)
@@ -116,6 +116,46 @@ func TestInstallUsesEmbeddedAssetsWithoutPackageDir(t *testing.T) {
 	hubWorkers := filepath.Join(homeDir, ".aether", "system", "workers.md")
 	if _, err := os.Stat(hubWorkers); os.IsNotExist(err) {
 		t.Fatalf("expected embedded hub file %s to exist after install", hubWorkers)
+	}
+}
+
+func TestInstallDevChannelUsesSeparateHubAndSkipsPlatformHomes(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	packageDir := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(packageDir, ".aether"), 0755); err != nil {
+		t.Fatalf("failed to create .aether dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(packageDir, ".aether", "workers.md"), []byte("# Workers"), 0644); err != nil {
+		t.Fatalf("failed to write workers.md: %v", err)
+	}
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"install", "--channel", "dev", "--package-dir", packageDir, "--home-dir", homeDir, "--skip-build-binary"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("install command failed: %v", err)
+	}
+
+	devHubWorkers := filepath.Join(homeDir, ".aether-dev", "system", "workers.md")
+	if _, err := os.Stat(devHubWorkers); os.IsNotExist(err) {
+		t.Fatalf("expected dev hub file %s to exist after install", devHubWorkers)
+	}
+
+	stableHubWorkers := filepath.Join(homeDir, ".aether", "system", "workers.md")
+	if _, err := os.Stat(stableHubWorkers); err == nil {
+		t.Fatalf("stable hub should not be populated by dev install: %s", stableHubWorkers)
+	}
+
+	claudeCommands := filepath.Join(homeDir, ".claude", "commands", "ant")
+	if _, err := os.Stat(claudeCommands); err == nil {
+		t.Fatalf("dev install should not sync global Claude commands: %s", claudeCommands)
 	}
 }
 
@@ -649,4 +689,3 @@ func TestInstallShellScriptsGetExecutable(t *testing.T) {
 		t.Errorf("expected .sh file to be executable, got permissions %o", perm)
 	}
 }
-

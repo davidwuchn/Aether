@@ -38,7 +38,7 @@ aether install --package-dir "$PWD"
 
 ## Critical Architecture
 
-**`.aether/` + `.opencode/` are the source of truth.** Source-checkout publishes go through `aether install --package-dir "$PWD"` in this repo, which refreshes `~/.aether/system/` and the shared local `aether` binary. Downstream repos then pull those companion files with `aether update` or `/ant:update`.
+**`.aether/` + `.opencode/` are the source of truth.** Source-checkout publishes go through `aether install --package-dir "$PWD"` in this repo, which refreshes `~/.aether/system/` and the shared local `aether` binary. Downstream repos then pull those companion files with `aether update` or `/ant:update`. For isolated source-development on the same machine, use the dev channel instead: `go run ./cmd/aether install --channel dev --package-dir "$PWD" --binary-dest "$HOME/.local/bin"`, then use `aether-dev update --force` in target repos. This keeps `~/.aether-dev/` and `aether-dev` separate from the public stable runtime.
 
 ```
 Aether Repo (this repo)

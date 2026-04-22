@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/codex"
@@ -48,6 +50,99 @@ func effectiveParallelMode(state colony.ColonyState) colony.ParallelMode {
 	return colony.ModeInRepo
 }
 
+func updateWorktreeState(mutator func(*colony.ColonyState) error) error {
+	if store == nil {
+		return fmt.Errorf("no store initialized")
+	}
+	return store.UpdateFile("COLONY_STATE.json", func(existing []byte) ([]byte, error) {
+		var state colony.ColonyState
+		if len(existing) > 0 {
+			if err := json.Unmarshal(existing, &state); err != nil {
+				return nil, fmt.Errorf("unmarshal COLONY_STATE.json: %w", err)
+			}
+		}
+		if err := mutator(&state); err != nil {
+			return nil, err
+		}
+		encoded, err := json.MarshalIndent(state, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("marshal COLONY_STATE.json: %w", err)
+		}
+		return append(encoded, '\n'), nil
+	})
+}
+
+func applyObservedClaims(root string, baseline map[string]string, touched []string, result *codex.WorkerResult) {
+	if result == nil || len(touched) == 0 {
+		return
+	}
+	created := make([]string, 0, len(touched))
+	modified := make([]string, 0, len(touched))
+	tests := make([]string, 0, len(touched))
+	for _, rel := range touched {
+		rel = filepath.ToSlash(strings.TrimSpace(rel))
+		if rel == "" {
+			continue
+		}
+		info, err := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
+		if err != nil || info.IsDir() {
+			continue
+		}
+		base := filepath.Base(rel)
+		if isTestFile(base) {
+			tests = append(tests, rel)
+			continue
+		}
+		if _, existed := baseline[rel]; existed {
+			modified = append(modified, rel)
+		} else {
+			created = append(created, rel)
+		}
+	}
+	result.FilesCreated = uniqueSortedStrings(created)
+	result.FilesModified = uniqueSortedStrings(modified)
+	result.TestsWritten = uniqueSortedStrings(tests)
+}
+
+func collectRepoTouchedPaths(root string, baseline map[string]string, result codex.WorkerResult) ([]string, error) {
+	current, err := snapshotGitStatus(root)
+	if err != nil {
+		return nil, err
+	}
+	paths := map[string]struct{}{}
+	for _, rel := range append(append([]string{}, result.FilesCreated...), result.FilesModified...) {
+		rel = filepath.ToSlash(strings.TrimSpace(rel))
+		if rel != "" {
+			paths[rel] = struct{}{}
+		}
+	}
+	for _, rel := range result.TestsWritten {
+		rel = filepath.ToSlash(strings.TrimSpace(rel))
+		if rel != "" {
+			paths[rel] = struct{}{}
+		}
+	}
+	for rel, status := range current {
+		if baseline[rel] != status {
+			paths[rel] = struct{}{}
+		}
+	}
+	for rel := range baseline {
+		if _, ok := current[rel]; !ok {
+			paths[rel] = struct{}{}
+		}
+	}
+	out := make([]string, 0, len(paths))
+	for rel := range paths {
+		if rel == "" || strings.HasPrefix(rel, ".aether/worktrees/") {
+			continue
+		}
+		out = append(out, rel)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
 func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Phase, dispatches []codex.WorkerDispatch, invoker codex.WorkerInvoker, startedAt time.Time, parallelMode colony.ParallelMode) ([]codex.DispatchResult, error) {
 	if parallelMode != colony.ModeWorktree {
 		return dispatchCodexBuildWorkersInRepo(ctx, phase, dispatches, invoker, parallelMode)
@@ -67,122 +162,151 @@ func dispatchCodexBuildWorkers(ctx context.Context, root string, phase colony.Ph
 	sort.Ints(waveNumbers)
 
 	var results []codex.DispatchResult
+	var rootOpsMu sync.Mutex
 	for _, wave := range waveNumbers {
 		waveDispatches := waves[wave]
 		emitCodexBuildWaveProgress(phase, wave, waveDispatches, parallelMode)
-		for _, dispatch := range waveDispatches {
-			if ctx.Err() != nil {
-				results = append(results, codex.DispatchResult{
-					WorkerName: dispatch.WorkerName,
-					Status:     "timeout",
-					Error:      ctx.Err(),
-				})
-				continue
-			}
+		waveResults := make([]codex.DispatchResult, len(waveDispatches))
+		var wg sync.WaitGroup
+		for idx, dispatch := range waveDispatches {
+			wg.Add(1)
+			go func(i int, dispatch codex.WorkerDispatch) {
+				defer wg.Done()
 
-			session, err := allocateBuildWorktree(root, phase.ID, dispatch, startedAt)
-			if err != nil {
-				return nil, fmt.Errorf("allocate worktree for %s: %w", dispatch.WorkerName, err)
-			}
-
-			if err := updateBuildWorktreeStatus(session.Branch, colony.WorktreeInProgress); err != nil {
-				_ = finalizeBuildWorktree(root, session, colony.WorktreeOrphaned)
-				return nil, fmt.Errorf("mark worktree in progress for %s: %w", dispatch.WorkerName, err)
-			}
-
-			baseline, err := snapshotWorktreeStatus(session.AbsPath)
-			if err != nil {
-				_ = finalizeBuildWorktree(root, session, colony.WorktreeOrphaned)
-				return nil, fmt.Errorf("snapshot worktree for %s: %w", dispatch.WorkerName, err)
-			}
-
-			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "starting", workerDispatchSummary(dispatch)); err != nil {
-				_ = finalizeBuildWorktree(root, session, colony.WorktreeOrphaned)
-				return nil, fmt.Errorf("mark worker starting for %s: %w", dispatch.WorkerName, err)
-			}
-			emitCodexBuildWorkerStarted(dispatch, wave)
-
-			cfg := codex.WorkerConfig{
-				AgentName:        dispatch.AgentName,
-				AgentTOMLPath:    dispatch.AgentTOMLPath,
-				Caste:            dispatch.Caste,
-				WorkerName:       dispatch.WorkerName,
-				TaskID:           dispatch.TaskID,
-				TaskBrief:        dispatch.TaskBrief,
-				ContextCapsule:   dispatch.ContextCapsule,
-				Root:             session.AbsPath,
-				Timeout:          dispatch.Timeout,
-				SkillSection:     dispatch.SkillSection,
-				PheromoneSection: dispatch.PheromoneSection,
-			}
-
-			result, invokeErr := invokeCodexWorkerWithRuntimeProgress(ctx, invoker, cfg, dispatch, wave)
-			dr := codex.DispatchResult{
-				WorkerName: dispatch.WorkerName,
-			}
-			if invokeErr != nil {
-				dr.Status = "failed"
-				dr.Error = invokeErr
-			} else {
-				dr.Status = result.Status
-				dr.WorkerResult = &result
-				if result.Error != nil {
-					dr.Error = result.Error
-				}
-			}
-
-			finalStatus := colony.WorktreeMerged
-			if dr.Status != "completed" || dr.WorkerResult == nil {
-				finalStatus = colony.WorktreeOrphaned
-			} else {
-				touched, touchErr := collectWorktreeTouchedPaths(session.AbsPath, baseline, result)
-				if touchErr != nil {
-					dr.Status = "failed"
-					dr.Error = touchErr
-					finalStatus = colony.WorktreeOrphaned
-				} else if syncErr := syncWorktreeChangesToRoot(root, session.AbsPath, touched); syncErr != nil {
-					dr.Status = "failed"
-					dr.Error = syncErr
-					finalStatus = colony.WorktreeOrphaned
-				} else if pheromoneResult, pheromoneErr := syncPheromoneStores(session.AbsPath, root, pheromoneSyncOptions{}); pheromoneErr != nil {
-					dr.Status = "failed"
-					dr.Error = pheromoneErr
-					finalStatus = colony.WorktreeOrphaned
-				} else if dr.WorkerResult != nil {
-					syncSummary := formatPheromoneSyncSummary(pheromoneResult)
-					if syncSummary != "" {
-						if strings.TrimSpace(dr.WorkerResult.Summary) == "" {
-							dr.WorkerResult.Summary = syncSummary
-						} else {
-							dr.WorkerResult.Summary = strings.TrimSpace(dr.WorkerResult.Summary) + " " + syncSummary
-						}
+				if ctx.Err() != nil {
+					waveResults[i] = codex.DispatchResult{
+						WorkerName: dispatch.WorkerName,
+						Status:     "timeout",
+						Error:      ctx.Err(),
 					}
-					if tracer != nil {
-						var state colony.ColonyState
-						if loadErr := store.LoadJSON("COLONY_STATE.json", &state); loadErr == nil && state.RunID != nil {
-							_ = tracer.LogArtifact(*state.RunID, "worktree.merge", map[string]interface{}{
-								"worker":       dispatch.WorkerName,
-								"files_synced": len(touched),
-								"pheromones":   syncSummary,
-							})
-						}
+					return
+				}
+
+				var session *buildWorktreeSession
+				var baseline map[string]string
+				var allocErr error
+
+				rootOpsMu.Lock()
+				session, allocErr = allocateBuildWorktree(root, phase.ID, dispatch, startedAt)
+				if allocErr == nil {
+					allocErr = updateBuildWorktreeStatus(session.Branch, colony.WorktreeInProgress)
+				}
+				if allocErr == nil {
+					baseline, allocErr = snapshotWorktreeStatus(session.AbsPath)
+				}
+				if allocErr == nil {
+					allocErr = updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "starting", workerDispatchSummary(dispatch))
+				}
+				rootOpsMu.Unlock()
+
+				if allocErr != nil {
+					if session != nil {
+						rootOpsMu.Lock()
+						_ = finalizeBuildWorktree(root, session, colony.WorktreeOrphaned)
+						rootOpsMu.Unlock()
+					}
+					waveResults[i] = codex.DispatchResult{
+						WorkerName: dispatch.WorkerName,
+						Status:     "failed",
+						Error:      allocErr,
+					}
+					return
+				}
+
+				emitCodexBuildWorkerStarted(dispatch, wave)
+
+				cfg := codex.WorkerConfig{
+					AgentName:        dispatch.AgentName,
+					AgentTOMLPath:    dispatch.AgentTOMLPath,
+					Caste:            dispatch.Caste,
+					WorkerName:       dispatch.WorkerName,
+					TaskID:           dispatch.TaskID,
+					TaskBrief:        dispatch.TaskBrief,
+					ContextCapsule:   dispatch.ContextCapsule,
+					Root:             session.AbsPath,
+					Timeout:          dispatch.Timeout,
+					SkillSection:     dispatch.SkillSection,
+					PheromoneSection: dispatch.PheromoneSection,
+				}
+
+				result, invokeErr := invokeCodexWorkerWithRuntimeProgress(ctx, invoker, cfg, dispatch, wave)
+				dr := codex.DispatchResult{WorkerName: dispatch.WorkerName}
+				if invokeErr != nil {
+					dr.Status = "failed"
+					dr.Error = invokeErr
+				} else {
+					dr.Status = result.Status
+					dr.WorkerResult = &result
+					if result.Error != nil {
+						dr.Error = result.Error
 					}
 				}
-			}
 
-			if cleanupErr := finalizeBuildWorktree(root, session, finalStatus); cleanupErr != nil && dr.Error == nil {
-				dr.Status = "failed"
-				dr.Error = cleanupErr
-			}
-			if dr.Status == "" {
-				dr.Status = "failed"
-			}
-			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, dr.Status, buildDispatchResultSummary(dispatch, dr)); err != nil {
-				return nil, fmt.Errorf("complete worker %s: %w", dispatch.WorkerName, err)
-			}
-			emitCodexBuildWorkerFinished(dispatch, dr)
-			results = append(results, dr)
+				finalStatus := colony.WorktreeMerged
+				if dr.Status != "completed" || dr.WorkerResult == nil {
+					finalStatus = colony.WorktreeOrphaned
+				} else {
+					touched, touchErr := collectWorktreeTouchedPaths(session.AbsPath, baseline, result)
+					if touchErr != nil {
+						dr.Status = "failed"
+						dr.Error = touchErr
+						finalStatus = colony.WorktreeOrphaned
+					} else {
+						applyObservedClaims(session.AbsPath, baseline, touched, dr.WorkerResult)
+						rootOpsMu.Lock()
+						if syncErr := syncWorktreeChangesToRoot(root, session.AbsPath, touched); syncErr != nil {
+							dr.Status = "failed"
+							dr.Error = syncErr
+							finalStatus = colony.WorktreeOrphaned
+						} else if pheromoneResult, pheromoneErr := syncPheromoneStores(session.AbsPath, root, pheromoneSyncOptions{}); pheromoneErr != nil {
+							dr.Status = "failed"
+							dr.Error = pheromoneErr
+							finalStatus = colony.WorktreeOrphaned
+						} else if dr.WorkerResult != nil {
+							syncSummary := formatPheromoneSyncSummary(pheromoneResult)
+							if syncSummary != "" {
+								if strings.TrimSpace(dr.WorkerResult.Summary) == "" {
+									dr.WorkerResult.Summary = syncSummary
+								} else {
+									dr.WorkerResult.Summary = strings.TrimSpace(dr.WorkerResult.Summary) + " " + syncSummary
+								}
+							}
+							if tracer != nil {
+								var state colony.ColonyState
+								if loadErr := store.LoadJSON("COLONY_STATE.json", &state); loadErr == nil && state.RunID != nil {
+									_ = tracer.LogArtifact(*state.RunID, "worktree.merge", map[string]interface{}{
+										"worker":       dispatch.WorkerName,
+										"files_synced": len(touched),
+										"pheromones":   syncSummary,
+									})
+								}
+							}
+						}
+						rootOpsMu.Unlock()
+					}
+				}
+
+				rootOpsMu.Lock()
+				if cleanupErr := finalizeBuildWorktree(root, session, finalStatus); cleanupErr != nil && dr.Error == nil {
+					dr.Status = "failed"
+					dr.Error = cleanupErr
+				}
+				if dr.Status == "" {
+					dr.Status = "failed"
+				}
+				statusErr := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, dr.Status, buildDispatchResultSummary(dispatch, dr))
+				rootOpsMu.Unlock()
+				if statusErr != nil {
+					dr.Status = "failed"
+					dr.Error = fmt.Errorf("complete worker %s: %w", dispatch.WorkerName, statusErr)
+				}
+
+				emitCodexBuildWorkerFinished(dispatch, dr)
+				waveResults[i] = dr
+			}(idx, dispatch)
 		}
+		wg.Wait()
+		results = append(results, waveResults...)
 	}
 	return results, nil
 }
@@ -209,6 +333,7 @@ func dispatchCodexBuildWorkersInRepo(ctx context.Context, phase colony.Phase, di
 				continue
 			}
 
+			baseline, baselineErr := snapshotGitStatus(dispatch.Root)
 			if err := updateCodexBuildDispatchRuntimeStatus(dispatch.WorkerName, "starting", workerDispatchSummary(dispatch)); err != nil {
 				return nil, fmt.Errorf("mark worker starting for %s: %w", dispatch.WorkerName, err)
 			}
@@ -241,6 +366,10 @@ func dispatchCodexBuildWorkersInRepo(ctx context.Context, phase colony.Phase, di
 				dr.WorkerResult = &result
 				if result.Error != nil {
 					dr.Error = result.Error
+				} else if baselineErr == nil {
+					if touched, touchErr := collectRepoTouchedPaths(dispatch.Root, baseline, result); touchErr == nil {
+						applyObservedClaims(dispatch.Root, baseline, touched, dr.WorkerResult)
+					}
 				}
 			}
 			if dr.Status == "" {
@@ -338,29 +467,25 @@ func sanitizeWorktreeLabel(name string) string {
 }
 
 func appendBuildWorktreeEntry(entry colony.WorktreeEntry) error {
-	var state colony.ColonyState
-	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-		return err
-	}
-	state.Worktrees = append(state.Worktrees, entry)
-	return store.SaveJSON("COLONY_STATE.json", state)
+	return updateWorktreeState(func(state *colony.ColonyState) error {
+		state.Worktrees = append(state.Worktrees, entry)
+		return nil
+	})
 }
 
 func updateBuildWorktreeStatus(branch string, status colony.WorktreeStatus) error {
-	var state colony.ColonyState
-	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
-		return err
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
-	for i := range state.Worktrees {
-		if state.Worktrees[i].Branch != branch {
-			continue
+	return updateWorktreeState(func(state *colony.ColonyState) error {
+		now := time.Now().UTC().Format(time.RFC3339)
+		for i := range state.Worktrees {
+			if state.Worktrees[i].Branch != branch {
+				continue
+			}
+			state.Worktrees[i].Status = status
+			state.Worktrees[i].UpdatedAt = now
+			return nil
 		}
-		state.Worktrees[i].Status = status
-		state.Worktrees[i].UpdatedAt = now
-		return store.SaveJSON("COLONY_STATE.json", state)
-	}
-	return fmt.Errorf("worktree %q not tracked in colony state", branch)
+		return fmt.Errorf("worktree %q not tracked in colony state", branch)
+	})
 }
 
 func finalizeBuildWorktree(root string, session *buildWorktreeSession, status colony.WorktreeStatus) error {

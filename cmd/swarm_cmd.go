@@ -161,13 +161,17 @@ func buildSwarmWatchResult(target string, watch, liveRefresh bool) map[string]in
 func spawnEntriesToWatchMaps(entries []agent.SpawnEntry) []map[string]interface{} {
 	workers := make([]map[string]interface{}, 0, len(entries))
 	for _, entry := range entries {
+		timestamp := entry.ActivityTimestamp
+		if strings.TrimSpace(timestamp) == "" {
+			timestamp = entry.Timestamp
+		}
 		workers = append(workers, map[string]interface{}{
 			"name":      entry.AgentName,
 			"caste":     entry.Caste,
 			"task":      entry.Task,
 			"status":    entry.Status,
 			"summary":   entry.Summary,
-			"timestamp": entry.Timestamp,
+			"timestamp": timestamp,
 		})
 	}
 	return workers

@@ -142,6 +142,11 @@ That single command populates `~/.aether/` and the platform-specific agent
 directories from assets embedded in the Go binary. npm is not required for the
 normal install path.
 
+For maintainers, keep source-development isolated from the public runtime:
+- stable/public: `aether` + `~/.aether/`
+- dev/source checkout: `aether-dev` + `~/.aether-dev/`
+- npm stays the stable/public bootstrap only
+
 **Option 2: Download from GitHub Releases**
 
 Pre-built binaries for all platforms — no Go toolchain needed.
@@ -206,6 +211,7 @@ primary platforms.
 - Use `run` when you want autopilot, and the explicit `build` -> `continue` loop when you want tight control over each phase.
 - Use `profile` periodically to refresh learned preferences and push the top `[profiled]` directives into `QUEEN.md`.
 - After changing Aether itself, rebuild or reinstall the binary and run `aether install --package-dir "$PWD"` so the hub and companion files match the source checkout.
+- For isolated source-development on the same machine, install the dev channel instead: `go run ./cmd/aether install --channel dev --package-dir "$PWD" --binary-dest "$HOME/.local/bin"`, then use `aether-dev update --force` in target repos.
 - After `aether install` or `aether update`, reopen Claude Code, OpenCode, or Codex if you need refreshed repo instructions, agents, or skills to load into a new session.
 
 ## Platform Support Policy

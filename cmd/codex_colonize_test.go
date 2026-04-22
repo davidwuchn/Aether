@@ -110,6 +110,88 @@ func TestColonizeWritesSurveyArtifactsAndUpdatesState(t *testing.T) {
 	}
 }
 
+func TestColonizeIncludesDispatchContract(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/aether-contract-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# Contract test\n"), 0644); err != nil {
+		t.Fatalf("write README.md: %v", err)
+	}
+
+	goal := "Map colonize dispatch contracts honestly"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan:    colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	rootCmd.SetArgs([]string{"colonize"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("colonize returned error: %v", err)
+	}
+
+	env := parseEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	contract, ok := result["dispatch_contract"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("dispatch_contract missing or wrong type: %T", result["dispatch_contract"])
+	}
+
+	if got := stringValue(contract["execution_model"]); got != "1 wave, parallel read-only worker execution" {
+		t.Fatalf("execution_model = %q, want truthful parallel survey dispatch", got)
+	}
+	if got := int(contract["wave_count"].(float64)); got != 1 {
+		t.Fatalf("wave_count = %d, want 1", got)
+	}
+	if got := int(contract["worker_count"].(float64)); got != 4 {
+		t.Fatalf("worker_count = %d, want 4", got)
+	}
+	if got := int(contract["shared_timeout_seconds"].(float64)); got != 0 {
+		t.Fatalf("shared_timeout_seconds = %d, want 0", got)
+	}
+	if got := int(contract["worker_timeout_seconds"].(float64)); got != int(surveyorDispatchTimeout/time.Second) {
+		t.Fatalf("worker_timeout_seconds = %d, want %d", got, int(surveyorDispatchTimeout/time.Second))
+	}
+	if got := stringValue(contract["deadline_policy"]); !strings.Contains(got, "own timeout") || !strings.Contains(got, "sibling") {
+		t.Fatalf("deadline_policy = %q, want independent sibling timeout language", got)
+	}
+	if got := stringValue(contract["dependency_behavior"]); !strings.Contains(got, "independent read-only workers") {
+		t.Fatalf("dependency_behavior = %q, want survey independence guidance", got)
+	}
+	if got := stringValue(contract["fallback_behavior"]); !strings.Contains(got, "dispatch_mode=fallback") {
+		t.Fatalf("fallback_behavior = %q, want fallback visibility guidance", got)
+	}
+	if got := stringValue(contract["coordination_path"]); got != filepath.ToSlash(filepath.Join(".aether", "data", "spawn-tree.txt")) {
+		t.Fatalf("coordination_path = %q", got)
+	}
+
+	visibility := stringSliceValue(contract["fallback_visibility"])
+	for _, want := range []string{"dispatch_mode", "survey_warning", "artifact_source"} {
+		if !containsString(visibility, want) {
+			t.Fatalf("fallback_visibility missing %q: %v", want, visibility)
+		}
+	}
+
+	artifacts := stringSliceValue(contract["artifact_paths"])
+	for _, want := range []string{
+		filepath.ToSlash(filepath.Join(".aether", "data", "survey", "PROVISIONS.md")),
+		filepath.ToSlash(filepath.Join(".aether", "data", "survey", "blueprint.json")),
+	} {
+		if !containsString(artifacts, want) {
+			t.Fatalf("artifact_paths missing %q: %v", want, artifacts)
+		}
+	}
+}
+
 func TestColonizeRequiresForceResurveyWhenSurveyExists(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)

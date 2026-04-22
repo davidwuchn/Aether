@@ -29,7 +29,18 @@ func emitCodexDispatchWaveProgress(label string, wave int, dispatches []codex.Wo
 	if strings.TrimSpace(label) == "" {
 		label = "Wave"
 	}
-	b.WriteString(fmt.Sprintf("%s %d starting (%s)\n", label, wave, mode))
+	policy := buildWaveExecutionPlan(wave, len(dispatches), parallelMode)
+	b.WriteString(fmt.Sprintf("%s %d starting (%s, %s)\n", label, wave, mode, policy.Strategy))
+	if reason := strings.TrimSpace(policy.Reason); reason != "" {
+		b.WriteString("  Execution: ")
+		b.WriteString(policy.Strategy)
+		b.WriteString(" — ")
+		b.WriteString(reason)
+		if policy.Strategy == "serial" && policy.WorkerCount > 1 && parallelMode == colony.ModeInRepo {
+			b.WriteString(" (set `aether parallel-mode set worktree` for isolated parallel builders)")
+		}
+		b.WriteString("\n")
+	}
 	for _, dispatch := range dispatches {
 		b.WriteString("  ")
 		b.WriteString(casteIdentity(dispatch.Caste))

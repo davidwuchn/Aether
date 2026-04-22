@@ -58,6 +58,7 @@ func dispatchBatchByWaveWithVisuals(
 	dispatches []codex.WorkerDispatch,
 	parallelMode colony.ParallelMode,
 	waveLabel string,
+	parallelWithinWave bool,
 	observerFactory func(wave int) codex.DispatchObserver,
 ) ([]codex.DispatchResult, error) {
 	waves := codex.GroupByWave(dispatches)
@@ -77,7 +78,7 @@ func dispatchBatchByWaveWithVisuals(
 			observer = observerFactory(wave)
 		}
 
-		waveResults, err := codex.DispatchBatchWithObserver(ctx, invoker, waveDispatches, observer)
+		waveResults, err := codex.DispatchWaveWithObserver(ctx, invoker, waveDispatches, observer, parallelWithinWave)
 		if err != nil {
 			return nil, err
 		}

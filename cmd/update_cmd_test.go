@@ -36,12 +36,61 @@ func TestUpdateCommandFlags(t *testing.T) {
 		t.Fatalf("update command not found: %v", err)
 	}
 
-	expectedFlags := []string{"dry-run", "force", "download-binary", "binary-version"}
+	expectedFlags := []string{"channel", "dry-run", "force", "download-binary", "binary-version"}
 	for _, name := range expectedFlags {
 		f := cmd.Flags().Lookup(name)
 		if f == nil {
 			t.Errorf("update command missing flag --%s", name)
 		}
+	}
+}
+
+func TestUpdateUsesDevHubWhenChannelIsDev(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	t.Setenv("HOME", homeDir)
+
+	hubDir := filepath.Join(homeDir, ".aether-dev")
+	hubSystem := filepath.Join(hubDir, "system")
+	if err := os.MkdirAll(hubSystem, 0755); err != nil {
+		t.Fatalf("failed to create dev hub system: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hubDir, "version.json"), []byte(`{"version":"1.0.19"}`), 0644); err != nil {
+		t.Fatalf("failed to write dev hub version: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hubSystem, "workers.md"), []byte("# Dev Workers"), 0644); err != nil {
+		t.Fatalf("failed to write dev hub workers.md: %v", err)
+	}
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"update", "--channel", "dev"})
+	defer rootCmd.SetArgs([]string{})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("update command failed: %v", err)
+	}
+
+	repoWorkers := filepath.Join(repoDir, ".aether", "workers.md")
+	content, err := os.ReadFile(repoWorkers)
+	if err != nil {
+		t.Fatalf("expected repo workers.md after dev update: %v", err)
+	}
+	if string(content) != "# Dev Workers" {
+		t.Fatalf("repo workers.md = %q, want dev hub content", string(content))
 	}
 }
 

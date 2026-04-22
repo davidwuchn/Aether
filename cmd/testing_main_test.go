@@ -25,6 +25,9 @@ func TestMain(m *testing.M) {
 	origHistoryFilter := historyFilter
 	origPhaseNumber := phaseNumber
 	origTracer := tracer
+	origContinueContextUpdater := continueContextUpdater
+	origContinueSignalHousekeeper := continueSignalHousekeeper
+	origNewCodexWorkerInvoker := newCodexWorkerInvoker
 
 	code := m.Run()
 
@@ -40,6 +43,9 @@ func TestMain(m *testing.M) {
 	historyFilter = origHistoryFilter
 	phaseNumber = origPhaseNumber
 	tracer = origTracer
+	continueContextUpdater = origContinueContextUpdater
+	continueSignalHousekeeper = origContinueSignalHousekeeper
+	newCodexWorkerInvoker = origNewCodexWorkerInvoker
 
 	os.Exit(code)
 }
@@ -62,6 +68,9 @@ func saveGlobals(t *testing.T) {
 	origHistoryFilter := historyFilter
 	origPhaseNumber := phaseNumber
 	origTracer := tracer
+	origContinueContextUpdater := continueContextUpdater
+	origContinueSignalHousekeeper := continueSignalHousekeeper
+	origNewCodexWorkerInvoker := newCodexWorkerInvoker
 	t.Cleanup(func() {
 		store = origStore
 		stdout = origStdout
@@ -75,6 +84,9 @@ func saveGlobals(t *testing.T) {
 		historyFilter = origHistoryFilter
 		phaseNumber = origPhaseNumber
 		tracer = origTracer
+		continueContextUpdater = origContinueContextUpdater
+		continueSignalHousekeeper = origContinueSignalHousekeeper
+		newCodexWorkerInvoker = origNewCodexWorkerInvoker
 	})
 }
 

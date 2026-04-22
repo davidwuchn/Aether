@@ -7,11 +7,14 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/calcosmic/Aether/pkg/colony"
 )
 
 const visualDivider = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+var visualOutputMu sync.Mutex
 
 const aetherWordmark = `
       █████╗ ███████╗████████╗██╗  ██╗███████╗██████╗
@@ -212,7 +215,7 @@ func outputWorkflow(result interface{}, visual string) {
 		if !strings.HasSuffix(visual, "\n") {
 			visual += "\n"
 		}
-		fmt.Fprint(stdout, visual)
+		writeVisualOutput(stdout, visual)
 		return
 	}
 	outputOK(result)
@@ -226,7 +229,13 @@ func emitVisualProgress(visual string) {
 	if visual == "" {
 		return
 	}
-	fmt.Fprint(stdout, visual+"\n\n")
+	writeVisualOutput(stdout, visual+"\n\n")
+}
+
+func writeVisualOutput(w io.Writer, text string) {
+	visualOutputMu.Lock()
+	defer visualOutputMu.Unlock()
+	fmt.Fprint(w, text)
 }
 
 func spacedTitle(title string) string {
@@ -476,6 +485,10 @@ func renderColonizeVisual(result map[string]interface{}) string {
 				b.WriteString("\n")
 			}
 		}
+	}
+	if contract := renderDispatchContract(result["dispatch_contract"]); contract != "" {
+		b.WriteString("\n")
+		b.WriteString(contract)
 	}
 	if files := stringSliceValue(result["survey_files"]); len(files) > 0 {
 		b.WriteString("\nReports\n")
@@ -737,6 +750,10 @@ func renderPlanVisual(result map[string]interface{}) string {
 		}
 		b.WriteString("\n")
 	}
+	if contract := renderDispatchContract(result["dispatch_contract"]); contract != "" {
+		b.WriteString(contract)
+		b.WriteString("\n")
+	}
 	if files := stringSliceValue(result["planning_files"]); len(files) > 0 {
 		b.WriteString("Planning Artifacts\n")
 		b.WriteString(renderIndentedList(files))
@@ -878,7 +895,7 @@ func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phas
 	}
 	b.WriteString("\n")
 	b.WriteString(renderStageMarker("Dispatch"))
-	b.WriteString(renderSpawnPlanForDispatches(dispatches))
+	b.WriteString(renderSpawnPlanForDispatches(dispatches, effectiveParallelMode(state)))
 	b.WriteString(renderArtifactsSection(
 		displayDataPath(fmt.Sprintf("build/phase-%d/manifest.json", phase.ID)),
 		displayDataPath("last-build-claims.json"),
@@ -919,7 +936,7 @@ func renderBuildDispatchPreview(state colony.ColonyState, phase colony.Phase, di
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
-	b.WriteString(renderSpawnPlanForDispatches(dispatches))
+	b.WriteString(renderSpawnPlanForDispatches(dispatches, effectiveParallelMode(state)))
 	return b.String()
 }
 
@@ -945,13 +962,20 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 	} else {
 		b.WriteString("  - No workers required closing\n")
 	}
+	renderContinueWorkerFlowValue(&b, result["worker_flow"])
 	b.WriteString("Verification passed during continue\n")
-	b.WriteString(renderArtifactsSection(
+	artifacts := []string{
 		displayDataPath(fmt.Sprintf("build/phase-%d/verification.json", phase.ID)),
 		displayDataPath(fmt.Sprintf("build/phase-%d/gates.json", phase.ID)),
+	}
+	if reviewReport := strings.TrimSpace(stringValue(result["review_report"])); reviewReport != "" {
+		artifacts = append(artifacts, reviewReport)
+	}
+	artifacts = append(artifacts,
 		displayDataPath(fmt.Sprintf("build/phase-%d/continue.json", phase.ID)),
 		displayDataPath("spawn-tree.txt"),
-	))
+	)
+	b.WriteString(renderArtifactsSection(artifacts...))
 	renderContinueGateSummaryMap(&b, mapValue(result["gates"]))
 	if closed := stringSliceValue(result["closed_workers"]); len(closed) > 0 {
 		b.WriteString(fmt.Sprintf("Workers closed: %d\n", len(closed)))
@@ -968,10 +992,7 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 	if final {
 		b.WriteString(renderStageMarker("Colony Complete"))
 		b.WriteString("All planned phases are complete. The colony is ready for Crowned Anthill.\n")
-		b.WriteString(renderNextUp(
-			`Run `+"`aether seal`"+` to finalize the colony.`,
-			`Run `+"`aether status`"+` if you want one last dashboard pass before sealing.`,
-		))
+		b.WriteString(renderNextUpVisual(nextUpSuggestionsForState(state)))
 		b.WriteString(renderContextClearGuidance())
 		return b.String()
 	}
@@ -980,14 +1001,7 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 		b.WriteString(renderStageMarker("Next Phase"))
 		b.WriteString(fmt.Sprintf("Next phase ready: %d — %s\n", nextPhase.ID, nextPhase.Name))
 	}
-	nextBuild := phase.ID + 1
-	if nextPhase != nil && nextPhase.ID > 0 {
-		nextBuild = nextPhase.ID
-	}
-	b.WriteString(renderNextUp(
-		fmt.Sprintf("Run `aether build %d` to dispatch the next worker wave.", nextBuild),
-		`Run `+"`aether focus \"...\"`"+` or `+"`aether feedback \"...\"`"+` if you want to steer the next phase before it starts.`,
-	))
+	b.WriteString(renderNextUpVisual(nextUpSuggestionsForState(state)))
 	b.WriteString(renderContextClearGuidance())
 	return b.String()
 }
@@ -999,6 +1013,24 @@ func renderContinueBlockedVisual(state colony.ColonyState, phase colony.Phase, r
 	b.WriteString(fmt.Sprintf("Phase %d remains active: %s\n", phase.ID, phase.Name))
 	renderContinueVerificationSummaryMap(&b, mapValue(result["verification"]))
 	renderContinueGateSummaryMap(&b, mapValue(result["gates"]))
+	renderContinueWorkerFlowValue(&b, result["worker_flow"])
+	artifacts := []string{}
+	if verificationReport := strings.TrimSpace(stringValue(result["verification_report"])); verificationReport != "" {
+		artifacts = append(artifacts, verificationReport)
+	}
+	if gateReport := strings.TrimSpace(stringValue(result["gate_report"])); gateReport != "" {
+		artifacts = append(artifacts, gateReport)
+	}
+	if reviewReport := strings.TrimSpace(stringValue(result["review_report"])); reviewReport != "" {
+		artifacts = append(artifacts, reviewReport)
+	}
+	if continueReport := strings.TrimSpace(stringValue(result["continue_report"])); continueReport != "" {
+		artifacts = append(artifacts, continueReport)
+	}
+	if len(artifacts) > 0 {
+		artifacts = append(artifacts, displayDataPath("spawn-tree.txt"))
+		b.WriteString(renderArtifactsSection(artifacts...))
+	}
 	if issues := stringSliceValue(result["operational_issues"]); len(issues) > 0 {
 		b.WriteString("Operational issues\n")
 		b.WriteString(renderIndentedList(issues))
@@ -1046,6 +1078,51 @@ func renderContinueVerificationSummaryMap(b *strings.Builder, verification map[s
 			b.WriteString("\n")
 		}
 	}
+}
+
+func renderContinueWorkerFlowValue(b *strings.Builder, raw interface{}) {
+	switch flow := raw.(type) {
+	case []codexContinueWorkerFlowStep:
+		if len(flow) == 0 {
+			return
+		}
+		b.WriteString("Continue Worker Flow\n")
+		for _, step := range flow {
+			renderContinueWorkerFlowLine(b, step.Name, step.Caste, step.Status, step.Summary)
+		}
+	case []interface{}:
+		renderContinueWorkerFlowMap(b, flow)
+	}
+}
+
+func renderContinueWorkerFlowMap(b *strings.Builder, flow []interface{}) {
+	if len(flow) == 0 {
+		return
+	}
+	b.WriteString("Continue Worker Flow\n")
+	for _, raw := range flow {
+		step, _ := raw.(map[string]interface{})
+		name := strings.TrimSpace(stringValue(step["name"]))
+		if name == "" {
+			continue
+		}
+		renderContinueWorkerFlowLine(b, name, stringValue(step["caste"]), stringValue(step["status"]), stringValue(step["summary"]))
+	}
+}
+
+func renderContinueWorkerFlowLine(b *strings.Builder, name, caste, status, summary string) {
+	line := "  - " + strings.TrimSpace(name)
+	if caste = strings.TrimSpace(caste); caste != "" {
+		line += " [" + caste + "]"
+	}
+	if status = strings.TrimSpace(status); status != "" {
+		line += " " + status
+	}
+	if summary = strings.TrimSpace(summary); summary != "" {
+		line += " — " + summary
+	}
+	b.WriteString(line)
+	b.WriteString("\n")
 }
 
 func renderContinueGateSummaryMap(b *strings.Builder, gates map[string]interface{}) {
@@ -1883,14 +1960,19 @@ func resultSignalHousekeeping(result map[string]interface{}) *signalHousekeeping
 }
 
 func renderSpawnPlan(phase colony.Phase, depth string) string {
-	return renderSpawnPlanForDispatches(plannedBuildDispatches(phase, depth))
+	return renderSpawnPlanForDispatches(plannedBuildDispatches(phase, depth), colony.ModeInRepo)
 }
 
-func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
+func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch, parallelMode colony.ParallelMode) string {
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("spawn-plan"), "Spawn Plan"))
 	b.WriteString(visualDivider)
 
+	wavePlans := buildWaveExecutionPlans(dispatches, parallelMode)
+	wavePlanByWave := make(map[int]codexWaveExecutionPlan, len(wavePlans))
+	for _, plan := range wavePlans {
+		wavePlanByWave[plan.Wave] = plan
+	}
 	lastWave := 0
 	for _, dispatch := range dispatches {
 		if dispatch.Stage != "wave" {
@@ -1901,6 +1983,16 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch) string {
 				b.WriteString("\n")
 			}
 			b.WriteString(fmt.Sprintf("Wave %d\n", dispatch.Wave))
+			if plan, ok := wavePlanByWave[dispatch.Wave]; ok {
+				b.WriteString("  Execution: ")
+				b.WriteString(plan.Strategy)
+				b.WriteString(" — ")
+				b.WriteString(plan.Reason)
+				if plan.Strategy == "serial" && plan.WorkerCount > 1 && parallelMode == colony.ModeInRepo {
+					b.WriteString(" (set `aether parallel-mode set worktree` for isolated parallel builders)")
+				}
+				b.WriteString("\n")
+			}
 			lastWave = dispatch.Wave
 		}
 		b.WriteString("  ")

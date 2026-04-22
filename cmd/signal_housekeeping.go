@@ -11,14 +11,14 @@ import (
 )
 
 type signalHousekeepingResult struct {
-	TotalSignals           int `json:"total_signals"`
-	ActiveBefore           int `json:"active_before"`
-	ActiveAfter            int `json:"active_after"`
-	ExpiredByTime          int `json:"expired_by_time"`
-	DeactivatedByStrength  int `json:"deactivated_by_strength"`
-	ExpiredWorkerContinue  int `json:"expired_worker_continue"`
-	Updated                int `json:"updated"`
-	DryRun                 bool `json:"dry_run"`
+	TotalSignals          int  `json:"total_signals"`
+	ActiveBefore          int  `json:"active_before"`
+	ActiveAfter           int  `json:"active_after"`
+	ExpiredByTime         int  `json:"expired_by_time"`
+	DeactivatedByStrength int  `json:"deactivated_by_strength"`
+	ExpiredWorkerContinue int  `json:"expired_worker_continue"`
+	Updated               int  `json:"updated"`
+	DryRun                bool `json:"dry_run"`
 }
 
 var signalHousekeepingCmd = &cobra.Command{
@@ -44,8 +44,14 @@ var signalHousekeepingCmd = &cobra.Command{
 }
 
 func runSignalHousekeeping(now time.Time, dryRun bool) (signalHousekeepingResult, error) {
+	return runSignalHousekeepingWithState(now, dryRun, nil)
+}
+
+func runSignalHousekeepingWithState(now time.Time, dryRun bool, stateOverride *colony.ColonyState) (signalHousekeepingResult, error) {
 	var state colony.ColonyState
-	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+	if stateOverride != nil {
+		state = *stateOverride
+	} else if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
 		state = colony.ColonyState{}
 	}
 

@@ -84,7 +84,7 @@ func TestBuildVisualOutputShowsSpawnPlan(t *testing.T) {
 	if strings.Contains(output, `{"ok":true`) {
 		t.Fatalf("expected visual output, got JSON: %s", output)
 	}
-	for _, want := range []string{"🔨", "B U I L D   D I S P A T C H   1", "S P A W N   P L A N", "Builder", "Watcher", "aether continue", "── Context ──", "── Tasks ──", "── Dispatch ──", "── Verification ──", "── Housekeeping ──", "── Colony Complete ──", "It's safe to clear your context now."} {
+	for _, want := range []string{"🔨", "B U I L D   D I S P A T C H   1", "S P A W N   P L A N", "Builder", "Watcher", "Execution: serial", "single task in this wave", "aether continue", "── Context ──", "── Tasks ──", "── Dispatch ──", "── Verification ──", "── Housekeeping ──", "── Colony Complete ──", "It's safe to clear your context now."} {
 		if !strings.Contains(output, want) {
 			t.Errorf("build visual output missing %q\n%s", want, output)
 		}
@@ -136,6 +136,26 @@ func TestBuildVisualOutputShowsArtifactContract(t *testing.T) {
 	} {
 		if !strings.Contains(output, want) {
 			t.Errorf("build visual output missing %q\n%s", want, output)
+		}
+	}
+}
+
+func TestRenderSpawnPlanForDispatchesShowsWaveExecutionStrategy(t *testing.T) {
+	dispatches := []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-11", Task: "Task one", Status: "spawned"},
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-12", Task: "Task two", Status: "spawned"},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-13", Task: "Verify it", Status: "spawned"},
+	}
+
+	output := renderSpawnPlanForDispatches(dispatches, colony.ModeInRepo)
+	for _, want := range []string{
+		"Wave 1",
+		"Execution: serial",
+		"dependency-independent tasks share the main working tree in in-repo mode",
+		"set `aether parallel-mode set worktree` for isolated parallel builders",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("spawn plan output missing %q\n%s", want, output)
 		}
 	}
 }
@@ -228,6 +248,47 @@ func TestColonizeVisualOutputShowsSpawnTreeContract(t *testing.T) {
 	}
 }
 
+func TestColonizeVisualOutputShowsDispatchContractDetails(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+	t.Setenv("AETHER_OUTPUT_MODE", "visual")
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/colonize-visual-contract-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	goal := "Render colonize contracts honestly"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan:    colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	rootCmd.SetArgs([]string{"colonize"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("colonize returned error: %v", err)
+	}
+
+	output := stdout.(*bytes.Buffer).String()
+	for _, want := range []string{
+		"Contract",
+		"1 wave, parallel read-only worker execution",
+		"1m30s worker max",
+		"One surveyor timing out does not reduce sibling surveyor budgets",
+		"codex CLI in PATH",
+		"dispatch_mode, survey_warning, artifact_source",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("colonize visual output missing %q\n%s", want, output)
+		}
+	}
+}
+
 func TestPlanVisualOutputShowsSpawnTreeContract(t *testing.T) {
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -251,6 +312,53 @@ func TestPlanVisualOutputShowsSpawnTreeContract(t *testing.T) {
 	output := stdout.(*bytes.Buffer).String()
 	if !strings.Contains(output, ".aether/data/spawn-tree.txt") {
 		t.Errorf("plan visual output missing spawn tree contract\n%s", output)
+	}
+}
+
+func TestPlanVisualOutputShowsDispatchContractDetails(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withWorkingDir(t, root)
+	t.Setenv("AETHER_OUTPUT_MODE", "visual")
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/plan-visual-contract-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "cmd"), 0755); err != nil {
+		t.Fatalf("mkdir cmd: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "cmd", "main.go"), []byte("package main\n\nfunc main() {}\n"), 0644); err != nil {
+		t.Fatalf("write main.go: %v", err)
+	}
+
+	goal := "Render plan contracts honestly"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version: "3.0",
+		Goal:    &goal,
+		State:   colony.StateREADY,
+		Plan:    colony.Plan{Phases: []colony.Phase{}},
+	})
+
+	rootCmd.SetArgs([]string{"plan"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("plan returned error: %v", err)
+	}
+
+	output := stdout.(*bytes.Buffer).String()
+	for _, want := range []string{
+		"Contract",
+		"2 staged workers, scout then route-setter",
+		"1m30s worker max",
+		"route-setter only runs after a completed scout stage",
+		"codex CLI in PATH",
+		"dispatch_mode, planning_warning, artifact_source, plan_source",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("plan visual output missing %q\n%s", want, output)
+		}
 	}
 }
 
@@ -304,9 +412,14 @@ func TestContinueVisualOutputShowsVerificationArtifactsAndSpawnTree(t *testing.T
 	}
 
 	output := stdout.(*bytes.Buffer).String()
+	expectedWatcher := deterministicAntName("watcher", "phase:1:continue:watcher")
 	for _, want := range []string{
 		"── Verification ──",
 		"Phase 1 verified and completed: Verify contracts",
+		"Continue Worker Flow",
+		expectedWatcher + " [watcher] completed",
+		"Watcher " + expectedWatcher + " completed independent verification before advancement",
+		"Signal housekeeping [system] completed",
 		"── Housekeeping ──",
 		"A R T I F A C T S",
 		"Workers",
@@ -316,6 +429,7 @@ func TestContinueVisualOutputShowsVerificationArtifactsAndSpawnTree(t *testing.T
 		"── Next Phase ──",
 		".aether/data/build/phase-1/verification.json",
 		".aether/data/build/phase-1/gates.json",
+		".aether/data/build/phase-1/review.json",
 		".aether/data/build/phase-1/continue.json",
 		".aether/data/spawn-tree.txt",
 		"It's safe to clear your context now.",
@@ -323,6 +437,90 @@ func TestContinueVisualOutputShowsVerificationArtifactsAndSpawnTree(t *testing.T
 		if !strings.Contains(output, want) {
 			t.Errorf("continue visual output missing %q\n%s", want, output)
 		}
+	}
+	if strings.Contains(output, "Forge-41 [builder] completed") {
+		t.Fatalf("expected continue worker flow to avoid builder closure entries, got:\n%s", output)
+	}
+}
+
+func TestContinueBlockedVisualOutputShowsWorkerFlow(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
+	t.Setenv("AETHER_OUTPUT_MODE", "visual")
+
+	goal := "Render blocked continue flow honestly"
+	now := mustParseRFC3339(t, "2026-04-22T12:36:18Z")
+	taskID := "1.1"
+	nextTaskID := "2.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateBUILT,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Blocked flow",
+					Status: colony.PhaseInProgress,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "Stay blocked until watcher approval", Status: colony.TaskInProgress}},
+				},
+				{
+					ID:     2,
+					Name:   "Still pending",
+					Status: colony.PhasePending,
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Wait for a clean verification", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	seedContinueBuildPacket(t, dataDir, 1, "Blocked flow", goal, []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-141", Task: "Stay blocked until watcher approval", Status: "completed", TaskID: taskID},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-build-142", Task: "Build-time verification", Status: "completed"},
+	})
+
+	invoker := &continueWatcherTestInvoker{
+		watcherStatus:  "blocked",
+		watcherSummary: "Continue watcher rejected the phase",
+	}
+	originalInvoker := newCodexWorkerInvoker
+	newCodexWorkerInvoker = func() codex.WorkerInvoker { return invoker }
+	t.Cleanup(func() { newCodexWorkerInvoker = originalInvoker })
+
+	rootCmd.SetArgs([]string{"continue"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("continue returned error: %v", err)
+	}
+
+	output := stdout.(*bytes.Buffer).String()
+	for _, want := range []string{
+		"C O N T I N U E   B L O C K E D",
+		"Continue Worker Flow",
+		"Continue watcher rejected the phase",
+		"blocked",
+		"aether continue",
+		"A R T I F A C T S",
+		".aether/data/build/phase-1/verification.json",
+		".aether/data/build/phase-1/gates.json",
+		".aether/data/build/phase-1/continue.json",
+		".aether/data/spawn-tree.txt",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("blocked continue visual output missing %q\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "--reconcile-task") {
+		t.Fatalf("expected blocked continue next step to stay on plain re-verification, got:\n%s", output)
+	}
+	if strings.Contains(output, "Forge-141 [builder] completed") {
+		t.Fatalf("expected blocked continue worker flow to avoid builder closure entries, got:\n%s", output)
 	}
 }
 

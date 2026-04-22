@@ -456,6 +456,43 @@ func TestPrintNextUpUsesTargetedRecoveryCommand(t *testing.T) {
 	}
 }
 
+func TestPrintNextUpReadyUsesCurrentPhaseBuild(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	dataDir := setupBuildFlowTest(t)
+
+	goal := "phase advanced"
+	name := "test-colony"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:      "2.0",
+		Goal:         &goal,
+		ColonyName:   &name,
+		State:        colony.StateREADY,
+		CurrentPhase: 2,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{ID: 1, Name: "Phase 1", Status: colony.PhaseCompleted},
+				{ID: 2, Name: "Phase 2", Status: colony.PhaseReady},
+				{ID: 3, Name: "Phase 3", Status: colony.PhasePending},
+			},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"print-next-up"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("print-next-up returned error: %v", err)
+	}
+
+	output := stdout.(*bytes.Buffer).String()
+	if !strings.Contains(output, "aether build 2") {
+		t.Fatalf("expected ready colony to suggest build 2, got: %s", output)
+	}
+	if strings.Contains(output, "aether build 3") {
+		t.Fatalf("expected ready colony to avoid skipping phase 2, got: %s", output)
+	}
+}
+
 // TestDataSafetyStats tests data safety stats reporting.
 func TestDataSafetyStats(t *testing.T) {
 	saveGlobals(t)

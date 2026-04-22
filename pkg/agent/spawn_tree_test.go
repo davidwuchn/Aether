@@ -109,6 +109,48 @@ func TestSpawnTreeUpdateStatusTargetsMostRecentDuplicateName(t *testing.T) {
 	}
 }
 
+func TestSpawnTreeUpdateStatusPreservesEntriesFromStaleInstance(t *testing.T) {
+	dir := t.TempDir()
+	store, err := storage.NewStore(dir)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+
+	stale := NewSpawnTree(store, "spawn-tree.txt")
+	if err := stale.RecordSpawn("colony-prime", "builder", "worker-1", "first task", 1); err != nil {
+		t.Fatalf("RecordSpawn(worker-1): %v", err)
+	}
+
+	fresh := NewSpawnTree(store, "spawn-tree.txt")
+	if err := fresh.RecordSpawn("colony-prime", "watcher", "worker-2", "second task", 1); err != nil {
+		t.Fatalf("RecordSpawn(worker-2): %v", err)
+	}
+
+	if err := stale.UpdateStatus("worker-1", "completed", "done"); err != nil {
+		t.Fatalf("UpdateStatus(worker-1): %v", err)
+	}
+
+	reloaded := NewSpawnTree(store, "spawn-tree.txt")
+	entries, err := reloaded.Parse()
+	if err != nil {
+		t.Fatalf("Parse() error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("Parse() returned %d entries, want 2", len(entries))
+	}
+
+	byName := make(map[string]SpawnEntry, len(entries))
+	for _, entry := range entries {
+		byName[entry.AgentName] = entry
+	}
+	if byName["worker-1"].Status != "completed" {
+		t.Fatalf("worker-1 status = %q, want completed", byName["worker-1"].Status)
+	}
+	if byName["worker-2"].Status != "spawned" {
+		t.Fatalf("worker-2 status = %q, want spawned", byName["worker-2"].Status)
+	}
+}
+
 func TestSpawnTreeParseActiveStatusRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	store, err := storage.NewStore(dir)

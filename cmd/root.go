@@ -95,11 +95,11 @@ func findAetherModuleRoot(start string) string {
 }
 
 func readInstalledHubVersion() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
+	hubDir := resolveHubPath()
+	if hubDir == "" {
 		return ""
 	}
-	data, err := os.ReadFile(filepath.Join(home, ".aether", "version.json"))
+	data, err := os.ReadFile(filepath.Join(hubDir, "version.json"))
 	if err != nil {
 		return ""
 	}

@@ -74,11 +74,17 @@ func TestBuildWritesDispatchArtifactsAndUpdatesState(t *testing.T) {
 	if got := int(result["dispatch_count"].(float64)); got != 6 {
 		t.Fatalf("dispatch_count = %d, want 6", got)
 	}
-	if got := int(result["parallel_waves"].(float64)); got != 2 {
-		t.Fatalf("parallel_waves = %d, want 2", got)
+	if got := int(result["wave_count"].(float64)); got != 2 {
+		t.Fatalf("wave_count = %d, want 2", got)
+	}
+	if got := int(result["parallel_waves"].(float64)); got != 0 {
+		t.Fatalf("parallel_waves = %d, want 0", got)
 	}
 	if next := result["next"].(string); next != "aether continue" {
 		t.Fatalf("next = %q, want aether continue", next)
+	}
+	if waveExecution, ok := result["wave_execution"].([]interface{}); !ok || len(waveExecution) != 2 {
+		t.Fatalf("wave_execution = %#v, want 2 wave plans", result["wave_execution"])
 	}
 
 	for _, rel := range []string{
@@ -109,6 +115,14 @@ func TestBuildWritesDispatchArtifactsAndUpdatesState(t *testing.T) {
 	}
 	if len(manifest.Tasks) != 2 {
 		t.Fatalf("expected 2 planned tasks, got %d", len(manifest.Tasks))
+	}
+	if len(manifest.WaveExecution) != 2 {
+		t.Fatalf("expected 2 manifest wave execution plans, got %d", len(manifest.WaveExecution))
+	}
+	for _, plan := range manifest.WaveExecution {
+		if plan.Strategy != "serial" {
+			t.Fatalf("manifest wave %d strategy = %q, want serial", plan.Wave, plan.Strategy)
+		}
 	}
 	for _, brief := range manifest.WorkerBriefs {
 		rel := strings.TrimPrefix(brief, ".aether/data/")
@@ -178,6 +192,39 @@ func TestBuildWritesDispatchArtifactsAndUpdatesState(t *testing.T) {
 	}
 	if !strings.Contains(string(handoffData), "Phase 1 dispatched") {
 		t.Fatalf("expected HANDOFF.md to summarize build progress, got:\n%s", string(handoffData))
+	}
+}
+
+func TestBuildWaveExecutionPlansRespectParallelMode(t *testing.T) {
+	dispatches := []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-1", Task: "Task one"},
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-2", Task: "Task two"},
+		{Stage: "wave", Wave: 2, Caste: "builder", Name: "Forge-3", Task: "Task three"},
+	}
+
+	inRepo := buildWaveExecutionPlans(dispatches, colony.ModeInRepo)
+	if len(inRepo) != 2 {
+		t.Fatalf("in-repo wave plans = %d, want 2", len(inRepo))
+	}
+	if inRepo[0].Strategy != "serial" {
+		t.Fatalf("wave 1 strategy = %q, want serial", inRepo[0].Strategy)
+	}
+	if !strings.Contains(inRepo[0].Reason, "main working tree") {
+		t.Fatalf("wave 1 reason = %q, want shared working tree guidance", inRepo[0].Reason)
+	}
+	if inRepo[1].Strategy != "serial" || inRepo[1].WorkerCount != 1 {
+		t.Fatalf("wave 2 plan = %+v, want single-task serial", inRepo[1])
+	}
+
+	worktree := buildWaveExecutionPlans(dispatches, colony.ModeWorktree)
+	if len(worktree) != 2 {
+		t.Fatalf("worktree wave plans = %d, want 2", len(worktree))
+	}
+	if worktree[0].Strategy != "parallel" {
+		t.Fatalf("worktree wave 1 strategy = %q, want parallel", worktree[0].Strategy)
+	}
+	if !strings.Contains(worktree[0].Reason, "isolated worktrees") {
+		t.Fatalf("worktree wave 1 reason = %q, want isolated worktree guidance", worktree[0].Reason)
 	}
 }
 
