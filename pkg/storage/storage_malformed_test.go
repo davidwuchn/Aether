@@ -212,6 +212,83 @@ func TestConcurrentWrites_NoRace(t *testing.T) {
 	}
 }
 
+func TestUpdateJSONAtomically_RollsBackOnMutateError(t *testing.T) {
+	dir := t.TempDir()
+	s, err := NewStore(dir)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+
+	type TestStruct struct {
+		Name  string `json:"name"`
+		Value int    `json:"value"`
+	}
+
+	original := TestStruct{Name: "original", Value: 1}
+	path := filepath.Join(dir, "state.json")
+	if err := s.SaveJSON(path, &original); err != nil {
+		t.Fatalf("SaveJSON initial: %v", err)
+	}
+
+	var state TestStruct
+	err = s.UpdateJSONAtomically(path, &state, func() error {
+		state.Name = "mutated"
+		state.Value = 99
+		return fmt.Errorf("deliberate mutation failure")
+	})
+	if err == nil {
+		t.Fatal("expected error from UpdateJSONAtomically when mutate fails")
+	}
+	if err.Error() != "deliberate mutation failure" {
+		t.Fatalf("expected deliberate error, got: %v", err)
+	}
+
+	// Verify file still contains original data
+	var reloaded TestStruct
+	if err := s.LoadJSON(path, &reloaded); err != nil {
+		t.Fatalf("LoadJSON after rollback: %v", err)
+	}
+	if reloaded.Name != "original" || reloaded.Value != 1 {
+		t.Errorf("file was modified despite mutate error: got %+v, want original", reloaded)
+	}
+}
+
+func TestUpdateJSONAtomically_CommitsOnSuccess(t *testing.T) {
+	dir := t.TempDir()
+	s, err := NewStore(dir)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+
+	type TestStruct struct {
+		Name  string `json:"name"`
+		Value int    `json:"value"`
+	}
+
+	original := TestStruct{Name: "original", Value: 1}
+	path := filepath.Join(dir, "state.json")
+	if err := s.SaveJSON(path, &original); err != nil {
+		t.Fatalf("SaveJSON initial: %v", err)
+	}
+
+	var state TestStruct
+	if err := s.UpdateJSONAtomically(path, &state, func() error {
+		state.Name = "updated"
+		state.Value = 42
+		return nil
+	}); err != nil {
+		t.Fatalf("UpdateJSONAtomically: %v", err)
+	}
+
+	var reloaded TestStruct
+	if err := s.LoadJSON(path, &reloaded); err != nil {
+		t.Fatalf("LoadJSON after commit: %v", err)
+	}
+	if reloaded.Name != "updated" || reloaded.Value != 42 {
+		t.Errorf("file not updated: got %+v, want updated", reloaded)
+	}
+}
+
 func TestSaveAndLoadJSON(t *testing.T) {
 	dir := t.TempDir()
 	s, err := NewStore(dir)

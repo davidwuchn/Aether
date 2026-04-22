@@ -115,6 +115,27 @@ func (s *Store) atomicWriteLocked(path string, data []byte) error {
 	return nil
 }
 
+// UpdateJSONAtomically reads the JSON at path, calls mutate on the decoded value,
+// and writes the result back atomically. If mutate returns an error, no write occurs.
+// The operation is safe for concurrent use.
+func (s *Store) UpdateJSONAtomically(path string, ptr interface{}, mutate func() error) error {
+	return s.UpdateFile(path, func(existing []byte) ([]byte, error) {
+		if len(existing) > 0 {
+			if err := json.Unmarshal(existing, ptr); err != nil {
+				return nil, fmt.Errorf("unmarshal existing %s: %w", path, err)
+			}
+		}
+		if err := mutate(); err != nil {
+			return nil, err
+		}
+		updated, err := json.MarshalIndent(ptr, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("marshal updated %s: %w", path, err)
+		}
+		return updated, nil
+	})
+}
+
 // SaveJSON marshals data as formatted JSON and writes it atomically.
 func (s *Store) SaveJSON(path string, data interface{}) error {
 	encoded, err := json.MarshalIndent(data, "", "  ")
