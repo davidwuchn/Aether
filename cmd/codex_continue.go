@@ -421,11 +421,19 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 	}
 	updated.Events = append(updated.Events, continueWorkerFlowEvents(now, workerFlow)...)
 
+	// --- ATOMIC STATE COMMIT ---
+	// Save colony state BEFORE writing reports that claim advancement.
+	// If this fails, no external party can observe a partially advanced state.
+	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
+		return nil, state, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to save colony state: %w", err)
+	}
+
 	summary := fmt.Sprintf("Phase %d verified and advanced", phase.ID)
 	if assessment.PartialSuccess {
 		summary = fmt.Sprintf("Phase %d verified and advanced with partial operational success", phase.ID)
 	}
 
+	// --- REPORT SAVES (after state is durable) ---
 	continueReportRel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase.ID), "continue.json"))
 	if err := store.SaveJSON(continueReportRel, codexContinueReport{
 		Phase:              phase.ID,
@@ -446,10 +454,6 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		Next:               nextCommand,
 	}); err != nil {
 		return nil, state, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to write continue report: %w", err)
-	}
-
-	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
-		return nil, state, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to save colony state: %w", err)
 	}
 
 	updateSessionSummary("continue", nextCommand, summary)
