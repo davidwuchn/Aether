@@ -135,6 +135,16 @@ func abandonedBuildTaskIDs(manifest codexContinueManifest) []string {
 	return ids
 }
 
+// cleanupStaleContinueReports removes stale report files from a phase's build
+// directory before verification runs. This prevents confusing users with
+// leftover artifacts from previous continue attempts.
+func cleanupStaleContinueReports(phaseID int) {
+	dir := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phaseID)))
+	for _, name := range []string{"verification.json", "gates.json", "continue.json", "review.json"} {
+		_ = os.Remove(filepath.Join(store.BasePath(), dir, name))
+	}
+}
+
 type codexContinueTaskAssessment struct {
 	TaskID           string   `json:"task_id"`
 	Goal             string   `json:"goal"`
@@ -279,6 +289,10 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			"blocking_issues": []string{abandonedSummary},
 		}, state, phase, nil, nil, false, nil
 	}
+
+	// Clear stale reports from previous continue runs so users don't see
+	// confusing leftover artifacts when reviewing the phase directory.
+	cleanupStaleContinueReports(phase.ID)
 
 	now := time.Now().UTC()
 	runHandle, err := beginRuntimeSpawnRun("continue", now)
