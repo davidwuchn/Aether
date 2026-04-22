@@ -253,7 +253,7 @@ func TestContinueRecordsWorkerFlowInStateReportAndSpawnSummary(t *testing.T) {
 	}
 }
 
-func TestContinueRollsBackStateWhenContextUpdateFails(t *testing.T) {
+func TestContinueStateCommittedBeforeContextUpdate(t *testing.T) {
 	t.Setenv("AETHER_OUTPUT_MODE", "json")
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -263,7 +263,7 @@ func TestContinueRollsBackStateWhenContextUpdateFails(t *testing.T) {
 	withTestWorkspace(t, root)
 	withWorkingDir(t, root)
 
-	goal := "Rollback continue state when context update fails"
+	goal := "State is committed before context update runs"
 	now := time.Now().UTC()
 	taskID := "1.1"
 	nextTaskID := "2.1"
@@ -277,25 +277,25 @@ func TestContinueRollsBackStateWhenContextUpdateFails(t *testing.T) {
 			Phases: []colony.Phase{
 				{
 					ID:     1,
-					Name:   "Rollback phase",
+					Name:   "Commit-before-side-effect phase",
 					Status: colony.PhaseInProgress,
-					Tasks:  []colony.Task{{ID: &taskID, Goal: "Keep state pending until finalize succeeds", Status: colony.TaskInProgress}},
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "State persists even if context update fails", Status: colony.TaskInProgress}},
 				},
 				{
 					ID:     2,
 					Name:   "Next phase",
 					Status: colony.PhasePending,
-					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Advance only after finalization", Status: colony.TaskPending}},
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Advance already committed", Status: colony.TaskPending}},
 				},
 			},
 		},
 	})
 
 	dispatches := []codexBuildDispatch{
-		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-16", Task: "Keep state pending until finalize succeeds", Status: "spawned", TaskID: taskID},
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-16", Task: "State persists even if context update fails", Status: "spawned", TaskID: taskID},
 		{Stage: "verification", Caste: "watcher", Name: "Keen-17", Task: "Independent verification before advancement", Status: "spawned"},
 	}
-	seedContinueBuildPacket(t, dataDir, 1, "Rollback phase", goal, dispatches)
+	seedContinueBuildPacket(t, dataDir, 1, "Commit-before-side-effect phase", goal, dispatches)
 	origUpdater := continueContextUpdater
 	continueContextUpdater = func(colony.Phase, codexContinueManifest, []codexContinueClosedWorker, time.Time) error {
 		return fmt.Errorf("forced context update failure")
@@ -313,21 +313,23 @@ func TestContinueRollsBackStateWhenContextUpdateFails(t *testing.T) {
 		t.Fatalf("expected continue stderr to report the forced context failure, got:\n%s", output)
 	}
 
+	// With atomic state commit, the state is saved BEFORE side effects run.
+	// A context update failure does NOT roll back the committed state.
 	var state colony.ColonyState
 	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
 		t.Fatalf("reload state: %v", err)
 	}
-	if state.State != colony.StateBUILT {
-		t.Fatalf("state = %s, want BUILT after rollback", state.State)
+	if state.State != colony.StateREADY {
+		t.Fatalf("state = %s, want READY (committed before side effects)", state.State)
 	}
-	if state.CurrentPhase != 1 {
-		t.Fatalf("current phase = %d, want 1 after rollback", state.CurrentPhase)
+	if state.CurrentPhase != 2 {
+		t.Fatalf("current phase = %d, want 2 (committed before side effects)", state.CurrentPhase)
 	}
-	if state.Plan.Phases[0].Status != colony.PhaseInProgress {
-		t.Fatalf("phase 1 status = %s, want in_progress after rollback", state.Plan.Phases[0].Status)
+	if state.Plan.Phases[0].Status != colony.PhaseCompleted {
+		t.Fatalf("phase 1 status = %s, want completed (committed before side effects)", state.Plan.Phases[0].Status)
 	}
-	if state.Plan.Phases[1].Status != colony.PhasePending {
-		t.Fatalf("phase 2 status = %s, want pending after rollback", state.Plan.Phases[1].Status)
+	if state.Plan.Phases[1].Status != colony.PhaseReady {
+		t.Fatalf("phase 2 status = %s, want ready (committed before side effects)", state.Plan.Phases[1].Status)
 	}
 }
 
@@ -402,7 +404,7 @@ func TestContinueDoesNotCloseBuildWorkersWhenContextUpdateFails(t *testing.T) {
 	}
 }
 
-func TestContinueDoesNotAdvanceStateWhenHousekeepingFails(t *testing.T) {
+func TestContinueStateCommittedBeforeHousekeeping(t *testing.T) {
 	t.Setenv("AETHER_OUTPUT_MODE", "json")
 	saveGlobals(t)
 	resetRootCmd(t)
@@ -412,7 +414,7 @@ func TestContinueDoesNotAdvanceStateWhenHousekeepingFails(t *testing.T) {
 	withTestWorkspace(t, root)
 	withWorkingDir(t, root)
 
-	goal := "Do not advance on housekeeping failure"
+	goal := "State is committed before housekeeping runs"
 	now := time.Now().UTC()
 	taskID := "1.1"
 	nextTaskID := "2.1"
@@ -426,22 +428,22 @@ func TestContinueDoesNotAdvanceStateWhenHousekeepingFails(t *testing.T) {
 			Phases: []colony.Phase{
 				{
 					ID:     1,
-					Name:   "Housekeeping failure phase",
+					Name:   "Commit-before-housekeeping phase",
 					Status: colony.PhaseInProgress,
-					Tasks:  []colony.Task{{ID: &taskID, Goal: "Stay put on failure", Status: colony.TaskInProgress}},
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "State persists even if housekeeping fails", Status: colony.TaskInProgress}},
 				},
 				{
 					ID:     2,
-					Name:   "Next phase should not unlock",
+					Name:   "Next phase",
 					Status: colony.PhasePending,
-					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Remain pending", Status: colony.TaskPending}},
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Advance already committed", Status: colony.TaskPending}},
 				},
 			},
 		},
 	})
 
-	seedContinueBuildPacket(t, dataDir, 1, "Housekeeping failure phase", goal, []codexBuildDispatch{
-		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-24", Task: "Stay put on failure", Status: "completed", TaskID: taskID},
+	seedContinueBuildPacket(t, dataDir, 1, "Commit-before-housekeeping phase", goal, []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-24", Task: "State persists even if housekeeping fails", Status: "completed", TaskID: taskID},
 		{Stage: "verification", Caste: "watcher", Name: "Keen-25", Task: "Verify the phase", Status: "completed"},
 	})
 
@@ -458,21 +460,23 @@ func TestContinueDoesNotAdvanceStateWhenHousekeepingFails(t *testing.T) {
 		t.Fatalf("expected housekeeping failure in stderr, got: %s", stderr.(*bytes.Buffer).String())
 	}
 
+	// With atomic state commit, the state is saved BEFORE side effects run.
+	// A housekeeping failure does NOT roll back the committed state.
 	var state colony.ColonyState
 	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
 		t.Fatalf("reload state: %v", err)
 	}
-	if state.State != colony.StateBUILT {
-		t.Fatalf("state = %s, want BUILT", state.State)
+	if state.State != colony.StateREADY {
+		t.Fatalf("state = %s, want READY (committed before housekeeping)", state.State)
 	}
-	if state.CurrentPhase != 1 {
-		t.Fatalf("current phase = %d, want 1", state.CurrentPhase)
+	if state.CurrentPhase != 2 {
+		t.Fatalf("current phase = %d, want 2 (committed before housekeeping)", state.CurrentPhase)
 	}
-	if state.Plan.Phases[0].Status != colony.PhaseInProgress {
-		t.Fatalf("phase 1 status = %s, want in_progress", state.Plan.Phases[0].Status)
+	if state.Plan.Phases[0].Status != colony.PhaseCompleted {
+		t.Fatalf("phase 1 status = %s, want completed (committed before housekeeping)", state.Plan.Phases[0].Status)
 	}
-	if state.Plan.Phases[1].Status != colony.PhasePending {
-		t.Fatalf("phase 2 status = %s, want pending", state.Plan.Phases[1].Status)
+	if state.Plan.Phases[1].Status != colony.PhaseReady {
+		t.Fatalf("phase 2 status = %s, want ready (committed before housekeeping)", state.Plan.Phases[1].Status)
 	}
 
 	if _, err := os.Stat(filepath.Join(dataDir, "build", "phase-1", "continue.json")); !os.IsNotExist(err) {

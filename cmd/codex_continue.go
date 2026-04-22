@@ -404,6 +404,17 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		)
 	}
 
+	// --- ATOMIC STATE COMMIT ---
+	// Save colony state BEFORE running side effects or writing reports that
+	// claim advancement. If this fails, no external party can observe a
+	// partially advanced state.
+	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
+		return nil, state, phase, nextPhase, nil, final, fmt.Errorf("failed to save colony state: %w", err)
+	}
+
+	// --- SIDE EFFECTS (after state is durable) ---
+	// These operations produce derived data. If any fails, state is already
+	// committed and valid; the error is informational, not a rollback trigger.
 	housekeeping, housekeepingErr := continueSignalHousekeeper(now, updated)
 	if housekeepingErr != nil {
 		return nil, state, phase, nil, nil, false, housekeepingErr
@@ -420,13 +431,9 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		return nil, state, phase, nil, &housekeeping, false, err
 	}
 	updated.Events = append(updated.Events, continueWorkerFlowEvents(now, workerFlow)...)
-
-	// --- ATOMIC STATE COMMIT ---
-	// Save colony state BEFORE writing reports that claim advancement.
-	// If this fails, no external party can observe a partially advanced state.
-	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
-		return nil, state, phase, nextPhase, &housekeeping, final, fmt.Errorf("failed to save colony state: %w", err)
-	}
+	// Persist side-effect events (review, housekeeping) into colony state.
+	// This is a best-effort append; the core advancement was already committed.
+	_ = store.SaveJSON("COLONY_STATE.json", updated)
 
 	summary := fmt.Sprintf("Phase %d verified and advanced", phase.ID)
 	if assessment.PartialSuccess {
