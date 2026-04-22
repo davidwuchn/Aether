@@ -55,6 +55,7 @@ func repoSyncPairs() []repoSyncPair {
 	return []repoSyncPair{
 		{hubRel: ".", destRel: ".", label: "System files"},
 		{hubRel: "commands/claude", destRel: "../.claude/commands/ant", label: "Commands (claude)"},
+		{hubRel: "settings/claude", destRel: "../.claude", label: "Settings (claude)", preserveLocalChanges: true, include: isClaudeSettingsFile},
 		{hubRel: "commands/opencode", destRel: "../.opencode/commands/ant", label: "Commands (opencode)"},
 		{hubRel: "agents", destRel: "../.opencode/agents", label: "Agents (opencode)"},
 		{hubRel: "agents-claude", destRel: "../.claude/agents/ant", label: "Agents (claude)"},
@@ -67,6 +68,10 @@ func repoSyncPairs() []repoSyncPair {
 func isShippedAetherCodexAgent(relPath string) bool {
 	base := filepath.Base(relPath)
 	return filepath.Ext(base) == ".toml" && strings.HasPrefix(base, "aether-")
+}
+
+func isClaudeSettingsFile(relPath string) bool {
+	return filepath.Base(relPath) == "settings.json"
 }
 
 func validateCodexAgentFile(srcPath, relPath string, data []byte) error {

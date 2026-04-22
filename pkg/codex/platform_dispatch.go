@@ -239,6 +239,38 @@ func AgentDefinitionPath(root string, platform Platform, agentName string) strin
 	}
 }
 
+func SelectPlatformInvoker(ctx context.Context) WorkerInvoker {
+	active := DetectActivePlatform()
+	preferred := active
+	if override := normalizePlatform(os.Getenv(envWorkerPlatform)); override != PlatformUnknown && override != PlatformFake {
+		preferred = override
+	}
+
+	dispatchers := reorderDispatchers([]PlatformDispatcher{
+		NewCodexDispatcher(),
+		NewClaudeDispatcher(),
+		NewOpenCodeDispatcher(),
+	}, preferred)
+
+	statuses := make([]AvailabilityStatus, 0, len(dispatchers))
+	for _, dispatcher := range dispatchers {
+		status := dispatcher.Availability(ctx)
+		statuses = append(statuses, status)
+		if status.Available {
+			return &SelectedInvoker{
+				active:    active,
+				selected:  dispatcher,
+				available: statuses,
+			}
+		}
+	}
+
+	return &UnavailableInvoker{
+		active:    active,
+		available: statuses,
+	}
+}
+
 func DescribeInvokerAvailability(invoker WorkerInvoker, ctx context.Context) string {
 	active := DetectActivePlatform()
 	if meta, ok := invoker.(selectionMetadata); ok {
@@ -511,7 +543,7 @@ func detectPlatformFromEnv() Platform {
 	switch {
 	case hasAnyEnv("CODEX_THREAD_ID", "CODEX_SESSION_ID", "CODEX_CI"):
 		return PlatformCodex
-	case hasEnvPrefix("CLAUDE_CODE_") || hasAnyEnv("CLAUDECODE", "CLAUDECODE_PROJECT_DIR", "CLAUDE_PROJECT_DIR"):
+	case hasEnvPrefix("CLAUDE_CODE_") || hasAnyEnv("CLAUDECODE", "CLAUDECODE_PROJECT_DIR", "CLAUDE_PROJECT_DIR", "CLAUDE_CODE_SIMPLE"):
 		return PlatformClaude
 	case hasEnvPrefix("OPENCODE_"):
 		return PlatformOpenCode
@@ -522,7 +554,7 @@ func detectPlatformFromEnv() Platform {
 
 func detectPlatformFromProcessTree(ctx context.Context) Platform {
 	pid := os.Getppid()
-	for depth := 0; depth < 6 && pid > 1; depth++ {
+	for depth := 0; depth < 16 && pid > 1; depth++ {
 		command, nextPID, err := lookupParentProcess(ctx, pid)
 		if err != nil {
 			return PlatformUnknown

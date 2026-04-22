@@ -217,6 +217,8 @@ func TestNewWorkerInvoker_FakeByDefaultInTests(t *testing.T) {
 
 func TestNewWorkerInvoker_RealWhenEnvSet(t *testing.T) {
 	t.Setenv("AETHER_CODEX_REAL_DISPATCH", "1")
+	t.Setenv(envActivePlatform, string(PlatformCodex))
+	t.Setenv("AETHER_CODEX_PATH", "go")
 
 	invoker := NewWorkerInvoker()
 	if _, ok := invoker.(*FakeInvoker); ok {
@@ -225,10 +227,15 @@ func TestNewWorkerInvoker_RealWhenEnvSet(t *testing.T) {
 	if !invoker.IsAvailable(context.Background()) {
 		t.Errorf("expected selected invoker to be available when env=1, got %T", invoker)
 	}
+	if got := PlatformFromInvoker(invoker); got != PlatformCodex {
+		t.Errorf("PlatformFromInvoker() = %s, want %s", got, PlatformCodex)
+	}
 }
 
 func TestNewWorkerInvoker_RealWhenEnvTrue(t *testing.T) {
 	t.Setenv("AETHER_CODEX_REAL_DISPATCH", "true")
+	t.Setenv(envActivePlatform, string(PlatformCodex))
+	t.Setenv("AETHER_CODEX_PATH", "go")
 
 	invoker := NewWorkerInvoker()
 	if _, ok := invoker.(*FakeInvoker); ok {
@@ -236,6 +243,9 @@ func TestNewWorkerInvoker_RealWhenEnvTrue(t *testing.T) {
 	}
 	if !invoker.IsAvailable(context.Background()) {
 		t.Errorf("expected selected invoker to be available when env=true, got %T", invoker)
+	}
+	if got := PlatformFromInvoker(invoker); got != PlatformCodex {
+		t.Errorf("PlatformFromInvoker() = %s, want %s", got, PlatformCodex)
 	}
 }
 
@@ -245,6 +255,68 @@ func TestNewWorkerInvoker_FakeWhenEnvExplicitFalse(t *testing.T) {
 	invoker := NewWorkerInvoker()
 	if _, ok := invoker.(*FakeInvoker); !ok {
 		t.Errorf("expected FakeInvoker when env=false, got %T", invoker)
+	}
+}
+
+func TestNewWorkerInvoker_SelectsActiveClaudePlatform(t *testing.T) {
+	t.Setenv("AETHER_CODEX_REAL_DISPATCH", "1")
+	t.Setenv(envActivePlatform, string(PlatformClaude))
+	t.Setenv(envClaudePath, "go")
+
+	invoker := NewWorkerInvoker()
+	if got := PlatformFromInvoker(invoker); got != PlatformClaude {
+		t.Fatalf("PlatformFromInvoker() = %s, want %s", got, PlatformClaude)
+	}
+	if !invoker.IsAvailable(context.Background()) {
+		t.Fatalf("expected active claude platform to be available, got %T", invoker)
+	}
+}
+
+func TestNewWorkerInvoker_FallsBackToAvailablePlatform(t *testing.T) {
+	t.Setenv("AETHER_CODEX_REAL_DISPATCH", "1")
+	t.Setenv(envActivePlatform, string(PlatformCodex))
+	t.Setenv("AETHER_CODEX_PATH", "missing-codex-binary-12345")
+	t.Setenv(envClaudePath, "go")
+	t.Setenv(envOpenCodePath, "missing-opencode-binary-12345")
+
+	invoker := NewWorkerInvoker()
+	if got := PlatformFromInvoker(invoker); got != PlatformClaude {
+		t.Fatalf("PlatformFromInvoker() = %s, want %s", got, PlatformClaude)
+	}
+	if !invoker.IsAvailable(context.Background()) {
+		t.Fatalf("expected claude fallback to be available, got %T", invoker)
+	}
+	description := DescribeInvokerAvailability(invoker, context.Background())
+	if !strings.Contains(description, "detected host codex") || !strings.Contains(description, "falling back to claude worker dispatcher") {
+		t.Fatalf("DescribeInvokerAvailability() = %q, want fallback message", description)
+	}
+}
+
+func TestNewWorkerInvokerOrError_ReturnsErrorWhenNoDispatchersAvailable(t *testing.T) {
+	t.Setenv("AETHER_CODEX_REAL_DISPATCH", "1")
+	t.Setenv(envActivePlatform, string(PlatformClaude))
+	t.Setenv("AETHER_CODEX_PATH", "missing-codex-binary-12345")
+	t.Setenv(envClaudePath, "missing-claude-binary-12345")
+	t.Setenv(envOpenCodePath, "missing-opencode-binary-12345")
+
+	invoker, err := NewWorkerInvokerOrError()
+	if err == nil {
+		t.Fatalf("expected NewWorkerInvokerOrError to fail when no dispatchers are available, got invoker %T", invoker)
+	}
+	if !strings.Contains(err.Error(), "worker dispatcher is unavailable") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDetectActivePlatform_UsesClaudeCodeSimpleEnv(t *testing.T) {
+	t.Setenv(envActivePlatform, "")
+	t.Setenv("CODEX_THREAD_ID", "")
+	t.Setenv("CODEX_SESSION_ID", "")
+	t.Setenv("CODEX_CI", "")
+	t.Setenv("CLAUDE_CODE_SIMPLE", "1")
+
+	if got := DetectActivePlatform(); got != PlatformClaude {
+		t.Fatalf("DetectActivePlatform() = %s, want %s", got, PlatformClaude)
 	}
 }
 

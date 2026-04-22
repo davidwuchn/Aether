@@ -298,15 +298,19 @@ func (r *RealInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 func (r *RealInvoker) InvokeWithProgress(ctx context.Context, config WorkerConfig, observer WorkerProgressObserver) (WorkerResult, error) {
 	start := time.Now()
 
-	if !r.IsAvailable(ctx) {
+	if status := r.Availability(ctx); !status.Available {
+		err := fmt.Errorf("worker startup failed: %s", strings.TrimSpace(status.Reason))
+		if strings.TrimSpace(status.Reason) == "" {
+			err = fmt.Errorf("worker startup failed: %s worker dispatcher is unavailable", PlatformCodex)
+		}
 		return WorkerResult{
 			WorkerName: config.WorkerName,
 			Caste:      config.Caste,
 			TaskID:     config.TaskID,
 			Status:     "failed",
 			Duration:   time.Since(start),
-			Error:      fmt.Errorf("worker startup failed: codex binary %q not found", r.binaryName),
-		}, fmt.Errorf("worker startup failed: codex binary %q not found in PATH", r.binaryName)
+			Error:      err,
+		}, err
 	}
 
 	if strings.TrimSpace(config.AgentTOMLPath) == "" {
@@ -581,36 +585,52 @@ func ParseWorkerOutput(output string) (workerClaims, error) {
 
 // --- Factory ---
 
-// NewWorkerInvokerOrError returns a FakeInvoker or RealInvoker based on the
-// AETHER_CODEX_REAL_DISPATCH environment variable. It returns an error when
-// the real invoker is unavailable and the env var is not explicitly set to fake.
-// Production paths should use this function and fail fast on error.
+// NewWorkerInvokerOrError returns a fake or platform-selected worker invoker
+// based on the AETHER_CODEX_REAL_DISPATCH environment variable. It returns an
+// error when no authenticated platform dispatcher is available and synthetic
+// mode is not explicitly requested.
 func NewWorkerInvokerOrError() (WorkerInvoker, error) {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(envRealDispatch))) {
 	case "0", "false", "fake":
 		return &FakeInvoker{}, nil
 	case "1", "true", "real":
-		return NewRealInvoker(), nil
+		invoker := SelectPlatformInvoker(context.Background())
+		if invoker.IsAvailable(context.Background()) {
+			return invoker, nil
+		}
+		return nil, fmt.Errorf("worker dispatcher is unavailable: %s", DescribeInvokerAvailability(invoker, context.Background()))
+	}
+	if normalizePlatform(os.Getenv(envWorkerPlatform)) == PlatformFake {
+		return &FakeInvoker{}, nil
 	}
 	if runningInGoTest() {
 		return &FakeInvoker{}, nil
 	}
-	real := NewRealInvoker()
-	if real.IsAvailable(context.Background()) {
-		return real, nil
+	invoker := SelectPlatformInvoker(context.Background())
+	if invoker.IsAvailable(context.Background()) {
+		return invoker, nil
 	}
-	return nil, fmt.Errorf("codex CLI is not available and AETHER_CODEX_REAL_DISPATCH is not set to fake; install the codex CLI or set AETHER_CODEX_REAL_DISPATCH=fake to run in synthetic mode")
+	return nil, fmt.Errorf("worker dispatcher is unavailable: %s; set %s=fake to run in synthetic mode", DescribeInvokerAvailability(invoker, context.Background()), envRealDispatch)
 }
 
-// NewWorkerInvoker returns a FakeInvoker (default) or RealInvoker
-// based on the AETHER_CODEX_REAL_DISPATCH environment variable.
-// Deprecated: use NewWorkerInvokerOrError in production paths.
+// NewWorkerInvoker returns a fake or platform-selected worker invoker based on
+// the AETHER_CODEX_REAL_DISPATCH environment variable. When no authenticated
+// dispatcher is available it returns an unavailable invoker instead of panicking
+// so callers can surface a concrete fallback reason.
 func NewWorkerInvoker() WorkerInvoker {
-	invoker, err := NewWorkerInvokerOrError()
-	if err != nil {
-		panic(err)
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(envRealDispatch))) {
+	case "0", "false", "fake":
+		return &FakeInvoker{}
+	case "1", "true", "real":
+		return SelectPlatformInvoker(context.Background())
 	}
-	return invoker
+	if normalizePlatform(os.Getenv(envWorkerPlatform)) == PlatformFake {
+		return &FakeInvoker{}
+	}
+	if runningInGoTest() {
+		return &FakeInvoker{}
+	}
+	return SelectPlatformInvoker(context.Background())
 }
 
 func stripCodeFence(text string) string {

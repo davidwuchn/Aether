@@ -280,7 +280,7 @@ func TestColonizeVisualOutputShowsDispatchContractDetails(t *testing.T) {
 		"1 wave, parallel read-only worker execution",
 		"1m30s worker max",
 		"One surveyor timing out does not reduce sibling surveyor budgets",
-		"codex CLI in PATH",
+		"authenticated platform dispatcher",
 		"dispatch_mode, survey_warning, artifact_source",
 	} {
 		if !strings.Contains(output, want) {
@@ -353,7 +353,7 @@ func TestPlanVisualOutputShowsDispatchContractDetails(t *testing.T) {
 		"2 staged workers, scout then route-setter",
 		"1m30s worker max",
 		"route-setter only runs after a completed scout stage",
-		"codex CLI in PATH",
+		"authenticated platform dispatcher",
 		"dispatch_mode, planning_warning, artifact_source, plan_source",
 	} {
 		if !strings.Contains(output, want) {

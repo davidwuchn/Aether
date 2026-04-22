@@ -1083,3 +1083,77 @@ func TestUpdateSyncMultipleSyncPairs(t *testing.T) {
 		}
 	}
 }
+
+func TestRunUpdateSyncForceSyncsClaudeSettings(t *testing.T) {
+	saveGlobals(t)
+
+	hubDir := t.TempDir()
+	repoDir := t.TempDir()
+
+	hubSettings := filepath.Join(hubDir, "system", "settings", "claude")
+	if err := os.MkdirAll(hubSettings, 0755); err != nil {
+		t.Fatalf("failed to create hub settings dir: %v", err)
+	}
+	hubContent := []byte("{\n  \"env\": {\n    \"AETHER_ACTIVE_PLATFORM\": \"claude\"\n  },\n  \"hooks\": {}\n}\n")
+	if err := os.WriteFile(filepath.Join(hubSettings, "settings.json"), hubContent, 0644); err != nil {
+		t.Fatalf("failed to write hub Claude settings: %v", err)
+	}
+
+	localClaude := filepath.Join(repoDir, ".claude")
+	if err := os.MkdirAll(localClaude, 0755); err != nil {
+		t.Fatalf("failed to create repo .claude dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(localClaude, "settings.json"), []byte("{\"hooks\":{}}\n"), 0644); err != nil {
+		t.Fatalf("failed to seed repo Claude settings: %v", err)
+	}
+
+	result := runUpdateSync(hubDir, repoDir, true)
+	if len(result.errors) > 0 {
+		t.Fatalf("runUpdateSync returned errors: %v", result.errors)
+	}
+
+	data, err := os.ReadFile(filepath.Join(localClaude, "settings.json"))
+	if err != nil {
+		t.Fatalf("failed to read synced Claude settings: %v", err)
+	}
+	if !strings.Contains(string(data), "\"AETHER_ACTIVE_PLATFORM\": \"claude\"") {
+		t.Fatalf("expected synced Claude settings to include platform env, got:\n%s", string(data))
+	}
+}
+
+func TestRunUpdateSyncPreservesClaudeSettingsWithoutForce(t *testing.T) {
+	saveGlobals(t)
+
+	hubDir := t.TempDir()
+	repoDir := t.TempDir()
+
+	hubSettings := filepath.Join(hubDir, "system", "settings", "claude")
+	if err := os.MkdirAll(hubSettings, 0755); err != nil {
+		t.Fatalf("failed to create hub settings dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(hubSettings, "settings.json"), []byte("{\"env\":{\"AETHER_ACTIVE_PLATFORM\":\"claude\"},\"hooks\":{}}\n"), 0644); err != nil {
+		t.Fatalf("failed to write hub Claude settings: %v", err)
+	}
+
+	localClaude := filepath.Join(repoDir, ".claude")
+	if err := os.MkdirAll(localClaude, 0755); err != nil {
+		t.Fatalf("failed to create repo .claude dir: %v", err)
+	}
+	custom := "{\n  \"hooks\": {\n    \"Stop\": []\n  }\n}\n"
+	if err := os.WriteFile(filepath.Join(localClaude, "settings.json"), []byte(custom), 0644); err != nil {
+		t.Fatalf("failed to seed repo Claude settings: %v", err)
+	}
+
+	result := runUpdateSync(hubDir, repoDir, false)
+	if len(result.errors) > 0 {
+		t.Fatalf("runUpdateSync returned errors: %v", result.errors)
+	}
+
+	data, err := os.ReadFile(filepath.Join(localClaude, "settings.json"))
+	if err != nil {
+		t.Fatalf("failed to read preserved Claude settings: %v", err)
+	}
+	if string(data) != custom {
+		t.Fatalf("expected local Claude settings to be preserved without force, got:\n%s", string(data))
+	}
+}

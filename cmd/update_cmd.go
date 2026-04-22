@@ -91,6 +91,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 				"Sync .aether/ system files (commands, agents, skills, templates, docs)",
 				"Refresh repo-level Codex guidance (AGENTS.md, .codex/CODEX.md) when managed by Aether",
 				"Sync .claude/commands/ant/",
+				"Sync .claude/settings.json",
 				"Sync .claude/agents/ant/",
 				"Sync .codex/agents/",
 				"Sync .codex/skills/",
@@ -102,6 +103,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		outputWorkflow(result, renderUpdateVisual(repoDir, hubVersion, resolveVersion(), force, true, []map[string]interface{}{
 			{"label": "System files", "copied": 0, "skipped": 0},
 			{"label": "Commands (claude)", "copied": 0, "skipped": 0},
+			{"label": "Settings (claude)", "copied": 0, "skipped": 0},
 			{"label": "Agents (claude)", "copied": 0, "skipped": 0},
 			{"label": "Agents (codex)", "copied": 0, "skipped": 0},
 			{"label": "Skills (codex)", "copied": 0, "skipped": 0},

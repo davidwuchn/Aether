@@ -80,13 +80,15 @@ func GroupByWave(dispatches []WorkerDispatch) map[int][]WorkerDispatch {
 // then wave 2, etc.). Within each wave, workers execute sequentially.
 //
 // Failed workers are recorded but do NOT stop subsequent waves from executing.
-// Returns all results when all waves complete. The returned error is always nil
-// (failures are captured per-worker in DispatchResult.Error).
+// Returns all results when all waves complete. Returns a non-nil error if any
+// worker in any wave fails (failures are also captured per-worker in
+// DispatchResult.Error).
 func DispatchBatch(ctx context.Context, invoker WorkerInvoker, dispatches []WorkerDispatch) ([]DispatchResult, error) {
 	return DispatchBatchWithObserver(ctx, invoker, dispatches, nil)
 }
 
 // DispatchBatchWithObserver executes multiple workers while emitting lifecycle transitions.
+// Returns a non-nil error if any worker in the batch fails.
 func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispatches []WorkerDispatch, observer DispatchObserver) ([]DispatchResult, error) {
 	if len(dispatches) == 0 {
 		return nil, nil
@@ -96,6 +98,7 @@ func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispa
 	sortedWaves := sortedWaveKeys(waves)
 
 	var allResults []DispatchResult
+	var batchErr error
 
 	for _, waveNum := range sortedWaves {
 		waveDispatches := waves[waveNum]
@@ -104,36 +107,43 @@ func DispatchBatchWithObserver(ctx context.Context, invoker WorkerInvoker, dispa
 			return nil, err
 		}
 		allResults = append(allResults, waveResults...)
+		for _, r := range waveResults {
+			if r.Error != nil && batchErr == nil {
+				batchErr = fmt.Errorf("worker %s failed: %w", r.WorkerName, r.Error)
+			}
+		}
 	}
 
-	return allResults, nil
+	return allResults, batchErr
 }
 
 // DispatchWaveWithObserver executes all dispatches in a single wave.
 // When parallel is false, workers execute sequentially in input order.
 // When parallel is true, workers execute concurrently and results preserve input order.
+// Returns a non-nil error if any worker in the wave fails.
 func DispatchWaveWithObserver(ctx context.Context, invoker WorkerInvoker, dispatches []WorkerDispatch, observer DispatchObserver, parallel bool) ([]DispatchResult, error) {
 	if len(dispatches) == 0 {
 		return nil, nil
 	}
+	var results []DispatchResult
 	if !parallel || len(dispatches) == 1 {
-		results := make([]DispatchResult, 0, len(dispatches))
+		results = make([]DispatchResult, 0, len(dispatches))
 		for _, d := range dispatches {
 			results = append(results, invokeDispatch(ctx, invoker, d, observer))
 		}
-		return results, nil
+	} else {
+		results = make([]DispatchResult, len(dispatches))
+		var wg sync.WaitGroup
+		for idx, dispatch := range dispatches {
+			wg.Add(1)
+			go func(i int, d WorkerDispatch) {
+				defer wg.Done()
+				results[i] = invokeDispatch(ctx, invoker, d, observer)
+			}(idx, dispatch)
+		}
+		wg.Wait()
 	}
 
-	results := make([]DispatchResult, len(dispatches))
-	var wg sync.WaitGroup
-	for idx, dispatch := range dispatches {
-		wg.Add(1)
-		go func(i int, d WorkerDispatch) {
-			defer wg.Done()
-			results[i] = invokeDispatch(ctx, invoker, d, observer)
-		}(idx, dispatch)
-	}
-	wg.Wait()
 	return results, nil
 }
 

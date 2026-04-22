@@ -596,10 +596,16 @@ func setupInstallHub(hubDir, packageDir string) map[string]interface{} {
 	for _, pair := range []struct {
 		srcDir  string
 		destDir string
+		include syncFilter
 	}{
 		{
 			srcDir:  filepath.Join(packageDir, ".claude", "commands", "ant"),
 			destDir: filepath.Join(systemDir, "commands", "claude"),
+		},
+		{
+			srcDir:  filepath.Join(packageDir, ".claude"),
+			destDir: filepath.Join(systemDir, "settings", "claude"),
+			include: isClaudeSettingsFile,
 		},
 		{
 			srcDir:  filepath.Join(packageDir, ".opencode", "commands", "ant"),
@@ -610,7 +616,7 @@ func setupInstallHub(hubDir, packageDir string) map[string]interface{} {
 			destDir: filepath.Join(systemDir, "agents"),
 		},
 	} {
-		syncRes := syncDirToHubWithExclusion(pair.srcDir, pair.destDir, nil, nil, nil)
+		syncRes := syncDirToHubWithExclusion(pair.srcDir, pair.destDir, nil, nil, pair.include)
 		hubSyncResult.copied += syncRes.copied
 		hubSyncResult.skipped += syncRes.skipped
 		hubSyncResult.removed = append(hubSyncResult.removed, syncRes.removed...)

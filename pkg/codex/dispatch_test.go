@@ -118,8 +118,8 @@ func TestDispatchBatch_FailedWorkerDoesNotBlockNextWave(t *testing.T) {
 	}
 
 	results, err := DispatchBatch(context.Background(), invoker, dispatches)
-	if err != nil {
-		t.Fatalf("DispatchBatch should not return error even with failures, got: %v", err)
+	if err == nil {
+		t.Fatal("DispatchBatch should return error when a worker fails")
 	}
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
@@ -148,8 +148,8 @@ func TestDispatchBatch_AllWorkersFail(t *testing.T) {
 	}
 
 	results, err := DispatchBatch(context.Background(), invoker, dispatches)
-	if err != nil {
-		t.Fatalf("DispatchBatch should not return error, got: %v", err)
+	if err == nil {
+		t.Fatal("DispatchBatch should return error when all workers fail")
 	}
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
@@ -173,9 +173,9 @@ func TestDispatchBatch_Timeout(t *testing.T) {
 	}
 
 	results, err := DispatchBatch(ctx, invoker, dispatches)
-	// Should still return results (not an error), with the worker marked as failed/timeout
-	if err != nil {
-		t.Fatalf("DispatchBatch returned error: %v", err)
+	// Should return error when worker times out
+	if err == nil {
+		t.Fatal("DispatchBatch should return error on worker timeout")
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
@@ -487,3 +487,41 @@ func (s *slowInvoker) Invoke(ctx context.Context, config WorkerConfig) (WorkerRe
 
 func (s *slowInvoker) IsAvailable(ctx context.Context) bool { return true }
 func (s *slowInvoker) ValidateAgent(path string) error      { return nil }
+
+// TestDispatchBatch_ReturnsErrorOnWorkerFailure verifies that DispatchBatch
+// returns a non-nil error when any worker fails, while still completing all waves.
+func TestDispatchBatch_ReturnsErrorOnWorkerFailure(t *testing.T) {
+	invoker := &failingInvoker{failNames: map[string]bool{"Hammer-2": true}}
+
+	dispatches := []WorkerDispatch{
+		{WorkerName: "Hammer-1", Caste: "builder", TaskID: "1.1", Wave: 1},
+		{WorkerName: "Hammer-2", Caste: "builder", TaskID: "1.2", Wave: 1},
+		{WorkerName: "Ranger-1", Caste: "scout", TaskID: "2.1", Wave: 2},
+	}
+
+	results, err := DispatchBatch(context.Background(), invoker, dispatches)
+	if err == nil {
+		t.Fatal("DispatchBatch should return error when a worker fails")
+	}
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+
+	// Hammer-1 should be completed
+	if results[0].Status != "completed" {
+		t.Errorf("result[0].Status = %q, want %q", results[0].Status, "completed")
+	}
+
+	// Hammer-2 should be failed
+	if results[1].Status != "failed" {
+		t.Errorf("result[1].Status = %q, want %q", results[1].Status, "failed")
+	}
+	if results[1].Error == nil {
+		t.Error("result[1].Error should not be nil")
+	}
+
+	// Wave 2 should still execute despite wave 1 failure
+	if results[2].Status != "completed" {
+		t.Errorf("result[2].Status = %q, want %q (wave 2 should still execute)", results[2].Status, "completed")
+	}
+}
