@@ -219,8 +219,11 @@ func TestNewWorkerInvoker_RealWhenEnvSet(t *testing.T) {
 	t.Setenv("AETHER_CODEX_REAL_DISPATCH", "1")
 
 	invoker := NewWorkerInvoker()
-	if _, ok := invoker.(*RealInvoker); !ok {
-		t.Errorf("expected RealInvoker when env=1, got %T", invoker)
+	if _, ok := invoker.(*FakeInvoker); ok {
+		t.Errorf("expected real platform selection when env=1, got %T", invoker)
+	}
+	if !invoker.IsAvailable(context.Background()) {
+		t.Errorf("expected selected invoker to be available when env=1, got %T", invoker)
 	}
 }
 
@@ -228,8 +231,11 @@ func TestNewWorkerInvoker_RealWhenEnvTrue(t *testing.T) {
 	t.Setenv("AETHER_CODEX_REAL_DISPATCH", "true")
 
 	invoker := NewWorkerInvoker()
-	if _, ok := invoker.(*RealInvoker); !ok {
-		t.Errorf("expected RealInvoker when env=true, got %T", invoker)
+	if _, ok := invoker.(*FakeInvoker); ok {
+		t.Errorf("expected real platform selection when env=true, got %T", invoker)
+	}
+	if !invoker.IsAvailable(context.Background()) {
+		t.Errorf("expected selected invoker to be available when env=true, got %T", invoker)
 	}
 }
 

@@ -580,7 +580,7 @@ func TestBuildRollsBackStateWhenDispatchFails(t *testing.T) {
 	if readErr != nil {
 		t.Fatalf("expected CONTEXT.md after rollback: %v", readErr)
 	}
-	if !strings.Contains(string(contextData), "codex CLI is not available") {
+	if !strings.Contains(string(contextData), "worker dispatcher is unavailable") {
 		t.Fatalf("expected rollback context summary, got:\n%s", string(contextData))
 	}
 }

@@ -24,7 +24,7 @@ type swarmWorkerPlan struct {
 	Caste     string
 	Role      string
 	Task      string
-	AgentTOML string
+	AgentName string
 	Wave      int
 	Timeout   time.Duration
 }
@@ -183,7 +183,7 @@ func runSwarmDestroy(root, target string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("swarm worker invoker is not configured")
 	}
 	if !invoker.IsAvailable(context.Background()) {
-		return nil, fmt.Errorf("codex CLI is not available in PATH")
+		return nil, dispatchUnavailableError(invoker)
 	}
 
 	state, _ := loadColonyState()
@@ -285,7 +285,7 @@ func buildSwarmInvestigationPlans(root, target string) []swarmWorkerPlan {
 			Caste:     "tracker",
 			Role:      "tracker",
 			Task:      "Reproduce the issue, trace the failure path, and identify the most likely root cause.",
-			AgentTOML: filepath.Join(root, ".codex", "agents", "aether-tracker.toml"),
+			AgentName: "aether-tracker",
 			Wave:      1,
 			Timeout:   defaultSwarmWorkerTimeout,
 		},
@@ -294,7 +294,7 @@ func buildSwarmInvestigationPlans(root, target string) []swarmWorkerPlan {
 			Caste:     "scout",
 			Role:      "scout",
 			Task:      "Search the repo for the most relevant files, patterns, tests, and documentation tied to the reported bug.",
-			AgentTOML: filepath.Join(root, ".codex", "agents", "aether-scout.toml"),
+			AgentName: "aether-scout",
 			Wave:      1,
 			Timeout:   defaultSwarmWorkerTimeout,
 		},
@@ -303,7 +303,7 @@ func buildSwarmInvestigationPlans(root, target string) []swarmWorkerPlan {
 			Caste:     "archaeologist",
 			Role:      "archaeologist",
 			Task:      "Inspect git history and prior fixes around the bug area to identify historical context, fragile zones, and regressions.",
-			AgentTOML: filepath.Join(root, ".codex", "agents", "aether-archaeologist.toml"),
+			AgentName: "aether-archaeologist",
 			Wave:      1,
 			Timeout:   defaultSwarmWorkerTimeout,
 		},
@@ -316,7 +316,7 @@ func buildSwarmBuilderPlan(root, target string) swarmWorkerPlan {
 		Caste:     "builder",
 		Role:      "builder",
 		Task:      "Implement the smallest safe fix for the reported bug and add or update tests that prove the regression is covered.",
-		AgentTOML: filepath.Join(root, ".codex", "agents", "aether-builder.toml"),
+		AgentName: "aether-builder",
 		Wave:      2,
 		Timeout:   8 * time.Minute,
 	}
@@ -328,7 +328,7 @@ func buildSwarmWatcherPlan(root, target string) swarmWorkerPlan {
 		Caste:     "watcher",
 		Role:      "watcher",
 		Task:      "Verify the fix independently, run the most relevant checks, and confirm whether the bug is actually resolved.",
-		AgentTOML: filepath.Join(root, ".codex", "agents", "aether-watcher.toml"),
+		AgentName: "aether-watcher",
 		Wave:      3,
 		Timeout:   defaultSwarmWorkerTimeout,
 	}
@@ -413,8 +413,8 @@ func executeSwarmWave(ctx context.Context, root, swarmID, target string, plans [
 func invokeSwarmWorker(ctx context.Context, root, target, swarmID string, plan swarmWorkerPlan, priorSummary, responsePath string, invoker codex.WorkerInvoker) (*codex.WorkerResult, *swarmWorkerResponse, error) {
 	brief := renderSwarmWorkerBrief(root, target, swarmID, plan, priorSummary, responsePath)
 	cfg := codex.WorkerConfig{
-		AgentName:        strings.TrimSuffix(filepath.Base(plan.AgentTOML), ".toml"),
-		AgentTOMLPath:    plan.AgentTOML,
+		AgentName:        plan.AgentName,
+		AgentTOMLPath:    dispatchAgentPath(root, invoker, plan.AgentName),
 		Caste:            plan.Caste,
 		WorkerName:       plan.Name,
 		TaskID:           fmt.Sprintf("swarm.%s", plan.Role),

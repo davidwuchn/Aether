@@ -184,24 +184,26 @@ func runCodexPlan(root string, refresh bool, synthetic bool) (map[string]interfa
 	if !synthetic {
 		invoker := newCodexWorkerInvoker()
 		if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
-			return nil, fmt.Errorf("codex CLI is not available in PATH")
-		}
-		realDispatches, dispatchErr := dispatchRealPlanningWorkers(context.Background(), root, invoker)
-		if realDispatches != nil {
-			dispatches = realDispatches
-		}
-		if dispatchErr != nil {
-			if _, ok := invoker.(*codex.FakeInvoker); ok {
-				dispatchMode = "simulated"
-			} else {
-				dispatchMode = "fallback"
-				planningWarning = fmt.Sprintf("Real planning workers did not finish cleanly, so Aether fell back to local synthesis. Cause: %s", dispatchErr.Error())
+			dispatchMode = "fallback"
+			planningWarning = fmt.Sprintf("Real planning workers were unavailable, so Aether fell back to local synthesis. Cause: %s", dispatchAvailabilityMessage(invoker))
+		} else {
+			realDispatches, dispatchErr := dispatchRealPlanningWorkers(context.Background(), root, invoker)
+			if realDispatches != nil {
+				dispatches = realDispatches
 			}
-		} else if realDispatches != nil {
-			if _, ok := invoker.(*codex.FakeInvoker); ok {
-				dispatchMode = "simulated"
-			} else {
-				dispatchMode = "real"
+			if dispatchErr != nil {
+				if _, ok := invoker.(*codex.FakeInvoker); ok {
+					dispatchMode = "simulated"
+				} else {
+					dispatchMode = "fallback"
+					planningWarning = fmt.Sprintf("Real planning workers did not finish cleanly, so Aether fell back to local synthesis. Cause: %s", dispatchErr.Error())
+				}
+			} else if realDispatches != nil {
+				if _, ok := invoker.(*codex.FakeInvoker); ok {
+					dispatchMode = "simulated"
+				} else {
+					dispatchMode = "real"
+				}
 			}
 		}
 	} else {
@@ -416,18 +418,18 @@ func dispatchRealPlanningWorkers(ctx context.Context, root string, invoker codex
 	if invoker == nil || !invoker.IsAvailable(ctx) {
 		return nil, nil
 	}
-	codexAgentsDir := filepath.Join(root, ".codex", "agents")
 	planned := plannedPlanningWorkers(root)
 	capsule := resolveCodexWorkerContext()
 	pheromoneSection := resolvePheromoneSection()
 	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
 	results := make([]codex.DispatchResult, 0, len(planningWorkerSpecs))
 	for i, spec := range planningWorkerSpecs {
+		agentName := strings.TrimSuffix(spec.AgentFile, ".toml")
 		dispatch := codex.WorkerDispatch{
 			ID:               fmt.Sprintf("planning-%d", i),
 			WorkerName:       planned[i].Name,
-			AgentName:        strings.TrimSuffix(spec.AgentFile, ".toml"),
-			AgentTOMLPath:    filepath.Join(codexAgentsDir, spec.AgentFile),
+			AgentName:        agentName,
+			AgentTOMLPath:    dispatchAgentPath(root, invoker, agentName),
 			Caste:            spec.Caste,
 			TaskID:           fmt.Sprintf("plan-%d", i),
 			TaskBrief:        renderPlanningWorkerBrief(root, spec),

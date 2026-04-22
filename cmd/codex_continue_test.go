@@ -828,6 +828,10 @@ func TestContinueBlocksWhenWatcherUsesFakeInvoker(t *testing.T) {
 	}
 	seedContinueBuildPacket(t, dataDir, 1, "Watcher blocks on FakeInvoker", goal, dispatches)
 
+	originalInvoker := newCodexWorkerInvoker
+	newCodexWorkerInvoker = func() codex.WorkerInvoker { return &continueUnavailableInvoker{} }
+	t.Cleanup(func() { newCodexWorkerInvoker = originalInvoker })
+
 	rootCmd.SetArgs([]string{"continue"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("continue returned error: %v", err)
@@ -846,8 +850,8 @@ func TestContinueBlocksWhenWatcherUsesFakeInvoker(t *testing.T) {
 	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
 		t.Fatalf("failed to reload state: %v", err)
 	}
-	if state.State != colony.StateCOMPLETED {
-		t.Fatalf("state = %s, want COMPLETED", state.State)
+	if state.State != colony.StateEXECUTING {
+		t.Fatalf("state = %s, want EXECUTING", state.State)
 	}
 }
 
@@ -2359,6 +2363,23 @@ func (f *continueWatcherTestInvoker) Invoke(ctx context.Context, config codex.Wo
 func (f *continueWatcherTestInvoker) IsAvailable(ctx context.Context) bool { return true }
 
 func (f *continueWatcherTestInvoker) ValidateAgent(path string) error { return nil }
+
+type continueUnavailableInvoker struct{}
+
+func (i *continueUnavailableInvoker) Invoke(ctx context.Context, config codex.WorkerConfig) (codex.WorkerResult, error) {
+	err := fmt.Errorf("no authenticated worker platform is available")
+	return codex.WorkerResult{
+		WorkerName: config.WorkerName,
+		Caste:      config.Caste,
+		TaskID:     config.TaskID,
+		Status:     "failed",
+		Error:      err,
+	}, err
+}
+
+func (i *continueUnavailableInvoker) IsAvailable(ctx context.Context) bool { return false }
+
+func (i *continueUnavailableInvoker) ValidateAgent(path string) error { return nil }
 
 func withTestWorkspace(t *testing.T, root string) {
 	t.Helper()

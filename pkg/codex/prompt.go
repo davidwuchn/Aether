@@ -71,6 +71,18 @@ func AssemblePrompt(agentTOMLPath, contextCapsule, skillSection, pheromoneSectio
 	return assemblePromptParts(parts, promptBudgetChars()), nil
 }
 
+// AssembleHostedPrompt builds the worker prompt for platforms that load their
+// agent instructions from the host runtime instead of a Codex TOML file.
+func AssembleHostedPrompt(contextCapsule, skillSection, pheromoneSection, taskBrief string) string {
+	parts := []promptPart{
+		{name: "context", content: strings.TrimSpace(contextCapsule), required: false},
+		{name: "skill", content: strings.TrimSpace(skillSection), required: false},
+		{name: "pheromone", content: strings.TrimSpace(pheromoneSection), required: false},
+		{name: "brief", content: strings.TrimSpace(taskBrief), required: true},
+	}
+	return assemblePromptParts(parts, promptBudgetChars())
+}
+
 // RenderTaskBrief formats a TaskBriefData into a markdown task brief string.
 // Sections with empty slices are omitted.
 func RenderTaskBrief(task TaskBriefData) string {

@@ -518,11 +518,11 @@ func runCodexContinueReview(root string, phase colony.Phase, manifest codexConti
 
 	invoker := newCodexWorkerInvoker()
 	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
-		report.BlockingIssues = []string{"continue review wave could not start because the codex CLI was unavailable"}
+		report.BlockingIssues = []string{fmt.Sprintf("continue review wave could not start because %s", dispatchAvailabilityMessage(invoker))}
 		return report
 	}
 
-	dispatches := plannedContinueReviewDispatches(root, phase, manifest, verification, assessment)
+	dispatches := plannedContinueReviewDispatches(root, phase, manifest, verification, assessment, invoker)
 	spawnTree := agent.NewSpawnTree(store, "spawn-tree.txt")
 	results, err := dispatchBatchByWaveWithVisuals(
 		context.Background(),
@@ -586,16 +586,17 @@ func runCodexContinueReview(root string, phase colony.Phase, manifest codexConti
 	return report
 }
 
-func plannedContinueReviewDispatches(root string, phase colony.Phase, manifest codexContinueManifest, verification codexContinueVerificationReport, assessment codexContinueAssessment) []codex.WorkerDispatch {
+func plannedContinueReviewDispatches(root string, phase colony.Phase, manifest codexContinueManifest, verification codexContinueVerificationReport, assessment codexContinueAssessment, invoker codex.WorkerInvoker) []codex.WorkerDispatch {
 	capsule := resolveCodexWorkerContext()
 	pheromoneSection := resolvePheromoneSection()
 	dispatches := make([]codex.WorkerDispatch, 0, len(codexContinueReviewSpecs))
 	for idx, spec := range codexContinueReviewSpecs {
+		agentName := codexAgentNameForCaste(spec.Caste)
 		dispatches = append(dispatches, codex.WorkerDispatch{
 			ID:               fmt.Sprintf("continue-review-%d", idx),
 			WorkerName:       deterministicAntName(spec.Caste, fmt.Sprintf("phase:%d:continue:%s", phase.ID, spec.Caste)),
-			AgentName:        codexAgentNameForCaste(spec.Caste),
-			AgentTOMLPath:    filepath.Join(root, ".codex", "agents", codexAgentFileForCaste(spec.Caste)),
+			AgentName:        agentName,
+			AgentTOMLPath:    dispatchAgentPath(root, invoker, agentName),
 			Caste:            spec.Caste,
 			TaskID:           fmt.Sprintf("continue-review-%s", spec.Caste),
 			TaskBrief:        renderCodexContinueReviewBrief(root, phase, manifest, verification, assessment, spec),
@@ -718,27 +719,10 @@ func runCodexContinueVerification(root string, phase colony.Phase, manifest code
 }
 
 func runCodexContinueWatcherVerification(root string, phase colony.Phase, manifest codexContinueManifest, steps []codexVerificationStep, claims codexClaimVerification, buildWatcher codexWatcherVerification) (codexWatcherVerification, *codexContinueWorkerFlowStep) {
-	dispatch := plannedContinueWatcherDispatch(root, phase, manifest, steps, claims, buildWatcher)
 	invoker := newCodexWorkerInvoker()
-	if _, ok := invoker.(*codex.FakeInvoker); ok {
-		summary := "continue watcher verification blocked because codex CLI is not available (FakeInvoker in use)"
-		return codexWatcherVerification{
-				Present: true,
-				Passed:  false,
-				Status:  "blocked",
-				Worker:  dispatch.WorkerName,
-				Summary: summary,
-			}, &codexContinueWorkerFlowStep{
-				Stage:   "verification",
-				Caste:   "watcher",
-				Name:    dispatch.WorkerName,
-				Task:    "Independent verification before advancement",
-				Status:  "blocked",
-				Summary: continueWatcherFlowSummary(dispatch.WorkerName, "blocked", summary),
-			}
-	}
+	dispatch := plannedContinueWatcherDispatch(root, phase, manifest, steps, claims, buildWatcher, invoker)
 	if !invoker.IsAvailable(context.Background()) {
-		summary := "continue watcher verification could not start because the codex CLI was unavailable"
+		summary := fmt.Sprintf("continue watcher verification could not start because %s", dispatchAvailabilityMessage(invoker))
 		return codexWatcherVerification{
 				Present: true,
 				Passed:  false,
@@ -836,12 +820,13 @@ func runCodexContinueWatcherVerification(root string, phase colony.Phase, manife
 		}
 }
 
-func plannedContinueWatcherDispatch(root string, phase colony.Phase, manifest codexContinueManifest, steps []codexVerificationStep, claims codexClaimVerification, buildWatcher codexWatcherVerification) codex.WorkerDispatch {
+func plannedContinueWatcherDispatch(root string, phase colony.Phase, manifest codexContinueManifest, steps []codexVerificationStep, claims codexClaimVerification, buildWatcher codexWatcherVerification, invoker codex.WorkerInvoker) codex.WorkerDispatch {
+	agentName := codexAgentNameForCaste("watcher")
 	return codex.WorkerDispatch{
 		ID:               fmt.Sprintf("continue-verification-%d", phase.ID),
 		WorkerName:       deterministicAntName("watcher", fmt.Sprintf("phase:%d:continue:watcher", phase.ID)),
-		AgentName:        codexAgentNameForCaste("watcher"),
-		AgentTOMLPath:    filepath.Join(root, ".codex", "agents", codexAgentFileForCaste("watcher")),
+		AgentName:        agentName,
+		AgentTOMLPath:    dispatchAgentPath(root, invoker, agentName),
 		Caste:            "watcher",
 		TaskID:           fmt.Sprintf("continue-verification-%d", phase.ID),
 		TaskBrief:        renderCodexContinueWatcherBrief(root, phase, manifest, steps, claims, buildWatcher),

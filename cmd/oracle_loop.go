@@ -104,7 +104,7 @@ type oraclePaths struct {
 	ResearchPlanPath string
 	StopPath         string
 	LoopPath         string
-	AgentPath        string
+	AgentName        string
 }
 
 type oracleProgressSnapshot struct {
@@ -352,9 +352,10 @@ func runOracleLoop(paths oraclePaths, detectedType string, languages, frameworks
 		invoker = &codex.FakeInvoker{}
 	}
 	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(ctx) {
-		return nil, fmt.Errorf("codex binary not available; oracle loop cannot start")
+		return nil, fmt.Errorf("oracle loop cannot start because %s", dispatchAvailabilityMessage(invoker))
 	}
-	if err := invoker.ValidateAgent(paths.AgentPath); err != nil {
+	agentPath := dispatchAgentPath(paths.Root, invoker, paths.AgentName)
+	if err := invoker.ValidateAgent(agentPath); err != nil {
 		return nil, fmt.Errorf("oracle agent unavailable: %w", err)
 	}
 
@@ -726,7 +727,7 @@ func invokeOracleIteration(ctx context.Context, invoker codex.WorkerInvoker, pat
 
 	return invoker.Invoke(ctx, codex.WorkerConfig{
 		AgentName:        "aether-oracle",
-		AgentTOMLPath:    paths.AgentPath,
+		AgentTOMLPath:    dispatchAgentPath(paths.Root, invoker, paths.AgentName),
 		Caste:            "oracle",
 		WorkerName:       workerName,
 		TaskID:           fmt.Sprintf("oracle.%d", state.Iteration),
@@ -810,7 +811,7 @@ func oracleWorkspacePaths(root string) oraclePaths {
 		ResearchPlanPath: filepath.Join(dir, "research-plan.md"),
 		StopPath:         filepath.Join(dir, ".stop"),
 		LoopPath:         filepath.Join(dir, ".loop-active"),
-		AgentPath:        filepath.Join(root, ".codex", "agents", "aether-oracle.toml"),
+		AgentName:        "aether-oracle",
 	}
 }
 

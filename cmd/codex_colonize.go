@@ -104,30 +104,31 @@ func runCodexColonize(root string, force bool) (map[string]interface{}, error) {
 
 	invoker := newCodexWorkerInvoker()
 	if _, ok := invoker.(*codex.FakeInvoker); !ok && !invoker.IsAvailable(context.Background()) {
-		return nil, fmt.Errorf("codex CLI is not available in PATH")
-	}
-	emitVisualProgress(renderColonizeDispatchPreview(facts.Root, dispatches))
-
-	realDispatches, dispatchErr := dispatchRealSurveyors(context.Background(), root, invoker)
-	if realDispatches != nil {
-		dispatches = realDispatches
-	}
-	if dispatchErr != nil {
-		if _, ok := invoker.(*codex.FakeInvoker); ok {
-			logActivity("colonize", "Brick-76: Fallback to planned surveyors (dispatch error)")
-			dispatchMode = "simulated"
-		} else {
-			dispatchMode = "fallback"
-			surveyWarning = fmt.Sprintf("Real surveyors did not finish cleanly, so Aether fell back to local survey synthesis. Cause: %s", dispatchErr.Error())
-		}
-	} else if realDispatches != nil {
-		if _, ok := invoker.(*codex.FakeInvoker); ok {
-			dispatchMode = "simulated"
-		} else {
-			dispatchMode = "real"
-		}
-		logActivity("colonize", fmt.Sprintf("Brick-76: %s surveyor dispatch, %d workers", dispatchMode, len(dispatches)))
+		dispatchMode = "fallback"
+		surveyWarning = fmt.Sprintf("Real surveyors were unavailable, so Aether fell back to local survey synthesis. Cause: %s", dispatchAvailabilityMessage(invoker))
 	} else {
+		emitVisualProgress(renderColonizeDispatchPreview(facts.Root, dispatches))
+
+		realDispatches, dispatchErr := dispatchRealSurveyors(context.Background(), root, invoker)
+		if realDispatches != nil {
+			dispatches = realDispatches
+		}
+		if dispatchErr != nil {
+			if _, ok := invoker.(*codex.FakeInvoker); ok {
+				logActivity("colonize", "Brick-76: Fallback to planned surveyors (dispatch error)")
+				dispatchMode = "simulated"
+			} else {
+				dispatchMode = "fallback"
+				surveyWarning = fmt.Sprintf("Real surveyors did not finish cleanly, so Aether fell back to local survey synthesis. Cause: %s", dispatchErr.Error())
+			}
+		} else if realDispatches != nil {
+			if _, ok := invoker.(*codex.FakeInvoker); ok {
+				dispatchMode = "simulated"
+			} else {
+				dispatchMode = "real"
+			}
+			logActivity("colonize", fmt.Sprintf("Brick-76: %s surveyor dispatch, %d workers", dispatchMode, len(dispatches)))
+		}
 	}
 
 	surveyFiles, preservedWorkerArtifacts, err := writeSurveyArtifacts(root, surveyDir, facts, dispatches, surveySnapshots)
@@ -419,14 +420,11 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 		return plannedSurveyors(root), nil
 	}
 
-	codexAgentsDir := filepath.Join(root, ".codex", "agents")
-
 	dispatches := make([]codex.WorkerDispatch, 0, len(surveyorSpecs))
 	capsule := resolveCodexWorkerContext()
 	pheromoneSection := resolvePheromoneSection()
 	for i, spec := range surveyorSpecs {
 		tomlFile := fmt.Sprintf("aether-surveyor-%s.toml", spec.AgentSuffix)
-		tomlPath := filepath.Join(codexAgentsDir, tomlFile)
 
 		seed := fmt.Sprintf("%s|%s", root, spec.AgentSuffix)
 		workerName := deterministicAntName("surveyor", seed)
@@ -441,7 +439,7 @@ func dispatchRealSurveyors(ctx context.Context, root string, invoker codex.Worke
 			ID:               fmt.Sprintf("surveyor-%d", i),
 			WorkerName:       workerName,
 			AgentName:        fmt.Sprintf("aether-surveyor-%s", spec.AgentSuffix),
-			AgentTOMLPath:    tomlPath,
+			AgentTOMLPath:    dispatchAgentPath(root, invoker, strings.TrimSuffix(tomlFile, ".toml")),
 			Caste:            spec.Caste,
 			TaskID:           fmt.Sprintf("survey-%d", i),
 			TaskBrief:        taskBrief,
