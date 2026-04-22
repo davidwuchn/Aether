@@ -3200,3 +3200,213 @@ func TestContinueNotAbandonedWhenDispatchesCompleted(t *testing.T) {
 		t.Fatalf("expected advanced=true for completed dispatches, got result: %+v", result)
 	}
 }
+
+func TestContinueClearsStaleReports(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
+
+	goal := "Clear stale reports before verification"
+	now := time.Now().UTC()
+	taskID := "1.1"
+	nextTaskID := "2.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateBUILT,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Stale cleanup phase",
+					Status: colony.PhaseInProgress,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "Clear stale reports", Status: colony.TaskInProgress}},
+				},
+				{
+					ID:     2,
+					Name:   "Next phase",
+					Status: colony.PhasePending,
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Future work", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	// Seed stale report files in the build directory.
+	// We create a scenario where continue will be blocked at gates (verification fails),
+	// so review.json will NOT be overwritten by the current run. Without cleanup,
+	// the stale review.json would persist and confuse users.
+	buildDir := filepath.Join(dataDir, "build", "phase-1")
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		t.Fatalf("failed to create build dir: %v", err)
+	}
+	staleReview := map[string]interface{}{"phase": 1, "passed": true, "old": true, "note": "stale from previous run"}
+	b, err := json.Marshal(staleReview)
+	if err != nil {
+		t.Fatalf("marshal stale review.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(buildDir, "review.json"), b, 0644); err != nil {
+		t.Fatalf("write stale review.json: %v", err)
+	}
+
+	// Make verification fail by writing a main.go with a syntax error
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n\nfunc main() {\n\tsyntax error here\n}\n"), 0644); err != nil {
+		t.Fatalf("write broken main.go: %v", err)
+	}
+
+	// Seed a valid build packet with completed dispatches
+	seedContinueBuildPacket(t, dataDir, 1, "Stale cleanup phase", goal, []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-cl1", Task: "Clear stale reports", Status: "completed", TaskID: taskID},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-cl2", Task: "Independent verification before advancement", Status: "completed"},
+	})
+
+	rootCmd.SetArgs([]string{"continue"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("continue returned error: %v", err)
+	}
+
+	// Because continue is blocked at gates (build fails), review.json is NOT written.
+	// If cleanupStaleContinueReports ran, review.json should be removed.
+	_, err = os.Stat(filepath.Join(buildDir, "review.json"))
+	if err == nil {
+		// File still exists — either cleanup didn't run, or it wasn't removed
+		var reviewReport map[string]interface{}
+		if err := store.LoadJSON("build/phase-1/review.json", &reviewReport); err != nil {
+			t.Fatalf("load review.json: %v", err)
+		}
+		if old, _ := reviewReport["old"].(bool); old {
+			t.Fatalf("review.json still contains stale data from previous run: %+v", reviewReport)
+		}
+	}
+}
+
+func TestContinueEndToEndAfterAbandonedRecovery(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
+
+	goal := "End-to-end abandoned recovery"
+	staleTime := time.Now().UTC().Add(-2 * time.Hour)
+	taskID := "1.1"
+	nextTaskID := "2.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateBUILT,
+		CurrentPhase:   1,
+		BuildStartedAt: &staleTime,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:     1,
+					Name:   "Abandoned recovery",
+					Status: colony.PhaseInProgress,
+					Tasks:  []colony.Task{{ID: &taskID, Goal: "Recover from abandoned", Status: colony.TaskInProgress}},
+				},
+				{
+					ID:     2,
+					Name:   "Next phase",
+					Status: colony.PhasePending,
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Future work", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	// Manually write a manifest with all dispatches stuck at "spawned"
+	buildDir := filepath.Join(dataDir, "build", "phase-1")
+	if err := os.MkdirAll(filepath.Join(buildDir, "worker-briefs"), 0755); err != nil {
+		t.Fatalf("failed to create build dir: %v", err)
+	}
+	manifest := codexBuildManifest{
+		Phase:        1,
+		PhaseName:    "Abandoned recovery",
+		Goal:         goal,
+		Root:         root,
+		ColonyDepth:  "standard",
+		DispatchMode: "real",
+		GeneratedAt:  staleTime.Format(time.RFC3339),
+		State:        string(colony.StateBUILT),
+		ClaimsPath:   displayDataPath("last-build-claims.json"),
+		Dispatches: []codexBuildDispatch{
+			{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-e2e1", Task: "Recover from abandoned", Status: "spawned", TaskID: taskID},
+		},
+	}
+	manifestJSON, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(buildDir, "manifest.json"), manifestJSON, 0644); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	var outBuf bytes.Buffer
+	stdout = &outBuf
+	t.Cleanup(func() { stdout = os.Stdout })
+
+	// First continue: should detect abandoned build
+	rootCmd.SetArgs([]string{"continue"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("continue returned error: %v", err)
+	}
+
+	env := parseLifecycleEnvelope(t, outBuf.String())
+	result := env["result"].(map[string]interface{})
+
+	if abandoned, _ := result["abandoned"].(bool); !abandoned {
+		t.Fatalf("expected abandoned=true, got result: %v", result["abandoned"])
+	}
+	if blocked, _ := result["blocked"].(bool); !blocked {
+		t.Fatal("expected blocked=true for abandoned build")
+	}
+	if advanced, _ := result["advanced"].(bool); advanced {
+		t.Fatal("expected advanced=false for abandoned build")
+	}
+
+	// Now simulate re-dispatch: re-seed manifest with completed dispatches
+	// and proper claims, then reset state to BUILT
+	seedContinueBuildPacket(t, dataDir, 1, "Abandoned recovery", goal, []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Forge-e2e1", Task: "Recover from abandoned", Status: "completed", TaskID: taskID},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-e2e2", Task: "Independent verification before advancement", Status: "completed"},
+	})
+
+	// Reset state back to BUILT so continue can run again
+	var state colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("load state: %v", err)
+	}
+	state.State = colony.StateBUILT
+	state.BuildStartedAt = &staleTime
+	if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
+		t.Fatalf("save state: %v", err)
+	}
+
+	// Second continue: should advance now that dispatches are completed
+	outBuf.Reset()
+	rootCmd.SetArgs([]string{"continue"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("continue returned error: %v", err)
+	}
+
+	env = parseLifecycleEnvelope(t, outBuf.String())
+	result = env["result"].(map[string]interface{})
+
+	if abandoned, _ := result["abandoned"].(bool); abandoned {
+		t.Fatal("expected abandoned=false after re-dispatch")
+	}
+	if advanced, _ := result["advanced"].(bool); !advanced {
+		t.Fatalf("expected advanced=true after re-dispatch, got result: %+v", result)
+	}
+}
