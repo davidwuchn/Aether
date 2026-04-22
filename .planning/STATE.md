@@ -2,53 +2,49 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Runtime Truth Recovery, Colony Unblock, and Release Readiness
-status: executing
-last_updated: "2026-04-22T20:48:00.000Z"
-last_activity: 2026-04-22 -- Plan 03 complete: atomic phase advancement
+status: phase-complete
+last_updated: "2026-04-22T23:30:00.000Z"
+last_activity: 2026-04-22 -- Phase 31 complete: all 7 P0 requirements verified
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
   completed_plans: 4
-  percent: 75
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: [.planning/PROJECT.md](/Users/callumcowie/repos/Aether/.planning/PROJECT.md:1)
+See: [.planning/PROJECT.md](/Users/callumcowie-repos-Aether/.planning/PROJECT.md:1)
 
 **Core value:** Aether should feel alive and truthful at runtime, not only look clever in wrappers or tests.
-**Current focus:** Phase 31 — P0 Runtime Truth Fixes (all plans complete)
+**Current focus:** Phase 31 complete — ready for Phase 32 (Continue Unblock)
 
 ## Current Position
 
-Phase: 31 of 36 (P0 Runtime Truth Fixes)
-Plan: 03 — Atomic Phase Advancement (complete)
-Status: All 4 plans executed
-Last activity: 2026-04-22 -- Plan 03 executed: atomic state advancement with UpdateJSONAtomically
+Phase: 31 of 36 (P0 Runtime Truth Fixes) — COMPLETE
+Status: All 4 plans executed, all 12 validation tests green
+Last activity: 2026-04-22 -- Phase 31 verified and closed
 
-Progress: `[███████   ] 75%`
+Progress: `[██████████] 100%` (Phase 31)
 
 ## Performance Metrics
 
 **Velocity:**
 - Total plans completed: 4
-- Average duration: ~500s
-- Total execution time: ~2000s
+- Total commits: 16
+- All tests green (2900+ passing)
 
-**By Phase:**
+**By Plan:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 31 | 4 | ~2000s | ~500s |
-
-**Recent Trend:**
-- Last 5 plans: Plan 01 (partial), Plan 02, Plan 03, Plan 04
-- Trend: Steady — bypass fixes, integration tests, git verification
-
-*Updated after each plan completion*
+| Plan | Wave | Commits | Requirements | Key Outcome |
+|------|------|---------|--------------|-------------|
+| 01 Worker Truth | 1 | 3 | R045, R046 | FakeInvoker blocked, DispatchBatch errors surface |
+| 02 Continue Truth | 2 | 4 | R047, R048 | 4 bypass paths closed |
+| 04 Git Claims | 3 | 3 | R049, R050 | Claims verified against git, no environmental dismissal |
+| 03 Atomic State | 4 | 6 | R051 | UpdateJSONAtomically, state saved before side effects |
 
 ## Accumulated Context
 
@@ -74,7 +70,6 @@ Progress: `[███████   ] 75%`
 - 459 stale test-audit branches (R057).
 - 13 unresolved blocker flags (R058).
 - 6 unreleased fix commits need v1.0.20.
-- Phase advancement is non-atomic (R051). -- RESOLVED: atomic via UpdateJSONAtomically
 
 ## Deferred Items
 
@@ -89,15 +84,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-22 20:48
-Stopped at: Plan 03 complete — atomic phase advancement
+Last session: 2026-04-22 23:30
+Stopped at: Phase 31 complete
 Resume file: None
-
-### Completed This Session
-
-- Plan 03 Task 03-01: Reordered continue to save state before side effects
-- Plan 03 Task 03-02: Added UpdateJSONAtomically helper and tests
-- Plan 03 Task 03-03: Refactored continue to use UpdateJSONAtomically
-- Plan 03 Task 03-04: Added atomic ordering tests
-- All Continue and storage tests passing
-- Binary builds clean
