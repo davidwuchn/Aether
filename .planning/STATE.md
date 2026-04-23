@@ -2,21 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Phase 41 complete
-last_updated: "2026-04-23T16:15:00.000Z"
+status: executing
+stopped_at: Phase 43 plan 02 complete
+last_updated: "2026-04-23T19:38:56.161Z"
+last_activity: 2026-04-23 -- Phase 44 execution started
 progress:
-  total_phases: 45
-  completed_phases: 36
-  total_plans: 110
-  completed_plans: 101
-  percent: 95
-last_activity: 2026-04-23
-progress:
-  total_phases: 45
-  completed_phases: 36
-  total_plans: 109
-  completed_plans: 101
+  total_phases: 49
+  completed_phases: 37
+  total_plans: 112
+  completed_plans: 106
   percent: 95
 ---
 
@@ -27,20 +21,20 @@ progress:
 See: [.planning/PROJECT.md](/Users/callumcowie-repos-Aether/.planning/PROJECT.md:1)
 
 **Core value:** Aether should feel alive and truthful at runtime, not only look clever in wrappers or tests.
-**Current focus:** Phase 41 — dev-channel-isolation
+**Current focus:** Phase 44 — doc-alignment-and-archive-consistency
 
 ## Current Position
 
-Phase: 41
-Plan: Complete
-Status: Milestone in progress
-Last activity: 2026-04-23
+Phase: 44 (doc-alignment-and-archive-consistency) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 44
+Last activity: 2026-04-23 -- Phase 44 execution started
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 19
+- Total plans completed: 22
 - Total commits: 20
 - All tests green (2900+ passing)
 
@@ -61,6 +55,7 @@ Last activity: 2026-04-23
 | Phase 40-01 | 1 | 3 | PUB-01 (R059) | aether publish command, version --check |
 | Phase 40-02 | 2 | 2 | PUB-01 (R059) | E2E tests, operations guide update |
 | Phase 41 | 3 | 5 | PUB-02 (R060) | Channel isolation guards, tests, docs |
+| Phase 43-02 | 1 | 1 | REL-02 (R063) | scanIntegrity wired into medic --deep, 14 tests, os.Exit fix |
 
 ## Accumulated Context
 
@@ -128,6 +123,12 @@ Last activity: 2026-04-23
 - warnBinaryCoLocation is purely informational and does not block publish (co-location may be intentional).
 - Rapid back-to-back publish tests use --skip-build-binary to avoid go build overhead and flaky build failures.
 
+## Phase 43 Decisions (Release Integrity Checks)
+
+- scanIntegrity focuses on VERSION CHAIN only (binary vs hub agreement, stale publish detection); scanHubPublishIntegrity handles FILE COUNT parity separately to avoid duplicate issues.
+- Replaced os.Exit(2) with error return in integrity_cmd.go hub-not-installed path for testability, consistent with RunE pattern used by all other commands.
+- 14 tests cover scanIntegrity unit behavior, integrity command E2E, and medic deep integration.
+
 ### Blockers / Concerns
 
 - 6 unreleased fix commits need v1.0.20.
@@ -146,8 +147,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: Phase 41 execution complete
-Stopped at: Phase 41 complete
+Last session: Phase 43-02 execution complete
+Stopped at: Phase 43 plan 02 complete
 Resume file: --resume-file
 
-**Planned Phase:** 42 (downstream-stale-publish-detection) — next up
+**Planned Phase:** 44 (Doc Alignment and Archive Consistency) — 2 plans — 2026-04-23T19:33:54.027Z

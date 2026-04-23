@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1024,6 +1025,341 @@ func TestUpdateDryRunIncludesCodexAction(t *testing.T) {
 	}
 }
 
+// --- Stale-publish integration tests ---
+
+// createMinimalHub creates a hub with only files that don't trigger sync validation.
+// Used for integration tests that need the sync to succeed so stale detection can run.
+func createMinimalHub(t *testing.T, hubDir string) {
+	t.Helper()
+	system := filepath.Join(hubDir, "system")
+
+	// Only create directories that have no sync validation
+	dirs := map[string]int{
+		"commands/claude":   expectedClaudeCommandCount,
+		"commands/opencode": expectedOpenCodeCommandCount,
+		"skills-codex":      expectedCodexSkillCount,
+	}
+	for rel, count := range dirs {
+		dir := filepath.Join(system, filepath.FromSlash(rel))
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("failed to create %s: %v", rel, err)
+		}
+		for i := 0; i < count; i++ {
+			name := fmt.Sprintf("file_%02d.md", i)
+			if err := os.WriteFile(filepath.Join(dir, name), []byte("# test"), 0644); err != nil {
+				t.Fatalf("failed to write %s: %v", name, err)
+			}
+		}
+	}
+}
+
+func TestUpdateDetectsCriticalStale(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	t.Setenv("HOME", homeDir)
+
+	hubDir := filepath.Join(homeDir, ".aether")
+	createMinimalHub(t, hubDir)
+	if err := os.WriteFile(filepath.Join(hubDir, "version.json"), []byte(`{"version":"1.0.19"}`), 0644); err != nil {
+		t.Fatalf("failed to write hub version: %v", err)
+	}
+
+	oldVersion := Version
+	Version = "1.0.20"
+	defer func() { Version = oldVersion }()
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"update", "--force"})
+	defer rootCmd.SetArgs([]string{})
+
+	err = rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for critical stale, got nil")
+	}
+	if !strings.Contains(err.Error(), "stale publish detected") {
+		t.Errorf("expected error to contain 'stale publish detected', got: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("expected valid JSON output: %v, output: %s", err, buf.String())
+	}
+	inner, _ := result["result"].(map[string]interface{})
+	stale, _ := inner["stale_publish"].(map[string]interface{})
+	if stale["classification"] != "critical" {
+		t.Errorf("expected classification=critical, got: %v", stale["classification"])
+	}
+}
+
+func TestUpdateDetectsWarningStale(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	t.Setenv("HOME", homeDir)
+
+	hubDir := filepath.Join(homeDir, ".aether")
+	createMinimalHub(t, hubDir)
+	if err := os.WriteFile(filepath.Join(hubDir, "version.json"), []byte(`{"version":"1.0.21"}`), 0644); err != nil {
+		t.Fatalf("failed to write hub version: %v", err)
+	}
+
+	oldVersion := Version
+	Version = "1.0.20"
+	defer func() { Version = oldVersion }()
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"update"})
+	defer rootCmd.SetArgs([]string{})
+
+	err = rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("expected no error for warning stale, got: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("expected valid JSON output: %v, output: %s", err, buf.String())
+	}
+	inner, _ := result["result"].(map[string]interface{})
+	stale, _ := inner["stale_publish"].(map[string]interface{})
+	if stale["classification"] != "warning" {
+		t.Errorf("expected classification=warning, got: %v", stale["classification"])
+	}
+}
+
+func TestUpdateDetectsInfoStaleMissingFiles(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	t.Setenv("HOME", homeDir)
+
+	hubDir := filepath.Join(homeDir, ".aether")
+	createMinimalHub(t, hubDir)
+	// Empty claude commands
+	os.RemoveAll(filepath.Join(hubDir, "system", "commands", "claude"))
+	os.MkdirAll(filepath.Join(hubDir, "system", "commands", "claude"), 0755)
+	if err := os.WriteFile(filepath.Join(hubDir, "version.json"), []byte(`{"version":"1.0.20"}`), 0644); err != nil {
+		t.Fatalf("failed to write hub version: %v", err)
+	}
+
+	oldVersion := Version
+	Version = "1.0.20"
+	defer func() { Version = oldVersion }()
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"update"})
+	defer rootCmd.SetArgs([]string{})
+
+	err = rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("expected no error for info stale, got: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("expected valid JSON output: %v, output: %s", err, buf.String())
+	}
+	inner, _ := result["result"].(map[string]interface{})
+	stale, _ := inner["stale_publish"].(map[string]interface{})
+	if stale["classification"] != "info" {
+		t.Errorf("expected classification=info, got: %v", stale["classification"])
+	}
+	components, _ := stale["components"].([]interface{})
+	foundClaude := false
+	for _, c := range components {
+		comp, _ := c.(map[string]interface{})
+		if strings.Contains(comp["name"].(string), "claude") {
+			foundClaude = true
+		}
+	}
+	if !foundClaude {
+		t.Errorf("expected components to contain claude entry, got: %v", components)
+	}
+}
+
+func TestUpdateDryRunDetectsStale(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	t.Setenv("HOME", homeDir)
+
+	hubDir := filepath.Join(homeDir, ".aether")
+	createMinimalHub(t, hubDir)
+	if err := os.WriteFile(filepath.Join(hubDir, "version.json"), []byte(`{"version":"1.0.19"}`), 0644); err != nil {
+		t.Fatalf("failed to write hub version: %v", err)
+	}
+
+	oldVersion := Version
+	Version = "1.0.20"
+	defer func() { Version = oldVersion }()
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"update", "--dry-run"})
+	defer rootCmd.SetArgs([]string{})
+
+	err = rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for dry-run critical stale, got nil")
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("expected valid JSON output: %v, output: %s", err, buf.String())
+	}
+	inner, _ := result["result"].(map[string]interface{})
+	stale, _ := inner["stale_publish"].(map[string]interface{})
+	if stale["classification"] != "critical" {
+		t.Errorf("expected classification=critical, got: %v", stale["classification"])
+	}
+}
+
+func TestUpdateForceDoesNotSuppressStale(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	t.Setenv("HOME", homeDir)
+
+	hubDir := filepath.Join(homeDir, ".aether")
+	createMinimalHub(t, hubDir)
+	if err := os.WriteFile(filepath.Join(hubDir, "version.json"), []byte(`{"version":"1.0.19"}`), 0644); err != nil {
+		t.Fatalf("failed to write hub version: %v", err)
+	}
+
+	oldVersion := Version
+	Version = "1.0.20"
+	defer func() { Version = oldVersion }()
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"update", "--force"})
+	defer rootCmd.SetArgs([]string{})
+
+	err = rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for critical stale despite --force, got nil")
+	}
+	if !strings.Contains(err.Error(), "stale publish detected") {
+		t.Errorf("expected stale publish error, got: %v", err)
+	}
+}
+
+func TestUpdateDevChannelDetectsStale(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	homeDir := t.TempDir()
+	repoDir := t.TempDir()
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get cwd: %v", err)
+	}
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(repoDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	t.Setenv("HOME", homeDir)
+
+	hubDir := filepath.Join(homeDir, ".aether-dev")
+	createMinimalHub(t, hubDir)
+	if err := os.WriteFile(filepath.Join(hubDir, "version.json"), []byte(`{"version":"1.0.19"}`), 0644); err != nil {
+		t.Fatalf("failed to write hub version: %v", err)
+	}
+
+	oldVersion := Version
+	Version = "1.0.20"
+	defer func() { Version = oldVersion }()
+
+	var buf bytes.Buffer
+	stdout = &buf
+
+	rootCmd.SetArgs([]string{"update", "--force", "--channel", "dev"})
+	defer rootCmd.SetArgs([]string{})
+
+	err = rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for dev channel critical stale, got nil")
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
+		t.Fatalf("expected valid JSON output: %v, output: %s", err, buf.String())
+	}
+	inner, _ := result["result"].(map[string]interface{})
+	stale, _ := inner["stale_publish"].(map[string]interface{})
+	if stale["classification"] != "critical" {
+		t.Errorf("expected classification=critical, got: %v", stale["classification"])
+	}
+	if stale["channel"] != "dev" {
+		t.Errorf("expected channel=dev, got: %v", stale["channel"])
+	}
+}
+
 // TestRunUpdateSyncMultipleSyncPairs verifies that all sync pairs (commands,
 // agents, rules) are processed.
 func TestUpdateSyncMultipleSyncPairs(t *testing.T) {
@@ -1118,6 +1454,179 @@ func TestRunUpdateSyncForceSyncsClaudeSettings(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "\"AETHER_ACTIVE_PLATFORM\": \"claude\"") {
 		t.Fatalf("expected synced Claude settings to include platform env, got:\n%s", string(data))
+	}
+}
+
+// --- Stale-publish detection unit tests ---
+
+func TestCompareVersions(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want int
+	}{
+		{"1.0.19", "1.0.20", -1},
+		{"1.0.20", "1.0.19", 1},
+		{"1.0.20", "1.0.20", 0},
+		{"1.0.3", "1.0.20", -1},
+		{"1.1.0", "1.0.20", 1},
+		{"v1.0.20", "1.0.20", 0},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%s_vs_%s", tt.a, tt.b), func(t *testing.T) {
+			got := compareVersions(tt.a, tt.b)
+			if got != tt.want {
+				t.Errorf("compareVersions(%q, %q) = %d, want %d", tt.a, tt.b, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCheckStalePublishCritical(t *testing.T) {
+	hubDir := t.TempDir()
+	createHubWithExpectedCounts(t, hubDir)
+
+	result := checkStalePublish(hubDir, "1.0.19", "1.0.20", channelStable, nil)
+	if result.Classification != staleCritical {
+		t.Errorf("expected critical, got %s", result.Classification)
+	}
+	if !strings.Contains(result.Message, "hub version 1.0.19 is behind binary version 1.0.20") {
+		t.Errorf("unexpected message: %s", result.Message)
+	}
+	if !strings.Contains(result.RecoveryCommand, "aether publish") {
+		t.Errorf("expected recovery command to contain 'aether publish', got: %s", result.RecoveryCommand)
+	}
+}
+
+func TestCheckStalePublishWarning(t *testing.T) {
+	hubDir := t.TempDir()
+	createHubWithExpectedCounts(t, hubDir)
+
+	result := checkStalePublish(hubDir, "1.0.21", "1.0.20", channelStable, nil)
+	if result.Classification != staleWarning {
+		t.Errorf("expected warning, got %s", result.Classification)
+	}
+}
+
+func TestCheckStalePublishInfoMissingCommands(t *testing.T) {
+	hubDir := t.TempDir()
+	createHubWithExpectedCounts(t, hubDir)
+	// Remove claude commands
+	os.RemoveAll(filepath.Join(hubDir, "system", "commands", "claude"))
+	os.MkdirAll(filepath.Join(hubDir, "system", "commands", "claude"), 0755)
+
+	result := checkStalePublish(hubDir, "1.0.20", "1.0.20", channelStable, nil)
+	if result.Classification != staleInfo {
+		t.Errorf("expected info, got %s", result.Classification)
+	}
+	if len(result.Components) != 1 {
+		t.Fatalf("expected 1 component, got %d", len(result.Components))
+	}
+	if result.Components[0].Name != "Commands (claude)" {
+		t.Errorf("expected component name 'Commands (claude)', got %s", result.Components[0].Name)
+	}
+	if result.Components[0].Expected != 50 {
+		t.Errorf("expected expected=50, got %d", result.Components[0].Expected)
+	}
+	if result.Components[0].Actual != 0 {
+		t.Errorf("expected actual=0, got %d", result.Components[0].Actual)
+	}
+}
+
+func TestCheckStalePublishOK(t *testing.T) {
+	hubDir := t.TempDir()
+	createHubWithExpectedCounts(t, hubDir)
+
+	result := checkStalePublish(hubDir, "1.0.20", "1.0.20", channelStable, nil)
+	if result.Classification != staleOK {
+		t.Errorf("expected ok, got %s", result.Classification)
+	}
+	if len(result.Components) != 0 {
+		t.Errorf("expected 0 components, got %d", len(result.Components))
+	}
+}
+
+func TestCheckStalePublishDevChannelRecoveryCommand(t *testing.T) {
+	hubDir := t.TempDir()
+	createHubWithExpectedCounts(t, hubDir)
+
+	result := checkStalePublish(hubDir, "1.0.19", "1.0.20", channelDev, nil)
+	if !strings.Contains(result.RecoveryCommand, "--channel dev") {
+		t.Errorf("expected recovery command to contain '--channel dev', got: %s", result.RecoveryCommand)
+	}
+}
+
+func TestCheckStalePublishUnknownHubVersion(t *testing.T) {
+	hubDir := t.TempDir()
+	createHubWithExpectedCounts(t, hubDir)
+
+	result := checkStalePublish(hubDir, "unknown", "1.0.20", channelStable, nil)
+	if result.Classification != staleInfo {
+		t.Errorf("expected info, got %s", result.Classification)
+	}
+	if !strings.Contains(result.Message, "unknown") {
+		t.Errorf("expected message to contain 'unknown', got: %s", result.Message)
+	}
+}
+
+func createHubWithExpectedCounts(t *testing.T, hubDir string) {
+	t.Helper()
+	system := filepath.Join(hubDir, "system")
+
+	dirs := map[string]int{
+		"commands/claude":   expectedClaudeCommandCount,
+		"commands/opencode": expectedOpenCodeCommandCount,
+		"skills-codex":      expectedCodexSkillCount,
+	}
+	for rel, count := range dirs {
+		dir := filepath.Join(system, filepath.FromSlash(rel))
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatalf("failed to create %s: %v", rel, err)
+		}
+		for i := 0; i < count; i++ {
+			name := fmt.Sprintf("file_%02d.md", i)
+			if err := os.WriteFile(filepath.Join(dir, name), []byte("# test"), 0644); err != nil {
+				t.Fatalf("failed to write %s: %v", name, err)
+			}
+		}
+	}
+
+	// OpenCode agents use .md extension with YAML frontmatter
+	agentsDir := filepath.Join(system, "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("failed to create agents dir: %v", err)
+	}
+	for i := 0; i < expectedOpenCodeAgentCount; i++ {
+		name := fmt.Sprintf("agent_%02d.md", i)
+		content := fmt.Sprintf(`---
+description: "This is a valid test agent description for agent %02d"
+mode: subagent
+model: anthropic/claude-sonnet-4-20250514
+tools:
+  write: true
+  edit: true
+  bash: true
+color: "#f1c40f"
+---
+
+# Test Agent %02d
+
+Test agent content.
+`, i, i)
+		if err := os.WriteFile(filepath.Join(agentsDir, name), []byte(content), 0644); err != nil {
+			t.Fatalf("failed to write %s: %v", name, err)
+		}
+	}
+
+	// Codex agents use .toml extension
+	codexDir := filepath.Join(system, "codex")
+	if err := os.MkdirAll(codexDir, 0755); err != nil {
+		t.Fatalf("failed to create codex dir: %v", err)
+	}
+	for i := 0; i < expectedCodexAgentCount; i++ {
+		name := fmt.Sprintf("agent_%02d.toml", i)
+		if err := os.WriteFile(filepath.Join(codexDir, name), validCodexAgentTOML(fmt.Sprintf("agent-%02d", i), "test"), 0644); err != nil {
+			t.Fatalf("failed to write %s: %v", name, err)
+		}
 	}
 }
 
