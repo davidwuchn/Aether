@@ -82,7 +82,7 @@
 - [x] **Phase 31: P0 Runtime Truth Fixes** -- Invoker honesty, dispatch errors, continue bypass closure, git-verified claims, atomic state (completed 2026-04-22)
 - [ ] **Phase 32: Continue Unblock** -- Full continue orchestration recovery
 - [ ] **Phase 33: Dispatch Fixes** -- P1 dispatch robustness improvements
-- [ ] **Phase 34: Cleanup** -- Stale worktrees, branches, blockers
+- [x] **Phase 34: Cleanup** -- Stale worktrees, branches, blockers (completed 2026-04-23)
 - [ ] **Phase 35: Platform Parity** -- Claude/OpenCode/Codex alignment
 - [ ] **Phase 36: Release Decision** -- v1.0.20 cut and ship decision
 
@@ -115,9 +115,9 @@ Plans:
 Plans:
 - [x] 34-01-PLAN.md -- Backup colony data and evaluate candidate commits for preservation (completed 2026-04-23)
 - [x] 34-02-PLAN.md -- Bulk worktree and branch cleanup with interactive confirmation (completed 2026-04-23)
-- [ ] 34-03-PLAN.md -- Interactive blocker flag review and resolution
+- [x] 34-03-PLAN.md -- Interactive blocker flag review and resolution (completed 2026-04-23)
 
-**Status:** In progress (2/3 plans complete)
+**Status:** Complete (2026-04-23) -- 3 plans, 5 commits, 523 worktrees removed, 259 branches deleted, 18 flags archived
 
 ### Phase 35: Platform Parity
 **Goal:** Align Claude/OpenCode/Codex command and agent UX.
@@ -137,5 +137,5 @@ Plans:
 | 17-24 | v1.3 | 17/17 | Complete | 2026-04-21 |
 | 25-30 | v1.4 | 6/6 | Complete | 2026-04-21 |
 | 31 | v1.5 | 4/4 | Complete | 2026-04-22 |
-| 32 | v1.5 | 2 | Planned | -- |
+| 32 | v1.5 | 2/2 | Complete | 2026-04-22 |
 | 33-36 | v1.5 | 0 | Planned | -- |
