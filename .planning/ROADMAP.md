@@ -92,7 +92,7 @@
 4. E2E test proves OpenCode startup does not fail on agent config
 **Depends on:** none (urgent blocker)
 
-### Phase 40: Stable Publish Hardening
+### Phase 40: Stable Publish Hardening ✓ COMPLETE 2026-04-23
 **Goal:** Ensure stable publish atomically syncs binary and hub to the same version — no more 1.0.20 binary with 1.0.19 hub.
 **Requirements:** PUB-01 (R059)
 **Success Criteria:**

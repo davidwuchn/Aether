@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 40 context gathered
-last_updated: "2026-04-23T12:12:18.010Z"
+stopped_at: Phase 40 complete
+last_updated: "2026-04-23T13:30:00.000Z"
 last_activity: 2026-04-23
 progress:
   total_phases: 45
-  completed_phases: 34
-  total_plans: 105
-  completed_plans: 98
+  completed_phases: 35
+  total_plans: 109
+  completed_plans: 100
   percent: 93
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: [.planning/PROJECT.md](/Users/callumcowie-repos-Aether/.planning/PROJECT.md:1)
 
 **Core value:** Aether should feel alive and truthful at runtime, not only look clever in wrappers or tests.
-**Current focus:** Phase 39 — opencode-agent-frontmatter
+**Current focus:** Phase 41 — dev-channel-isolation
 
 ## Current Position
 
-Phase: 39
-Plan: Not started
+Phase: 40
+Plan: Complete
 Status: Milestone complete
 Last activity: 2026-04-23
 
@@ -34,8 +34,8 @@ Last activity: 2026-04-23
 
 **Velocity:**
 
-- Total plans completed: 17
-- Total commits: 17
+- Total plans completed: 19
+- Total commits: 20
 - All tests green (2900+ passing)
 
 **By Plan:**
@@ -52,6 +52,8 @@ Last activity: 2026-04-23
 | Phase 35 P01 | 8min | 2 tasks | 1 files |
 | Phase 35-platform-parity P02 | 5 min | 2 tasks | 25 files |
 | Phase 35-platform-parity P03 | 40min | 2 tasks | 26 files |
+| Phase 40-01 | 1 | 3 | PUB-01 (R059) | aether publish command, version --check |
+| Phase 40-02 | 2 | 2 | PUB-01 (R059) | E2E tests, operations guide update |
 
 ## Accumulated Context
 
@@ -82,6 +84,10 @@ Last activity: 2026-04-23
 - Test refinement over agent bloat: completeness test made role-aware instead of forcing TDD/escalation into all agents
 - activity-log sections removed from 16 Codex agents (OpenCode-specific, no Codex equivalent)
 - flag-add deprecation check refined to only warn on bare flag-add without aether prefix
+- aether publish command atomically builds binary, syncs hub, and verifies version agreement
+- aether version --check returns non-zero when binary and hub versions disagree
+- aether install --package-dir continues to work for backward compatibility
+- Operations guide updated to document aether publish as primary path
 
 ### Phase 34 Decisions (Cleanup)
 
@@ -101,6 +107,13 @@ Last activity: 2026-04-23
 - All 25 OpenCode agents drift from Claude masters (16-316 lines each); Plan 02 will fix.
 - 53 Codex warnings logged (21 deprecated patterns, 32 missing content); Plan 03 will address.
 
+### Phase 40 Decisions (Stable Publish Hardening)
+
+- Hub follows binary: publish updates hub version.json to match binary version.
+- Publish fails loudly if binary and hub versions cannot be synchronized.
+- aether publish replaces ad-hoc install --package-dir pattern; backward compatibility preserved.
+- aether version --check provides manual downstream verification.
+
 ### Blockers / Concerns
 
 - 6 unreleased fix commits need v1.0.20.
@@ -119,8 +132,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: --stopped-at
-Stopped at: Phase 40 context gathered
+Last session: Phase 40 execution complete
+Stopped at: Phase 40 complete
 Resume file: --resume-file
 
-**Planned Phase:** 38 (nyquist-validation-backfill) — 1 plans — 2026-04-23T08:13:44.292Z
+**Planned Phase:** 41 (dev-channel-isolation) — next up
