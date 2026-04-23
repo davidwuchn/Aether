@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Runtime Truth Recovery
 status: executing
-stopped_at: Completed 34-01 backup and commit evaluation
-last_updated: "2026-04-23T01:06:40Z"
-last_activity: 2026-04-23 -- Plan 34-01 completed
+stopped_at: Completed 34-01-PLAN.md
+last_updated: "2026-04-23T01:08:10.036Z"
+last_activity: 2026-04-23
 progress:
   total_phases: 6
   completed_phases: 2
@@ -26,11 +26,11 @@ See: [.planning/PROJECT.md](/Users/callumcowie-repos-Aether/.planning/PROJECT.md
 ## Current Position
 
 Phase: 34 (34-cleanup) — EXECUTING
-Plan: 1 of 3 (34-cleanup)
-Status: Plan 34-01 complete, ready for 34-02
-Last activity: 2026-04-23 -- Plan 34-01 completed
+Plan: 2 of 3 (34-cleanup)
+Status: Ready to execute
+Last activity: 2026-04-23
 
-Progress: `[████████░░] 50%` (Milestone v1.5: 3/6 phases complete)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Progress: `[████████░░] 50%` (Milestone v1.5: 3/6 phases com
 | 02 Continue Truth | 2 | 4 | R047, R048 | 4 bypass paths closed |
 | 04 Git Claims | 3 | 3 | R049, R050 | Claims verified against git, no environmental dismissal |
 | 03 Atomic State | 4 | 6 | R051 | UpdateJSONAtomically, state saved before side effects |
+| Phase 34 P01 | 5min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,7 @@ Progress: `[████████░░] 50%` (Milestone v1.5: 3/6 phases com
 - Continue detects abandoned builds (all dispatches stuck at "spawned" >10 min) and returns blocked=true with recovery commands.
 - Stale report files (verification.json, gates.json, continue.json, review.json) are cleared before continue verification runs.
 - Full E2E recovery pipeline proven: abandoned detection -> re-dispatch -> verify -> advance.
+- Both candidate commits (98cda871 claude-dispatch-ux, 4bbb9273 intent-workflows) evaluated and dismissed -- useful code already exists on main, no preserve branches needed
 
 ### Phase 34 Decisions (Cleanup)
 
@@ -101,6 +103,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-04-23
-Stopped at: Phase 33 complete, Phase 34 planning initiated
+Last session: 2026-04-23T01:08:10.026Z
+Stopped at: Completed 34-01-PLAN.md
 Resume file: None
