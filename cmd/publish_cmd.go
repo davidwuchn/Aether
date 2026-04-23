@@ -90,12 +90,6 @@ func runPublish(cmd *cobra.Command, args []string) error {
 	// Read old hub version before sync for the warning message
 	oldHubVersion := readHubVersionAtPath(hubDir)
 
-	outputWorkflow(map[string]interface{}{
-		"message": fmt.Sprintf("Publishing Aether v%s to hub...", version),
-		"version": version,
-		"hub":    hubDir,
-	}, renderBinaryActionVisual("Publish", fmt.Sprintf("Publishing Aether v%s to hub...", version), version, hubDir))
-
 	hubResult := setupInstallHub(hubDir, packageDir)
 	if errVal, ok := hubResult["error"].(string); ok && errVal != "" {
 		return fmt.Errorf("hub sync failed: %v", errVal)
