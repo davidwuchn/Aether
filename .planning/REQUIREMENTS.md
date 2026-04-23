@@ -1,126 +1,79 @@
-# Requirements
+# Requirements: Aether v1.6
 
-This file is the explicit capability and coverage contract for the active milestone.
+**Defined:** 2026-04-23
+**Core Value:** Aether should feel alive and truthful at runtime, not only look clever in wrappers or tests.
 
-## Active (`v1.4`)
+## v1.6 Requirements
 
-### R039 — Medic Ant: Colony Health Diagnosis
-- Class: core-capability
-- Status: active
-- Description: A Medic ant command (`/ant:medic` or `aether medic`) that scans colony data files and reports health status. It checks COLONY_STATE.json, pheromones.json, session.json, constraints.json, and trace.jsonl for corruption, staleness, inconsistency, or missing fields.
-- Why it matters: Colony data drift is the #1 cause of "mysterious" Aether failures. A Medic gives users (and us) visibility into what's broken before it breaks runtime behavior.
-- Source: direct user milestone brief
-- Primary owning slice: M022/S01
-- Validation: unmapped
-- Notes: Must be read-only by default; repair requires explicit `--fix` flag.
+### Publish Integrity
 
-### R040 — Auto-Repair for Common Issues
-- Class: operational-safety
-- Status: active
-- Description: When invoked with `--fix`, the Medic can repair common colony data issues: clear stale spawn state, remove orphaned worktree entries, rebuild missing indexes, fix corrupted JSON structures, and reconcile wrapper/runtime drift.
-- Why it matters: Many colony issues are recoverable with simple data fixes. Automating these reduces support burden and user frustration.
-- Source: direct user milestone brief
-- Primary owning slice: M022/S01
-- Validation: unmapped
-- Notes: Every repair action must be logged to trace.jsonl with before/after state.
+- [ ] **PUB-01** (R059): Stable publish updates stable binary and stable hub to the same version atomically
+- [ ] **PUB-02** (R060): Dev publish updates only `aether-dev` binary and `~/.aether-dev` hub with zero stable contamination
+- [ ] **PUB-03** (R061): Downstream `aether update --force` detects and reports stale or incomplete publishes instead of silently succeeding
+- [ ] **PUB-04** (R061): Downstream `aether-dev update --force` detects and reports stale or incomplete publishes instead of silently succeeding
 
-### R041 — Medic Skill: Healthy State Specification
-- Class: architecture
-- Status: active
-- Description: A dedicated skill file (`.aether/skills/colony/medic.md`) documents the "healthy state" for every colony data file — schema, required fields, valid values, relationships, and common failure modes. This skill is loaded by the Medic worker and kept up to date as the system evolves.
-- Why it matters: The Medic's diagnostic rules must be maintainable and versioned alongside the codebase. A skill file makes the health specification explicit and reviewable.
-- Source: direct user milestone brief
-- Primary owning slice: M022/S01
-- Validation: unmapped
-- Notes: Skill should be auto-loaded by colony-prime when the Medic worker spawns.
+### Release Validation
 
-### R042 — Ceremony Integrity Verification
-- Class: differentiator
-- Status: active
-- Description: The Medic can verify that wrapper files match runtime expectations: stage markers present, emoji consistency maintained, context-clear guidance emitted, no duplicate ceremony. Reports mismatches between `.claude/commands/ant/`, `.opencode/commands/ant/`, and the Go runtime renderer.
-- Why it matters: Wrapper/runtime drift was a major issue in v1.3. Catching it automatically prevents regression.
-- Source: direct user milestone brief
-- Primary owning slice: M022/S02
-- Validation: unmapped
-- Notes: Should reference commandEmojiMap and casteEmojiMap as ground truth.
+- [ ] **REL-01** (R062): Release integrity check validates source version, binary version, hub version, companion-file surfaces, and downstream update result together
+- [ ] **REL-02** (R063): Medic/dedicated diagnostics flag incomplete stable and dev publishes with exact recovery commands
+- [ ] **REL-03** (R064): Operations guide, publish-update-runbook, and AGENTS.md match actual runtime behavior exactly
+- [ ] **REL-04** (R065): End-to-end regression coverage for both stable and dev publish/update flows
 
-### R043 — Trace-Based Remote Debugging
-- Class: differentiator
-- Status: active
-- Description: The Medic can analyze a user's trace.jsonl (shared via export) to diagnose issues without repo access. Reads state transitions, phase changes, errors, and interventions to reconstruct what went wrong and suggest fixes.
-- Why it matters: The trace logging from v1.3 was built precisely for this. The Medic makes it actionable.
-- Source: direct user milestone brief
-- Primary owning slice: M022/S02
-- Validation: unmapped
-- Notes: Uses `trace-replay`, `trace-summary`, and `trace-inspect` commands under the hood.
+### Evidence & Consistency
 
-### R044 — Medic Worker Integration
-- Class: product-surface
-- Status: active
-- Description: The Medic is a first-class worker in the Aether caste system. It can be spawned manually (`/ant:medic`) or automatically when the colony detects health issues (e.g., stale session, corrupted state). It produces a structured health report and recommends next steps.
-- Why it matters: Making the Medic a caste member (not just a CLI command) lets it participate in the colony's self-awareness. A colony that can heal itself feels alive.
-- Source: direct user milestone brief
-- Primary owning slice: M022/S01
-- Validation: unmapped
-- Notes: Medic caste should have its own emoji, color, and label in codex_visuals.go.
+- [ ] **EVD-01** (R066): Archived release and milestone evidence is internally consistent — no contradictions after ship
+- [ ] **EVD-02** (R067): Verify whether stuck `aether plan` issue still reproduces in freshly updated stable and dev repos; if yes, fix with regression test
 
-## Completed (`v1.3`)
+### OpenCode Blocker
 
-### R027-R038
+- [ ] **OPN-01** (R068): Aether ships valid OpenCode agent frontmatter — OpenCode startup in downstream repos no longer crashes
+
+## Completed (Prior Milestones)
+
+### v1.5 (R045-R058)
 - Status: completed
-- Summary: Visual UX restoration, core path hardening, recovery and continuity, trace logging, slash command audit. All 12 requirements satisfied.
+- Summary: Runtime truth recovery — worker dispatch honesty, continue truth, git-verified claims, atomic state, cleanup, platform parity, release decision.
+
+### v1.3-v1.4 (R027-R044)
+- Status: completed
+- Summary: Visual UX restoration, core path hardening, recovery, trace logging, medic ant, ceremony integrity, self-healing colony features.
 
 ## Deferred
 
-### R016 — Pheromone Markets and Reputation Exchange
-- Class: differentiator
-- Status: deferred
-
-### R017 — Federation and Inter-Colony Coordination
-- Class: expansion
-- Status: deferred
-
-### R018 — Evolution Engine / Self-Modifying Agents
-- Class: speculative-differentiator
-- Status: deferred
+- **PERF-01** (R016): Pheromone markets and reputation exchange
+- **FED-01** (R017): Federation and inter-colony coordination
+- **EVO-01** (R018): Evolution engine / self-modifying agents
 
 ## Out of Scope
 
-### R009 — Codex wrapper ceremony
-- Class: anti-feature
-- Status: out-of-scope
-
-### R019 — More agents before curation closure
-- Class: anti-feature
-- Status: out-of-scope
+| Feature | Reason |
+|---------|--------|
+| goreleaser replacement | Current release tooling works; fix the pipeline around it |
+| npm package restructuring | Companion file delivery works; fix version sync |
+| New agent castes | No new agents needed for pipeline integrity |
+| Feature expansion | v1.6 is pipeline integrity only — no new colony features |
 
 ## Traceability
 
-| ID | Class | Status | Phase | Proof |
-|---|---|---|---|---|
-| R039 | core-capability | active | Phase 25 | unmapped |
-| R040 | operational-safety | active | Phase 26 | unmapped |
-| R041 | architecture | active | Phase 27 | unmapped |
-| R042 | differentiator | active | Phase 28 | unmapped |
-| R043 | differentiator | active | Phase 29 | unmapped |
-| R044 | product-surface | active | Phase 25 | unmapped |
-| R027 | primary-user-loop | completed | Phase 18 | validated |
-| R028 | primary-user-loop | completed | Phase 19 | validated |
-| R029 | differentiator | completed | Phase 20 | validated |
-| R030 | product-surface | completed | Phase 21 | validated |
-| R031 | operational-safety | completed | Phase 22 | validated |
-| R032 | operational-safety | completed | Phase 22 | validated |
-| R033 | recovery | completed | Phase 22 | validated |
-| R034 | operational-safety | completed | Phase 22 | validated |
-| R035 | recovery | completed | Phase 23 | validated |
-| R036 | recovery | completed | Phase 23 | validated |
-| R037 | differentiator | completed | Phase 24 | validated |
-| R038 | operational-safety | completed | Phase 17 | validated |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| OPN-01 (R068) | Phase 39: OpenCode Agent Frontmatter Fix | Pending |
+| PUB-01 (R059) | Phase 40: Stable Publish Hardening | Pending |
+| PUB-02 (R060) | Phase 41: Dev-Channel Isolation | Pending |
+| PUB-03 (R061) | Phase 42: Downstream Stale-Publish Detection | Pending |
+| PUB-04 (R061) | Phase 42: Downstream Stale-Publish Detection | Pending |
+| REL-01 (R062) | Phase 43: Release Integrity Checks and Diagnostics | Pending |
+| REL-02 (R063) | Phase 43: Release Integrity Checks and Diagnostics | Pending |
+| REL-03 (R064) | Phase 44: Doc Alignment and Archive Consistency | Pending |
+| EVD-01 (R066) | Phase 44: Doc Alignment and Archive Consistency | Pending |
+| REL-04 (R065) | Phase 45: End-to-End Regression Coverage | Pending |
+| EVD-02 (R067) | Phase 46: Stuck-Plan Investigation and Release Decision | Pending |
 
-## Coverage Summary
+**Coverage:**
+- v1.6 requirements: 11 total
+- Mapped to phases: 11
+- Unmapped: 0
 
-- Active requirements: 6
-- Completed milestone requirements: 12
-- Mapped to phases: 18
-- Validated: 12
-- Unmapped active requirements: 0
+---
+*Requirements defined: 2026-04-23*
+*Last updated: 2026-04-23 after milestone v1.6 definition*

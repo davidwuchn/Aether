@@ -8,7 +8,7 @@
 - **v1.3 Visual Truth and Core Hardening** - Phases 17-24 (shipped 2026-04-21)
 - **v1.4 Self-Healing Colony** - Phases 25-30 (completed 2026-04-21)
 - **v1.5 Runtime Truth Recovery** - Phases 31-38 (completed 2026-04-23, product v1.0.20)
-- [→ Next milestone to be defined]
+- **v1.6 Release Pipeline Integrity** - Phases 39-46 (in progress)
 
 ## Phases
 
@@ -79,6 +79,94 @@
 
 </details>
 
+<details>
+<summary>v1.6 Release Pipeline Integrity (Phases 39-46) — IN PROGRESS</summary>
+
+### Phase 39: OpenCode Agent Frontmatter Fix
+**Goal:** Fix the urgent blocker where Aether ships invalid OpenCode agent frontmatter that crashes OpenCode startup in downstream repos.
+**Requirements:** OPN-01 (R068)
+**Success Criteria:**
+1. OpenCode launches successfully in a repo after `aether update --force`
+2. All .opencode/agents/ files have valid OpenCode-schema frontmatter
+3. Install/update validates agent frontmatter before writing to downstream repos
+4. E2E test proves OpenCode startup does not fail on agent config
+**Depends on:** none (urgent blocker)
+
+### Phase 40: Stable Publish Hardening
+**Goal:** Ensure stable publish atomically syncs binary and hub to the same version — no more 1.0.20 binary with 1.0.19 hub.
+**Requirements:** PUB-01 (R059)
+**Success Criteria:**
+1. `aether install --package-dir "$PWD"` sets hub version.json to match source version
+2. After publish, `aether version` and `~/.aether/system/version.json` agree
+3. Publish fails loudly if binary and hub cannot be synchronized
+4. Reproduce the current 1.0.19/1.0.20 mismatch, then prove it's fixed
+**Depends on:** Phase 39 (ship frontmatter fix before touching publish)
+
+### Phase 41: Dev-Channel Isolation
+**Goal:** Dev publish touches only `aether-dev` and `~/.aether-dev` — zero contamination of stable channel.
+**Requirements:** PUB-02 (R060)
+**Success Criteria:**
+1. Dev publish does not modify any file under `~/.aether/` or the `aether` binary
+2. Stable publish does not modify any file under `~/.aether-dev/` or `aether-dev` binary
+3. Both channels can be published independently without interference
+4. Test proves channel isolation with concurrent publish scenarios
+**Depends on:** Phase 40
+
+### Phase 42: Downstream Stale-Publish Detection
+**Goal:** `aether update --force` and `aether-dev update --force` detect and report stale/incomplete publishes instead of silently succeeding.
+**Requirements:** PUB-03 (R061), PUB-04 (R061)
+**Success Criteria:**
+1. Downstream update detects when hub version is older than source/binary version
+2. Downstream update reports exactly what is stale (binary, companion files, or both)
+3. Update returns non-zero exit code on stale/incomplete publish
+4. Works for both stable and dev channels independently
+**Depends on:** Phase 40, Phase 41
+
+### Phase 43: Release Integrity Checks and Diagnostics
+**Goal:** Single integrity check validates the full chain (source → binary → hub → downstream) and medic flags incomplete publishes with recovery commands.
+**Requirements:** REL-01 (R062), REL-02 (R063)
+**Success Criteria:**
+1. `aether` command validates source version, binary version, hub version, and companion surfaces together
+2. Medic flags incomplete stable/dev publishes and prints exact recovery command
+3. Integrity check is runnable both locally (source repo) and downstream (consumer repo)
+4. Diagnostic output is human-readable and actionable
+**Depends on:** Phase 42
+
+### Phase 44: Doc Alignment and Archive Consistency
+**Goal:** Operations guide, runbook, and AGENTS.md match actual runtime behavior exactly. Archived milestone evidence is internally consistent.
+**Requirements:** REL-03 (R064), EVD-01 (R066)
+**Success Criteria:**
+1. AETHER-OPERATIONS-GUIDE.md verification checklist passes as written
+2. publish-update-runbook.md steps match actual command behavior
+3. AGENTS.md operator flows are accurate for both channels
+4. Archived v1.5 docs no longer contain internal contradictions
+5. Any behavior changes from Phases 39-43 are reflected in docs
+**Depends on:** Phase 43 (docs must reflect final behavior)
+
+### Phase 45: End-to-End Regression Coverage
+**Goal:** Automated E2E tests for stable and dev publish/update flows that catch regressions before they ship.
+**Requirements:** REL-04 (R065)
+**Success Criteria:**
+1. E2E test for stable publish → downstream update → version agreement
+2. E2E test for dev publish → dev downstream update → version agreement
+3. E2E test for stale publish detection (intentionally stale hub)
+4. E2E test for channel isolation (dev publish does not touch stable)
+5. Tests runnable in CI (`go test`)
+**Depends on:** Phase 43
+
+### Phase 46: Stuck-Plan Investigation and Release Decision
+**Goal:** Verify the stuck `aether plan` issue; make the v1.6 release decision.
+**Requirements:** EVD-02 (R067)
+**Success Criteria:**
+1. Stuck `aether plan` issue is reproduced or proven stale in freshly updated repos
+2. If reproducible: fix shipped with regression test
+3. If stale-install fallout: documented as resolved by pipeline hardening
+4. All v1.6 requirements verified and milestone audit passes
+5. Source, binary, hub, and downstream versions all agree for both channels
+**Depends on:** Phase 44, Phase 45
+
+</details>
+
 ## Progress
 
 | Milestone | Phases | Status | Completed |
@@ -89,3 +177,4 @@
 | v1.3 | 17-24 | Complete | 2026-04-21 |
 | v1.4 | 25-30 | Complete | 2026-04-21 |
 | v1.5 | 31-38 | Complete | 2026-04-23 |
+| v1.6 | 39-46 | In Progress | — |
