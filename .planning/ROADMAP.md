@@ -130,6 +130,11 @@ Plans:
 
 ### Phase 36: Release Decision
 **Goal:** Cut v1.0.20, validate release readiness, or defer.
+**Plans:** 1 plan
+
+Plans:
+- [ ] 36-01-PLAN.md -- Validate readiness, update version files, write changelog, commit and tag
+
 **Status:** Planned
 
 ## Progress
@@ -143,4 +148,4 @@ Plans:
 | 25-30 | v1.4 | 6/6 | Complete | 2026-04-21 |
 | 31 | v1.5 | 4/4 | Complete | 2026-04-22 |
 | 32 | v1.5 | 2/2 | Complete | 2026-04-22 |
-| 33-36 | v1.5 | 0 | Planned | -- |
+| 33-36 | v1.5 | 1 | Planned | -- |
