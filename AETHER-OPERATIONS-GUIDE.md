@@ -152,12 +152,19 @@ go test ./... -count=1
 go run ./cmd/aether publish --channel dev --binary-dest "/Users/callumcowie/repos/Aether-dev/bin"
 ```
 
+> **Dev publish never touches `~/.aether` or `aether`.** This is enforced by runtime guards.
+> If you accidentally try to publish dev to the stable hub, the command will refuse.
+
 This does **all** of the following:
 
 - rebuilds the **dev binary** as `aether-dev`
 - refreshes the **dev hub** at `~/.aether-dev/`
 - verifies binary and hub versions agree after publish
 - leaves the public/stable runtime alone
+
+> **Isolation guarantee:** See Section 11 (Safe Testing Matrix) for the complete
+> separation rules. When testing dev changes, always use a **separate repo copy or worktree**
+> in addition to the dev binary and hub.
 
 > **Backward compatibility:** `aether install --package-dir "$PWD"` continues to work.
 > `aether publish` is the recommended path because it is discoverable and includes
