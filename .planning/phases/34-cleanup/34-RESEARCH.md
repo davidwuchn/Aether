@@ -356,17 +356,19 @@ copyFile(srcPath, filepath.Join(backupDir, filename))
 | A3 | The feature/auth, phase-1/builder-1, and phase-2/builder-1 branches have no unique commits worth preserving | Branch Inventory | If wrong, code is lost. feature/auth has 0 unique commits, phase branches appear empty. |
 | A4 | `gcOrphanedWorktrees()` cannot handle bulk cleanup because it only reads COLONY_STATE.json Worktrees array | Existing Code Analysis | If wrong, we build unnecessary scripting. Verified by reading the code. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the dispatch-ux commit's progress features be ported now or deferred?**
+1. **Should the dispatch-ux commit's progress features be ported now or deferred?** (RESOLVED)
    - What we know: The features are valuable but all 10 files conflict with main. Porting requires careful manual diffing.
    - What's unclear: Whether the Codex UX improvements are needed for v1.0.20 or can wait.
    - Recommendation: Create preserve/ branch now, port in a future phase focused on Codex UX.
+   - **Resolution:** Plan 01 Task 2 checkpoint presents the user with integration vs preservation choice. User decides at execution time.
 
-2. **What about the 4 nested worktrees inside the dispatch-ux worktree?**
+2. **What about the 4 nested worktrees inside the dispatch-ux worktree?** (RESOLVED)
    - What we know: They are `feature/test-audit-*` branches at `/Users/callumcowie/repos/Aether-worktrees/claude-dispatch-ux-20260421-1/cmd/.aether/worktrees/`.
    - What's unclear: Whether they contain anything beyond the dispatch-ux commit itself (they all point to same SHA `48a32c3a`).
    - Recommendation: These are disposable -- they're test-audit worktrees created during the dispatch-ux work. Remove them as part of bulk cleanup.
+   - **Resolution:** Plan 02 Task 1 Step 2.3 handles nested worktrees — removed bottom-up as part of bulk cleanup.
 
 ## Environment Availability
 
