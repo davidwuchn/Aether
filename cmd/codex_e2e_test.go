@@ -1038,7 +1038,15 @@ func TestCodexAgentCompleteness(t *testing.T) {
 			"aether-surveyor-pathogens":   true,
 			"aether-surveyor-provisions":  true,
 		}
-		if !readOnlyAgents[name] && !strings.Contains(lower, "tdd") && !strings.Contains(lower, "test-driven") {
+		// Also skip agents whose core role is not code implementation but who may write files
+		// (chronicler, keeper document; queen orchestrates; medic diagnoses)
+		nonImplAgents := map[string]bool{
+			"aether-chronicler": true,
+			"aether-keeper":     true,
+			"aether-medic":      true,
+			"aether-queen":      true,
+		}
+		if !readOnlyAgents[name] && !nonImplAgents[name] && !strings.Contains(lower, "tdd") && !strings.Contains(lower, "test-driven") {
 			warnings = append(warnings, fmt.Sprintf("%s: missing TDD or test-driven references", name))
 		}
 
