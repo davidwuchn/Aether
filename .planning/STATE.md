@@ -2,16 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 40 complete
-last_updated: "2026-04-23T13:30:00.000Z"
+status: in_progress
+stopped_at: Phase 41 complete
+last_updated: "2026-04-23T16:15:00.000Z"
+progress:
+  total_phases: 45
+  completed_phases: 36
+  total_plans: 110
+  completed_plans: 101
+  percent: 95
 last_activity: 2026-04-23
 progress:
   total_phases: 45
-  completed_phases: 35
+  completed_phases: 36
   total_plans: 109
-  completed_plans: 100
-  percent: 93
+  completed_plans: 101
+  percent: 95
 ---
 
 # Project State
@@ -25,9 +31,9 @@ See: [.planning/PROJECT.md](/Users/callumcowie-repos-Aether/.planning/PROJECT.md
 
 ## Current Position
 
-Phase: 40
+Phase: 41
 Plan: Complete
-Status: Milestone complete
+Status: Milestone in progress
 Last activity: 2026-04-23
 
 ## Performance Metrics
@@ -54,6 +60,7 @@ Last activity: 2026-04-23
 | Phase 35-platform-parity P03 | 40min | 2 tasks | 26 files |
 | Phase 40-01 | 1 | 3 | PUB-01 (R059) | aether publish command, version --check |
 | Phase 40-02 | 2 | 2 | PUB-01 (R059) | E2E tests, operations guide update |
+| Phase 41 | 3 | 5 | PUB-02 (R060) | Channel isolation guards, tests, docs |
 
 ## Accumulated Context
 
@@ -114,6 +121,13 @@ Last activity: 2026-04-23
 - aether publish replaces ad-hoc install --package-dir pattern; backward compatibility preserved.
 - aether version --check provides manual downstream verification.
 
+## Phase 41 Decisions (Dev-Channel Isolation)
+
+- validateChannelIsolation uses filepath.Abs + strings.Contains for normalized path matching.
+- Cross-channel publish operations are rejected with actionable error messages guiding the user to the correct channel flag.
+- warnBinaryCoLocation is purely informational and does not block publish (co-location may be intentional).
+- Rapid back-to-back publish tests use --skip-build-binary to avoid go build overhead and flaky build failures.
+
 ### Blockers / Concerns
 
 - 6 unreleased fix commits need v1.0.20.
@@ -132,8 +146,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: Phase 40 execution complete
-Stopped at: Phase 40 complete
+Last session: Phase 41 execution complete
+Stopped at: Phase 41 complete
 Resume file: --resume-file
 
-**Planned Phase:** 41 (dev-channel-isolation) — next up
+**Planned Phase:** 42 (downstream-stale-publish-detection) — next up

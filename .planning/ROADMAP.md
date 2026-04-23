@@ -102,7 +102,7 @@
 4. Reproduce the current 1.0.19/1.0.20 mismatch, then prove it's fixed
 **Depends on:** Phase 39 (ship frontmatter fix before touching publish)
 
-### Phase 41: Dev-Channel Isolation
+### Phase 41: Dev-Channel Isolation ✓ COMPLETE 2026-04-23
 **Goal:** Dev publish touches only `aether-dev` and `~/.aether-dev` — zero contamination of stable channel.
 **Requirements:** PUB-02 (R060)
 **Success Criteria:**
