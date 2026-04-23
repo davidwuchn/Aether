@@ -1038,7 +1038,7 @@ func TestCodexAgentCompleteness(t *testing.T) {
 		}
 
 		// 5. Deprecated patterns
-		if strings.Contains(content, "flag-add") {
+		if strings.Contains(content, "flag-add") && !strings.Contains(content, "aether flag-add") {
 			warnings = append(warnings, fmt.Sprintf("%s: contains deprecated 'flag-add' (use 'aether flag-add')", name))
 		}
 		if strings.Contains(content, "activity-log") {
