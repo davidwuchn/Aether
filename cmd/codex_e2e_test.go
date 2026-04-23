@@ -925,10 +925,11 @@ func slicesEqual(a, b []string) bool {
 	return true
 }
 
-// TestClaudeOpenCodeAgentContentParity verifies that OpenCode agent files have
-// byte-for-byte identical content to their Claude master counterparts.
-// This test fails when drift is introduced, forcing explicit decisions about
-// whether divergence is intentional.
+// TestClaudeOpenCodeAgentContentParity verifies structural parity between
+// Claude and OpenCode agent files. Because the two platforms use different
+// frontmatter schemas (OpenCode uses tools-as-object, hex colors, provider/
+// model format, no name field), only the body content (after the second ---
+// delimiter) is compared. Frontmatter differences are expected and allowed.
 func TestClaudeOpenCodeAgentContentParity(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {
@@ -959,16 +960,19 @@ func TestClaudeOpenCodeAgentContentParity(t *testing.T) {
 			t.Fatalf("failed to read %s: %v", opencodePath, err)
 		}
 
-		if string(claudeBytes) == string(opencodeBytes) {
+		claudeBody := strings.TrimSpace(extractBodyAfterFrontmatter(claudeBytes))
+		opencodeBody := strings.TrimSpace(extractBodyAfterFrontmatter(opencodeBytes))
+
+		if claudeBody == opencodeBody {
 			continue
 		}
 
-		claudeLines := strings.Count(string(claudeBytes), "\n")
-		opencodeLines := strings.Count(string(opencodeBytes), "\n")
-		if len(claudeBytes) > 0 && !strings.HasSuffix(string(claudeBytes), "\n") {
+		claudeLines := strings.Count(claudeBody, "\n")
+		opencodeLines := strings.Count(opencodeBody, "\n")
+		if len(claudeBody) > 0 && !strings.HasSuffix(claudeBody, "\n") {
 			claudeLines++
 		}
-		if len(opencodeBytes) > 0 && !strings.HasSuffix(string(opencodeBytes), "\n") {
+		if len(opencodeBody) > 0 && !strings.HasSuffix(opencodeBody, "\n") {
 			opencodeLines++
 		}
 		diff := claudeLines - opencodeLines
@@ -977,14 +981,36 @@ func TestClaudeOpenCodeAgentContentParity(t *testing.T) {
 		}
 
 		mismatches = append(mismatches, fmt.Sprintf(
-			"Claude/OpenCode agent content mismatch for %s.md:\n  Claude:   %d lines\n  OpenCode: %d lines\n  Diff:     %d lines",
+			"Claude/OpenCode agent body mismatch for %s.md:\n  Claude:   %d lines\n  OpenCode: %d lines\n  Diff:     %d lines",
 			name, claudeLines, opencodeLines, diff,
 		))
 	}
 
 	if len(mismatches) > 0 {
-		t.Errorf("Agent content parity failures (%d of %d agents):\n\n%s", len(mismatches), len(claudeNames), strings.Join(mismatches, "\n\n"))
+		t.Errorf("Agent body parity failures (%d of %d agents):\n\n%s", len(mismatches), len(claudeNames), strings.Join(mismatches, "\n\n"))
 	}
+}
+
+// extractBodyAfterFrontmatter returns the content after the second ---
+// delimiter in a markdown file. If no frontmatter is found, returns the
+// full content unchanged.
+func extractBodyAfterFrontmatter(data []byte) string {
+	content := string(data)
+
+	// Find opening ---
+	start := strings.Index(content, "---")
+	if start == -1 {
+		return content
+	}
+
+	// Find closing --- after the opening
+	rest := content[start+3:]
+	end := strings.Index(rest, "---")
+	if end == -1 {
+		return content
+	}
+
+	return rest[end+3:]
 }
 
 // TestCodexAgentCompleteness verifies that each Codex TOML agent contains
