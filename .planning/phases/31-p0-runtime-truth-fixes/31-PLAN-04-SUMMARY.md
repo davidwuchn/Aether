@@ -25,6 +25,7 @@ metrics:
   completed: 2026-04-22
   tasks_completed: 3
   files_modified: 3
+requirements-completed: [R049, R050]
 ---
 
 # Phase 31 Plan 04: Git-Verified Claims and Integration Tests Summary

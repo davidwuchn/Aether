@@ -26,6 +26,7 @@ metrics:
   completed: 2026-04-22
   tasks_completed: 3
   files_modified: 2
+requirements-completed: [R047, R048]
 ---
 
 # Phase 31 Plan 02: Continue Verification Truth Summary
