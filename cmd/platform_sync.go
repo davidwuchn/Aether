@@ -172,7 +172,16 @@ func validateOpenCodeAgentFile(srcPath, relPath string, data []byte) error {
 		return fmt.Errorf("%s description too short (%d chars, need at least 20): %q", relPath, len(desc), desc)
 	}
 
-	// Rule 5: tools must be a map/object (not a string, not nil)
+	// Rule 5: mode must be a valid value
+	mode := strings.TrimSpace(fm.Mode)
+	if mode == "" {
+		return fmt.Errorf("%s is missing mode in frontmatter", relPath)
+	}
+	if mode != "primary" && mode != "subagent" && mode != "all" {
+		return fmt.Errorf("%s mode %q must be primary, subagent, or all", relPath, mode)
+	}
+
+	// Rule 6: tools must be a map/object (not a string, not nil)
 	if fm.Tools == nil {
 		return fmt.Errorf("%s is missing tools field in frontmatter", relPath)
 	}
@@ -194,7 +203,7 @@ func validateOpenCodeAgentFile(srcPath, relPath string, data []byte) error {
 		return fmt.Errorf("%s tools has unexpected type %T (must be a map/object)", relPath, rawTools)
 	}
 
-	// Rule 6: color must be a hex color or a theme color name
+	// Rule 7: color must be a hex color or a theme color name
 	color := strings.TrimSpace(fm.Color)
 	if color == "" {
 		return fmt.Errorf("%s is missing color in frontmatter", relPath)
@@ -203,12 +212,12 @@ func validateOpenCodeAgentFile(srcPath, relPath string, data []byte) error {
 		return fmt.Errorf("%s color %q must be a hex color (#rrggbb) or a theme color (primary, secondary, accent, success, warning, error, info)", relPath, color)
 	}
 
-	// Rule 7: name field must NOT be present
+	// Rule 8: name field must NOT be present
 	if _, hasName := rawFM["name"]; hasName {
 		return fmt.Errorf("%s must not have a name field in frontmatter — filename is the agent name", relPath)
 	}
 
-	// Rule 8: model must contain a / (provider/model-id format)
+	// Rule 9: model must contain a / (provider/model-id format)
 	model := strings.TrimSpace(fm.Model)
 	if model == "" {
 		return fmt.Errorf("%s is missing model in frontmatter", relPath)

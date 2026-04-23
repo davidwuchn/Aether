@@ -680,8 +680,8 @@ Local skill override
 	}
 }
 
-// all24AgentNames is the canonical list of all 24 Aether agent names.
-var all24AgentNames = []string{
+// all25AgentNames is the canonical list of all 25 Aether agent names.
+var all25AgentNames = []string{
 	"aether-ambassador",
 	"aether-archaeologist",
 	"aether-architect",
@@ -692,6 +692,7 @@ var all24AgentNames = []string{
 	"aether-gatekeeper",
 	"aether-includer",
 	"aether-keeper",
+	"aether-medic",
 	"aether-measurer",
 	"aether-oracle",
 	"aether-probe",
@@ -733,7 +734,7 @@ func TestCodexInstallSetupUpdate_All24Agents(t *testing.T) {
 		t.Fatalf("failed to create codex agents dir: %v", err)
 	}
 
-	for _, agentName := range all24AgentNames {
+	for _, agentName := range all25AgentNames {
 		content := validCodexAgentTOML(agentName, agentName)
 		filename := agentName + ".toml"
 		if err := os.WriteFile(filepath.Join(pkgCodex, filename), content, 0644); err != nil {
@@ -765,7 +766,7 @@ func TestCodexInstallSetupUpdate_All24Agents(t *testing.T) {
 
 		// Verify all 24 agents exist in hub.
 		hubCodex := filepath.Join(homeDir, ".aether", "system", "codex")
-		for _, agentName := range all24AgentNames {
+		for _, agentName := range all25AgentNames {
 			f := filepath.Join(hubCodex, agentName+".toml")
 			if _, err := os.Stat(f); os.IsNotExist(err) {
 				t.Errorf("expected %s in hub after install", f)
@@ -788,7 +789,7 @@ func TestCodexInstallSetupUpdate_All24Agents(t *testing.T) {
 
 		// Verify all 24 agent TOML files exist in target .codex/agents/.
 		repoCodex := filepath.Join(repoDir, ".codex", "agents")
-		for _, agentName := range all24AgentNames {
+		for _, agentName := range all25AgentNames {
 			f := filepath.Join(repoCodex, agentName+".toml")
 			if _, err := os.Stat(f); os.IsNotExist(err) {
 				t.Errorf("expected %s in repo after setup", f)
@@ -796,7 +797,7 @@ func TestCodexInstallSetupUpdate_All24Agents(t *testing.T) {
 		}
 
 		// Verify each agent file is valid TOML with required fields.
-		for _, agentName := range all24AgentNames {
+		for _, agentName := range all25AgentNames {
 			t.Run(agentName, func(t *testing.T) {
 				data, err := os.ReadFile(filepath.Join(repoCodex, agentName+".toml"))
 				if err != nil {
