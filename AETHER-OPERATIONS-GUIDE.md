@@ -149,14 +149,19 @@ go test ./... -count=1
 ### **Step C — Publish the dev channel from source**
 
 ```bash
-go run ./cmd/aether install --channel dev --package-dir "$PWD" --binary-dest "/Users/callumcowie/repos/Aether-dev/bin"
+go run ./cmd/aether publish --channel dev --binary-dest "/Users/callumcowie/repos/Aether-dev/bin"
 ```
 
 This does **all** of the following:
 
-- refreshes the **dev hub** at `~/.aether-dev/`
 - rebuilds the **dev binary** as `aether-dev`
+- refreshes the **dev hub** at `~/.aether-dev/`
+- verifies binary and hub versions agree after publish
 - leaves the public/stable runtime alone
+
+> **Backward compatibility:** `aether install --package-dir "$PWD"` continues to work.
+> `aether publish` is the recommended path because it is discoverable and includes
+> automatic version agreement verification.
 
 ### **Step D — Update a dev test repo**
 
@@ -175,9 +180,62 @@ After install or update:
 
 **Why:** file changes on disk do not automatically refresh a live tool session.
 
+### **Version Agreement Verification**
+
+`aether publish` automatically checks that the binary version and hub version match after publishing. If they do not match, publish fails loudly with the mismatch details.
+
+Flags:
+
+| Flag | Description |
+|------|-------------|
+| `--package-dir` | Source directory (default: current directory) |
+| `--home-dir` | User home directory (default: `$HOME`) |
+| `--channel` | Runtime channel (`stable` or `dev`) |
+| `--binary-dest` | Where to place the built binary |
+| `--skip-build-binary` | Skip `go build`; use existing binary |
+
 ---
 
-## **6. Stable / Public Testing Workflow**
+## **6. Version Verification**
+
+Use `aether version --check` to manually verify that the binary version and hub version agree.
+
+```bash
+aether version --check
+```
+
+Exit codes:
+
+- `0` — binary and hub versions agree
+- non-zero — versions mismatch or hub is not installed
+
+Example success:
+
+```text
+{"ok":true,"message":"Version check passed: binary and hub both at 1.0.20","version":"1.0.20"}
+```
+
+Example failure:
+
+```text
+Error: version mismatch: binary=1.0.20 hub=1.0.19
+```
+
+This is useful after publish or before reporting issues, to confirm the runtime is consistent.
+
+### **Troubleshooting: publish fails with version mismatch**
+
+If `aether publish` fails with a version mismatch error:
+
+1. Check the binary version: `aether version`
+2. Check the hub version: `cat ~/.aether/system/version.json`
+3. Re-run publish from the source repo: `aether publish`
+
+The mismatch means the hub was not updated to match the binary. Publish will fix this automatically on the next successful run.
+
+---
+
+## **7. Stable / Public Testing Workflow**
 
 Use this when you want to test what an actual user gets.
 
@@ -206,7 +264,7 @@ Do **not** use your dev test repo for public/stable verification.
 
 ---
 
-## **7. Exact Release Workflow**
+## **8. Exact Release Workflow**
 
 ```mermaid
 flowchart TD
@@ -297,7 +355,7 @@ Expected:
 
 ---
 
-## **8. Public Install Paths**
+## **9. Public Install Paths**
 
 ### **Go install**
 
@@ -319,7 +377,7 @@ It should always point to the same **stable** public release version.
 
 ---
 
-## **9. Exact Verification Commands**
+## **10. Exact Verification Commands**
 
 ## **Source repo verification**
 
@@ -359,7 +417,7 @@ Expected counts:
 
 ---
 
-## **10. Safe Testing Matrix**
+## **11. Safe Testing Matrix**
 
 | **What you are testing** | **Binary** | **Hub** | **Repo** |
 |---|---|---|---|
@@ -369,7 +427,7 @@ Expected counts:
 
 ---
 
-## **11. Do / Don’t**
+## **12. Do / Don’t**
 
 ### **Do**
 
@@ -388,7 +446,7 @@ Expected counts:
 
 ---
 
-## **12. Short Version**
+## **13. Short Version**
 
 ```text
 aether      = public / stable
