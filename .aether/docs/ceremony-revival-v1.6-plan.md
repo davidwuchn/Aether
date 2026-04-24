@@ -18,6 +18,9 @@ and real worker bridge on top of the current runtime instead of replacing it.
 - `.aether/ts` is embedded as an explicit file list in `embedded_assets.go` so
   install/update syncs the narrator package without accidentally shipping
   `node_modules`.
+- The installed narrator runtime is `dist/narrator.js`, a dependency-free Node
+  artifact generated from the TypeScript source. `npm ci` is a developer/CI step,
+  not an installed-runtime requirement.
 - `pkg/events.Bus.Subscribe` is in-process only. Cross-process narration needs
   either parent-process piping or a file-backed stream over `event-bus.jsonl`.
 - Current playbooks still contain the intended direct-spawn flow. In particular,
@@ -45,40 +48,101 @@ and real worker bridge on top of the current runtime instead of replacing it.
 - Add `event-bus-subscribe --stream --filter ceremony.*` for NDJSON streaming.
   (Initial scaffold exists.)
 - Add `visuals-dump --json` so TS consumes Go's caste emoji/color/label maps.
-  (Initial scaffold exists.)
+  (Initial scaffold exists; narrator can consume the envelope via `--visuals`.)
 - Build a narrator stub that reads NDJSON from stdin and prints one ceremony line
-  per event. (Initial scaffold exists; runtime launch is not wired yet.)
+  per event. (Initial scaffold exists; `dist/narrator.js` is dependency-free at
+  runtime; Go auto-launch is not wired yet.)
+
+### Phase 2 Checkpoint: 2026-04-24
+
+Foundation commits through `aa8d6d4b` are pushed to
+`codex/ceremony-narrator-foundation-v16`.
+
+Completed:
+
+- Dependency-free `dist/narrator.js` runtime is committed and install/update
+  packaged.
+- `visuals-dump --json` exposes Go-owned caste identity, and the narrator
+  accepts it via `--visuals`.
+- `event-bus-subscribe --stream --filter ceremony.*` can feed NDJSON into the
+  narrator runtime.
+- CI/release/dependabot cover the TS package and dist drift.
+
+Completed after this checkpoint:
+
+- Add Go auto-launch behind `AETHER_NARRATOR`.
+- Emit build ceremony events from the build dispatch lifecycle.
+- Prove JSON output is never polluted by narrator text.
+- Prove missing Node/runtime is non-fatal.
+- Prove sidecar stdout is routed through Go's visual output mutex.
+
+Phase 2/3 foundation checkpoint:
+
+- Manual installed-hub smoke passed in a temporary HOME and fixture repo.
+- The fixture removed local `.aether/ts`, and `AETHER_NARRATOR=on aether build
+  1 --synthetic` still rendered `COLONY ACTIVITY` from the hub fallback.
+- Optional TTY live redraw/debounce is deferred until real wrapper output can
+  guide the terminal contract.
+
+The detailed implementation contract is tracked in
+`.aether/docs/ceremony-revival-v1.6-handoff.md`.
 
 ## Phase 3: Rolling Activity Display
 
-- Maintain an in-memory ceremony frame keyed by spawn ID.
+- Maintain an in-memory ceremony frame keyed by spawn ID. (Initial foundation
+  exists.)
 - Render wave progress, active workers, completed workers, tool counts, blockers,
-  and token counts where available.
+  and token counts where available. (Initial foundation exists.)
 - Strip ANSI when stdout is not a TTY unless explicitly forced.
-- Debounce live redraws if event volume makes the terminal flicker.
+- Debounce live redraws if event volume makes the terminal flicker. (Deferred
+  pending real wrapper output.)
 
 ## Phase 4: Subagent Spawn Restoration
 
 - Restore Claude/OpenCode build wrappers as orchestrators, not pass-throughs.
+  (Implemented for build wrappers.)
 - Run `aether build --plan-only <phase>` or equivalent manifest generation.
+  (Implemented as `AETHER_OUTPUT_MODE=json aether build <phase> --plan-only`;
+  it is read-only and emits `dispatch_manifest`.)
 - For each wave, spawn real caste agents via the platform agent tool.
+  (Build wrappers now instruct this from `dispatch_manifest`; live platform
+  smoke remains next.)
 - Restore pre-wave Archaeologist, Oracle, Architect, and Ambassador hooks.
+  (Implemented in the build manifest execution plan: Archaeologist, Oracle,
+  Architect, and conditional Ambassador run before builder/scout task waves.)
 - Restore Builder waves, Probe verification, Watcher verification, Measurer, and
-  Chaos.
+  Chaos. (Implemented in the build manifest execution plan: Probe, Watcher,
+  Measurer, and Chaos run after builder/scout task waves according to depth.)
 - Call `aether spawn-log` before each Task call and `aether spawn-complete` after
   each returned result so the narrator and spawn tree reflect real work.
+- Add a runtime record/finalize surface for wrapper-spawned work before the
+  wrappers advance phase state. Do not finalize by running `aether build
+  --synthetic` after real wrapper agents; that would mix simulated evidence with
+  real Task-tool execution.
+  (Implemented as `AETHER_OUTPUT_MODE=json aether build-finalize <phase>
+  --completion-file <path|->`; it writes the external-task manifest, claims,
+  spawn tree statuses, and BUILT state that `aether continue` verifies.)
 
 ## Phase 5: Continue and Plan Orchestration
 
 - Restore continue as real verification before advancement.
+  (Continue plan-only manifest, continue-finalize, and Claude/OpenCode wrapper
+  orchestration are implemented.)
 - Restore plan depth ceremony: Fast, Balanced, Deep, Exhaustive.
+  (`aether plan --plan-only --depth <choice>`, `plan-finalize`, and
+  Claude/OpenCode wrapper orchestration are implemented.)
 - Run Scout plus Route-Setter planning loops with stall detection and confidence.
+  (Scout/Route-Setter wrapper loop implemented; stall/confidence polish can be
+  expanded in lifecycle ceremony work.)
 - Persist validated learnings, midden failures, and blocker status honestly.
 
 ## Phase 6: Full Lifecycle Ceremony and Skills
 
 - Add narrator ceremonies for colonize, plan, build, continue, pheromones,
-  graveyard/entomb, and chamber sealing.
+  graveyard/entomb, and chamber sealing. (TypeScript rendering foundation now
+  handles generic `ceremony.<stage>.wave.*` topics and keeps skill, pheromone,
+  and chamber events visible as frame context. Go lifecycle event emission
+  remains next.)
 - Emit skill activation events from worker prompts or spawn wrappers.
 - Keep QUEEN.md, Hive, midden, graveyard, and pheromone context visible where
   they affect worker behavior.

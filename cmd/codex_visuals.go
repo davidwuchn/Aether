@@ -775,6 +775,15 @@ func renderPlanVisual(result map[string]interface{}) string {
 		b.WriteString(contract)
 		b.WriteString("\n")
 	}
+	if planOnly, _ := result["plan_only"].(bool); planOnly {
+		if existing, _ := result["existing_plan"].(bool); !existing {
+			b.WriteString(renderNextUp(
+				`Use the JSON `+"`plan_manifest`"+` to spawn wrapper Scout and Route-Setter agents.`,
+				`This surface is read-only; pair it with the plan finalizer before replacing the normal `+"`aether plan`"+` flow.`,
+			))
+			return b.String()
+		}
+	}
 	if files := stringSliceValue(result["planning_files"]); len(files) > 0 {
 		b.WriteString("Planning Artifacts\n")
 		b.WriteString(renderIndentedList(files))
@@ -941,6 +950,53 @@ func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phas
 	return b.String()
 }
 
+func renderBuildPlanOnlyVisual(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
+	var b strings.Builder
+	b.WriteString(renderBanner(commandEmoji("build-dispatch"), fmt.Sprintf("Build Plan %d", phase.ID)))
+	b.WriteString(visualDivider)
+	b.WriteString("Dispatch manifest only. No state was changed and no workers were spawned.\n")
+	b.WriteString(renderProgressSummary(phase.ID, len(state.Plan.Phases)))
+	b.WriteString("\n")
+	b.WriteString("Phase: ")
+	b.WriteString(phase.Name)
+	b.WriteString("\n")
+	if strings.TrimSpace(phase.Description) != "" {
+		b.WriteString("Objective: ")
+		b.WriteString(strings.TrimSpace(phase.Description))
+		b.WriteString("\n")
+	}
+	b.WriteString("\n")
+	b.WriteString(renderSpawnPlanForDispatches(dispatches, effectiveParallelMode(state)))
+	b.WriteString(renderNextUp(
+		`Use the JSON `+"`dispatch_manifest`"+` to spawn wrapper agents with the Task tool.`,
+		`Run `+"`AETHER_OUTPUT_MODE=json aether build <phase> --plan-only`"+` when a machine-readable manifest is needed.`,
+	))
+	return b.String()
+}
+
+func renderBuildFinalizeVisual(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
+	var b strings.Builder
+	b.WriteString(renderBanner(commandEmoji("build"), fmt.Sprintf("Build Finalize %d", phase.ID)))
+	b.WriteString(visualDivider)
+	b.WriteString("External Task worker results recorded.\n")
+	b.WriteString(renderProgressSummary(phase.ID, len(state.Plan.Phases)))
+	b.WriteString("\n")
+	b.WriteString("Phase: ")
+	b.WriteString(phase.Name)
+	b.WriteString("\n\n")
+	b.WriteString(renderSpawnPlanForDispatches(dispatches, effectiveParallelMode(state)))
+	b.WriteString(renderArtifactsSection(
+		displayDataPath(fmt.Sprintf("build/phase-%d/manifest.json", phase.ID)),
+		displayDataPath("last-build-claims.json"),
+		displayDataPath("spawn-tree.txt"),
+	))
+	b.WriteString(renderNextUp(
+		`Run `+"`aether continue`"+` to verify the external Task work and advance honestly.`,
+		`Run `+"`aether status`"+` if you want to inspect the recorded worker evidence first.`,
+	))
+	return b.String()
+}
+
 func renderBuildDispatchPreview(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("build-dispatch"), fmt.Sprintf("Build Dispatch %d", phase.ID)))
@@ -1024,6 +1080,44 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 	}
 	b.WriteString(renderNextUpVisual(nextUpSuggestionsForState(state)))
 	b.WriteString(renderContextClearGuidance())
+	return b.String()
+}
+
+func renderContinuePlanOnlyVisual(state colony.ColonyState, phase colony.Phase, dispatches []codexContinueExternalDispatch) string {
+	var b strings.Builder
+	b.WriteString(renderBanner(commandEmoji("continue"), "Continue Plan"))
+	b.WriteString(visualDivider)
+	b.WriteString("Verification snapshot and review manifest only. No state was changed and no review workers were spawned.\n")
+	b.WriteString(renderProgressSummary(phase.ID, len(state.Plan.Phases)))
+	b.WriteString("\n")
+	b.WriteString("Phase: ")
+	b.WriteString(phase.Name)
+	b.WriteString("\n\n")
+	if len(dispatches) > 0 {
+		b.WriteString("Planned Continue Workers\n")
+		lastWave := 0
+		for _, dispatch := range dispatches {
+			if dispatch.Wave != lastWave {
+				if lastWave > 0 {
+					b.WriteString("\n")
+				}
+				b.WriteString(fmt.Sprintf("Wave %d\n", dispatch.Wave))
+				lastWave = dispatch.Wave
+			}
+			b.WriteString("  ")
+			b.WriteString(casteIdentity(dispatch.Caste))
+			b.WriteString(" ")
+			b.WriteString(dispatch.Name)
+			b.WriteString("  ")
+			b.WriteString(strings.TrimSpace(dispatch.Task))
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString(renderNextUp(
+		`Use the JSON `+"`continue_manifest`"+` to spawn wrapper verification/review agents.`,
+		`Run `+"`AETHER_OUTPUT_MODE=json aether continue-finalize --completion-file <file>`"+` after wrapper agents return terminal results.`,
+	))
 	return b.String()
 }
 
@@ -1994,77 +2088,29 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch, parallelMode 
 	b.WriteString(renderBanner(commandEmoji("spawn-plan"), "Spawn Plan"))
 	b.WriteString(visualDivider)
 
-	wavePlans := buildWaveExecutionPlans(dispatches, parallelMode)
-	wavePlanByWave := make(map[int]codexWaveExecutionPlan, len(wavePlans))
-	for _, plan := range wavePlans {
-		wavePlanByWave[plan.Wave] = plan
-	}
-	lastWave := 0
+	executionPlans := buildExecutionPlans(dispatches, parallelMode)
+	dispatchesByExecutionWave := map[int][]codexBuildDispatch{}
 	for _, dispatch := range dispatches {
-		if dispatch.Stage != "wave" {
-			continue
-		}
-		if dispatch.Wave != lastWave {
-			if lastWave > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(fmt.Sprintf("Wave %d\n", dispatch.Wave))
-			if plan, ok := wavePlanByWave[dispatch.Wave]; ok {
-				b.WriteString("  Execution: ")
-				b.WriteString(plan.Strategy)
-				b.WriteString(" — ")
-				b.WriteString(plan.Reason)
-				if plan.Strategy == "serial" && plan.WorkerCount > 1 && parallelMode == colony.ModeInRepo {
-					b.WriteString(" (set `aether parallel-mode set worktree` for isolated parallel builders)")
-				}
-				b.WriteString("\n")
-			}
-			lastWave = dispatch.Wave
-		}
-		b.WriteString("  ")
-		b.WriteString(casteIdentity(dispatch.Caste))
-		b.WriteString(" ")
-		b.WriteString(dispatch.Name)
-		b.WriteString("  ")
-		b.WriteString(strings.TrimSpace(dispatch.Task))
-		writeDispatchExecutionStatus(&b, dispatch)
-		b.WriteString("\n")
+		wave := normalizedDispatchWave(dispatch)
+		dispatchesByExecutionWave[wave] = append(dispatchesByExecutionWave[wave], dispatch)
 	}
-	if lastWave > 0 {
-		b.WriteString("\n")
-	}
-
-	strategy := filterBuildDispatches(dispatches, "strategy")
-	if len(strategy) > 0 {
-		b.WriteString("Strategy\n")
-		for _, dispatch := range strategy {
-			b.WriteString("  ")
-			b.WriteString(casteIdentity(dispatch.Caste))
-			b.WriteString(" ")
-			b.WriteString(dispatch.Name)
-			b.WriteString("  ")
-			b.WriteString(strings.TrimSpace(dispatch.Task))
-			writeDispatchExecutionStatus(&b, dispatch)
+	for idx, plan := range executionPlans {
+		if idx > 0 {
 			b.WriteString("\n")
 		}
+		b.WriteString(buildExecutionPlanLabel(plan))
 		b.WriteString("\n")
-	}
-
-	verification := filterBuildDispatches(dispatches, "verification")
-	resilience := filterBuildDispatches(dispatches, "resilience")
-	if len(verification) > 0 || len(resilience) > 0 {
-		b.WriteString("Verification\n")
-		for _, dispatch := range verification {
-			b.WriteString("  ")
-			b.WriteString(casteIdentity(dispatch.Caste))
-			b.WriteString(" ")
-			b.WriteString(dispatch.Name)
-			b.WriteString("  ")
-			b.WriteString(strings.TrimSpace(dispatch.Task))
-			writeDispatchExecutionStatus(&b, dispatch)
-			b.WriteString("\n")
+		b.WriteString("  Execution: ")
+		b.WriteString(plan.Strategy)
+		if strings.TrimSpace(plan.Reason) != "" {
+			b.WriteString(" — ")
+			b.WriteString(plan.Reason)
 		}
-		for _, dispatch := range resilience {
+		if plan.Stage == "wave" && plan.Strategy == "serial" && plan.WorkerCount > 1 && parallelMode == colony.ModeInRepo {
+			b.WriteString(" (set `aether parallel-mode set worktree` for isolated parallel builders)")
+		}
+		b.WriteString("\n")
+		for _, dispatch := range dispatchesByExecutionWave[plan.ExecutionWave] {
 			b.WriteString("  ")
 			b.WriteString(casteIdentity(dispatch.Caste))
 			b.WriteString(" ")
@@ -2081,9 +2127,41 @@ func renderSpawnPlanForDispatches(dispatches []codexBuildDispatch, parallelMode 
 	return b.String()
 }
 
+func buildExecutionPlanLabel(plan codexBuildExecutionPlan) string {
+	switch plan.Stage {
+	case "prep":
+		return "Pre-Wave: Archaeology"
+	case "research":
+		return "Pre-Wave: Oracle Research"
+	case "design":
+		return "Pre-Wave: Architect Design"
+	case "integration":
+		return "Pre-Wave: Ambassador Integration"
+	case "wave":
+		if plan.Wave > 0 {
+			return fmt.Sprintf("Wave %d", plan.Wave)
+		}
+		return "Worker Wave"
+	case "probe":
+		return "Post-Wave: Probe"
+	case "verification":
+		return "Post-Wave: Watcher"
+	case "measurement":
+		return "Post-Wave: Measurer"
+	case "resilience":
+		return "Post-Wave: Chaos"
+	default:
+		stage := strings.TrimSpace(plan.Stage)
+		if stage == "" {
+			return fmt.Sprintf("Execution Step %d", plan.ExecutionWave)
+		}
+		return fmt.Sprintf("Execution Step %d: %s", plan.ExecutionWave, stage)
+	}
+}
+
 func writeDispatchExecutionStatus(b *strings.Builder, dispatch codexBuildDispatch) {
 	status := strings.TrimSpace(dispatch.Status)
-	if status == "" || status == "spawned" {
+	if status == "" || status == "spawned" || status == "planned" {
 		return
 	}
 	icon := "\u2717"

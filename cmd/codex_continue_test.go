@@ -142,6 +142,249 @@ func TestContinueConsumesBuildPacketAndAdvancesPhase(t *testing.T) {
 	}
 }
 
+func TestContinuePlanOnlyPrintsReviewManifestWithoutMutatingState(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
+
+	goal := "Plan wrapper continue review"
+	now := time.Now().UTC()
+	taskID := "1.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateBUILT,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{{
+				ID:          1,
+				Name:        "Wrapper continue bridge",
+				Description: "Expose continue review workers to wrappers",
+				Status:      colony.PhaseInProgress,
+				Tasks:       []colony.Task{{ID: &taskID, Goal: "Verify wrapper evidence", Status: colony.TaskInProgress}},
+			}},
+		},
+	})
+
+	dispatches := []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Mason-21", Task: "Verify wrapper evidence", Status: "completed", TaskID: taskID},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-22", Task: "Independent verification before advancement", Status: "completed"},
+	}
+	seedContinueBuildPacket(t, dataDir, 1, "Wrapper continue bridge", goal, dispatches)
+
+	rootCmd.SetArgs([]string{"continue", "--plan-only"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("continue --plan-only returned error: %v", err)
+	}
+
+	env := parseLifecycleEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if result["plan_only"] != true {
+		t.Fatalf("plan_only = %v, want true", result["plan_only"])
+	}
+	if result["dispatch_mode"].(string) != "plan-only" {
+		t.Fatalf("dispatch_mode = %q, want plan-only", result["dispatch_mode"])
+	}
+	if got := int(result["dispatch_count"].(float64)); got != 4 {
+		t.Fatalf("dispatch_count = %d, want 4", got)
+	}
+	dispatchResults := result["dispatches"].([]interface{})
+	wantCastes := []string{"watcher", "gatekeeper", "auditor", "probe"}
+	for i, want := range wantCastes {
+		dispatch := dispatchResults[i].(map[string]interface{})
+		if dispatch["caste"].(string) != want {
+			t.Fatalf("dispatch %d caste = %q, want %q", i, dispatch["caste"], want)
+		}
+		if dispatch["status"].(string) != "planned" {
+			t.Fatalf("dispatch %d status = %q, want planned", i, dispatch["status"])
+		}
+		if strings.TrimSpace(dispatch["agent_name"].(string)) == "" {
+			t.Fatalf("dispatch %d missing agent_name: %+v", i, dispatch)
+		}
+		if strings.TrimSpace(dispatch["brief"].(string)) == "" {
+			t.Fatalf("dispatch %d missing brief: %+v", i, dispatch)
+		}
+	}
+
+	plan := result["continue_manifest"].(map[string]interface{})
+	if plan["requires_finalizer"] != true {
+		t.Fatalf("continue_manifest requires_finalizer = %v, want true", plan["requires_finalizer"])
+	}
+	if plan["finalize_surface"].(string) != "pending" {
+		t.Fatalf("continue_manifest finalize_surface = %q, want pending", plan["finalize_surface"])
+	}
+
+	for _, rel := range []string{
+		"build/phase-1/verification.json",
+		"build/phase-1/gates.json",
+		"build/phase-1/review.json",
+		"build/phase-1/continue.json",
+	} {
+		if _, err := os.Stat(filepath.Join(dataDir, rel)); !os.IsNotExist(err) {
+			t.Fatalf("plan-only unexpectedly wrote %s (err=%v)", rel, err)
+		}
+	}
+
+	var state colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("failed to reload state: %v", err)
+	}
+	if state.State != colony.StateBUILT {
+		t.Fatalf("state = %s, want BUILT", state.State)
+	}
+	if state.CurrentPhase != 1 {
+		t.Fatalf("current phase = %d, want 1", state.CurrentPhase)
+	}
+	if state.BuildStartedAt == nil {
+		t.Fatal("BuildStartedAt should remain set")
+	}
+	if state.Plan.Phases[0].Status != colony.PhaseInProgress {
+		t.Fatalf("phase status = %s, want in_progress", state.Plan.Phases[0].Status)
+	}
+}
+
+func TestContinueFinalizeRecordsExternalReviewAndAdvances(t *testing.T) {
+	t.Setenv("AETHER_OUTPUT_MODE", "json")
+	saveGlobals(t)
+	resetRootCmd(t)
+
+	dataDir := setupBuildFlowTest(t)
+	root := filepath.Dir(filepath.Dir(dataDir))
+	withTestWorkspace(t, root)
+	withWorkingDir(t, root)
+
+	goal := "Finalize wrapper continue review"
+	now := time.Now().UTC()
+	taskID := "1.1"
+	nextTaskID := "2.1"
+	createTestColonyState(t, dataDir, colony.ColonyState{
+		Version:        "3.0",
+		Goal:           &goal,
+		State:          colony.StateBUILT,
+		CurrentPhase:   1,
+		BuildStartedAt: &now,
+		Plan: colony.Plan{
+			Phases: []colony.Phase{
+				{
+					ID:          1,
+					Name:        "Wrapper continue finalize",
+					Description: "Record wrapper review workers",
+					Status:      colony.PhaseInProgress,
+					Tasks:       []colony.Task{{ID: &taskID, Goal: "Verify wrapper review", Status: colony.TaskInProgress}},
+				},
+				{
+					ID:     2,
+					Name:   "Next wrapper phase",
+					Status: colony.PhasePending,
+					Tasks:  []colony.Task{{ID: &nextTaskID, Goal: "Continue forward", Status: colony.TaskPending}},
+				},
+			},
+		},
+	})
+
+	buildDispatches := []codexBuildDispatch{
+		{Stage: "wave", Wave: 1, Caste: "builder", Name: "Mason-31", Task: "Verify wrapper review", Status: "completed", TaskID: taskID},
+		{Stage: "verification", Caste: "watcher", Name: "Keen-32", Task: "Independent verification before advancement", Status: "completed"},
+	}
+	seedContinueBuildPacket(t, dataDir, 1, "Wrapper continue finalize", goal, buildDispatches)
+
+	planResult, _, _, _, err := runCodexContinuePlanOnly(root, codexContinueOptions{})
+	if err != nil {
+		t.Fatalf("runCodexContinuePlanOnly returned error: %v", err)
+	}
+	plan := planResult["continue_manifest"].(codexContinuePlanManifest)
+	results := make([]codexContinueExternalDispatch, 0, len(plan.Dispatches))
+	for _, dispatch := range plan.Dispatches {
+		results = append(results, codexContinueExternalDispatch{
+			Stage:   dispatch.Stage,
+			Wave:    dispatch.Wave,
+			Caste:   dispatch.Caste,
+			Name:    dispatch.Name,
+			Task:    dispatch.Task,
+			TaskID:  dispatch.TaskID,
+			Status:  "completed",
+			Summary: dispatch.Name + " cleared wrapper continue review",
+		})
+	}
+	completion := codexExternalContinueCompletion{
+		ContinueManifest: &plan,
+		Dispatches:       results,
+	}
+	completionData, err := json.MarshalIndent(completion, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal completion: %v", err)
+	}
+	completionPath := filepath.Join(root, "continue-completion.json")
+	if err := os.WriteFile(completionPath, completionData, 0644); err != nil {
+		t.Fatalf("write completion: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"continue-finalize", "--completion-file", completionPath})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("continue-finalize returned error: %v", err)
+	}
+
+	env := parseLifecycleEnvelope(t, stdout.(*bytes.Buffer).String())
+	result := env["result"].(map[string]interface{})
+	if advanced, _ := result["advanced"].(bool); !advanced {
+		t.Fatalf("expected advanced:true, got %v", result)
+	}
+	if blocked, _ := result["blocked"].(bool); blocked {
+		t.Fatalf("expected unblocked finalize result, got %v", result)
+	}
+	if nextPhase := int(result["next_phase"].(float64)); nextPhase != 2 {
+		t.Fatalf("next_phase = %d, want 2", nextPhase)
+	}
+
+	for _, rel := range []string{
+		"build/phase-1/verification.json",
+		"build/phase-1/gates.json",
+		"build/phase-1/review.json",
+		"build/phase-1/continue.json",
+	} {
+		if _, err := os.Stat(filepath.Join(dataDir, rel)); err != nil {
+			t.Fatalf("expected report %s: %v", rel, err)
+		}
+	}
+
+	var state colony.ColonyState
+	if err := store.LoadJSON("COLONY_STATE.json", &state); err != nil {
+		t.Fatalf("failed to reload state: %v", err)
+	}
+	if state.State != colony.StateREADY {
+		t.Fatalf("state = %s, want READY", state.State)
+	}
+	if state.CurrentPhase != 2 {
+		t.Fatalf("current_phase = %d, want 2", state.CurrentPhase)
+	}
+	if state.BuildStartedAt != nil {
+		t.Fatal("expected BuildStartedAt to be cleared")
+	}
+	if state.Plan.Phases[0].Status != colony.PhaseCompleted {
+		t.Fatalf("phase 1 status = %s, want completed", state.Plan.Phases[0].Status)
+	}
+	if state.Plan.Phases[1].Status != colony.PhaseReady {
+		t.Fatalf("phase 2 status = %s, want ready", state.Plan.Phases[1].Status)
+	}
+
+	var report codexContinueReport
+	if err := store.LoadJSON("build/phase-1/continue.json", &report); err != nil {
+		t.Fatalf("failed to load continue report: %v", err)
+	}
+	if !report.Advanced {
+		t.Fatalf("continue report advanced = false, want true: %+v", report)
+	}
+	if len(report.WorkerFlow) != 5 {
+		t.Fatalf("worker flow count = %d, want watcher + 3 review + housekeeping", len(report.WorkerFlow))
+	}
+}
+
 func TestContinueRecordsWorkerFlowInStateReportAndSpawnSummary(t *testing.T) {
 	t.Setenv("AETHER_OUTPUT_MODE", "json")
 	saveGlobals(t)
@@ -2908,7 +3151,6 @@ func TestContinue_StateNotModifiedOnReportSaveFailure(t *testing.T) {
 		t.Fatalf("phase 2 status = %s, want ready", state.Plan.Phases[1].Status)
 	}
 }
-
 
 func TestContinueDetectsAbandonedBuild(t *testing.T) {
 	t.Setenv("AETHER_OUTPUT_MODE", "json")

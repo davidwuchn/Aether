@@ -54,6 +54,8 @@ var planCmd = &cobra.Command{
 		refresh, _ := cmd.Flags().GetBool("refresh")
 		forceAlias, _ := cmd.Flags().GetBool("force")
 		synthetic, _ := cmd.Flags().GetBool("synthetic")
+		planOnly, _ := cmd.Flags().GetBool("plan-only")
+		depth, _ := cmd.Flags().GetString("depth")
 		workerTimeout, err := resolveWorkerTimeoutFlag(cmd)
 		if err != nil {
 			outputError(1, err.Error(), nil)
@@ -62,6 +64,8 @@ var planCmd = &cobra.Command{
 		result, err := runCodexPlanWithOptions(skillWorkspaceRoot(), codexPlanOptions{
 			Refresh:       refresh || forceAlias,
 			Synthetic:     synthetic,
+			PlanOnly:      planOnly,
+			Depth:         depth,
 			WorkerTimeout: workerTimeout,
 		})
 		if err != nil {
@@ -85,6 +89,17 @@ var buildCmd = &cobra.Command{
 		}
 
 		selectedTasks := normalizeCLIStringList(mustGetStringArray(cmd, "task"))
+		planOnly, _ := cmd.Flags().GetBool("plan-only")
+		if planOnly {
+			result, state, phase, dispatches, err := runCodexBuildPlanOnly(skillWorkspaceRoot(), phaseNum, selectedTasks)
+			if err != nil {
+				outputError(1, err.Error(), nil)
+				return nil
+			}
+			outputWorkflow(result, renderBuildPlanOnlyVisual(state, phase, dispatches))
+			return nil
+		}
+
 		syntheticBuild, _ := cmd.Flags().GetBool("synthetic")
 		result, err := runCodexBuild(skillWorkspaceRoot(), phaseNum, selectedTasks, syntheticBuild)
 		if err != nil {
@@ -116,6 +131,19 @@ var continueCmd = &cobra.Command{
 	Short: "Verify the active build packet, close dispatched workers, and advance honestly",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		planOnly, _ := cmd.Flags().GetBool("plan-only")
+		if planOnly {
+			result, state, phase, dispatches, err := runCodexContinuePlanOnly(skillWorkspaceRoot(), codexContinueOptions{
+				ReconcileTaskIDs: normalizeCLIStringList(mustGetStringArray(cmd, "reconcile-task")),
+			})
+			if err != nil {
+				outputError(1, err.Error(), nil)
+				return nil
+			}
+			outputWorkflow(result, renderContinuePlanOnlyVisual(state, phase, dispatches))
+			return nil
+		}
+
 		result, state, phase, nextPhase, housekeeping, final, err := runCodexContinue(skillWorkspaceRoot(), codexContinueOptions{
 			ReconcileTaskIDs: normalizeCLIStringList(mustGetStringArray(cmd, "reconcile-task")),
 		})
@@ -578,18 +606,28 @@ func init() {
 	colonizeCmd.Flags().Duration("worker-timeout", 0, "Override per-worker timeout for real surveyor dispatches (e.g. 5m)")
 	planCmd.Flags().Bool("refresh", false, "Regenerate the plan even when an existing plan is already present")
 	planCmd.Flags().Bool("force", false, "Alias for --refresh")
+	planCmd.Flags().Bool("plan-only", false, "Print the planning dispatch manifest without mutating colony state or spawning workers")
+	planCmd.Flags().String("depth", "", "Planning depth: fast, balanced, deep, or exhaustive")
 	planCmd.Flags().Bool("synthetic", false, "Skip real worker dispatch and use local synthesis only")
 	planCmd.Flags().Duration("worker-timeout", 0, "Override per-worker timeout for real planning dispatches (e.g. 5m)")
+	planFinalizeCmd.Flags().String("completion-file", "", "JSON file containing plan_manifest and external planning worker results (use - for stdin)")
 	buildCmd.Flags().StringArray("task", nil, "Redispatch only the specified task ID (repeatable or comma-separated)")
+	buildCmd.Flags().Bool("plan-only", false, "Print the build dispatch manifest without mutating colony state or spawning workers")
 	buildCmd.Flags().Bool("synthetic", false, "Skip real worker dispatch and use local synthesis only")
+	buildFinalizeCmd.Flags().String("completion-file", "", "JSON file containing dispatch_manifest and external worker results (use - for stdin)")
 	continueCmd.Flags().StringArray("reconcile-task", nil, "Mark one or more task IDs as manually reconciled before continue gating (repeatable or comma-separated)")
+	continueCmd.Flags().Bool("plan-only", false, "Print the continue verification/review manifest without mutating colony state or spawning review workers")
+	continueFinalizeCmd.Flags().String("completion-file", "", "JSON file containing continue_manifest and external review worker results (use - for stdin)")
 	preferencesCmd.Flags().Bool("list", false, "List stored preferences")
 
 	rootCmd.AddCommand(layEggsCmd)
 	rootCmd.AddCommand(colonizeCmd)
 	rootCmd.AddCommand(planCmd)
+	rootCmd.AddCommand(planFinalizeCmd)
 	rootCmd.AddCommand(buildCmd)
+	rootCmd.AddCommand(buildFinalizeCmd)
 	rootCmd.AddCommand(continueCmd)
+	rootCmd.AddCommand(continueFinalizeCmd)
 	rootCmd.AddCommand(sealCmd)
 	rootCmd.AddCommand(focusCmd)
 	rootCmd.AddCommand(redirectCmd)
