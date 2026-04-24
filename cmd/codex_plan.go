@@ -149,8 +149,32 @@ func runCodexPlanWithOptions(root string, opts codexPlanOptions) (map[string]int
 		}, nil
 	}
 
-	if opts.Refresh && state.CurrentPhase > 0 {
-		return nil, fmt.Errorf("cannot refresh the plan while phase %d is already active", state.CurrentPhase)
+	if opts.Refresh {
+		if state.CurrentPhase > 0 {
+			hasCompletedPhase := false
+			for _, phase := range state.Plan.Phases {
+				if phase.Status == colony.PhaseCompleted {
+					hasCompletedPhase = true
+					break
+				}
+			}
+			if hasCompletedPhase {
+				return nil, fmt.Errorf("cannot force-replan after completed phases; archive this colony and start a new one")
+			}
+			// In-progress phase with no completed work — stale state. Reset for fresh plan.
+			for i := range state.Plan.Phases {
+				state.Plan.Phases[i].Status = colony.PhaseReady
+				for j := range state.Plan.Phases[i].Tasks {
+					state.Plan.Phases[i].Tasks[j].Status = colony.TaskPending
+				}
+			}
+			state.CurrentPhase = 0
+			state.State = colony.StateREADY
+			if err := store.SaveJSON("COLONY_STATE.json", state); err != nil {
+				return nil, fmt.Errorf("failed to reset stale phase state for force-replan: %w", err)
+			}
+		}
+		clearFallbackPlanningArtifacts(root)
 	}
 
 	runHandle, err := beginRuntimeSpawnRun("plan", time.Now().UTC())
@@ -252,6 +276,15 @@ func runCodexPlanWithOptions(root string, opts codexPlanOptions) (map[string]int
 	}
 	if preservedScoutArtifact || preservedRouteArtifact || preservedPlanArtifact || preservedResearchArtifacts > 0 {
 		artifactSource = "worker-written"
+	}
+
+	// Mark fallback artifacts so a subsequent refresh can overwrite them.
+	if dispatchMode == "fallback" {
+		markerPath := filepath.Join(planningDir, ".fallback-marker")
+		os.WriteFile(markerPath, []byte(time.Now().UTC().Format(time.RFC3339)), 0644)
+	} else {
+		// Real or simulated dispatch succeeded — remove any stale marker.
+		os.Remove(filepath.Join(planningDir, ".fallback-marker"))
 	}
 
 	for i := range dispatches {
@@ -1457,6 +1490,42 @@ func writeWorkerPlanArtifact(root, planningDir string, confidence codexPlanConfi
 		return "", false, fmt.Errorf("failed to write worker plan artifact: %w", err)
 	}
 	return path, false, nil
+}
+
+func clearFallbackPlanningArtifacts(root string) {
+	planningDir := filepath.Join(root, ".aether", "data", "planning")
+	markerPath := filepath.Join(planningDir, ".fallback-marker")
+	markerTime := time.Time{}
+	if info, err := os.Stat(markerPath); err == nil {
+		markerTime = info.ModTime()
+	}
+
+	// Always remove the marker itself
+	os.Remove(markerPath)
+
+	fallbackArtifacts := []string{
+		filepath.Join(planningDir, "ROUTE-SETTER.md"),
+		filepath.Join(planningDir, "phase-plan.json"),
+	}
+	for _, f := range fallbackArtifacts {
+		// Only remove if the file predates or matches the fallback marker (it's a fallback artifact).
+		// If the file is newer than the marker, a real worker wrote it — preserve it.
+		if !markerTime.IsZero() {
+			if info, err := os.Stat(f); err == nil && info.ModTime().After(markerTime) {
+				continue
+			}
+		}
+		os.Remove(f)
+	}
+	// Clear phase-research directory contents but keep the directory
+	researchDir := filepath.Join(root, ".aether", "data", "phase-research")
+	entries, err := os.ReadDir(researchDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		os.Remove(filepath.Join(researchDir, entry.Name()))
+	}
 }
 
 func writePhaseResearchArtifacts(root, dir string, survey codexSurveyContext, report codexScoutReport, phases []colony.Phase, snapshots map[string]codexArtifactSnapshot, dispatches []codexPlanningDispatch) ([]string, int, error) {
