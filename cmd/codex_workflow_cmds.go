@@ -90,6 +90,12 @@ var buildCmd = &cobra.Command{
 		}
 
 		selectedTasks := normalizeCLIStringList(mustGetStringArray(cmd, "task"))
+		forceBuild, _ := cmd.Flags().GetBool("force")
+		workerTimeout, err := resolveWorkerTimeoutFlag(cmd)
+		if err != nil {
+			outputError(1, err.Error(), nil)
+			return nil
+		}
 		planOnly, _ := cmd.Flags().GetBool("plan-only")
 		if planOnly {
 			result, state, phase, dispatches, err := runCodexBuildPlanOnly(skillWorkspaceRoot(), phaseNum, selectedTasks)
@@ -102,7 +108,10 @@ var buildCmd = &cobra.Command{
 		}
 
 		syntheticBuild, _ := cmd.Flags().GetBool("synthetic")
-		result, err := runCodexBuild(skillWorkspaceRoot(), phaseNum, selectedTasks, syntheticBuild)
+		result, err := runCodexBuildWithOptions(skillWorkspaceRoot(), phaseNum, selectedTasks, syntheticBuild, codexBuildOptions{
+			WorkerTimeout: workerTimeout,
+			Force:         forceBuild,
+		})
 		if err != nil {
 			outputError(1, err.Error(), nil)
 			return nil
@@ -628,13 +637,17 @@ func init() {
 	planCmd.Flags().Duration("worker-timeout", 0, "Override per-worker timeout for real planning dispatches (e.g. 5m)")
 	planFinalizeCmd.Flags().String("completion-file", "", "JSON file containing plan_manifest and external planning worker results (use - for stdin)")
 	buildCmd.Flags().StringArray("task", nil, "Redispatch only the specified task ID (repeatable or comma-separated)")
+	buildCmd.Flags().Bool("force", false, "Force redispatch of the current active phase after an interrupted build")
 	buildCmd.Flags().Bool("plan-only", false, "Print the build dispatch manifest without mutating colony state or spawning workers")
 	buildCmd.Flags().Bool("synthetic", false, "Skip real worker dispatch and use local synthesis only")
+	buildCmd.Flags().Duration("worker-timeout", 0, "Override per-worker timeout for build dispatches (e.g. 15m)")
 	buildFinalizeCmd.Flags().String("completion-file", "", "JSON file containing dispatch_manifest and external worker results (use - for stdin)")
 	continueCmd.Flags().StringArray("reconcile-task", nil, "Mark one or more task IDs as manually reconciled before continue gating (repeatable or comma-separated)")
 	continueCmd.Flags().Bool("plan-only", false, "Print the continue verification/review manifest without mutating colony state or spawning review workers")
 	continueCmd.Flags().Duration("worker-timeout", 0, "Override per-worker timeout for continue verification/review dispatches (e.g. 15m)")
 	continueFinalizeCmd.Flags().String("completion-file", "", "JSON file containing continue_manifest and external review worker results (use - for stdin)")
+	skipPhaseCmd.Flags().Bool("force", false, "Confirm that the phase should be abandoned and marked complete")
+	skipPhaseCmd.Flags().String("reason", "", "Audit reason for force-skipping the phase")
 	preferencesCmd.Flags().Bool("list", false, "List stored preferences")
 
 	rootCmd.AddCommand(layEggsCmd)
@@ -645,6 +658,7 @@ func init() {
 	rootCmd.AddCommand(buildFinalizeCmd)
 	rootCmd.AddCommand(continueCmd)
 	rootCmd.AddCommand(continueFinalizeCmd)
+	rootCmd.AddCommand(skipPhaseCmd)
 	rootCmd.AddCommand(sealCmd)
 	rootCmd.AddCommand(focusCmd)
 	rootCmd.AddCommand(redirectCmd)

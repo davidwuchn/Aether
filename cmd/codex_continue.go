@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -98,6 +99,8 @@ type codexContinueOptions struct {
 	WorkerTimeout    time.Duration
 }
 
+const abandonedBuildThreshold = 10 * time.Minute
+
 // detectAbandonedBuild checks whether all manifest dispatches are stuck at
 // "spawned" and the build started long enough ago to be considered abandoned.
 // Returns (true, elapsed, summary) when the build is abandoned.
@@ -114,7 +117,7 @@ func detectAbandonedBuild(manifest codexContinueManifest, state colony.ColonySta
 		}
 	}
 	elapsed := time.Since(*state.BuildStartedAt)
-	if elapsed < 10*time.Minute {
+	if elapsed < abandonedBuildThreshold {
 		return false, 0, ""
 	}
 	return true, elapsed, fmt.Sprintf("Build was abandoned %.0f minutes ago: all %d dispatches stuck at 'spawned'", elapsed.Minutes(), len(manifest.Data.Dispatches))
@@ -134,6 +137,50 @@ func abandonedBuildTaskIDs(manifest codexContinueManifest) []string {
 		}
 	}
 	return ids
+}
+
+func missingBuildPacketBlockedResult(state colony.ColonyState, phase colony.Phase, options codexContinueOptions) map[string]interface{} {
+	now := time.Now().UTC()
+	runHandle, _ := beginRuntimeSpawnRun("continue", now)
+	recovery := codexContinueRecoveryPlan{
+		RedispatchCommand: buildForceRedispatchCommand(phase.ID),
+		SkipCommand:       buildSkipPhaseCommand(phase.ID),
+	}
+	summary := fmt.Sprintf("No active build packet was found for phase %d. The previous build may have been interrupted before worker results were recorded.", phase.ID)
+	if state.BuildStartedAt != nil {
+		elapsed := now.Sub(state.BuildStartedAt.UTC())
+		if elapsed > 0 {
+			summary = fmt.Sprintf("%s Build has been active for %s.", summary, formatDurationForCLI(elapsed.Round(time.Second)))
+		}
+	}
+	continueReportRel := filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase.ID), "continue.json"))
+	_ = store.SaveJSON(continueReportRel, codexContinueReport{
+		Phase:       phase.ID,
+		GeneratedAt: now.Format(time.RFC3339),
+		Summary:     summary,
+		Recovery:    recovery,
+		Advanced:    false,
+		Completed:   false,
+		Next:        recovery.RedispatchCommand,
+	})
+	updateSessionSummary("continue", recovery.RedispatchCommand, summary)
+	finishRuntimeSpawnRun(runHandle, "blocked-missing-build-packet", now)
+	result := map[string]interface{}{
+		"advanced":        false,
+		"blocked":         true,
+		"missing_packet":  true,
+		"current_phase":   state.CurrentPhase,
+		"phase_name":      phase.Name,
+		"state":           state.State,
+		"recovery":        recovery,
+		"next":            recovery.RedispatchCommand,
+		"continue_report": displayDataPath(continueReportRel),
+		"blocking_issues": []string{summary},
+	}
+	if options.WorkerTimeout > 0 {
+		result["worker_timeout_sec"] = int(options.WorkerTimeout / time.Second)
+	}
+	return result
 }
 
 // cleanupStaleContinueReports removes stale report files from a phase's build
@@ -163,6 +210,7 @@ type codexContinueRecoveryPlan struct {
 	ReconcileCommand  string   `json:"reconcile_command,omitempty"`
 	RedispatchTasks   []string `json:"redispatch_tasks,omitempty"`
 	RedispatchCommand string   `json:"redispatch_command,omitempty"`
+	SkipCommand       string   `json:"skip_command,omitempty"`
 }
 
 type codexContinueAssessment struct {
@@ -248,10 +296,13 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		return nil, state, colony.Phase{}, nil, nil, false, err
 	}
 	manifest := loadCodexContinueManifest(phase.ID)
-	if state.BuildStartedAt == nil && !manifest.Present {
-		return nil, state, colony.Phase{}, nil, nil, false, fmt.Errorf("No active build packet found. Run `aether build <phase>` first.")
+	if !manifest.Present {
+		return missingBuildPacketBlockedResult(state, phase, options), state, phase, nil, nil, false, nil
 	}
 	if changed, reconcileErr := reconcileContinueCompletedBuildTasks(&state, &phase, &manifest); reconcileErr != nil {
+		if errors.Is(reconcileErr, errRuntimeStateSuperseded) {
+			return continueSupersededResult(state, phase, reconcileErr), state, phase, nil, nil, false, nil
+		}
 		return nil, state, colony.Phase{}, nil, nil, false, reconcileErr
 	} else if changed {
 		state.Plan.Phases[currentIdx] = phase
@@ -270,6 +321,11 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			RedispatchCommand: buildTargetedRedispatchCommand(phase.ID, taskIDs),
 			ReconcileTasks:    taskIDs,
 			ReconcileCommand:  buildContinueReconcileCommand(taskIDs),
+			SkipCommand:       buildSkipPhaseCommand(phase.ID),
+		}
+		nextCommand := recovery.RedispatchCommand
+		if strings.TrimSpace(nextCommand) == "" {
+			nextCommand = buildForceRedispatchCommand(phase.ID)
 		}
 		_ = store.SaveJSON(
 			filepath.ToSlash(filepath.Join("build", fmt.Sprintf("phase-%d", phase.ID), "continue.json")),
@@ -280,6 +336,7 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 				Recovery:    recovery,
 				Advanced:    false,
 				Completed:   false,
+				Next:        nextCommand,
 			},
 		)
 		finishRuntimeSpawnRun(runHandle, "blocked-abandoned", now)
@@ -292,6 +349,7 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 			"phase_name":      phase.Name,
 			"state":           state.State,
 			"recovery":        recovery,
+			"next":            nextCommand,
 			"blocking_issues": []string{abandonedSummary},
 		}, state, phase, nil, nil, false, nil
 	}
@@ -375,6 +433,10 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		})
 		blockedState, flowErr := recordBlockedContinueWorkerFlow(state, now, workerFlow)
 		if flowErr != nil {
+			if errors.Is(flowErr, errRuntimeStateSuperseded) {
+				runStatus = "superseded"
+				return continueSupersededResult(state, phase, flowErr), state, phase, nil, nil, false, nil
+			}
 			return nil, state, phase, nil, nil, false, flowErr
 		}
 		updateSessionSummary("continue", nextCommand, summary)
@@ -437,6 +499,10 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		})
 		blockedState, flowErr := recordBlockedContinueWorkerFlow(state, now, workerFlow)
 		if flowErr != nil {
+			if errors.Is(flowErr, errRuntimeStateSuperseded) {
+				runStatus = "superseded"
+				return continueSupersededResult(state, phase, flowErr), state, phase, nil, nil, false, nil
+			}
 			return nil, state, phase, nil, nil, false, flowErr
 		}
 		updateSessionSummary("continue", nextCommand, summary)
@@ -481,7 +547,9 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		updated     colony.ColonyState
 	)
 	if err := store.UpdateJSONAtomically("COLONY_STATE.json", &updated, func() error {
-		updated = state
+		if err := validateRuntimeStateStillCurrent(updated, phase.ID, state.BuildStartedAt, colony.StateEXECUTING, colony.StateBUILT); err != nil {
+			return err
+		}
 		updated.Events = append(trimmedEvents(updated.Events),
 			fmt.Sprintf("%s|verification_passed|continue|Build verification passed for phase %d", now.Format(time.RFC3339), phase.ID),
 			fmt.Sprintf("%s|gate_passed|continue|Continue gates passed for phase %d", now.Format(time.RFC3339), phase.ID),
@@ -515,6 +583,10 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		}
 		return nil
 	}); err != nil {
+		if errors.Is(err, errRuntimeStateSuperseded) {
+			runStatus = "superseded"
+			return continueSupersededResult(state, phase, err), state, phase, nil, nil, false, nil
+		}
 		return nil, state, phase, nil, nil, false, fmt.Errorf("failed to atomically advance phase: %w", err)
 	}
 
@@ -537,10 +609,11 @@ func runCodexContinue(root string, options codexContinueOptions) (map[string]int
 		return nil, state, phase, nil, &housekeeping, false, err
 	}
 	emitContinueCeremonyFlowSequence("aether-continue", phase, workerFlow)
-	updated.Events = append(updated.Events, continueWorkerFlowEvents(now, workerFlow)...)
+	flowEvents := continueWorkerFlowEvents(now, workerFlow)
+	updated.Events = append(updated.Events, flowEvents...)
 	// Persist side-effect events (review, housekeeping) into colony state.
 	// This is a best-effort append; the core advancement was already committed.
-	_ = store.SaveJSON("COLONY_STATE.json", updated)
+	_ = appendRuntimeStateEventsIfCurrent(updated, flowEvents)
 
 	summary := fmt.Sprintf("Phase %d verified and advanced", phase.ID)
 	if assessment.PartialSuccess {
@@ -672,8 +745,33 @@ func reconcileContinueCompletedBuildTasks(state *colony.ColonyState, phase *colo
 	}
 
 	if changedState {
-		if err := store.SaveJSON("COLONY_STATE.json", *state); err != nil {
+		var updated colony.ColonyState
+		if err := store.UpdateJSONAtomically("COLONY_STATE.json", &updated, func() error {
+			if err := validateRuntimeStateStillCurrent(updated, phase.ID, state.BuildStartedAt, colony.StateEXECUTING, colony.StateBUILT); err != nil {
+				return err
+			}
+			for phaseIdx := range updated.Plan.Phases {
+				if updated.Plan.Phases[phaseIdx].ID != phase.ID {
+					continue
+				}
+				for idx := range updated.Plan.Phases[phaseIdx].Tasks {
+					taskID := buildTaskID(updated.Plan.Phases[phaseIdx].Tasks[idx], idx)
+					if _, ok := completed[taskID]; ok {
+						updated.Plan.Phases[phaseIdx].Tasks[idx].Status = colony.TaskCompleted
+					}
+				}
+				break
+			}
+			return nil
+		}); err != nil {
 			return false, fmt.Errorf("failed to reconcile completed build tasks in colony state: %w", err)
+		}
+		*state = updated
+		for phaseIdx := range state.Plan.Phases {
+			if state.Plan.Phases[phaseIdx].ID == phase.ID {
+				*phase = state.Plan.Phases[phaseIdx]
+				break
+			}
 		}
 	}
 	if changedManifest && strings.TrimSpace(manifest.Path) != "" {
@@ -1347,6 +1445,14 @@ func buildTargetedRedispatchCommand(phaseID int, taskIDs []string) string {
 	return b.String()
 }
 
+func buildForceRedispatchCommand(phaseID int) string {
+	return fmt.Sprintf("aether build %d --force", phaseID)
+}
+
+func buildSkipPhaseCommand(phaseID int) string {
+	return fmt.Sprintf("aether skip-phase %d --force", phaseID)
+}
+
 func continueNextCommandForBlocked(assessment codexContinueAssessment, blockers []string, options codexContinueOptions) string {
 	if continueBlockersContainWorkerTimeout(blockers) {
 		return buildContinueTimeoutRecoveryCommand(options)
@@ -1674,7 +1780,11 @@ func extractVerificationCommandValue(text string) string {
 		start := strings.Index(text, "`")
 		end := strings.Index(text[start+1:], "`")
 		if start >= 0 && end >= 0 {
-			return strings.TrimSpace(text[start+1 : start+1+end])
+			command := strings.TrimSpace(text[start+1 : start+1+end])
+			if looksLikeVerificationCommand(command) {
+				return command
+			}
+			return ""
 		}
 	}
 
@@ -1709,6 +1819,7 @@ func detectVerificationCommandKind(command string) string {
 	switch {
 	case strings.HasPrefix(lower, "go build"),
 		strings.HasPrefix(lower, "npm run build"),
+		strings.HasPrefix(lower, "bun run build"),
 		strings.HasPrefix(lower, "pnpm build"),
 		strings.HasPrefix(lower, "yarn build"),
 		strings.HasPrefix(lower, "cargo build"),
@@ -1717,6 +1828,8 @@ func detectVerificationCommandKind(command string) string {
 		return "build"
 	case strings.HasPrefix(lower, "go test"),
 		strings.HasPrefix(lower, "npm test"),
+		strings.HasPrefix(lower, "bun test"),
+		strings.HasPrefix(lower, "bun run test"),
 		strings.HasPrefix(lower, "pnpm test"),
 		strings.HasPrefix(lower, "yarn test"),
 		strings.HasPrefix(lower, "cargo test"),
@@ -1730,6 +1843,7 @@ func detectVerificationCommandKind(command string) string {
 		return "types"
 	case strings.HasPrefix(lower, "golangci-lint"),
 		strings.HasPrefix(lower, "npm run lint"),
+		strings.HasPrefix(lower, "bun run lint"),
 		strings.HasPrefix(lower, "pnpm lint"),
 		strings.HasPrefix(lower, "yarn lint"),
 		strings.HasPrefix(lower, "cargo clippy"),
@@ -2115,12 +2229,56 @@ func recordBlockedContinueWorkerFlow(state colony.ColonyState, now time.Time, wo
 		return state, err
 	}
 
-	updated := state
-	updated.Events = append(trimmedEvents(updated.Events), continueWorkerFlowEvents(now, workerFlow)...)
-	if err := store.SaveJSON("COLONY_STATE.json", updated); err != nil {
+	var updated colony.ColonyState
+	if err := store.UpdateJSONAtomically("COLONY_STATE.json", &updated, func() error {
+		if err := validateRuntimeStateStillCurrent(updated, state.CurrentPhase, state.BuildStartedAt, colony.StateEXECUTING, colony.StateBUILT); err != nil {
+			return err
+		}
+		updated.Events = append(trimmedEvents(updated.Events), continueWorkerFlowEvents(now, workerFlow)...)
+		return nil
+	}); err != nil {
 		return state, fmt.Errorf("failed to save colony state: %w", err)
 	}
 	return updated, nil
+}
+
+func appendRuntimeStateEventsIfCurrent(expected colony.ColonyState, events []string) error {
+	if len(events) == 0 || store == nil {
+		return nil
+	}
+	var updated colony.ColonyState
+	return store.UpdateJSONAtomically("COLONY_STATE.json", &updated, func() error {
+		if err := validateRuntimeStateMatchesExpected(updated, expected); err != nil {
+			return err
+		}
+		updated.Events = append(trimmedEvents(updated.Events), events...)
+		return nil
+	})
+}
+
+func continueSupersededResult(startState colony.ColonyState, phase colony.Phase, err error) map[string]interface{} {
+	latest := startState
+	if loaded, loadErr := loadActiveColonyState(); loadErr == nil {
+		latest = loaded
+	}
+	summary := "Runtime command was superseded by newer colony state; no state changes were written."
+	if err != nil {
+		summary = strings.TrimSpace(err.Error())
+	}
+	next := nextCommandFromState(latest)
+	if strings.TrimSpace(next) == "" {
+		next = "aether status"
+	}
+	return map[string]interface{}{
+		"advanced":        false,
+		"blocked":         true,
+		"superseded":      true,
+		"current_phase":   latest.CurrentPhase,
+		"phase_name":      phase.Name,
+		"state":           latest.State,
+		"next":            next,
+		"blocking_issues": []string{summary},
+	}
 }
 
 func recordContinueWorkerFlow(workerFlow []codexContinueWorkerFlowStep) error {
