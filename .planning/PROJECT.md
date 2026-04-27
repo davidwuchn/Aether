@@ -4,15 +4,13 @@
 
 Aether is a biomimetic AI colony framework: a Go runtime in `cmd/` and `pkg/` that owns state, worker dispatch, verification, memory, and install/update flows, plus companion command surfaces for Claude Code and OpenCode and a runtime-native Codex CLI lane.
 
-`v1.0` restored the lost colony ceremony and runtime visibility surfaces:
+`v1.0` restored the lost colony ceremony and runtime visibility surfaces.
 
-- Phase-aware build and continue ceremony on Claude/OpenCode
-- `project|meta` colony scope
-- stronger `status` and `watch` runtime visibility
-- runtime-first pheromone inspection and steering
-- hardened OpenCode/Codex packaging parity
+`v1.1` made Aether's context layer trustworthy, inspectable, deterministic, and benchmarkable.
 
-`v1.1` then made Aether's context layer trustworthy, inspectable, deterministic, and benchmarkable.
+`v1.8` added the colony recovery system: `aether recover` detects 7 stuck-state classes, auto-fixes safe issues, prompts for destructive ones, and proves correctness through 10 E2E tests.
+
+`v1.9` added the review persistence system: 7-domain review ledgers accumulate findings across phases, agents persist findings via CLI, colony-prime injects prior reviews into worker context, and full lifecycle integration (seal/entomb/status/init).
 
 ## Core Value
 
@@ -25,19 +23,34 @@ That means:
 - stale run state must not poison future commands
 - verification must lead advancement decisions
 - partial success and recovery must be first-class
+- stuck colonies must be recoverable with a single command
+- review findings must survive `/clear` and accumulate across phases
 
 ## Current State
 
-- Go runtime is healthy and release-ready
-- `v1.3` is complete and shipped 2026-04-21
-- Visual UX fully restored: caste identity, stage separators, emoji consistency, Codex parity
-- Core paths hardened: resume freshness checks, gate integration, transactional updates, model slot system
-- Recovery made reliable: worktree lifecycle fixes, deferred cleanup, orphan branch detection
-- Full trace instrumentation: every run leaves a structured trace with replay, summary, and inspect capabilities
-- All 49 slash commands verified working across Claude Code, OpenCode, and Codex CLI
-- Previous milestones: v1.0 (MVP), v1.1 (Trusted Context), v1.2 (Live Dispatch Truth), v1.3 (Visual Truth) all shipped
-- v1.6 Release Pipeline Integrity complete: Phases 39-46, 11/11 requirements, shipped v1.0.20
-- v1.7 Planning Pipeline Recovery in progress: fix plan --force, route-setter overwrite, scout timeout
+- Go runtime is healthy, v1.0.24 shipped
+- All 10 milestones complete (56 phases, 128 plans)
+- 2910+ tests passing, full E2E regression coverage
+- Stable and dev publish channels with integrity verification
+- Plan recovery pipeline hardened (`--force` always recovers)
+- Colony recovery system shipped: `aether recover` + `--apply` for stuck-state rescue
+- Review persistence system shipped: 7-domain ledger CRUD, colony-prime injection, agent Write tools, lifecycle integration
+- All 50 slash commands working across Claude Code, OpenCode, and Codex CLI
+
+<details>
+<summary>Prior State History</summary>
+
+- v1.0 (MVP, Phases 1-6): Colony ceremony and runtime visibility
+- v1.1 (Trusted Context, Phases 7-11): Context proof and skill routing
+- v1.2 (Live Dispatch Truth, Phases 12-16): Worker dispatch honesty
+- v1.3 (Visual Truth, Phases 17-24): Caste identity, stage separators, trace logging
+- v1.4 (Self-Healing, Phases 25-30): Medic ant, ceremony integrity
+- v1.5 (Runtime Truth Recovery, Phases 31-38): Continue unblock, release v1.0.20
+- v1.6 (Release Pipeline, Phases 39-46): Publish hardening, E2E regression
+- v1.7 (Planning Pipeline, Phases 47-48): Plan --force recovery, E2E recovery test
+- v1.8 (Colony Recovery, Phases 49-51): Stuck-state detection, auto-repair, E2E verification
+
+</details>
 
 ## Architecture / Key Patterns
 
@@ -47,102 +60,107 @@ That means:
 - **YAML remains source-of-truth** for generated wrapper commands
 - **Runtime proof beats wrapper theater**
 - **Shared lifecycle truth matters**; `build`, `plan`, `colonize`, `watch`, `status`, and `continue` should agree on what a worker is doing
-
-## Capability Contract
-
-See [.planning/REQUIREMENTS.md](/Users/callumcowie/repos/Aether/.planning/REQUIREMENTS.md:1) for the active capability contract for `v1.3`.
+- **Recovery is first-class**; stuck colonies get a rescue button, not manual file surgery
+- **Review persistence is first-class**; findings accumulate across phases and survive session resets
 
 ## Milestone Sequence
 
-- [x] v1.0 MVP — Phases 1-6
-- [x] v1.1 Trusted Context — Phases 7-11
-- [x] v1.2 Live Dispatch Truth and Recovery — Phases 12-16
-- [x] v1.3 Visual Truth and Core Hardening — Phases 17-24 (shipped 2026-04-21)
-- [x] v1.4 Self-Healing Colony — Phases 25-30 (completed 2026-04-21)
-- [x] v1.5 Runtime Truth Recovery — Phases 31-38 (completed 2026-04-23, product v1.0.20)
-- [x] v1.6 Release Pipeline Integrity — Phases 39-46 (completed 2026-04-24)
-- [ ] v1.7 Planning Pipeline Recovery — Phases 47+
+- [x] v1.0 MVP -- Phases 1-6
+- [x] v1.1 Trusted Context -- Phases 7-11
+- [x] v1.2 Live Dispatch Truth and Recovery -- Phases 12-16
+- [x] v1.3 Visual Truth and Core Hardening -- Phases 17-24 (shipped 2026-04-21)
+- [x] v1.4 Self-Healing Colony -- Phases 25-30 (completed 2026-04-21)
+- [x] v1.5 Runtime Truth Recovery -- Phases 31-38 (completed 2026-04-23, product v1.0.20)
+- [x] v1.6 Release Pipeline Integrity -- Phases 39-46 (completed 2026-04-24)
+- [x] v1.7 Planning Pipeline Recovery -- Phases 47-48 (completed 2026-04-24)
+- [x] v1.8 Colony Recovery -- Phases 49-51 (completed 2026-04-25)
+- [x] v1.9 Review Persistence -- Phases 52-56 (completed 2026-04-26)
+- [ ] v1.10 Colony Polish -- Phases 57+
 
-## Previous Milestone Result
+## Requirements
 
-`v1.6` is complete. All 11 requirements satisfied, stuck-plan investigation confirmed resolved, v1.0.20 ready to ship.
+### Validated
 
-**v1.3 delivered:**
-- Visual UX fully restored (caste identity, stage separators, emoji consistency, Codex parity)
-- Core paths hardened (install, update, resume, sync, gate-check)
-- Recovery made reliable (worktree cleanup, deferred cleanup, orphan detection)
-- Full trace instrumentation (replay, summary, inspect, rotate)
-- 12/12 requirements satisfied, 8/8 phases verified
+- Colony ceremony and runtime visibility -- v1.0
+- Context proof and skill routing -- v1.1
+- Worker dispatch honesty -- v1.2
+- Caste identity, stage separators, trace logging -- v1.3
+- Medic ant, ceremony integrity -- v1.4
+- Continue unblock, release pipeline -- v1.5
+- Publish hardening, E2E regression -- v1.6
+- Plan recovery, E2E recovery test -- v1.7
+- Stuck-state detection, auto-repair, E2E verification -- v1.8
+- 7-domain review ledger CRUD with colony-prime injection -- v1.9
+- Review agent Write tools with scoped guardrails (28 files, 4 surfaces) -- v1.9
+- Full review lifecycle (seal/entomb/status/init) -- v1.9
 
-The milestone delivered:
+### Active
 
-- a shared worker lifecycle truth model across `colonize`, `plan`, `build`, `watch`, `status`, and `continue`
-- live dispatch visibility with caste identity, deterministic names, wave/stage structure, durations, and real summaries
-- run-scoped spawn state so stale `spawned` workers do not poison later commands
-- stronger worker execution observability and robust repo-trust / timeout handling
-- verification-led `continue` with partial-success awareness
-- manual reconciliation and targeted redispatch for failed or missing work
-- thin, honest Claude/OpenCode ceremony driven by runtime truth and a solid Codex CLI renderer
+- Smart review depth (auto/light/heavy) -- v1.10
+- Gate failure recovery -- v1.10
+- Porter ant (26th caste, interactive delivery) -- v1.10
+- Lifecycle ceremony (seal, init, status, entomb, resume, discuss, chaos, oracle, patrol) -- v1.10
+- Oracle loop fix (research formulation + depth selection) -- v1.10
+- Idea shelving system (persistent colony backlog) -- v1.10
+- QUEEN.md pipeline fix (dedup, wiring, auto-promotion) -- v1.10
 
-`v1.1` is archived at source commit `fc508afb` (`Add runtime proof surfaces and evaluation harness`).
+### Out of Scope
 
-The milestone now delivers:
+| Feature | Reason |
+|---------|--------|
+| Cross-colony ledger sharing | Findings contain code-specific file paths and line numbers that go stale across repos |
+| Auto-block on critical findings | Would create conflicting signals with existing continue-review blocking |
+| Auto finding-to-pheromone promotion | Mapping between "finding" and "action" requires judgment, not automation |
+| Real-time ledger sync across agents | YAGNI -- agents write during build/continue, not concurrently |
+| Ledger web UI | CLI-only for now; web dashboard is a future consideration |
 
-- runtime-native context proof and skill proof
-- deterministic, explainable skill routing with representative stack coverage
-- prompt-integrity trust boundaries with visible block behavior
-- trust-weighted deterministic context assembly
-- application-aware curation that closes the read/write gap
-- a benchmarkable proof/evaluation harness for the trusted-context claim
+## Key Decisions
 
-## Current Milestone: v1.7 Planning Pipeline Recovery
+| Decision | Outcome | Status |
+|----------|---------|--------|
+| Review findings are colony-scoped (not cross-colony) | Code-specific paths go stale across repos | Good |
+| Domain ledger uses append pattern with computed summaries | No separate phase snapshots needed (YAGNI) | Good |
+| All new struct fields use `omitempty` | Backward compatibility with old JSON | Good |
+| Zero new dependencies | Uses existing pkg/storage/, cobra, Go stdlib | Good |
+| Tracker gets bugs domain carve-out | Write for findings only, never for applying fixes | Good |
+| Colony-prime reads from cached summary | Performance over 7 direct ledger reads | Good |
 
-**Goal:** Fix the planning pipeline so colonies don't get trapped in unrecoverable states after failed or partial operations.
+## Context
 
-**Target features:**
-
-- **Plan --force always recovers** — When no real build work has happened, `aether plan --force` resets phase status and replans regardless of current state
-- **Route-setter overwrites stale fallback** — On `--force`, fallback artifacts are cleared so the route-setter can always write a fresh plan
-- **Longer default scout timeout** — Raise from 5m to 10m so larger repos don't immediately fall back to local synthesis
-- **E2E recovery test** — Automated test proving init → failed plan → --force replan → real worker plan works end-to-end
-
-## Milestone Sequence
-
-- [x] v1.0 MVP — Phases 1-6
-- [x] v1.1 Trusted Context — Phases 7-11
-- [x] v1.2 Live Dispatch Truth and Recovery — Phases 12-16
-- [x] v1.3 Visual Truth and Core Hardening — Phases 17-24 (shipped 2026-04-21)
-- [x] v1.4 Self-Healing Colony — Phases 25-30 (completed 2026-04-21)
-- [x] v1.5 Runtime Truth Recovery — Phases 31-38 (completed 2026-04-23, product v1.0.20)
-- [ ] v1.7 Planning Pipeline Recovery — Phases 47+
-
-## Next Move
-
-Execute v1.7 phases starting with Phase 47.
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+Shipped v1.9 with 104 files changed, +9,713 / -300 lines of Go.
+Tech stack: Go 1.24, Cobra CLI, pkg/storage file locking.
+58+ tests added across milestone. All passing.
 
 ## Explicit Deferrals
 
-These remain promising, but they are not the next best move until dispatch truth and recovery are solid:
+These remain promising but are not the next best move:
 
 - pheromone markets and reputation exchange
 - swarm memory beyond the current hive/wisdom path
 - federation / inter-colony coordination
 - self-mutating agents / evolution engine
-- more agents without first fixing dispatch truth, recovery, and runtime honesty
+
+## Current Milestone: v1.10 Colony Polish
+
+**Goal:** Make every colony interaction feel complete and self-sustaining — review depth is smart, gate failures are recoverable, lifecycle commands have real ceremony, delivery has an interactive ant, the Oracle has proper research formulation, ideas get shelved for future colonies, and QUEEN.md is fully wired.
+
+**Target features:**
+- Smart review depth — auto/light/heavy modes, `--light` flag, final phase always heavy
+- Gate failure recovery — clear, actionable recovery paths when verification gates fail
+- Porter ant — 26th caste, wired into lifecycle (especially seal), interactive publishing prompts
+- Lifecycle ceremony — seal (flags, midden, wisdom, pheromone cleanup), init (deeper analysis), status (version info), entomb (wisdom extraction), resume (staleness), discuss/council (codebase-aware comprehensive questioning), chaos/oracle/patrol (signal integration)
+- Oracle loop fix — fix callback URL AND restore research formulation with depth selection
+- Idea shelving — persistent backlog, auto-shelve at seal, surface at init
+- QUEEN.md full fix — dedup explosion, pipeline wiring (global wisdom not injected, sections ignored, auto-promotion missing)
+
+**Design context:** Full plan detail preserved in `.planning/research/v1.10-PLANS-CONTEXT.md`
+
+## Next Move
+
+Plan next milestone with `/gsd-new-milestone`.
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+*Last updated: 2026-04-26 after starting v1.10 milestone*

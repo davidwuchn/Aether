@@ -86,9 +86,11 @@ func TestCharterWriteLegacyFlags(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(hubDir, "QUEEN.md"))
+	// charter-write now targets local repo QUEEN.md, not the global hub
+	localQueenPath := filepath.Join(tmpDir, ".aether", "QUEEN.md")
+	data, err := os.ReadFile(localQueenPath)
 	if err != nil {
-		t.Fatalf("read QUEEN.md: %v", err)
+		t.Fatalf("read local QUEEN.md: %v", err)
 	}
 	text := string(data)
 	for _, want := range []string{
@@ -99,7 +101,7 @@ func TestCharterWriteLegacyFlags(t *testing.T) {
 		"- **Goals:** parity, resilience",
 	} {
 		if !strings.Contains(text, want) {
-			t.Fatalf("QUEEN.md missing %q:\n%s", want, text)
+			t.Fatalf("local QUEEN.md missing %q:\n%s", want, text)
 		}
 	}
 }
@@ -503,7 +505,7 @@ func TestOracleCompatibilityRunsAutonomousLoop(t *testing.T) {
 	newOracleWorkerInvoker = func() codex.WorkerInvoker { return &oracleCompletingInvoker{} }
 	defer func() { newOracleWorkerInvoker = originalInvoker }()
 
-	rootCmd.SetArgs([]string{"oracle", "release parity"})
+	rootCmd.SetArgs([]string{"oracle", "--depth", "exhaustive", "release parity"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("oracle start returned error: %v", err)
 	}
@@ -632,7 +634,7 @@ func TestOracleCompatibilityStopKillsControllerProcessTree(t *testing.T) {
 		t.Fatalf("write loop marker: %v", err)
 	}
 
-	result, err := runOracleCompatibility(root, []string{"stop"})
+	result, err := runOracleCompatibility(root, []string{"stop"}, "")
 	if err != nil {
 		t.Fatalf("oracle stop returned error: %v", err)
 	}
@@ -768,7 +770,7 @@ func TestOracleCompatibilityRetriesRecoverableWorkerFailure(t *testing.T) {
 	newOracleWorkerInvoker = func() codex.WorkerInvoker { return retrying }
 	defer func() { newOracleWorkerInvoker = originalInvoker }()
 
-	rootCmd.SetArgs([]string{"oracle", "retryable oracle topic"})
+	rootCmd.SetArgs([]string{"oracle", "--depth", "exhaustive", "retryable oracle topic"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("oracle start returned error: %v", err)
 	}
@@ -815,7 +817,7 @@ func TestOracleCompatibilityAppliesSurveyAttemptPolicy(t *testing.T) {
 	newOracleWorkerInvoker = func() codex.WorkerInvoker { return capturing }
 	defer func() { newOracleWorkerInvoker = originalInvoker }()
 
-	rootCmd.SetArgs([]string{"oracle", "release parity"})
+	rootCmd.SetArgs([]string{"oracle", "--depth", "exhaustive", "release parity"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("oracle start returned error: %v", err)
 	}
@@ -873,7 +875,7 @@ func TestOracleCompatibilityWritesHeartbeatWhileRunning(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := runOracleCompatibility(root, []string{"heartbeat test"})
+		_, err := runOracleCompatibility(root, []string{"heartbeat test"}, "")
 		done <- err
 	}()
 
@@ -934,7 +936,7 @@ func TestOracleCompatibilityShortCircuitsOnValidResponseFile(t *testing.T) {
 	}
 	defer func() { oracleAttemptPolicyForPhase = originalPolicy }()
 
-	rootCmd.SetArgs([]string{"oracle", "release parity"})
+	rootCmd.SetArgs([]string{"oracle", "--depth", "exhaustive", "release parity"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("oracle start returned error: %v", err)
 	}
@@ -972,7 +974,7 @@ func TestOracleCompatibilityRejectsDuplicateActiveLoop(t *testing.T) {
 		t.Fatalf("write oracle state: %v", err)
 	}
 
-	_, err := runOracleCompatibility(root, []string{"new topic"})
+	_, err := runOracleCompatibility(root, []string{"new topic"}, "")
 	if err == nil {
 		t.Fatal("expected duplicate active loop error, got nil")
 	}
@@ -1388,5 +1390,476 @@ func TestRunCompatibilityPassesWorkerTimeoutToBuildAndContinue(t *testing.T) {
 	}
 	if !recorder.hasCall("continue-verification-1", 23*time.Minute) {
 		t.Fatalf("expected continue watcher timeout to be 23m, got %+v", recorder.calls)
+	}
+}
+
+func TestFormulateOracleBriefContainsRequiredSections(t *testing.T) {
+	root := t.TempDir()
+	oracleDir := filepath.Join(root, ".aether", "oracle")
+	if err := os.MkdirAll(oracleDir, 0755); err != nil {
+		t.Fatalf("mkdir oracle dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	brief := formulateOracleBrief(root, "release parity analysis", "go", []string{"go"}, []string{"cobra"})
+
+	if !strings.Contains(brief, "release parity analysis") {
+		t.Error("brief missing topic")
+	}
+	if !strings.Contains(brief, "go") {
+		t.Error("brief missing project type/language")
+	}
+	if !strings.Contains(brief, "cobra") {
+		t.Error("brief missing framework")
+	}
+	if !strings.Contains(brief, "go.mod") {
+		t.Error("brief missing codebase structure")
+	}
+	if !strings.Contains(brief, "Topic") || !strings.Contains(brief, "Project Profile") || !strings.Contains(brief, "Codebase Structure") {
+		t.Error("brief missing required section headers")
+	}
+
+	data, err := os.ReadFile(filepath.Join(oracleDir, "brief.md"))
+	if err != nil {
+		t.Fatalf("brief.md not written: %v", err)
+	}
+	if strings.TrimSpace(string(data)) != brief {
+		t.Error("brief.md content does not match returned brief")
+	}
+}
+
+func TestBuildBriefInformedQuestionsReferencesBriefContent(t *testing.T) {
+	brief := `## Topic
+release parity analysis
+
+## Project Profile
+- Type: go
+- Languages: go
+- Frameworks: cobra, gin
+
+## Colony Goal
+Ship cross-platform parity
+
+## Codebase Structure
+- cmd/
+- pkg/
+- .aether/
+
+## Active Signals
+- FOCUS: cross-platform testing
+- REDIRECT: no breaking changes
+
+## Recent Learnings
+- Always test with go vet`
+
+	questions := buildBriefInformedQuestions("release parity analysis", brief, "go")
+
+	if len(questions) < 5 {
+		t.Fatalf("expected at least 5 questions, got %d", len(questions))
+	}
+	if len(questions) > 8 {
+		t.Fatalf("expected at most 8 questions, got %d", len(questions))
+	}
+
+	allText := ""
+	for _, q := range questions {
+		allText += q.Text + "\n"
+		if q.Status != "open" {
+			t.Errorf("question %s status = %q, want open", q.ID, q.Status)
+		}
+		if q.Confidence != 0 {
+			t.Errorf("question %s confidence = %d, want 0", q.ID, q.Confidence)
+		}
+	}
+
+	hasProjectType := strings.Contains(allText, "go")
+	hasFramework := strings.Contains(allText, "cobra") || strings.Contains(allText, "gin")
+	hasDirectory := strings.Contains(allText, "cmd/") || strings.Contains(allText, "pkg/")
+	hasSignal := strings.Contains(allText, "cross-platform testing") || strings.Contains(allText, "breaking changes")
+
+	if !hasProjectType {
+		t.Error("questions do not reference project type from brief")
+	}
+	if !hasFramework {
+		t.Error("questions do not reference frameworks from brief")
+	}
+	if !hasDirectory {
+		t.Error("questions do not reference directories from brief")
+	}
+	if !hasSignal {
+		t.Error("questions do not reference signals from brief")
+	}
+}
+
+func TestBuildBriefInformedQuestionsWorksWithMinimalBrief(t *testing.T) {
+	brief := `## Topic
+simple bug fix
+
+## Project Profile
+- Type: unknown
+- Languages: none detected
+- Frameworks: none detected
+
+## Colony Goal
+(no colony goal set)
+
+## Codebase Structure
+- main.go
+
+## Active Signals
+(none)
+
+## Recent Learnings
+(none)`
+
+	questions := buildBriefInformedQuestions("simple bug fix", brief, "unknown")
+
+	if len(questions) < 5 {
+		t.Fatalf("expected at least 5 questions even with minimal brief, got %d", len(questions))
+	}
+
+	allText := ""
+	for _, q := range questions {
+		allText += q.Text + "\n"
+	}
+	if !strings.Contains(allText, "simple bug fix") {
+		t.Error("questions do not reference topic in minimal brief")
+	}
+}
+
+func TestCurrentOracleRedirectAreasReturnsRedirectSignals(t *testing.T) {
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	pf := colony.PheromoneFile{
+		Signals: []colony.PheromoneSignal{
+			{ID: "1", Type: "FOCUS", Active: true, Content: json.RawMessage(`"test this"`), CreatedAt: now},
+			{ID: "2", Type: "REDIRECT", Active: true, Content: json.RawMessage(`"avoid that"`), CreatedAt: now},
+			{ID: "3", Type: "REDIRECT", Active: false, Content: json.RawMessage(`"inactive redirect"`), CreatedAt: now},
+		},
+	}
+	if err := s.SaveJSON("pheromones.json", pf); err != nil {
+		t.Fatalf("save pheromones: %v", err)
+	}
+
+	redirects := currentOracleRedirectAreas()
+
+	if len(redirects) != 1 {
+		t.Fatalf("expected 1 active redirect, got %d: %v", len(redirects), redirects)
+	}
+	if redirects[0] != "avoid that" {
+		t.Errorf("expected 'avoid that', got %q", redirects[0])
+	}
+}
+
+func TestLoadColonyLearningsReturnsRecentInstincts(t *testing.T) {
+	root := t.TempDir()
+	aetherDir := filepath.Join(root, ".aether", "data")
+	if err := os.MkdirAll(aetherDir, 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	state := colony.ColonyState{
+		Version:    "3.0",
+		Goal:       ptrString("Build greatness"),
+		Memory: colony.Memory{
+			Instincts: []colony.Instinct{
+				{ID: "i1", Trigger: "old trigger", Action: "old action", CreatedAt: "2020-01-01T00:00:00Z"},
+				{ID: "i2", Trigger: "recent trigger 1", Action: "recent action 1", CreatedAt: now},
+				{ID: "i3", Trigger: "recent trigger 2", Action: "recent action 2", CreatedAt: now},
+				{ID: "i4", Trigger: "recent trigger 3", Action: "recent action 3", CreatedAt: now},
+				{ID: "i5", Trigger: "recent trigger 4", Action: "recent action 4", CreatedAt: now},
+				{ID: "i6", Trigger: "recent trigger 5", Action: "recent action 5", CreatedAt: now},
+				{ID: "i7", Trigger: "recent trigger 6", Action: "recent action 6", CreatedAt: now},
+			},
+		},
+	}
+	data, _ := json.Marshal(state)
+	if err := os.WriteFile(filepath.Join(aetherDir, "COLONY_STATE.json"), data, 0644); err != nil {
+		t.Fatalf("write colony state: %v", err)
+	}
+
+	learnings := loadColonyLearnings(root)
+
+	if len(learnings) != 5 {
+		t.Fatalf("expected 5 learnings, got %d: %v", len(learnings), learnings)
+	}
+	if !strings.Contains(learnings[0], "recent trigger 6") {
+		t.Errorf("expected most recent instinct first, got: %q", learnings[0])
+	}
+}
+
+func TestLoadColonyLearningsReturnsEmptyWhenMissing(t *testing.T) {
+	root := t.TempDir()
+	learnings := loadColonyLearnings(root)
+	if len(learnings) != 0 {
+		t.Fatalf("expected empty learnings for missing file, got %d", len(learnings))
+	}
+}
+
+func TestResolveOracleDepth(t *testing.T) {
+	tests := []struct {
+		name     string
+		depth    string
+		wantMax  int
+		wantConf int
+	}{
+		{"quick", "quick", 2, 60},
+		{"balanced", "balanced", 4, 85},
+		{"deep", "deep", 6, 95},
+		{"exhaustive", "exhaustive", 10, 99},
+		{"empty defaults to balanced", "", 4, 85},
+		{"invalid defaults to balanced", "invalid", 4, 85},
+		{"case insensitive", "QUICK", 2, 60},
+		{"whitespace trimmed", "  deep  ", 6, 95},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := resolveOracleDepth(tt.depth)
+			if cfg.MaxIterations != tt.wantMax {
+				t.Errorf("MaxIterations = %d, want %d", cfg.MaxIterations, tt.wantMax)
+			}
+			if cfg.TargetConfidence != tt.wantConf {
+				t.Errorf("TargetConfidence = %d, want %d", cfg.TargetConfidence, tt.wantConf)
+			}
+		})
+	}
+}
+
+func TestOracleDepthFlagSetsMaxIterations(t *testing.T) {
+	saveGlobals(t)
+	resetRootCmd(t)
+	var buf bytes.Buffer
+	stdout = &buf
+
+	s, tmpDir := newTestStore(t)
+	defer os.RemoveAll(tmpDir)
+	store = s
+	root := filepath.Dir(filepath.Dir(s.BasePath()))
+	withWorkingDir(t, root)
+
+	agentsDir := filepath.Join(root, ".codex", "agents")
+	if err := os.MkdirAll(agentsDir, 0755); err != nil {
+		t.Fatalf("mkdir agents: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/oracle-depth-test\n\ngo 1.24\n"), 0644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(agentsDir, "aether-oracle.toml"), validCodexAgentTOML("aether-oracle", "oracle"), 0644); err != nil {
+		t.Fatalf("write oracle agent: %v", err)
+	}
+
+	newOracleWorkerInvoker = func() codex.WorkerInvoker { return &oracleCompletingInvoker{} }
+
+	rootCmd.SetArgs([]string{"oracle", "--depth", "deep", "release parity"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("oracle with --depth deep returned error: %v", err)
+	}
+
+	// Verify state has MaxIterations=6
+	statePath := filepath.Join(root, ".aether", "oracle", "state.json")
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read oracle state: %v", err)
+	}
+	var state oracleStateFile
+	if err := json.Unmarshal(data, &state); err != nil {
+		t.Fatalf("parse oracle state: %v", err)
+	}
+	if state.MaxIterations != 6 {
+		t.Errorf("MaxIterations = %d, want 6 (deep)", state.MaxIterations)
+	}
+	if state.TargetConfidence != 95 {
+		t.Errorf("TargetConfidence = %d, want 95 (deep)", state.TargetConfidence)
+	}
+	if state.Depth != "Deep" {
+		t.Errorf("Depth = %q, want %q", state.Depth, "Deep")
+	}
+}
+
+func TestExtractKeywords(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want int // expected keyword count (all unique, 3+ chars)
+	}{
+		{"empty", "", 0},
+		{"short words only", "an it is", 0},
+		{"mixed", "the authentication flow for the REST API", 6},
+		{"punctuation", "What is the best caching strategy?", 5},
+		{"duplicates", "database database database connection", 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractKeywords(tt.text)
+			if len(got) != tt.want {
+				t.Errorf("extractKeywords(%q) got %d keywords %v, want %d", tt.text, len(got), got, tt.want)
+			}
+		})
+	}
+	// Verify specific content for the mixed case
+	kw := extractKeywords("the authentication flow for the REST API")
+	kwSet := make(map[string]bool)
+	for _, k := range kw {
+		kwSet[k] = true
+	}
+	for _, expected := range []string{"the", "authentication", "flow", "for", "rest", "api"} {
+		if len(expected) >= 3 && !kwSet[expected] {
+			t.Errorf("extractKeywords missing expected keyword %q from set %v", expected, kwSet)
+		}
+	}
+}
+
+func TestScoreQuestionImpact(t *testing.T) {
+	plan := oraclePlanFile{
+		Questions: []oracleQuestion{
+			{ID: "Q1", Text: "authentication security best practices", Status: "open", Confidence: 30},
+			{ID: "Q2", Text: "unrelated topic with no gaps", Status: "open", Confidence: 50},
+			{ID: "Q3", Text: "database indexing performance", Status: "open", Confidence: 40},
+		},
+	}
+	state := oracleStateFile{
+		OpenGaps:       []string{"authentication token validation is unclear", "authentication security configuration missing", "authentication flow has gaps"},
+		Contradictions: []string{"conflicting information about database indexing"},
+		TargetConfidence: 85,
+		Iteration:       2,
+	}
+
+	// Q1 should score higher than Q2 because Q1 has massive gap overlap (3 gaps mention "authentication")
+	scoreQ1 := scoreQuestionImpact(plan.Questions[0], plan, state)
+	scoreQ2 := scoreQuestionImpact(plan.Questions[1], plan, state)
+
+	if scoreQ1 <= scoreQ2 {
+		t.Errorf("Q1 (gap overlap) score %f should be > Q2 (no gap overlap) score %f", scoreQ1, scoreQ2)
+	}
+
+	// Q3 should score higher than Q2 because Q3 has contradiction overlap ("database indexing")
+	scoreQ3 := scoreQuestionImpact(plan.Questions[2], plan, state)
+	if scoreQ3 <= scoreQ2 {
+		t.Errorf("Q3 (contradiction overlap) score %f should be > Q2 (no overlap) score %f", scoreQ3, scoreQ2)
+	}
+
+	// Q1 should score higher than Q3 because Q1 has strong gap overlap (3 gaps) + lower confidence deficit
+	if scoreQ1 <= scoreQ3 {
+		t.Errorf("Q1 (gap + confidence deficit) score %f should be > Q3 (contradiction only) score %f", scoreQ1, scoreQ3)
+	}
+
+	// Scores should be in [0, 1] range
+	if scoreQ1 < 0 || scoreQ1 > 1.0 {
+		t.Errorf("scoreQ1 %f out of expected range [0, 1]", scoreQ1)
+	}
+}
+
+func TestSelectOracleQuestionSmartAllAnswered(t *testing.T) {
+	plan := oraclePlanFile{
+		Questions: []oracleQuestion{
+			{ID: "Q1", Text: "question one", Status: "answered", Confidence: 90},
+			{ID: "Q2", Text: "question two", Status: "answered", Confidence: 80},
+		},
+	}
+	state := oracleStateFile{Iteration: 3, TargetConfidence: 85}
+
+	result := selectOracleQuestionSmart(plan, state)
+	if !strings.Contains(result.Text, "All oracle questions have been answered") {
+		t.Errorf("all-answered fallback got Text=%q, want all-answered indicator", result.Text)
+	}
+}
+
+func TestSelectOracleQuestionSmartUntouchedFirst(t *testing.T) {
+	plan := oraclePlanFile{
+		Questions: []oracleQuestion{
+			{ID: "Q1", Text: "authentication security design", Status: "open", Confidence: 30, IterationsTouched: []int{1}},
+			{ID: "Q2", Text: "database connection pooling", Status: "open", Confidence: 30, IterationsTouched: []int{}},
+		},
+	}
+	state := oracleStateFile{Iteration: 2, TargetConfidence: 85}
+
+	result := selectOracleQuestionSmart(plan, state)
+	if result.ID != "Q2" {
+		t.Errorf("untouched question Q2 should be selected, got %q", result.ID)
+	}
+}
+
+func TestSelectOracleQuestionSmartGapOverlap(t *testing.T) {
+	plan := oraclePlanFile{
+		Questions: []oracleQuestion{
+			{ID: "Q1", Text: "authentication token validation flow", Status: "open", Confidence: 50},
+			{ID: "Q2", Text: "unrelated question about something else", Status: "open", Confidence: 50},
+		},
+	}
+	state := oracleStateFile{
+		OpenGaps:        []string{"authentication token validation is unclear", "auth token expiry needs research"},
+		TargetConfidence: 85,
+		Iteration:       1,
+	}
+
+	result := selectOracleQuestionSmart(plan, state)
+	if result.ID != "Q1" {
+		t.Errorf("question with more gap overlap Q1 should be selected, got %q", result.ID)
+	}
+}
+
+func TestSelectOracleQuestionSmartContradictionOverlap(t *testing.T) {
+	plan := oraclePlanFile{
+		Questions: []oracleQuestion{
+			{ID: "Q1", Text: "database indexing performance", Status: "open", Confidence: 50},
+			{ID: "Q2", Text: "caching strategies for apis", Status: "open", Confidence: 50},
+		},
+	}
+	state := oracleStateFile{
+		Contradictions:   []string{"conflicting database indexing advice found"},
+		TargetConfidence: 85,
+		Iteration:        1,
+	}
+
+	result := selectOracleQuestionSmart(plan, state)
+	if result.ID != "Q1" {
+		t.Errorf("question matching contradiction Q1 should be selected, got %q", result.ID)
+	}
+}
+
+func TestSelectOracleQuestionSmartSkipsAnswered(t *testing.T) {
+	plan := oraclePlanFile{
+		Questions: []oracleQuestion{
+			{ID: "Q1", Text: "already answered question", Status: "answered", Confidence: 95},
+			{ID: "Q2", Text: "still open question", Status: "open", Confidence: 20},
+		},
+	}
+	state := oracleStateFile{Iteration: 1, TargetConfidence: 85}
+
+	result := selectOracleQuestionSmart(plan, state)
+	if result.ID != "Q2" {
+		t.Errorf("answered question Q1 should be skipped, got %q", result.ID)
+	}
+}
+
+func TestSelectOracleQuestionSmartConfidenceDeficit(t *testing.T) {
+	plan := oraclePlanFile{
+		Questions: []oracleQuestion{
+			{ID: "Q1", Text: "high confidence question", Status: "open", Confidence: 80},
+			{ID: "Q2", Text: "low confidence question", Status: "open", Confidence: 20},
+		},
+	}
+	state := oracleStateFile{TargetConfidence: 85, Iteration: 1}
+
+	result := selectOracleQuestionSmart(plan, state)
+	if result.ID != "Q2" {
+		t.Errorf("low confidence Q2 (deficit=65) should beat high confidence Q1 (deficit=5), got %q", result.ID)
+	}
+}
+
+func TestSelectOracleQuestionSmartEmptyPlan(t *testing.T) {
+	plan := oraclePlanFile{Questions: []oracleQuestion{}}
+	state := oracleStateFile{Iteration: 1}
+
+	result := selectOracleQuestionSmart(plan, state)
+	if result.ID != "iteration-1" {
+		t.Errorf("empty plan should return fallback question, got ID=%q", result.ID)
 	}
 }

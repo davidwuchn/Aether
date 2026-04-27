@@ -10,6 +10,8 @@
 - **v1.5 Runtime Truth Recovery** - Phases 31-38 (completed 2026-04-23, product v1.0.20)
 - **v1.6 Release Pipeline Integrity** - Phases 39-46 (completed 2026-04-24)
 - **v1.7 Planning Pipeline Recovery** - Phases 47-48 (completed 2026-04-24)
+- **v1.8 Colony Recovery** - Phases 49-51 (shipped 2026-04-25)
+- **v1.9 Review Persistence** - Phases 52-56 (shipped 2026-04-26)
 
 ## Phases
 
@@ -76,174 +78,194 @@
 <details>
 <summary>v1.5 Runtime Truth Recovery (Phases 31-38) -- COMPLETED 2026-04-23</summary>
 
-8 phases, 17 plans, 176 commits. P0 runtime truth fixes, continue unblock, dispatch robustness, cleanup, platform parity, v1.0.20 release, codebase hygiene, Nyquist validation. Product version: v1.0.20. [Full archive -> milestones/v1.5-ROADMAP.md]
+8 phases, 17 plans, 176 commits. P0 runtime truth fixes, continue unblock, dispatch robustness, cleanup, platform parity, v1.0.20 release, codebase hygiene, Nyquist validation. [Full archive -> milestones/v1.5-ROADMAP.md]
 
 </details>
 
 <details>
-<summary>v1.6 Release Pipeline Integrity (Phases 39-46) -- IN PROGRESS (Phases 44.1, 44.2 inserted)</summary>
+<summary>v1.6 Release Pipeline Integrity (Phases 39-46) -- COMPLETED 2026-04-24</summary>
 
-### Phase 39: OpenCode Agent Frontmatter Fix
-**Goal:** Fix the urgent blocker where Aether ships invalid OpenCode agent frontmatter that crashes OpenCode startup in downstream repos.
-**Requirements:** OPN-01 (R068)
-**Success Criteria:**
-1. OpenCode launches successfully in a repo after `aether update --force`
-2. All .opencode/agents/ files have valid OpenCode-schema frontmatter
-3. Install/update validates agent frontmatter before writing to downstream repos
-4. E2E test proves OpenCode startup does not fail on agent config
-**Depends on:** none (urgent blocker)
-
-### Phase 40: Stable Publish Hardening -- COMPLETE 2026-04-23
-**Goal:** Ensure stable publish atomically syncs binary and hub to the same version -- no more 1.0.20 binary with 1.0.19 hub.
-**Requirements:** PUB-01 (R059)
-**Success Criteria:**
-1. `aether install --package-dir "$PWD"` sets hub version.json to match source version
-2. After publish, `aether version` and `~/.aether/system/version.json` agree
-3. Publish fails loudly if binary and hub cannot be synchronized
-4. Reproduce the current 1.0.19/1.0.20 mismatch, then prove it's fixed
-**Depends on:** Phase 39 (ship frontmatter fix before touching publish)
-
-### Phase 41: Dev-Channel Isolation -- COMPLETE 2026-04-23
-**Goal:** Dev publish touches only `aether-dev` and `~/.aether-dev` -- zero contamination of stable channel.
-**Requirements:** PUB-02 (R060)
-**Success Criteria:**
-1. Dev publish does not modify any file under `~/.aether/` or the `aether` binary
-2. Stable publish does not modify any file under `~/.aether-dev/` or `aether-dev` binary
-3. Both channels can be published independently without interference
-4. Test proves channel isolation with concurrent publish scenarios
-**Depends on:** Phase 40
-
-### Phase 42: Downstream Stale-Publish Detection
-**Goal:** `aether update --force` and `aether-dev update --force` detect and report stale/incomplete publishes instead of silently succeeding.
-**Requirements:** PUB-03 (R061), PUB-04 (R061)
-**Success Criteria:**
-1. Downstream update detects when hub version is older than source/binary version
-2. Downstream update reports exactly what is stale (binary, companion files, or both)
-3. Update returns non-zero exit code on stale/incomplete publish
-4. Works for both stable and dev channels independently
-**Depends on:** Phase 40, Phase 41
-
-### Phase 43: Release Integrity Checks and Diagnostics
-**Goal:** Single integrity check validates the full chain (source -> binary -> hub -> downstream) and medic flags incomplete publishes with recovery commands.
-**Requirements:** REL-01 (R062), REL-02 (R063)
-**Success Criteria:**
-1. `aether` command validates source version, binary version, hub version, and companion surfaces together
-2. Medic flags incomplete stable/dev publishes and prints exact recovery command
-3. Integrity check is runnable both locally (source repo) and downstream (consumer repo)
-4. Diagnostic output is human-readable and actionable
-**Depends on:** Phase 42
-
-### Phase 44: Doc Alignment and Archive Consistency
-**Goal:** Operations guide, runbook, and AGENTS.md match actual runtime behavior exactly. Archived milestone evidence is internally consistent.
-**Requirements:** REL-03 (R064), EVD-01 (R066)
-**Plans:** 2 plans
-
-Plans:
-- [ ] 44-01-PLAN.md -- Core docs alignment (operations guide, runbook, CLAUDE.md, CODEX.md, OPENCODE.md)
-- [ ] 44-02-PLAN.md -- Agent/skill docs and v1.5 archive consistency
-
-**Success Criteria:**
-1. AETHER-OPERATIONS-GUIDE.md verification checklist passes as written
-2. publish-update-runbook.md steps match actual command behavior
-3. AGENTS.md operator flows are accurate for both channels
-4. Archived v1.5 docs no longer contain internal contradictions
-5. Any behavior changes from Phases 39-43 are reflected in docs
-**Depends on:** Phase 43 (docs must reflect final behavior)
-
-### Phase 44.1: Downstream Runtime Bugs (INSERTED)
-**Goal:** Fix three runtime bugs found during downstream testing in Sodalitas: false Codex skills count warning, rigid plan --refresh guard, and low default scout timeout.
-**Requirements:** PUB-03 (R061), EVD-02 (R067)
-**Success Criteria:**
-1. `aether update --force` reports correct Codex skills count (no false "1 found, expected 29")
-2. `aether plan --refresh` is allowed when Phase 1 is "ready" with no built artifacts (not blocked)
-3. Default scout/worker timeout raised to 15m (configurable)
-4. Downstream repro confirms all three fixes work in a real repo
-**Depends on:** Phase 44
-
-### Phase 44.2: Command Hygiene and Agent Parity (INSERTED)
-**Goal:** Fix aether-medic.md agent body parity mismatch between Claude and OpenCode, and rename all Aether slash commands from colon format (`ant:command`) to hyphen format (`ant-command`) to comply with current Claude Code skill naming rules.
-**Requirements:** PUB-03 (R061), REL-01 (R059)
-**Plans:** 1 plan
-
-Plans:
-- [x] 44.2-01-PLAN.md -- Medic parity fix and colon-to-hyphen rename across repo
-
-**Success Criteria:**
-1. `TestClaudeOpenCodeAgentContentParity` passes (aether-medic.md matches between Claude and OpenCode)
-2. All 50 slash commands use hyphen format (e.g., `ant-build` not `ant:build`)
-3. All command references in YAML sources, wrappers, docs, and tests updated
-4. `go test ./...` passes with zero failures
-**Depends on:** Phase 44.1
-
-### Phase 45: End-to-End Regression Coverage
-**Goal:** Automated E2E tests for stable and dev publish/update flows that catch regressions before they ship.
-**Requirements:** REL-04 (R065)
-**Plans:** 1 plan
-
-Plans:
-- [x] 45-01-PLAN.md -- Four E2E regression tests for stable/dev publish-update pipeline
-
-**Success Criteria:**
-1. E2E test for stable publish -> downstream update -> version agreement
-2. E2E test for dev publish -> dev downstream update -> version agreement
-3. E2E test for stale publish detection (intentionally stale hub)
-4. E2E test for channel isolation (dev publish does not touch stable)
-5. Tests runnable in CI (`go test`)
-**Depends on:** Phase 43
-
-### Phase 46: Stuck-Plan Investigation and Release Decision -- COMPLETE 2026-04-24
-**Goal:** Verify the stuck `aether plan` issue; make the v1.6 release decision.
-**Requirements:** EVD-02 (R067)
-**Plans:** 1 plan
-
-Plans:
-- [x] 46-01-PLAN.md -- Stuck-plan E2E reproduction test and v1.6 milestone audit
-
-**Success Criteria:**
-1. Stuck `aether plan` issue is reproduced or proven stale in freshly updated repos
-2. If reproducible: fix shipped with regression test
-3. If stale-install fallout: documented as resolved by pipeline hardening
-4. All v1.6 requirements verified and milestone audit passes
-5. Source, binary, hub, and downstream versions all agree for both channels
-**Depends on:** Phase 44, Phase 45
+8 phases (including inserted 44.1, 44.2), 10 plans. OpenCode agent frontmatter fix, stable publish hardening, dev channel isolation, stale publish detection, release integrity checks, doc alignment, E2E regression coverage, stuck-plan investigation. [Full archive -> milestones/v1.6-ROADMAP.md]
 
 </details>
 
 <details>
-<summary>v1.7 Planning Pipeline Recovery (Phases 47-48)</summary>
+<summary>v1.7 Planning Pipeline Recovery (Phases 47-48) -- COMPLETED 2026-04-24</summary>
 
-### Phase 47: Plan Force Recovery
-**Goal:** Fix `aether plan --force` so it always recovers a colony from a bad plan, regardless of phase status, and raise the default scout timeout to reduce premature fallbacks.
-**Requirements:** PLAN-01 (R069), PLAN-02 (R070), TIME-01 (R071)
-**Success Criteria:**
-1. `aether plan --force` resets phase status to allow replanning even when phase is `in_progress` and no real build artifacts exist
-2. On `--force`, fallback planning artifacts (ROUTE-SETTER.md, phase-plan.json) are cleared so route-setter can write fresh output
-3. Default scout worker timeout raised from 5m to 10m
-4. `go test ./...` passes with zero failures
-5. Existing plan behavior (without --force) is unchanged
-**Depends on:** none (standalone fix)
-
-### Phase 48: E2E Recovery Verification
-**Goal:** Automated test proving the full recovery path: init → failed plan → --force replan → real worker plan.
-**Requirements:** TEST-01 (R072)
-**Success Criteria:**
-1. E2E test: init colony → plan with short timeout (fallback) → plan --force → verify worker artifacts written
-2. Test proves route-setter output replaces fallback artifacts after --force
-3. Test proves phase status is correctly reset and replan succeeds
-4. Test runnable in CI (`go test`)
-**Depends on:** Phase 47
+2 phases. Plan --force recovery, fallback artifact cleanup, scout timeout, E2E recovery test. [Full archive -> milestones/v1.7-ROADMAP.md]
 
 </details>
+
+<details>
+<summary>v1.8 Colony Recovery (Phases 49-51) -- SHIPPED 2026-04-25</summary>
+
+3 phases, 6 plans, 17 requirements. Stuck-state scanner (7 detectors), auto-repair pipeline (backup-first, atomic rollback), 10 E2E tests. [Full archive -> milestones/v1.8-ROADMAP.md]
+
+</details>
+
+<details>
+<summary>v1.9 Review Persistence (Phases 52-56) -- SHIPPED 2026-04-26</summary>
+
+5 phases, 9 plans, 31 requirements. Continue-review worker reports, 7-domain review ledger CRUD, colony-prime prior-reviews injection, 7 agent definition updates (28 files, 4 surfaces), seal/entomb/status/init lifecycle integration. [Full archive -> milestones/v1.9-ROADMAP.md]
+
+</details>
+
+### v1.10 Colony Polish (Phases 57-65) -- IN PROGRESS
+
+- [x] **Phase 57: QUEEN.md Pipeline Fix** - Data cleanup, dedup, colony-prime wiring, auto-promotion (completed 2026-04-26)
+- [ ] **Phase 58: Smart Review Depth** - Auto/light/heavy review modes, --light flag, final-phase override
+- [x] **Phase 59: Gate Failure Recovery** - Actionable recovery instructions, incremental gate checking, veto confirmation (completed 2026-04-27)
+- [x] **Phase 60: Oracle Loop Fix** - Callback fix, research formulation, depth selection, state management (completed 2026-04-27)
+- [x] **Phase 61: Porter Ant** - 26th caste registration, agent definitions across 4 surfaces, seal lifecycle wiring (completed 2026-04-27)
+- [x] **Phase 62: Lifecycle Ceremony -- Seal and Init** - Flag blocking, wisdom promotion, pheromone cleanup, rich init research (completed 2026-04-27)
+- [ ] **Phase 63: Lifecycle Ceremony -- Status, Entomb, Resume** - Version display, wisdom extraction, staleness checks
+- [ ] **Phase 64: Lifecycle Ceremony -- Discuss, Chaos, Oracle, Patrol** - Codebase-aware questioning, auto-flagging, persistence suggestions, health checks
+- [ ] **Phase 65: Idea Shelving** - Persistent shelf, auto-shelve at seal, surface at init, entomb preservation
+
+## Phase Details
+
+### Phase 57: QUEEN.md Pipeline Fix
+**Goal**: The QUEEN.md wisdom pipeline is fully wired -- no duplicate entries, global wisdom reaches all workers, and high-confidence instincts promote automatically
+**Depends on**: Nothing (first phase in milestone -- foundational)
+**Requirements**: QUEE-01, QUEE-02, QUEE-03, QUEE-04, QUEE-05, QUEE-06, QUEE-07
+**Success Criteria** (what must be TRUE):
+  1. Running `queen-seed-from-hive` twice reports 0 new entries on the second run (no duplicates)
+  2. Colony-prime worker prompt includes global QUEEN.md wisdom, Philosophies, and Anti-Patterns sections alongside local wisdom
+  3. `queen-promote-instinct` writes to global `~/.aether/QUEEN.md` so promoted instincts reach all colonies
+  4. Running `/ant-seal` automatically promotes instincts with confidence >= 0.8 to QUEEN.md without manual commands
+  5. Hive wisdom test entry and all ~270 duplicate `<repo> wisdom` lines are removed from QUEEN.md
+**Plans**: 3 plans
+
+Plans:
+- [x] 57-01-PLAN.md -- Dedup foundation and readQUEENMd section extension (QUEE-02, QUEE-05)
+- [x] 57-02-PLAN.md -- Seed-from-hive filtering and promote-instinct global write (QUEE-03, QUEE-06)
+- [x] 57-03-PLAN.md -- Colony-prime global QUEEN.md injection and seal auto-promotion (QUEE-01, QUEE-04, QUEE-07)
+
+### Phase 58: Smart Review Depth
+**Goal**: Intermediate phases get fast, light review while final phases and security-sensitive phases always get full review -- saving time without sacrificing safety
+**Depends on**: Phase 57 (colony-prime changes in QUEEN.md fix affect same code area)
+**Requirements**: DEPTH-01, DEPTH-02, DEPTH-03, DEPTH-04, DEPTH-05, DEPTH-06
+**Success Criteria** (what must be TRUE):
+  1. Running `/ant-build` on an intermediate phase skips Auditor, Gatekeeper, Probe, Weaver, Medic, Measurer, and Chaos by default
+  2. Running `/ant-build` on the final phase always runs the full review gauntlet regardless of any flags
+  3. Phases with security or release keywords in their name automatically get heavy review
+  4. User sees a review depth message like "Review depth: light (Phase 3 of 7)" in wrapper output
+  5. `--light` flag is accepted by build and continue commands but cannot override final-phase heavy review
+**Plans**: 2 plans
+
+Plans:
+- [x] 58-01-PLAN.md -- Depth resolution logic, tests, and CLI flags (DEPTH-01, DEPTH-02, DEPTH-03, DEPTH-04)
+- [x] 58-02-PLAN.md -- Build/continue dispatch filtering, visual display, colony-prime injection (DEPTH-02, DEPTH-05, DEPTH-06)
+
+### Phase 59: Gate Failure Recovery
+**Goal**: When verification gates fail, the user gets clear recovery instructions and can fix and re-check only what failed -- no more starting from scratch
+**Depends on**: Phase 58 (review depth changes affect same continue verification flow)
+**Requirements**: GATE-01, GATE-02, GATE-03
+**Success Criteria** (what must be TRUE):
+  1. When a verification gate fails, the output shows specific recovery instructions (not just "FAILED")
+  2. Watcher Veto asks for explicit user confirmation before stashing work -- no silent auto-stash
+  3. Re-running `/ant-continue` after a gate failure only re-checks the previously failed gates, not all gates
+**Plans**: 2 plans
+
+Plans:
+- [ ] 59-01-PLAN.md -- Gate result types, recovery templates, skip logic in Go runtime (GATE-01, GATE-03)
+- [x] 59-02-PLAN.md -- Playbook recovery templates, incremental gate checking, veto confirmation (GATE-01, GATE-02, GATE-03)
+
+### Phase 60: Oracle Loop Fix
+**Goal**: The Oracle has a working research formulation step, depth selection, and proper state management -- it produces deep research, not shallow one-shots
+**Depends on**: Nothing (standalone, no dependency on prior phases)
+**Requirements**: ORCL-01, ORCL-02, ORCL-03, ORCL-04
+**Success Criteria** (what must be TRUE):
+  1. Oracle research begins with a formulated research brief that provides context before iterative research starts
+  2. User can choose research depth (quick, balanced, deep, exhaustive) before the Oracle starts working
+  3. Research state (configuration, gaps, synthesis, progress) persists across Oracle iterations
+  4. OpenCode worker callback uses the correct messaging endpoint (not LiteLLM proxy)
+**Plans**: 3 plans
+
+Plans:
+- [x] 60-01-PLAN.md -- OpenCode callback URL env var override (ORCL-01)
+- [x] 60-02-PLAN.md -- Research brief formulation and depth selection (ORCL-02, ORCL-03)
+- [x] 60-03-PLAN.md -- Smart question formulation replacing lowest-confidence heuristic (ORCL-04)
+
+### Phase 61: Porter Ant
+**Goal**: Aether has a Porter ant (26th caste) that surfaces interactive publish/push/deploy options after seal -- delivery is part of the lifecycle, not a separate manual step
+**Depends on**: Nothing (caste registration is independent; seal integration can coexist with Phase 62 changes)
+**Requirements**: PORT-01, PORT-02, PORT-03, PORT-04, PORT-05
+**Success Criteria** (what must be TRUE):
+  1. Porter appears as the 26th caste with correct emoji, color, label, and name prefixes in all visual maps
+  2. Porter agent definition files exist across all 4 surfaces (Claude, agents-claude mirror, OpenCode, Codex TOML)
+  3. After seal completes, Porter prompts the user interactively with publish/push/deploy options
+  4. `/ant-porter` command exists in YAML source and all platform wrappers
+  5. `porter check` subcommand reports pipeline alignment and readiness
+**Plans**: 3 plans
+
+Plans:
+- [x] 61-01-PLAN.md -- Caste registration, Gatekeeper emoji swap, count bumps (PORT-01)
+- [x] 61-02-PLAN.md -- Agent definitions 4 surfaces, /ant-porter command (PORT-02, PORT-04)
+- [x] 61-03-PLAN.md -- Porter check subcommand, seal lifecycle wiring (PORT-03, PORT-05)
+
+### Phase 62: Lifecycle Ceremony -- Seal and Init
+**Goal**: Seal and init have real ceremony -- seal blocks on active blockers, promotes wisdom, cleans pheromones, and enriches the archive; init researches the codebase deeply before planning started
+**Depends on**: Phase 57 (QUEE-06/07 auto-promotion wiring needed for CERE-02 seal hive promotion)
+**Requirements**: CERE-01, CERE-02, CERE-03, CERE-04, CERE-05
+**Success Criteria** (what must be TRUE):
+  1. Running `/ant-seal` with active blocker-severity flags blocks completion (with `--force` override available)
+  2. Seal automatically promotes instincts with confidence >= 0.8 to Hive Brain (non-blocking -- failures logged but don't stop)
+  3. Seal expires all FOCUS pheromones while preserving REDIRECT pheromones (hard constraints survive)
+  4. CROWNED-ANTHILL.md includes learnings count, promoted instincts count, expired signals, and flags resolved
+  5. Running `/ant-init` provides deeper codebase analysis -- reads README, scans directory structure, detects test frameworks, checks CI configs, reads key source files
+**Plans**: TBD
+
+### Phase 63: Lifecycle Ceremony -- Status, Entomb, Resume
+**Goal**: Status shows runtime context, entomb extracts near-miss wisdom and cleans up properly, and resume detects stale state that could mislead
+**Depends on**: Phase 62 (seal ceremony should be established before entomb and resume changes)
+**Requirements**: CERE-06, CERE-07, CERE-08
+**Success Criteria** (what must be TRUE):
+  1. `/ant-status` dashboard shows runtime version line and a one-line signal summary
+  2. `/ant-entomb` extracts near-miss wisdom (confidence 0.5-0.8), cleans temp files (spawn trees, manifests, review artifacts), and updates registry to inactive with final stats
+  3. `/ant-resume` detects stale FOCUS pheromones referencing completed phases and suggests review
+**Plans**: 3 plans
+  - **Wave 1** (Plans 01, 02): Status version/signal summary + SourcePhase field (01) | Entomb near-miss extraction, temp sweep, registry stats (02)
+  - **Wave 2** *(blocked on Wave 1 completion)* (Plan 03): Resume stale FOCUS detection with wrapper-runtime contract
+
+Plans:
+- [ ] 63-01-PLAN.md -- Status version line, signal summary, SourcePhase field (CERE-06)
+- [ ] 63-02-PLAN.md -- Entomb near-miss extraction, temp sweep, registry final stats (CERE-07)
+- [ ] 63-03-PLAN.md -- Resume stale FOCUS detection with wrapper-runtime contract (CERE-08)
+
+### Phase 64: Lifecycle Ceremony -- Discuss, Chaos, Oracle, Patrol
+**Goal**: Discuss/council asks comprehensive codebase-aware questions, chaos auto-flags findings, oracle suggests persisting research, and patrol does active health checks
+**Depends on**: Phase 63 (wrapper-level changes, no hard dependency but follows lifecycle ceremony progression)
+**Requirements**: CERE-09, CERE-10, CERE-11, CERE-12
+**Success Criteria** (what must be TRUE):
+  1. Running `/ant-discuss` or `/ant-council` analyzes the codebase first, then asks comprehensive multiple-choice questions covering features, priorities, scope, trade-offs, and architecture
+  2. Running `/ant-chaos` auto-flags HIGH severity findings and suggests REDIRECT for recurring midden patterns
+  3. Running `/ant-oracle` suggests persisting high-value research findings as pheromone signals or hive wisdom entries
+  4. Running `/ant-patrol` detects stale pheromones, verifies data file integrity (valid JSON), and checks for interrupted builds
+**Plans**: TBD
+
+### Phase 65: Idea Shelving
+**Goal**: Colonies have continuity -- promising ideas get shelved at seal, surface at init, recurring REDIRECTs become permanent guidance, and shelved ideas survive entomb
+**Depends on**: Phase 62 (seal ceremony integration), Phase 63 (entomb preservation)
+**Requirements**: SHELF-01, SHELF-02, SHELF-03, SHELF-04, SHELF-05
+**Success Criteria** (what must be TRUE):
+  1. A persistent shelf file (`.aether/data/shelf.json`) stores deferred ideas with trigger conditions and metadata
+  2. Running `/ant-seal` automatically shelves promising but unimplemented ideas (low-confidence instincts, unaddressed pheromones, user-mentioned ideas)
+  3. Running `/ant-init` surfaces relevant shelved ideas and lets the user promote them to the new colony or defer again
+  4. REDIRECT pheromones recurring across 2+ phases (same content hash) get auto-shelved as permanent guidance
+  5. Shelved ideas survive `/ant-entomb` -- archived to chambers, not lost
+**Plans**: TBD
 
 ## Progress
 
-| Milestone | Phases | Status | Completed |
-|-----------|--------|--------|-----------|
-| v1.0 | 1-6 | Complete | 2026-04-21 |
-| v1.1 | 7-11 | Complete | 2026-04-21 |
-| v1.2 | 12-16 | Complete | 2026-04-21 |
-| v1.3 | 17-24 | Complete | 2026-04-21 |
-| v1.4 | 25-30 | Complete | 2026-04-21 |
-| v1.5 | 31-38 | Complete | 2026-04-23 |
-| v1.6 | 39-46 | Complete | 2026-04-24 |
-| v1.7 | 47-48 | Complete | 2026-04-24 |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 57. QUEEN.md Pipeline Fix | v1.10 | 3/3 | Complete    | 2026-04-26 |
+| 58. Smart Review Depth | v1.10 | 0/2 | Planned | - |
+| 59. Gate Failure Recovery | v1.10 | 1/2 | Complete    | 2026-04-27 |
+| 60. Oracle Loop Fix | v1.10 | 3/3 | Complete    | 2026-04-27 |
+| 61. Porter Ant | v1.10 | 3/3 | Complete    | 2026-04-27 |
+| 62. Lifecycle Ceremony -- Seal and Init | v1.10 | 3/3 | Complete    | 2026-04-27 |
+| 63. Lifecycle Ceremony -- Status, Entomb, Resume | v1.10 | 0/3 | Planned | - |
+| 64. Lifecycle Ceremony -- Discuss, Chaos, Oracle, Patrol | v1.10 | 0/? | Not started | - |
+| 65. Idea Shelving | v1.10 | 0/? | Not started | - |

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/calcosmic/Aether/pkg/cache"
 	"github.com/calcosmic/Aether/pkg/colony"
+	"github.com/calcosmic/Aether/pkg/storage"
 )
 
 type colonyPrimeOutput struct {
@@ -16,6 +18,7 @@ type colonyPrimeOutput struct {
 	PromptSection string            `json:"prompt_section"`
 	SignalCount   int               `json:"signal_count"`
 	InstinctCount int               `json:"instinct_count"`
+	ReviewCount   int               `json:"review_count"`
 	LogLine       string            `json:"log_line"`
 	Budget        int               `json:"budget"`
 	Used          int               `json:"used"`
@@ -120,6 +123,213 @@ func colonyPrimeLedgerItemFromRanked(item colony.RankedContextCandidate) colonyP
 	}
 }
 
+// priorReviewsCache stores the assembled prior-reviews text and per-domain counts.
+type priorReviewsCache struct {
+	Text         string         `json:"text"`
+	DomainCounts map[string]int `json:"domain_counts"`
+	TotalOpen    int            `json:"total_open"`
+	CacheWriteAt string         `json:"cache_write_at"`
+}
+
+func severityRank(s colony.ReviewSeverity) int {
+	switch s {
+	case colony.ReviewSeverityHigh:
+		return 4
+	case colony.ReviewSeverityMedium:
+		return 3
+	case colony.ReviewSeverityLow:
+		return 2
+	case colony.ReviewSeverityInfo:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func domainPosition(domain string) int {
+	for i, d := range colony.DomainOrder {
+		if d == domain {
+			return i
+		}
+	}
+	return len(colony.DomainOrder)
+}
+
+func buildPriorReviewsSection(s *storage.Store, compact bool) (colonyPrimeSection, int) {
+	budget := 800
+	if compact {
+		budget = 400
+	}
+	maxFindingsPerDomain := 2
+	maxDescLen := 60
+
+	// 1. Check cache (D-04, D-05, D-06)
+	cachePath := "reviews/_summary_cache.json"
+	var cache priorReviewsCache
+	cacheFresh := false
+
+	cacheFullPath := filepath.Join(s.BasePath(), cachePath)
+	cacheStat, cacheStatErr := os.Stat(cacheFullPath)
+	if cacheStatErr == nil {
+		if err := s.LoadJSON(cachePath, &cache); err == nil && cache.Text != "" {
+			// Check if any ledger file is newer than cache (D-06)
+			cacheFresh = true
+			for _, d := range colony.DomainOrder {
+				ledgerStat, err := os.Stat(filepath.Join(s.BasePath(), "reviews", d, "ledger.json"))
+				if err == nil && ledgerStat.ModTime().After(cacheStat.ModTime()) {
+					cacheFresh = false
+					break
+				}
+			}
+		}
+	}
+
+	if cacheFresh && cache.Text != "" {
+		return colonyPrimeSection{
+			name:              "prior_reviews",
+			title:             "Prior Reviews",
+			source:            cacheFullPath,
+			content:           cache.Text,
+			priority:          8,
+			freshnessScore:    1.0,
+			confirmationScore: 1.0, // D-12
+			relevanceScore:    sectionRelevanceScore("prior_reviews"),
+		}, cache.TotalOpen
+	}
+
+	// 2. Read all 7 ledgers, collect open findings per domain (D-02)
+	type domainData struct {
+		domain string
+		open   []colony.ReviewLedgerEntry
+		maxSev colony.ReviewSeverity
+	}
+	var domains []domainData
+	var latestTimestamp string
+
+	for _, d := range colony.DomainOrder {
+		var lf colony.ReviewLedgerFile
+		if err := s.LoadJSON(fmt.Sprintf("reviews/%s/ledger.json", d), &lf); err != nil {
+			continue
+		}
+		var openEntries []colony.ReviewLedgerEntry
+		var maxSev colony.ReviewSeverity
+		for _, e := range lf.Entries {
+			if e.Status == "open" {
+				openEntries = append(openEntries, e)
+				if severityRank(e.Severity) > severityRank(maxSev) {
+					maxSev = e.Severity
+				}
+				if e.GeneratedAt > latestTimestamp {
+					latestTimestamp = e.GeneratedAt
+				}
+			}
+		}
+		if len(openEntries) > 0 {
+			domains = append(domains, domainData{domain: d, open: openEntries, maxSev: maxSev})
+		}
+	}
+
+	// D-11: Omit entirely when no open findings
+	if len(domains) == 0 {
+		return colonyPrimeSection{}, 0
+	}
+
+	// 3. Sort domains by max-severity descending, tiebreak by domainOrder position (D-07, D-09)
+	sort.SliceStable(domains, func(i, j int) bool {
+		ri, rj := severityRank(domains[i].maxSev), severityRank(domains[j].maxSev)
+		if ri != rj {
+			return ri > rj
+		}
+		return domainPosition(domains[i].domain) < domainPosition(domains[j].domain)
+	})
+
+	// 4. Format section content with budget management (D-01, D-03, D-08)
+	var sb strings.Builder
+	sb.WriteString("## Prior Reviews\n\n")
+
+	domainCounts := make(map[string]int)
+	totalOpen := 0
+
+	for _, dd := range domains {
+		totalOpen += len(dd.open)
+		domainCounts[dd.domain] = len(dd.open)
+
+		lineParts := make([]string, 0, len(dd.open))
+		shown := 0
+		for _, e := range dd.open {
+			if shown >= maxFindingsPerDomain {
+				break // D-03
+			}
+			loc := ""
+			if e.File != "" {
+				loc = e.File
+				if e.Line > 0 {
+					loc = fmt.Sprintf("%s:%d", e.File, e.Line)
+				}
+			}
+			desc := e.Description
+			if len(desc) > maxDescLen {
+				desc = desc[:maxDescLen-3] + "..."
+			}
+			if loc != "" {
+				lineParts = append(lineParts, fmt.Sprintf("%s -- %s %s", string(e.Severity), loc, desc))
+			} else {
+				lineParts = append(lineParts, fmt.Sprintf("%s -- %s", string(e.Severity), desc))
+			}
+			shown++
+		}
+
+		domainLabel := fmt.Sprintf("- %s (%d open)", strings.Title(dd.domain), len(dd.open))
+
+		fullLine := domainLabel + ": " + strings.Join(lineParts, ", ")
+		remaining := len(dd.open) - shown
+		if remaining > 0 {
+			fullLine += fmt.Sprintf(" +%d more", remaining)
+		}
+
+		if sb.Len()+len(fullLine)+1 <= budget {
+			sb.WriteString(fullLine)
+			sb.WriteString("\n")
+		} else if sb.Len()+len(domainLabel)+1 <= budget {
+			// D-08: Truncate to counts-only
+			sb.WriteString(domainLabel)
+			sb.WriteString("\n")
+		} else {
+			// D-08: Drop entirely
+			break
+		}
+	}
+
+	content := sb.String()
+
+	// 5. Write cache (D-04)
+	cache = priorReviewsCache{
+		Text:         content,
+		DomainCounts: domainCounts,
+		TotalOpen:    totalOpen,
+		CacheWriteAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	_ = s.SaveJSON(cachePath, cache)
+
+	// 6. Compute scores (D-12)
+	now := time.Now().UTC()
+	freshnessScore := 1.0
+	if latestTimestamp != "" {
+		freshnessScore = freshnessScoreFromTimestamp(latestTimestamp, now, 0.85)
+	}
+
+	return colonyPrimeSection{
+		name:              "prior_reviews",
+		title:             "Prior Reviews",
+		source:            filepath.Join(s.BasePath(), cachePath),
+		content:           content,
+		priority:          8,
+		freshnessScore:    freshnessScore,
+		confirmationScore: 1.0, // D-12: findings are factual
+		relevanceScore:    sectionRelevanceScore("prior_reviews"),
+	}, totalOpen
+}
+
 func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 	budget := 8000
 	if compact {
@@ -186,6 +396,26 @@ func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 		protected:         stateProtected,
 		preserveReason:    statePreserveReason,
 	})
+
+	// Review depth section (D-13, D-14)
+	if state.CurrentPhase > 0 && state.CurrentPhase <= len(state.Plan.Phases) {
+		reviewPhase := state.Plan.Phases[state.CurrentPhase-1]
+		reviewDepth := resolveReviewDepth(reviewPhase, len(state.Plan.Phases), false, false)
+		var depthText string
+		if reviewDepth == ReviewDepthLight {
+			depthText = "Light review -- core verification only"
+		} else {
+			depthText = "Heavy review -- full quality gauntlet"
+		}
+		sections = append(sections, colonyPrimeSection{
+			name:           "review_depth",
+			title:          "Review Depth",
+			source:         statePath,
+			content:        fmt.Sprintf("## Review Depth\n\n%s\n", depthText),
+			priority:       6,
+			freshnessScore: 1.0,
+		})
+	}
 
 	now := time.Now().UTC()
 	pf, phErr := loadPheromonesOnce(store, sc)
@@ -345,8 +575,35 @@ func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 		})
 	}
 
+	// Global QUEEN.md wisdom (cross-colony, hub-level)
+	globalQueenPath := filepath.Join(hubDir, "QUEEN.md")
+	globalWisdom := readQUEENMd(globalQueenPath)
+	if len(globalWisdom) > 0 {
+		var gwSB strings.Builder
+		gwSB.WriteString("## GLOBAL QUEEN WISDOM (Cross-Colony)\n\n")
+		for _, v := range globalWisdom {
+			gwSB.WriteString(fmt.Sprintf("- %s\n", v))
+		}
+		gqProtected, gqPreserveReason := protectedSectionPolicy("global_queen_md")
+		sections = append(sections, colonyPrimeSection{
+			name:              "global_queen_md",
+			title:             "Global Queen Wisdom",
+			source:            globalQueenPath,
+			content:           gwSB.String(),
+			priority:          5,
+			freshnessScore:    0.85,
+			confirmationScore: 0.90,
+			relevanceScore:    sectionRelevanceScore("global_queen_md"),
+			protected:         gqProtected,
+			preserveReason:    gqPreserveReason,
+		})
+	}
+
 	queenPath := filepath.Join(hubDir, "QUEEN.md")
 	userPrefs := readUserPreferences(queenPath)
+	// Also read local repo QUEEN.md user preferences
+	localQueenPath := filepath.Join(filepath.Dir(store.BasePath()), "QUEEN.md")
+	userPrefs = append(userPrefs, readUserPreferences(localQueenPath)...)
 	if len(userPrefs) > 0 {
 		var prefsSB strings.Builder
 		prefsSB.WriteString("## USER PREFERENCES\n\n")
@@ -365,6 +622,33 @@ func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 			relevanceScore:    sectionRelevanceScore("user_preferences"),
 			protected:         prefsProtected,
 			preserveReason:    prefsPreserveReason,
+		})
+	}
+
+	// Prior Reviews -- open review findings from domain ledgers
+	priorReviewsSection, reviewCount := buildPriorReviewsSection(store, compact)
+	if reviewCount > 0 {
+		result.ReviewCount = reviewCount
+		sections = append(sections, priorReviewsSection)
+	}
+
+	// Local QUEEN.md wisdom (repo-specific)
+	localWisdom := readQUEENMd(localQueenPath)
+	if len(localWisdom) > 0 {
+		var lwSB strings.Builder
+		lwSB.WriteString("## LOCAL QUEEN WISDOM (Repo-Specific)\n\n")
+		for _, v := range localWisdom {
+			lwSB.WriteString(fmt.Sprintf("- %s\n", v))
+		}
+		sections = append(sections, colonyPrimeSection{
+			name:              "local_queen_wisdom",
+			title:             "Local Queen Wisdom",
+			source:            localQueenPath,
+			content:           lwSB.String(),
+			priority:          5,
+			freshnessScore:    0.80,
+			confirmationScore: 0.85,
+			relevanceScore:    sectionRelevanceScore("local_queen_wisdom"),
 		})
 	}
 
@@ -499,7 +783,7 @@ func buildColonyPrimeOutput(compact bool) colonyPrimeOutput {
 	result.Context = context
 	result.PromptSection = context
 	result.Used = ranking.Used
-	result.LogLine = fmt.Sprintf("colony-prime loaded %d signal(s), %d instinct(s), used %d/%d chars", result.SignalCount, result.InstinctCount, ranking.Used, budget)
+	result.LogLine = fmt.Sprintf("colony-prime loaded %d signal(s), %d instinct(s), %d review(s), used %d/%d chars", result.SignalCount, result.InstinctCount, result.ReviewCount, ranking.Used, budget)
 	return result
 }
 

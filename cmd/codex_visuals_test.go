@@ -780,6 +780,22 @@ func TestInstallVisualOutput(t *testing.T) {
 	}
 }
 
+func TestRenderBinaryActionVisualPublishGuidanceSeparatesRepoSetupFromUpdate(t *testing.T) {
+	output := renderBinaryActionVisual("Publish Complete", "Aether v1.0.24 published", "1.0.24", "/tmp/home/.aether")
+
+	for _, want := range []string{
+		"Existing repos: run `aether update --force` to refresh companion files from the hub.",
+		"New repos: run `aether lay-eggs` to set up Aether.",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("publish visual output missing %q\n%s", want, output)
+		}
+	}
+	if strings.Contains(output, "lay-eggs` in a repo to use the refreshed binary and companion files") {
+		t.Fatalf("publish visual output still uses ambiguous lay-eggs guidance:\n%s", output)
+	}
+}
+
 func TestRenderUpdateVisualNoChangesSaysNoFollowUpRequired(t *testing.T) {
 	output := renderUpdateVisual(
 		"/tmp/example",
@@ -1825,6 +1841,59 @@ func TestCasteIdentityMedic(t *testing.T) {
 	color := casteANSIColor("medic")
 	if color == "" {
 		t.Errorf("casteANSIColor(medic): expected a color code, got empty")
+	}
+}
+
+// --- Porter Caste Tests (Phase 61) ---
+
+func TestCasteIdentityPorter(t *testing.T) {
+	os.Setenv("AETHER_FORCE_COLOR", "1")
+	defer os.Unsetenv("AETHER_FORCE_COLOR")
+
+	const porterEmoji = "📦"
+	const porterColor = "96"
+	const porterLabel = "Porter"
+
+	identity := casteIdentity("porter")
+	if !strings.Contains(identity, porterEmoji) {
+		t.Errorf("casteIdentity(porter): expected 📦 emoji, got %q", identity)
+	}
+	if !strings.Contains(identity, porterLabel) {
+		t.Errorf("casteIdentity(porter): expected 'Porter' label, got %q", identity)
+	}
+	emoji := casteEmoji("porter")
+	if emoji != porterEmoji {
+		t.Errorf("casteEmoji(porter): expected 📦, got %q", emoji)
+	}
+	label := casteLabel("porter")
+	if label != porterLabel {
+		t.Errorf("casteLabel(porter): expected 'Porter', got %q", label)
+	}
+	color := casteANSIColor("porter")
+	if color != porterColor {
+		t.Errorf("casteANSIColor(porter): expected %q, got %q", porterColor, color)
+	}
+}
+
+func TestGatekeeperEmojiCrossedSwords(t *testing.T) {
+	emoji := casteEmoji("gatekeeper")
+	if emoji != "⚔️" {
+		t.Errorf("casteEmoji(gatekeeper): expected ⚔️ (crossed swords), got %q", emoji)
+	}
+}
+
+func TestPorterPrefixes(t *testing.T) {
+	prefixes, ok := castePrefixes["porter"]
+	if !ok {
+		t.Fatalf("castePrefixes missing 'porter' key")
+	}
+	if len(prefixes) != 8 {
+		t.Errorf("expected 8 porter prefixes, got %d", len(prefixes))
+	}
+	for _, p := range prefixes {
+		if p == "" {
+			t.Errorf("porter prefix is empty")
+		}
 	}
 }
 

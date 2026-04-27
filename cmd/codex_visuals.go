@@ -40,7 +40,8 @@ var casteEmojiMap = map[string]string{
 	"ambassador":    "🔌",
 	"auditor":       "👥",
 	"chronicler":    "📝",
-	"gatekeeper":    "📦",
+	"gatekeeper":    "⚔️",
+	"porter":        "📦",
 	"guardian":      "🛡️",
 	"includer":      "♿",
 	"keeper":        "📚",
@@ -77,6 +78,7 @@ var casteColorMap = map[string]string{
 	"weaver":        "95",
 	"dreamer":       "90",
 	"medic":         "96",
+	"porter":        "96",
 }
 
 var casteLabelMap = map[string]string{
@@ -104,6 +106,7 @@ var casteLabelMap = map[string]string{
 	"weaver":        "Weaver",
 	"dreamer":       "Dreamer",
 	"medic":         "Medic",
+	"porter":        "Porter",
 }
 
 var commandEmojiMap = map[string]string{
@@ -896,11 +899,29 @@ func renderPlanDispatchPreview(goal string, dispatches []codexPlanningDispatch) 
 	return b.String()
 }
 
-func renderBuildVisual(state colony.ColonyState, phase colony.Phase) string {
-	return renderBuildVisualWithDispatches(state, phase, plannedBuildDispatches(phase, state.ColonyDepth))
+func reviewDepthFromResult(result map[string]interface{}) ReviewDepth {
+	if rd, ok := result["review_depth"].(string); ok && rd == "heavy" {
+		return ReviewDepthHeavy
+	}
+	return ReviewDepthLight
 }
 
-func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
+func renderReviewDepthLine(depth ReviewDepth, phaseNum, totalPhases int) string {
+	if depth == ReviewDepthHeavy {
+		if phaseNum == totalPhases {
+			return "Review depth: heavy (final phase)"
+		}
+		return fmt.Sprintf("Review depth: heavy (Phase %d of %d)", phaseNum, totalPhases)
+	}
+	return fmt.Sprintf("Review depth: light (Phase %d of %d -- final phase gets full review)", phaseNum, totalPhases)
+}
+
+func renderBuildVisual(state colony.ColonyState, phase colony.Phase) string {
+	reviewDepth := resolveReviewDepth(phase, len(state.Plan.Phases), false, false)
+	return renderBuildVisualWithDispatches(state, phase, plannedBuildDispatches(phase, state.ColonyDepth), reviewDepth)
+}
+
+func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch, reviewDepth ReviewDepth) string {
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("build"), fmt.Sprintf("Build Phase %d", phase.ID)))
 	b.WriteString(visualDivider)
@@ -908,6 +929,8 @@ func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phas
 	b.WriteString("\n")
 	b.WriteString("Phase: ")
 	b.WriteString(phase.Name)
+	b.WriteString("\n")
+	b.WriteString(renderReviewDepthLine(reviewDepth, phase.ID, len(state.Plan.Phases)))
 	b.WriteString("\n")
 	if strings.TrimSpace(phase.Description) != "" {
 		b.WriteString("Objective: ")
@@ -951,7 +974,7 @@ func renderBuildVisualWithDispatches(state colony.ColonyState, phase colony.Phas
 	return b.String()
 }
 
-func renderBuildPlanOnlyVisual(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch) string {
+func renderBuildPlanOnlyVisual(state colony.ColonyState, phase colony.Phase, dispatches []codexBuildDispatch, reviewDepth ReviewDepth) string {
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("build-dispatch"), fmt.Sprintf("Build Plan %d", phase.ID)))
 	b.WriteString(visualDivider)
@@ -960,6 +983,8 @@ func renderBuildPlanOnlyVisual(state colony.ColonyState, phase colony.Phase, dis
 	b.WriteString("\n")
 	b.WriteString("Phase: ")
 	b.WriteString(phase.Name)
+	b.WriteString("\n")
+	b.WriteString(renderReviewDepthLine(reviewDepth, phase.ID, len(state.Plan.Phases)))
 	b.WriteString("\n")
 	if strings.TrimSpace(phase.Description) != "" {
 		b.WriteString("Objective: ")
@@ -1018,10 +1043,12 @@ func renderBuildDispatchPreview(state colony.ColonyState, phase colony.Phase, di
 	return b.String()
 }
 
-func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekeeping *signalHousekeepingResult, final bool, nextPhase *colony.Phase, result map[string]interface{}) string {
+func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekeeping *signalHousekeepingResult, final bool, nextPhase *colony.Phase, result map[string]interface{}, reviewDepth ReviewDepth) string {
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("continue"), "Continue"))
 	b.WriteString(visualDivider)
+	b.WriteString(renderReviewDepthLine(reviewDepth, phase.ID, len(state.Plan.Phases)))
+	b.WriteString("\n")
 	b.WriteString(renderStageMarker("Verification"))
 	if partial, _ := result["partial_success"].(bool); partial {
 		b.WriteString("Verification passed with partial operational success.\n")
@@ -1084,12 +1111,14 @@ func renderContinueVisual(state colony.ColonyState, phase colony.Phase, housekee
 	return b.String()
 }
 
-func renderContinuePlanOnlyVisual(state colony.ColonyState, phase colony.Phase, dispatches []codexContinueExternalDispatch) string {
+func renderContinuePlanOnlyVisual(state colony.ColonyState, phase colony.Phase, dispatches []codexContinueExternalDispatch, reviewDepth ReviewDepth) string {
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("continue"), "Continue Plan"))
 	b.WriteString(visualDivider)
 	b.WriteString("Verification snapshot and review manifest only. No state was changed and no review workers were spawned.\n")
 	b.WriteString(renderProgressSummary(phase.ID, len(state.Plan.Phases)))
+	b.WriteString("\n")
+	b.WriteString(renderReviewDepthLine(reviewDepth, phase.ID, len(state.Plan.Phases)))
 	b.WriteString("\n")
 	b.WriteString("Phase: ")
 	b.WriteString(phase.Name)
@@ -1122,10 +1151,12 @@ func renderContinuePlanOnlyVisual(state colony.ColonyState, phase colony.Phase, 
 	return b.String()
 }
 
-func renderContinueBlockedVisual(state colony.ColonyState, phase colony.Phase, result map[string]interface{}) string {
+func renderContinueBlockedVisual(state colony.ColonyState, phase colony.Phase, result map[string]interface{}, reviewDepth ReviewDepth) string {
 	var b strings.Builder
 	b.WriteString(renderBanner(commandEmoji("continue-blocked"), "Continue Blocked"))
 	b.WriteString(visualDivider)
+	b.WriteString(renderReviewDepthLine(reviewDepth, phase.ID, len(state.Plan.Phases)))
+	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("Phase %d remains active: %s\n", phase.ID, phase.Name))
 	renderContinueVerificationSummaryMap(&b, mapValue(result["verification"]))
 	renderContinueGateSummaryMap(&b, mapValue(result["gates"]))
@@ -1369,8 +1400,8 @@ func renderSetupVisual(repoDir string, results []map[string]interface{}, totalCo
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf("Assets: %d copied, %d unchanged\n\n", totalCopied, totalSkipped))
 	b.WriteString(renderSyncSummary(results))
-	if restartNote := codexRestartMessage(restartTargets); restartNote != "" {
-		b.WriteString("\nCodex Refresh\n")
+	if restartNote := platformRestartMessage(restartTargets); restartNote != "" {
+		b.WriteString("\nSession Refresh\n")
 		b.WriteString("  ")
 		b.WriteString(restartNote)
 		b.WriteString("\n")
@@ -1378,8 +1409,8 @@ func renderSetupVisual(repoDir string, results []map[string]interface{}, totalCo
 	primaryNext := `Run ` + "`aether init \"your goal\"`" + ` to start a colony.`
 	secondaryNext := `Run ` + "`aether colonize`" + ` after init if you want a quick territory scan before planning.`
 	if len(restartTargets) > 0 {
-		primaryNext = `Close this Codex chat, start a new Codex session in this repo, then run ` + "`aether init \"your goal\"`" + `.`
-		secondaryNext = `After reopening Codex, run ` + "`aether colonize`" + ` if you want a quick territory scan before planning.`
+		primaryNext = `Restart your session in this repo (Codex or OpenCode), then run ` + "`aether init \"your goal\"`" + `.`
+		secondaryNext = `After restarting, run ` + "`aether colonize`" + ` if you want a quick territory scan before planning.`
 	}
 	b.WriteString(renderNextUp(
 		primaryNext,
@@ -1442,8 +1473,8 @@ func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun 
 		b.WriteString(renderNextUp(next, alt, runtimeAlt))
 		return b.String()
 	}
-	if restartNote := codexRestartMessage(restartTargets); restartNote != "" {
-		b.WriteString("\nCodex Refresh\n")
+	if restartNote := platformRestartMessage(restartTargets); restartNote != "" {
+		b.WriteString("\nSession Refresh\n")
 		b.WriteString("  ")
 		b.WriteString(restartNote)
 		b.WriteString("\n")
@@ -1460,8 +1491,8 @@ func renderUpdateVisual(repoDir, hubVersion, localVersion string, force, dryRun 
 	secondaryNext := `Run ` + "`aether init \"next goal\"`" + ` if this repo does not have an active colony yet.`
 	runtimeNext := `Run ` + "`aether update --download-binary`" + ` if you also need a published runtime update.`
 	if len(restartTargets) > 0 {
-		primaryNext = `Close this Codex chat, start a new Codex session in this repo, then run ` + "`aether status`" + `.`
-		secondaryNext = `After reopening Codex, run ` + "`aether init \"next goal\"`" + ` if this repo does not have an active colony yet.`
+		primaryNext = `Restart your session in this repo (Codex or OpenCode), then run ` + "`aether status`" + `.`
+		secondaryNext = `After restarting, run ` + "`aether init \"next goal\"`" + ` if this repo does not have an active colony yet.`
 	}
 	b.WriteString(renderNextUp(
 		primaryNext,
@@ -1586,10 +1617,31 @@ func renderBinaryActionVisual(title, message, version, path string) string {
 		b.WriteString(path)
 		b.WriteString("\n")
 	}
-	b.WriteString(renderNextUp(
-		`Run ` + "`aether lay-eggs`" + ` in a repo to use the refreshed binary and companion files.`,
-	))
+	b.WriteString(renderBinaryActionNextUp(title))
 	return b.String()
+}
+
+func renderBinaryActionNextUp(title string) string {
+	switch strings.ToLower(strings.TrimSpace(title)) {
+	case "publish complete":
+		return renderNextUp(
+			`Existing repos: run `+"`aether update --force`"+` to refresh companion files from the hub.`,
+			`New repos: run `+"`aether lay-eggs`"+` to set up Aether.`,
+			`Active Codex chats: restart after updating if Codex skills or agents changed.`,
+		)
+	case "binary build":
+		return renderNextUp(
+			`The shared binary is available on the next `+"`aether`"+` invocation.`,
+			`Existing repos: run `+"`aether update --force`"+` after publish/install completes if companion files changed.`,
+			`New repos: run `+"`aether lay-eggs`"+` to set up Aether.`,
+		)
+	default:
+		return renderNextUp(
+			`The shared binary is available on the next `+"`aether`"+` invocation.`,
+			`Existing repos: run `+"`aether update --force`"+` if companion files also need refresh.`,
+			`New repos: run `+"`aether lay-eggs`"+` to set up Aether.`,
+		)
+	}
 }
 
 func renderPauseVisual(result map[string]interface{}) string {

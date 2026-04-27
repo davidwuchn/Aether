@@ -12,6 +12,8 @@ import (
 
 	"github.com/calcosmic/Aether/pkg/colony"
 	"github.com/calcosmic/Aether/pkg/events"
+	"github.com/calcosmic/Aether/pkg/storage"
+	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/spf13/cobra"
 )
 
@@ -103,14 +105,22 @@ var buildCmd = &cobra.Command{
 				outputError(1, err.Error(), nil)
 				return nil
 			}
-			outputWorkflow(result, renderBuildPlanOnlyVisual(state, phase, dispatches))
+			reviewDepthPlan := ReviewDepthLight
+			if rd, ok := result["review_depth"].(string); ok && rd == "heavy" {
+				reviewDepthPlan = ReviewDepthHeavy
+			}
+			outputWorkflow(result, renderBuildPlanOnlyVisual(state, phase, dispatches, reviewDepthPlan))
 			return nil
 		}
 
 		syntheticBuild, _ := cmd.Flags().GetBool("synthetic")
+		lightFlag, _ := cmd.Flags().GetBool("light")
+		heavyFlag, _ := cmd.Flags().GetBool("heavy")
 		result, err := runCodexBuildWithOptions(skillWorkspaceRoot(), phaseNum, selectedTasks, syntheticBuild, codexBuildOptions{
 			WorkerTimeout: workerTimeout,
 			Force:         forceBuild,
+			LightFlag:     lightFlag,
+			HeavyFlag:     heavyFlag,
 		})
 		if err != nil {
 			outputError(1, err.Error(), nil)
@@ -131,7 +141,11 @@ var buildCmd = &cobra.Command{
 				dispatches = manifest.Dispatches
 			}
 		}
-		outputWorkflow(result, renderBuildVisualWithDispatches(state, state.Plan.Phases[phaseNum-1], dispatches))
+		reviewDepthBuild := ReviewDepthLight
+		if rd, ok := result["review_depth"].(string); ok && rd == "heavy" {
+			reviewDepthBuild = ReviewDepthHeavy
+		}
+		outputWorkflow(result, renderBuildVisualWithDispatches(state, state.Plan.Phases[phaseNum-1], dispatches, reviewDepthBuild))
 		return nil
 	},
 }
@@ -147,22 +161,28 @@ var continueCmd = &cobra.Command{
 			return nil
 		}
 		planOnly, _ := cmd.Flags().GetBool("plan-only")
+		lightFlag, _ := cmd.Flags().GetBool("light")
+		heavyFlag, _ := cmd.Flags().GetBool("heavy")
 		if planOnly {
 			result, state, phase, dispatches, err := runCodexContinuePlanOnly(skillWorkspaceRoot(), codexContinueOptions{
 				ReconcileTaskIDs: normalizeCLIStringList(mustGetStringArray(cmd, "reconcile-task")),
 				WorkerTimeout:    workerTimeout,
+				LightFlag:        lightFlag,
+				HeavyFlag:        heavyFlag,
 			})
 			if err != nil {
 				outputError(1, err.Error(), nil)
 				return nil
 			}
-			outputWorkflow(result, renderContinuePlanOnlyVisual(state, phase, dispatches))
+			outputWorkflow(result, renderContinuePlanOnlyVisual(state, phase, dispatches, reviewDepthFromResult(result)))
 			return nil
 		}
 
 		result, state, phase, nextPhase, housekeeping, final, err := runCodexContinue(skillWorkspaceRoot(), codexContinueOptions{
 			ReconcileTaskIDs: normalizeCLIStringList(mustGetStringArray(cmd, "reconcile-task")),
 			WorkerTimeout:    workerTimeout,
+			LightFlag:        lightFlag,
+			HeavyFlag:        heavyFlag,
 		})
 		if err != nil {
 			outputError(1, err.Error(), nil)
@@ -170,11 +190,15 @@ var continueCmd = &cobra.Command{
 		}
 
 		if blocked, _ := result["blocked"].(bool); blocked {
-			outputWorkflow(result, renderContinueBlockedVisual(state, phase, result))
+			outputWorkflow(result, renderContinueBlockedVisual(state, phase, result, reviewDepthFromResult(result)))
 			return nil
 		}
 
-		outputWorkflow(result, renderContinueVisual(state, phase, housekeeping, final, nextPhase, result))
+		reviewDepthContinue := ReviewDepthLight
+		if rd, ok := result["review_depth"].(string); ok && rd == "heavy" {
+			reviewDepthContinue = ReviewDepthHeavy
+		}
+		outputWorkflow(result, renderContinueVisual(state, phase, housekeeping, final, nextPhase, result, reviewDepthContinue))
 		return nil
 	},
 }
@@ -242,6 +266,44 @@ var sealCmd = &cobra.Command{
 			}
 		}
 
+		// Check for blocker-severity flags
+		blockers, issues := checkSealBlockers(store)
+		if len(blockers) > 0 {
+			forceFlag, _ := cmd.Flags().GetBool("force")
+			if !forceFlag {
+				outputError(1, renderBlockerSummary(blockers, issues), nil)
+				return nil
+			}
+			// --force: warn but continue
+			fmt.Fprintln(stdout, fmt.Sprintf("WARNING: Overriding %d blocker(s) with --force", len(blockers)))
+		} else if len(issues) > 0 {
+			fmt.Fprintln(stdout, fmt.Sprintf("NOTE: %d unresolved issue-severity flag(s)", len(issues)))
+		}
+
+		// Ceremony Step 1: Promote high-confidence instincts to LOCAL QUEEN.md only (D-08)
+		var promotedInstinctNames []string
+		var hiveEligibleCount int
+		if entries, err := loadActiveInstinctEntriesFromStore(store); err == nil {
+			for _, entry := range entries {
+				if entry.Confidence >= 0.8 && entry.Action != "" {
+					if err := promoteInstinctLocal(store, entry.ID, entry.Action); err == nil {
+						promotedInstinctNames = append(promotedInstinctNames, entry.ID)
+					}
+				}
+				if entry.Confidence >= 0.8 {
+					hiveEligibleCount++
+				}
+			}
+		}
+
+		// Ceremony Step 2: Log hive-eligible count as suggestion (D-09)
+		if hiveEligibleCount > 0 {
+			fmt.Fprintln(stdout, fmt.Sprintf("SUGGESTION: %d instinct(s) eligible for global promotion. Run 'aether queen-promote-instinct <id>' or 'aether hive-promote' to promote.", hiveEligibleCount))
+		}
+
+		// Ceremony Step 3: Expire all FOCUS pheromones, preserve REDIRECT (D-03)
+		expiredFOCUSCount := expireSignalsByType(store, "FOCUS")
+
 		now := time.Now().UTC().Format(time.RFC3339)
 		state.State = colony.StateCOMPLETED
 		state.Milestone = "Crowned Anthill"
@@ -253,8 +315,24 @@ var sealCmd = &cobra.Command{
 			return nil
 		}
 
-		summaryPath := filepath.Join(filepath.Dir(store.BasePath()), "CROWNED-ANTHILL.md")
-		summary := buildSealSummary(state, now)
+		// Scan for high-severity open findings before building summary
+		warnings := scanHighSeverityOpen(store)
+
+		// Archive reviews directory alongside CROWNED-ANTHILL.md
+		aetherDir := filepath.Dir(store.BasePath())
+		_ = copyDirIfExists(filepath.Join(filepath.Dir(store.BasePath()), "data", "reviews"), filepath.Join(aetherDir, "reviews-archive"))
+
+		// Build enrichment data for CROWNED-ANTHILL.md
+		enrichment := sealEnrichment{
+			LearningsCount:    len(state.Memory.PhaseLearnings),
+			InstinctsPromoted: promotedInstinctNames,
+			HiveEligible:      hiveEligibleCount,
+			SignalsExpired:    expiredFOCUSCount,
+			FlagsResolved:     countResolvedFlags(store),
+		}
+
+		summaryPath := filepath.Join(aetherDir, "CROWNED-ANTHILL.md")
+		summary := buildSealSummary(state, now, warnings, enrichment)
 		if err := os.WriteFile(summaryPath, []byte(summary), 0644); err != nil {
 			outputError(2, fmt.Sprintf("failed to write %s: %v", summaryPath, err), nil)
 			return nil
@@ -275,6 +353,12 @@ var sealCmd = &cobra.Command{
 			"summary":   summaryPath,
 		}
 		outputWorkflow(result, renderSealVisual(state, summaryPath))
+
+		// Post-seal Porter readiness summary
+		fmt.Fprint(stdout, renderStageMarker("Post-Seal: Delivery Readiness"))
+		readinessSummary := buildPorterReadinessSummary()
+		fmt.Fprint(stdout, readinessSummary)
+		fmt.Fprintln(stdout, "\nRun `/ant-porter` or `aether porter check` to validate and deliver.")
 		return nil
 	},
 }
@@ -570,7 +654,110 @@ func detectDomainsFromRoot(root string) []string {
 	return domains
 }
 
-func buildSealSummary(state colony.ColonyState, sealedAt string) string {
+// scanHighSeverityOpen iterates all domain ledgers and collects warning strings
+// for entries that are both open and HIGH severity.
+func scanHighSeverityOpen(s *storage.Store) []string {
+	var warnings []string
+	for _, d := range colony.DomainOrder {
+		ledgerPath := fmt.Sprintf("reviews/%s/ledger.json", d)
+		var lf colony.ReviewLedgerFile
+		if err := s.LoadJSON(ledgerPath, &lf); err != nil {
+			continue
+		}
+		for _, e := range lf.Entries {
+			if e.Status == "open" && e.Severity == colony.ReviewSeverityHigh {
+				loc := ""
+				if e.File != "" {
+					loc = e.File
+					if e.Line > 0 {
+						loc = fmt.Sprintf("%s:%d", e.File, e.Line)
+					}
+				}
+				if loc != "" {
+					warnings = append(warnings, fmt.Sprintf("- [%s] %s: %s (%s)", d, e.ID, e.Description, loc))
+				} else {
+					warnings = append(warnings, fmt.Sprintf("- [%s] %s: %s", d, e.ID, e.Description))
+				}
+			}
+		}
+	}
+	return warnings
+}
+
+// checkSealBlockers loads flags from pending-decisions.json (fallback flags.json),
+// splits unresolved entries into blockers and issues.
+func checkSealBlockers(s *storage.Store) (blockers []colony.FlagEntry, issues []colony.FlagEntry) {
+	var ff colony.FlagsFile
+	if err := s.LoadJSON("pending-decisions.json", &ff); err != nil {
+		if err2 := s.LoadJSON("flags.json", &ff); err2 != nil {
+			return nil, nil
+		}
+	}
+	for _, f := range ff.Decisions {
+		if f.Resolved {
+			continue
+		}
+		switch f.Type {
+		case "blocker":
+			blockers = append(blockers, f)
+		case "issue":
+			issues = append(issues, f)
+		}
+	}
+	return blockers, issues
+}
+
+// renderBlockerSummary formats blocker and issue flags as a table with resolution hints.
+func renderBlockerSummary(blockers []colony.FlagEntry, issues []colony.FlagEntry) string {
+	var b strings.Builder
+	t := table.NewWriter()
+	t.AppendHeader(table.Row{"ID", "Description", "Type", "Created"})
+	for _, entry := range blockers {
+		desc := entry.Description
+		if len(desc) > 40 {
+			desc = desc[:37] + "..."
+		}
+		t.AppendRow(table.Row{entry.ID, desc, entry.Type, entry.CreatedAt})
+	}
+	t.SetStyle(table.StyleRounded)
+	b.WriteString(t.Render())
+	b.WriteString("\n\nBLOCKED: Resolve blockers above or use --force to override.\n")
+	for _, bl := range blockers {
+		b.WriteString(fmt.Sprintf("  aether flag %s --resolve\n", bl.ID))
+	}
+	if len(issues) > 0 {
+		b.WriteString(fmt.Sprintf("\nNOTE: %d issue-severity flag(s) also unresolved.\n", len(issues)))
+	}
+	return b.String()
+}
+
+// countResolvedFlags loads the flags file and counts resolved entries.
+func countResolvedFlags(s *storage.Store) int {
+	var ff colony.FlagsFile
+	if err := s.LoadJSON("pending-decisions.json", &ff); err != nil {
+		if err2 := s.LoadJSON("flags.json", &ff); err2 != nil {
+			return 0
+		}
+	}
+	count := 0
+	for _, f := range ff.Decisions {
+		if f.Resolved {
+			count++
+		}
+	}
+	return count
+}
+
+// sealEnrichment holds data for enriching the CROWNED-ANTHILL.md summary.
+type sealEnrichment struct {
+	LearningsCount    int
+	InstinctsPromoted []string
+	HiveEligible      int
+	SignalsExpired    int
+	FlagsResolved     int
+}
+
+func buildSealSummary(state colony.ColonyState, sealedAt string, warnings []string, enrichment sealEnrichment) string {
 	goal := ""
 	if state.Goal != nil {
 		goal = *state.Goal
@@ -583,10 +770,37 @@ func buildSealSummary(state colony.ColonyState, sealedAt string) string {
 	if state.CurrentPhase > 0 {
 		b.WriteString(fmt.Sprintf("- Final phase: %d\n", state.CurrentPhase))
 	}
+	// Add review warnings section if any high-severity open findings exist
+	if len(warnings) > 0 {
+		b.WriteString(fmt.Sprintf("\n## Review Warnings\nWARNING: %d high-severity unresolved finding(s):\n", len(warnings)))
+		for _, w := range warnings {
+			b.WriteString(w + "\n")
+		}
+	}
+
 	b.WriteString("\n## Phase Summary\n")
 	for _, phase := range state.Plan.Phases {
 		b.WriteString(fmt.Sprintf("- Phase %d: %s [%s]\n", phase.ID, phase.Name, phase.Status))
 	}
+
+	// Colony Statistics enrichment
+	b.WriteString("\n## Colony Statistics\n")
+	b.WriteString("| Metric | Count |\n|--------|-------|\n")
+	b.WriteString(fmt.Sprintf("| Learnings captured | %d |\n", enrichment.LearningsCount))
+	b.WriteString(fmt.Sprintf("| Instincts promoted | %d |\n", len(enrichment.InstinctsPromoted)))
+	b.WriteString(fmt.Sprintf("| Hive-eligible instincts | %d |\n", enrichment.HiveEligible))
+	b.WriteString(fmt.Sprintf("| FOCUS signals expired | %d |\n", enrichment.SignalsExpired))
+	b.WriteString(fmt.Sprintf("| Flags resolved | %d |\n", enrichment.FlagsResolved))
+
+	if len(enrichment.InstinctsPromoted) > 0 {
+		b.WriteString("\n### Promoted Instincts\n")
+		for _, id := range enrichment.InstinctsPromoted {
+			b.WriteString(fmt.Sprintf("- %s\n", id))
+		}
+	}
+
+	b.WriteString(fmt.Sprintf("\n### Signal Cleanup\n- FOCUS signals expired: %d\n- REDIRECT signals preserved\n", enrichment.SignalsExpired))
+
 	return b.String()
 }
 
@@ -641,13 +855,18 @@ func init() {
 	buildCmd.Flags().Bool("plan-only", false, "Print the build dispatch manifest without mutating colony state or spawning workers")
 	buildCmd.Flags().Bool("synthetic", false, "Skip real worker dispatch and use local synthesis only")
 	buildCmd.Flags().Duration("worker-timeout", 0, "Override per-worker timeout for build dispatches (e.g. 15m)")
+	buildCmd.Flags().Bool("light", false, "Force light review (skip heavy agents on intermediate phases)")
+	buildCmd.Flags().Bool("heavy", false, "Force heavy review (full quality gauntlet on any phase)")
 	buildFinalizeCmd.Flags().String("completion-file", "", "JSON file containing dispatch_manifest and external worker results (use - for stdin)")
 	continueCmd.Flags().StringArray("reconcile-task", nil, "Mark one or more task IDs as manually reconciled before continue gating (repeatable or comma-separated)")
 	continueCmd.Flags().Bool("plan-only", false, "Print the continue verification/review manifest without mutating colony state or spawning review workers")
+	continueCmd.Flags().Bool("light", false, "Force light review (skip heavy review agents)")
+	continueCmd.Flags().Bool("heavy", false, "Force heavy review (full review gauntlet)")
 	continueCmd.Flags().Duration("worker-timeout", 0, "Override per-worker timeout for continue verification/review dispatches (e.g. 15m)")
 	continueFinalizeCmd.Flags().String("completion-file", "", "JSON file containing continue_manifest and external review worker results (use - for stdin)")
 	skipPhaseCmd.Flags().Bool("force", false, "Confirm that the phase should be abandoned and marked complete")
 	skipPhaseCmd.Flags().String("reason", "", "Audit reason for force-skipping the phase")
+	sealCmd.Flags().Bool("force", false, "Force seal even with active blockers")
 	preferencesCmd.Flags().Bool("list", false, "List stored preferences")
 
 	rootCmd.AddCommand(layEggsCmd)

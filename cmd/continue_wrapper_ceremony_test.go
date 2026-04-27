@@ -128,19 +128,19 @@ func TestContinueWrapperCeremonyContract(t *testing.T) {
 	phase := colony.Phase{ID: 1, Name: "Contract check"}
 
 	// Non-final case
-	nonFinalOutput := renderContinueVisual(state, phase, nil, false, &colony.Phase{ID: 2, Name: "Next"}, nil)
+	nonFinalOutput := renderContinueVisual(state, phase, nil, false, &colony.Phase{ID: 2, Name: "Next"}, nil, ReviewDepthLight)
 	if !strings.Contains(nonFinalOutput, "It's safe to clear your context now.") {
 		t.Errorf("renderContinueVisual() non-final missing context-clear guidance\n%s", nonFinalOutput)
 	}
 
 	// Final case
-	finalOutput := renderContinueVisual(state, phase, nil, true, nil, nil)
+	finalOutput := renderContinueVisual(state, phase, nil, true, nil, nil, ReviewDepthLight)
 	if !strings.Contains(finalOutput, "It's safe to clear your context now.") {
 		t.Errorf("renderContinueVisual() final missing context-clear guidance\n%s", finalOutput)
 	}
 
 	// Blocked case must NOT contain guidance
-	blockedOutput := renderContinueBlockedVisual(state, phase, nil)
+	blockedOutput := renderContinueBlockedVisual(state, phase, nil, ReviewDepthLight)
 	if strings.Contains(blockedOutput, "It's safe to clear your context now.") {
 		t.Errorf("renderContinueBlockedVisual() should not contain context-clear guidance\n%s", blockedOutput)
 	}

@@ -58,8 +58,8 @@ func TestOpenCodeAgentSchema(t *testing.T) {
 	if len(agentFiles) == 0 {
 		t.Fatal("no aether-*.md files found in .opencode/agents/")
 	}
-	if len(agentFiles) != 25 {
-		t.Errorf("expected 25 agent files, found %d", len(agentFiles))
+	if len(agentFiles) != 26 {
+		t.Errorf("expected 26 agent files, found %d", len(agentFiles))
 	}
 
 	hexColorRe := regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -116,18 +116,13 @@ func TestOpenCodeAgentSchema(t *testing.T) {
 				t.Errorf("invalid color %q (must be hex #rrggbb or theme color)", color)
 			}
 
-			// Rule 5: no name field (filename is the name)
-			if _, hasName := fm["name"]; hasName {
-				t.Error("name field must not exist (filename IS the name)")
+			// Rule 5: name field is required
+			name, ok := fm["name"].(string)
+			if !ok || strings.TrimSpace(name) == "" {
+				t.Error("missing or empty name field")
 			}
 
-			// Rule 6: model must use provider/model-id format (contains /)
-			model, ok := fm["model"].(string)
-			if !ok || strings.TrimSpace(model) == "" {
-				t.Error("missing or empty model field")
-			} else if !strings.Contains(model, "/") {
-				t.Errorf("model %q must use provider/model-id format (e.g. anthropic/claude-sonnet-4-20250514)", model)
-			}
+			// Rule 6: model is optional — OpenCode uses its global default when absent
 		})
 	}
 }

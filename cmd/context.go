@@ -1483,7 +1483,9 @@ func readQUEENMd(filePath string) map[string]string {
 		if strings.HasPrefix(trimmed, "## ") {
 			sectionName := strings.TrimPrefix(trimmed, "## ")
 			inWisdomSection = sectionName == "Wisdom" || sectionName == "Patterns" ||
-				strings.HasPrefix(sectionName, "Wisdom") || strings.HasPrefix(sectionName, "Patterns")
+				sectionName == "Philosophies" || sectionName == "Anti-Patterns" ||
+				strings.HasPrefix(sectionName, "Wisdom") || strings.HasPrefix(sectionName, "Patterns") ||
+				strings.HasPrefix(sectionName, "Philosophies") || strings.HasPrefix(sectionName, "Anti-Patterns")
 			continue
 		}
 
@@ -1497,6 +1499,15 @@ func readQUEENMd(filePath string) map[string]string {
 			val := strings.TrimSpace(trimmed[idx+2:])
 			if key != "" && val != "" {
 				result[key] = val
+			}
+			continue
+		}
+
+		// Parse "- bullet text" lines (format written by queen-promote)
+		if strings.HasPrefix(trimmed, "- ") {
+			entry := strings.TrimSpace(strings.TrimPrefix(trimmed, "- "))
+			if entry != "" {
+				result[entry] = entry
 			}
 		}
 	}
